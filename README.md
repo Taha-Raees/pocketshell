@@ -51,6 +51,8 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current milestone: **M1 — Terminal Foundation** (see `docs/ROADMAP.md`).
-Manual on-device acceptance checklists live in `docs/TESTING.md`; a green build
-alone never completes a milestone.
+Current state: **M0–M1.3 implemented and building** (see `docs/ROADMAP.md`).
+All automated tests pass and `assembleDebug` produces a working APK; the
+**manual on-device acceptance checklists** in `docs/TESTING.md` are the
+remaining gate before M2 (Linux userspace + real package management) — a green
+build alone never completes a milestone.
