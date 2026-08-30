@@ -22,3 +22,22 @@ Stage Summary:
 - Key integration hooks: TerminalSessionClient, TerminalViewClient(readControlKey/readAltKey/readShiftKey/readFnKey/onScale), KeyHandler.getCode.
 - Constraint documented for M2: targetSdk>=29 blocks exec from app-writable storage (W^X); Termux upstream targets SDK 28 for this reason; M1 unaffected (/system/bin/sh is a system binary).
 - Sandbox has no device/emulator: manual on-device acceptance stays a mandatory human step (TESTING.md).
+
+---
+Task ID: 1 (M1)
+Agent: main (Super Z)
+Task: M1 — Terminal Foundation: Gradle skeleton, vendored modules, sessions, UI, keyboard v1.
+
+Work Log:
+- Vendored terminal-emulator + terminal-view (48 files, byte-identical to upstream pin, verified via diff -r).
+- Wrote Gradle skeleton: settings.gradle.kts, root build.gradle.kts, gradle.properties, version catalog, module build scripts (Kotlin DSL ports of upstream Groovy), app module (Compose).
+- Generated Gradle wrapper 8.14.5 into repo.
+- Wrote app sources: ShellEnvironment, PocketShellSessionClient, TerminalSessionManager, PocketShellTerminalViewClient, KeyboardState, KeyLayouts (KeyAction/KeyboardKey model), TerminalKeyDispatcher, TerminalKeyboard (Compose), Theme, HomeScreen, TerminalScreen (+TerminalViewHost), ExploreAppsScreen, TerminalViewModel, MainActivity, PocketShellApp.
+- Wrote tests: KeyboardStateTest, KeyLayoutsTest (§8 coverage + FN remaps), CliAppTest (model/resolver).
+- Iterated build failures: JRE-only environment → installed Temurin JDK 21.0.12.1+1 at /home/z/tools; androidx.annotation coordinate typo; Compose BOM 2026.08.00 / core-ktx 1.19.0 / lifecycle 2.11.0 / activity 1.13.0 require compileSdk 37 + AGP 9.1 → pinned era-correct 2025.12.01 / 1.17.0 / 2.9.4 / 1.11.0; KeyAction.Char ↔ kotlin.Char clash → renamed KeyAction.Text; KeyCharacterMap.getEvents is instance method → load(VIRTUAL_KEYBOARD); upstream TerminalView has only (Context, AttributeSet) ctor.
+- VERIFIED: :app:assembleDebug BUILD SUCCESSFUL → app-debug.apk 20MB, libtermux.so present for all 4 ABIs, arm64 .so 16KB-aligned (align 2**14). All unit tests pass (upstream 19-class emulator suite + app suites).
+
+Stage Summary:
+- Real APK produced from real PTY terminal stack; toolchain pairing locked: AGP 8.13.2 + Gradle 8.14.5 + Kotlin 2.4.10 + BOM 2025.12.01 + core 1.17.0 + lifecycle 2.9.4 + activity 1.11.0.
+- Manual on-device acceptance remains pending (no device in sandbox) — TESTING.md §M1 checklist ready for a human.
+- JAVA_HOME for builds: /home/z/tools/jdk-21.0.12.1+1; ANDROID_HOME: /home/z/android-sdk.

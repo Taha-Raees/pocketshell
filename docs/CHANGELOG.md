@@ -3,6 +3,52 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.1.0-m1] — 2026-08-31 — M1: Terminal Foundation
+
+### Added
+- Gradle skeleton: settings/root/version catalog (`gradle/libs.versions.toml`),
+  wrapper (Gradle 8.14.5), pinned AGP 8.13.2 / Kotlin 2.4.10 / platform 36 /
+  NDK 28.2.13676358.
+- Vendored `:terminal-emulator` + `:terminal-view` (byte-identical upstream
+  sources at pinned commit; Kotlin-DSL build ports documented in THIRD_PARTY.md).
+- `ShellEnvironment` — real `/system/bin/sh` runtime (HOME/TMPDIR/TERM/PATH),
+  executable resolver.
+- `TerminalSessionManager` — process-scoped multi-session owner; per-session
+  PTY/env/cwd/title; finished sessions marked, never faked; CLI-app session
+  factory with executable verification.
+- `PocketShellSessionClient` / `PocketShellTerminalViewClient` — upstream
+  client implementations bridging events, clipboard, logging and keyboard
+  modifier hooks.
+- PocketShell keyboard v1 (full §8 coverage): QWERTY + digits + 28-symbol page
+  + extended row (INS/DEL/HOME/END/PGUP/PGDN), ESC/TAB/ENTER/BACKSPACE,
+  arrows, FN layer (F1–F12, HOME/END/PGUP/PGDN, DEL), one-shot/locked
+  modifiers with always-visible state, hold-to-repeat, haptics,
+  phone/tablet adaptive layouts.
+- `TerminalKeyDispatcher` — single input pipeline: keyboard → synthetic
+  KeyEvents → vendored TerminalView → upstream KeyHandler → PTY.
+- Compose UI: Home (honest empty states), Terminal (tabs + TerminalView +
+  keyboard), Explore placeholder (honest M2 notice); navigation without extra
+  dependencies.
+- CLI app architecture: `CliApp` model, DataStore registry (empty by default),
+  verified launcher.
+- Tests: upstream emulator suite (19 classes, all pass), keyboard state
+  machine, §8 symbol coverage, FN remaps, CLI app model/resolver.
+
+### Fixed
+- Kotlin `KeyAction.Char` name clashed with `kotlin.Char` → renamed to
+  `KeyAction.Text`.
+- `KeyCharacterMap.getEvents` requires an instance; use `load(VIRTUAL_KEYBOARD)`.
+- Upstream `TerminalView` exposes only `(Context, AttributeSet)` constructor.
+
+### Verification
+- `./gradlew :app:assembleDebug` → 20 MB debug APK containing `libtermux.so`
+  for all 4 ABIs, 16 KB-aligned (align 2**14).
+- All unit test suites pass (emulator + app).
+- **Manual on-device acceptance pending (docs/TESTING.md §M1) — requires a
+  human with real hardware; no device exists in this sandbox.**
+
+---
+
 ## [0.1.0-m0] — 2026-08-30 — M0: Research + Architecture
 
 ### Added

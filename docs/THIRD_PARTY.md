@@ -57,14 +57,19 @@ retain upstream notices verbatim.
 
 | Artifact | Version | License | Role |
 |---|---|---|---|
-| androidx.core:core-ktx | 1.15.0 | Apache-2.0 | KTX extensions |
-| androidx.activity:activity-compose | 1.10.1 | Apache-2.0 | Compose Activity |
-| androidx.compose BOM | 2025.12.01 | Apache-2.0 | Compose versions alignment |
+| androidx.core:core-ktx | 1.19.0 | Apache-2.0 | KTX extensions |
+| androidx.activity:activity-compose | 1.13.0 | Apache-2.0 | Compose Activity |
+| androidx.compose BOM | 2026.08.00 | Apache-2.0 | Compose versions alignment |
 | androidx.compose.material3 | via BOM | Apache-2.0 | Material 3 UI |
-| androidx.lifecycle:* | 2.9.4 | Apache-2.0 | ViewModels |
-| androidx.datastore:datastore-preferences | 1.1.7 | Apache-2.0 | Settings + CLI app registry |
+| androidx.compose.material:material-icons-extended | 1.7.8 | Apache-2.0 | Icons (frozen upstream artifact version) |
+| androidx.lifecycle:* | 2.11.0 | Apache-2.0 | ViewModels |
+| androidx.datastore:datastore-preferences | 1.2.1 | Apache-2.0 | Settings + CLI app registry |
 | org.jetbrains.kotlinx:kotlinx-serialization-json | 1.9.0 | Apache-2.0 | CliApp registry persistence |
 | junit:junit | 4.13.2 | EPL-1.0 | JVM tests (upstream emulator suite) |
+
+All versions above were verified against Google Maven / Maven Central metadata
+at M0 time (2026-08-30); the version catalog `gradle/libs.versions.toml` is the
+single source of truth.
 
 All resolved from Google Maven / Maven Central at build time with pinned
 versions (version catalog: `gradle/libs.versions.toml`).

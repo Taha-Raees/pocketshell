@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      PocketShell M1 declares ZERO permissions by design (brief §22).
+      Terminal sessions run /system/bin/sh via the vendored PTY JNI.
+      M1.2 will add a specialUse foreground service (with the matching
+      FOREGROUND_SERVICE permissions) once session retention is implemented.
+    -->
+
+    <application
+        android:name=".PocketShellApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PocketShell">
+
+        <!--
+          configChanges: the terminal must survive rotation/resize/fold without
+          Activity recreation (brief §24). Session state additionally lives in a
+          process-scoped manager, so even recreation cannot destroy sessions.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

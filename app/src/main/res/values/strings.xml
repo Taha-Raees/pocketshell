@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PocketShell</string>
+    <string name="home_tagline">A real Linux terminal &amp; your CLI apps</string>
+    <string name="terminal_card_subtitle">Open a real Linux shell</string>
+    <string name="installed_apps_title">Installed CLI Apps</string>
+    <string name="installed_apps_empty">No apps installed yet</string>
+    <string name="explore_apps">Explore CLI Apps</string>
+    <string name="active_sessions_title">Active Sessions</string>
+</resources>
