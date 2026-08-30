@@ -7,4 +7,10 @@
     <string name="installed_apps_empty">No apps installed yet</string>
     <string name="explore_apps">Explore CLI Apps</string>
     <string name="active_sessions_title">Active Sessions</string>
+    <string name="fgs_notification_title">Terminal sessions running</string>
+
+    <plurals name="fgs_notification_sessions">
+        <item quantity="one">%d session is open in the background</item>
+        <item quantity="other">%d sessions are open in the background</item>
+    </plurals>
 </resources>

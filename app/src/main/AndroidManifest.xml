@@ -2,11 +2,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      PocketShell M1 declares ZERO permissions by design (brief §22).
-      Terminal sessions run /system/bin/sh via the vendored PTY JNI.
-      M1.2 will add a specialUse foreground service (with the matching
-      FOREGROUND_SERVICE permissions) once session retention is implemented.
+      PocketShell declares only what it truly needs (brief §22):
+        - FOREGROUND_SERVICE(_SPECIAL_USE): keep real terminal sessions alive
+          while the app is backgrounded (brief §24). The service stops itself
+          when the last session closes.
+        - POST_NOTIFICATIONS: lets the session-retention notification be seen
+          on Android 13+ (service runs regardless; notification is hidden if
+          the user has not granted this).
+      No internet, no storage, no contacts — nothing else.
     -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".PocketShellApp"
@@ -32,5 +39,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".terminal.TerminalService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps user-launched terminal session processes alive while the app is backgrounded." />
+        </service>
     </application>
 </manifest>

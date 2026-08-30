@@ -100,6 +100,7 @@ object TerminalSessionManager {
         )
         _sessions.update { it + entry }
         _creating.value = false
+        syncService(appContext)
         return entry
     }
 
@@ -132,6 +133,7 @@ object TerminalSessionManager {
                 entry.session.finishIfRunning()
                 list - entry
             }
+            _lastContext?.let { syncService(it) }
         }
     }
 
@@ -149,5 +151,14 @@ object TerminalSessionManager {
                 if (entry.id == id && !entry.isFinished) entry.copy(isFinished = true) else entry
             }
         }
+        // Keep the FGS honest: a finished session is no longer "running".
+        _lastContext?.let { syncService(it) }
+    }
+
+    private var _lastContext: Context? = null
+
+    private fun syncService(context: Context) {
+        _lastContext = context
+        TerminalService.syncWithSessionState(context)
     }
 }
