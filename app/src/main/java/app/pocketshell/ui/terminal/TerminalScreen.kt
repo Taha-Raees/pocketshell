@@ -28,8 +28,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +45,8 @@ import app.pocketshell.terminal.TerminalSessionManager
 import com.termux.view.TerminalView
 
 private const val DEFAULT_FONT_SIZE = 28
+private const val MIN_FONT_SIZE = 12
+private const val MAX_FONT_SIZE = 40
 
 /**
  * Terminal screen (brief §13): session tabs on top, the real TerminalView
@@ -54,6 +58,7 @@ fun TerminalScreen(
     selectedId: Long?,
     keyboardState: KeyboardState,
     creating: Boolean,
+    initialFontSize: Int = DEFAULT_FONT_SIZE,
     onSelect: (Long) -> Unit,
     onClose: (Long) -> Unit,
     onNewSession: () -> Unit,
@@ -61,6 +66,7 @@ fun TerminalScreen(
     modifier: Modifier = Modifier,
 ) {
     var keyboardVisible by remember { mutableStateOf(true) }
+    var textSize by rememberSaveable { mutableIntStateOf(initialFontSize) }
     val selected = sessions.firstOrNull { it.id == selectedId }
     val terminalViewRef = remember { mutableStateOf<TerminalView?>(null) }
 
@@ -88,6 +94,8 @@ fun TerminalScreen(
                 TerminalViewHost(
                     entry = selected,
                     keyboardState = keyboardState,
+                    textSize = textSize,
+                    onTextSizeChange = { textSize = it },
                     onSingleTap = { if (!keyboardVisible) keyboardVisible = true },
                     onViewCreated = { terminalViewRef.value = it },
                     modifier = Modifier.fillMaxSize(),
@@ -193,10 +201,31 @@ private fun TabStrip(
 private fun TerminalViewHost(
     entry: TerminalSessionManager.SessionEntry,
     keyboardState: KeyboardState,
+    textSize: Int,
+    onTextSizeChange: (Int) -> Unit,
     onSingleTap: () -> Unit,
     onViewCreated: (TerminalView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Pinch font size (brief §15/§30-friendly): accumulate scale until a step
+    // threshold is crossed, then change one size step and reset the recognizer.
+    val scaleAccum = remember { floatArrayOf(1f) }
+    val onScale: (Float) -> Float = { scale ->
+        scaleAccum[0] *= scale
+        var newSize = textSize
+        if (scaleAccum[0] > 1.25f) {
+            newSize = (textSize + 2).coerceAtMost(MAX_FONT_SIZE)
+        } else if (scaleAccum[0] < 0.8f) {
+            newSize = (textSize - 2).coerceAtLeast(MIN_FONT_SIZE)
+        }
+        if (newSize != textSize) {
+            scaleAccum[0] = 1f
+            onTextSizeChange(newSize)
+        }
+        1f // reset gesture scale base
+    }
+    // Track the size we already applied (renderer fields are package-private upstream).
+    val appliedSize = remember { mutableStateOf(Int.MIN_VALUE) }
     AndroidView(
         factory = { context ->
             TerminalView(context, null).apply {
@@ -204,10 +233,12 @@ private fun TerminalViewHost(
                     PocketShellTerminalViewClient(
                         keyboardState = keyboardState,
                         onSingleTap = onSingleTap,
+                        onScaleGesture = onScale,
                     )
                 )
                 attachSession(entry.session)
-                setTextSize(DEFAULT_FONT_SIZE)
+                setTextSize(textSize)
+                appliedSize.value = textSize
                 isFocusable = true
                 isFocusableInTouchMode = true
                 onViewCreated(this)
@@ -216,6 +247,11 @@ private fun TerminalViewHost(
         update = { view ->
             if (view.mTermSession !== entry.session) {
                 view.attachSession(entry.session)
+            }
+            if (appliedSize.value != textSize) {
+                // setTextSize → relayout → upstream onSizeChanged → PTY TIOCSWINSZ.
+                view.setTextSize(textSize)
+                appliedSize.value = textSize
             }
         },
         modifier = modifier,

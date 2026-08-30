@@ -17,11 +17,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -53,6 +56,8 @@ fun HomeScreen(
     onOpenSession: (Long) -> Unit,
     onLaunchApp: (CliApp) -> Unit,
     onExploreApps: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -61,7 +66,7 @@ fun HomeScreen(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Header() }
+        item { Header(onOpenSettings, onOpenDiagnostics) }
         item { TerminalCard(onOpenTerminal) }
         item { InstalledAppsSection(installedApps, onLaunchApp) }
         item { ExploreRow(onExploreApps) }
@@ -73,18 +78,31 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header() {
-    Column(modifier = Modifier.padding(top = 32.dp)) {
-        Text(
-            text = "PocketShell",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = "A real Linux terminal & your CLI apps",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+private fun Header(onOpenSettings: () -> Unit, onOpenDiagnostics: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = "PocketShell",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "A real Linux terminal & your CLI apps",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onOpenDiagnostics) {
+            Icon(Icons.Outlined.Info, contentDescription = "Diagnostics")
+        }
+        IconButton(onClick = onOpenSettings) {
+            Icon(Icons.Outlined.Settings, contentDescription = "Settings")
+        }
     }
 }
 

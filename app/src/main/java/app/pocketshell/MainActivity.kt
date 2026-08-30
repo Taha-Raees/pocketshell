@@ -19,40 +19,57 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.ui.apps.ExploreAppsScreen
+import app.pocketshell.ui.diagnostics.DiagnosticsScreen
 import app.pocketshell.ui.home.HomeScreen
+import app.pocketshell.ui.settings.SettingsScreen
 import app.pocketshell.ui.terminal.TerminalScreen
 import app.pocketshell.ui.theme.PocketShellTheme
-
-/** Top-level screens. Deliberately tiny — no nav library needed at this size. */
-sealed interface Screen {
-    data object Home : Screen
-    data object Terminal : Screen
-    data object Explore : Screen
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // PocketShell keyboard is the primary input (brief §7) — never pop the
+        // system IME automatically; it stays hidden unless the user is in a
+        // context that explicitly needs it.
+        window.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+        )
         setContent {
-            PocketShellTheme {
-                PocketShellRoot()
+            val settingsViewModel: SettingsViewModel = viewModel()
+            val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+            val defaultFontSize by settingsViewModel.defaultFontSize.collectAsStateWithLifecycle()
+
+            PocketShellTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
+                PocketShellRoot(
+                    terminalViewModel = viewModel(),
+                    settingsViewModel = settingsViewModel,
+                    defaultFontSize = defaultFontSize,
+                )
             }
         }
     }
 }
 
 @Composable
-fun PocketShellRoot(viewModel: TerminalViewModel = viewModel()) {
+fun PocketShellRoot(
+    terminalViewModel: TerminalViewModel,
+    settingsViewModel: SettingsViewModel,
+    defaultFontSize: Int,
+) {
     // keyboardState lives at root so the state survives screen switches while
     // remaining per-process (cleared on session switch inside TerminalScreen).
     val keyboardState = remember { KeyboardState() }
     var screen by rememberSaveable { mutableStateOf("home") }
 
-    val sessions by viewModel.sessions.collectAsStateWithLifecycle()
-    val creating by viewModel.creating.collectAsStateWithLifecycle()
-    val selectedId by viewModel.selectedId.collectAsStateWithLifecycle()
-    val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
+    val sessions by terminalViewModel.sessions.collectAsStateWithLifecycle()
+    val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
+    val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
+    val installedApps by terminalViewModel.installedApps.collectAsStateWithLifecycle()
+
+    val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+    val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
 
     BackHandler(enabled = screen != "home") { screen = "home" }
 
@@ -63,9 +80,10 @@ fun PocketShellRoot(viewModel: TerminalViewModel = viewModel()) {
                 selectedId = selectedId,
                 keyboardState = keyboardState,
                 creating = creating,
-                onSelect = viewModel::select,
-                onClose = viewModel::closeSession,
-                onNewSession = viewModel::newSession,
+                initialFontSize = defaultFontSize,
+                onSelect = terminalViewModel::select,
+                onClose = terminalViewModel::closeSession,
+                onNewSession = terminalViewModel::newSession,
                 onBack = { screen = "home" },
                 modifier = Modifier.padding(padding),
             )
@@ -75,19 +93,37 @@ fun PocketShellRoot(viewModel: TerminalViewModel = viewModel()) {
                 modifier = Modifier.padding(padding),
             )
 
+            "settings" -> SettingsScreen(
+                themeMode = themeMode,
+                dynamicColor = dynamicColor,
+                defaultFontSize = defaultFontSize,
+                onThemeMode = settingsViewModel::setThemeMode,
+                onDynamicColor = settingsViewModel::setDynamicColor,
+                onFontSize = settingsViewModel::setDefaultFontSize,
+                onBack = { screen = "home" },
+                modifier = Modifier.padding(padding),
+            )
+
+            "diagnostics" -> DiagnosticsScreen(
+                onBack = { screen = "home" },
+                modifier = Modifier.padding(padding),
+            )
+
             else -> HomeScreen(
                 installedApps = installedApps,
                 activeSessions = sessions,
-                onOpenTerminal = viewModel::openTerminal,
+                onOpenTerminal = terminalViewModel::openTerminal,
                 onOpenSession = { id ->
-                    viewModel.select(id)
+                    terminalViewModel.select(id)
                     screen = "terminal"
                 },
                 onLaunchApp = { app ->
-                    viewModel.launchApp(app)
+                    terminalViewModel.launchApp(app)
                     screen = "terminal"
                 },
                 onExploreApps = { screen = "explore" },
+                onOpenSettings = { screen = "settings" },
+                onOpenDiagnostics = { screen = "diagnostics" },
                 modifier = Modifier.padding(padding),
             )
         }
