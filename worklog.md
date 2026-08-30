@@ -58,3 +58,16 @@ Stage Summary:
 - M1.x feature set complete and building; docs (CHANGELOG/ROADMAP) updated with honest pending-manual-acceptance state.
 - Milestone commits created: M1.1-keyboard, M1.2-input, M1.3-polish (grouped staging; CHANGELOG records the authoritative per-milestone contents).
 - Gate to M2: manual on-device acceptance of M1/M1.1/M1.2/M1.3 checklists (TESTING.md) — requires real hardware.
+
+---
+Task ID: 3 (final verification)
+Agent: main (Super Z)
+Task: Final verification build + docs refresh + closeout.
+
+Work Log:
+- README status refreshed (M0–M1.3 implemented; manual acceptance gate documented).
+- Clean rebuild from committed state: BUILD SUCCESSFUL; app-debug.apk 20.0 MB with libtermux.so for 4 ABIs; all unit tests pass.
+- Repository state: 106 tracked files, working tree clean, checkpoint chain: 92e1e14 initial → 2bf214c M0 → 89ee4e0 M1 → fc600ed M1.1 → b9ecf8c M1.2 → a47c7f3 M1.3 → docs commit.
+
+Stage Summary:
+- PocketShell M0–M1.3 complete and reproducible; M2 gate = manual on-device acceptance (TESTING.md).
