@@ -1,2 +1,28 @@
 skills/
 node_modules/
+
+# --- PocketShell build ignores (appended M0; existing lines above preserved) ---
+# Gradle
+.gradle/
+build/
+app/build/
+terminal-emulator/build/
+terminal-view/build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+local.properties
+
+# Native build artifacts
+.cxx/
+obj/
+libs/
+
+# Keystore files (never commit)
+*.jks
+*.keystore
+
+# Environment (pre-existing, keep ignored)
+.env
