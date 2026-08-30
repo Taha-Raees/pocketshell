@@ -41,3 +41,20 @@ Stage Summary:
 - Real APK produced from real PTY terminal stack; toolchain pairing locked: AGP 8.13.2 + Gradle 8.14.5 + Kotlin 2.4.10 + BOM 2025.12.01 + core 1.17.0 + lifecycle 2.9.4 + activity 1.11.0.
 - Manual on-device acceptance remains pending (no device in sandbox) — TESTING.md §M1 checklist ready for a human.
 - JAVA_HOME for builds: /home/z/tools/jdk-21.0.12.1+1; ANDROID_HOME: /home/z/android-sdk.
+
+---
+Task ID: 2 (M1.1 + M1.2 + M1.3)
+Agent: main (Super Z)
+Task: M1.1 keyboard hardening, M1.2 input reliability, M1.3 UI/UX polish.
+
+Work Log:
+- M1.1: suppressed system IME inside terminal (window SOFT_INPUT_STATE_ALWAYS_HIDDEN; setShowSoftInputOnFocus absent from android-36 stubs — verified via javap, used window-level approach). Font-size state plumbing (settings default → TerminalScreen rememberSaveable → pinch).
+- M1.2: TerminalService (foreground, specialUse, PROPERTY_SPECIAL_USE_FGS_SUBTYPE, quantity-string notification) started/stopped from TerminalSessionManager via syncWithSessionState; runs only while sessions exist. Pinch font resize: scale accumulation thresholds (×1.25 / ×0.8) → setTextSize ±2 → upstream onSizeChanged → TIOCSWINSZ. Clipboard via upstream ActionMode + PocketShellSessionClient. Manifest now declares FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS only.
+- M1.3: SettingsRepository (DataStore: themeMode/dynamicColor/defaultFontSize), SettingsViewModel, Theme v2 (System/Light/Dark/AMOLED pure-black + dynamicColor on API 31+ with honest fallback), SettingsScreen (radio rows + switch + slider), DiagnosticsScreen (read-only facts from Diagnostics.snapshot: version/API/device/ABIs/shell presence/HOME/TMPDIR/real session counts/permission list), Home header icons (Settings/Diagnostics).
+- Fixed build errors: DiagnosticsScreen/SettingsScreen missing modifier params; TerminalScreen onScale naming.
+- VERIFIED: assembleDebug + all unit tests BUILD SUCCESSFUL.
+
+Stage Summary:
+- M1.x feature set complete and building; docs (CHANGELOG/ROADMAP) updated with honest pending-manual-acceptance state.
+- Milestone commits created: M1.1-keyboard, M1.2-input, M1.3-polish (grouped staging; CHANGELOG records the authoritative per-milestone contents).
+- Gate to M2: manual on-device acceptance of M1/M1.1/M1.2/M1.3 checklists (TESTING.md) — requires real hardware.

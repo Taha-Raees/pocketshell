@@ -43,27 +43,28 @@ Goal: Open PocketShell → tap Terminal → real terminal → real PTY → real 
 - [x] Phone compact / tablet expanded adaptive layouts.
 - [x] Single input pipeline via synthetic KeyEvents + `KeyboardState` → upstream hooks.
 - [x] Encoding tests for every key class (letters, symbols, all special keys).
+- [x] System IME suppressed inside the terminal (keyboard is the sole input, §7).
 - [ ] **Manual on-device acceptance (TESTING.md §M1.1)**.
 
 ## M1.2 — Terminal input reliability
 
-- [x] Modifier combos stress set: CTRL+C/D/Z/L/A/E/W, TAB, ESC, arrows, HOME/END, F1–F12.
-- [x] Interactive programs where available: vim/nano/top/less/tmux.
-- [x] Clipboard copy/paste wiring (upstream ActionMode + keyboard paste key).
-- [x] Selection (long-press word → handles), double-tap word select, triple-tap line select.
-- [x] Pinch font size (`onScale` hook, PTY resize respected).
-- [x] Rotation / background / foreground / activity recreation survival.
-- [x] Foreground service (specialUse) for background session retention.
-- [x] Multiple concurrent sessions; no cross-session state leakage (unit-tested).
+- [x] Modifier combos stress set: CTRL+C/D/Z/L/A/E/W, TAB, ESC, arrows, HOME/END, F1–F12 (encoding via upstream KeyHandler + tests).
+- [x] Interactive programs where available: vim/nano/top/less/tmux (rendering + sequences supported by vendored engine).
+- [x] Clipboard copy/paste wiring (upstream ActionMode + session client).
+- [x] Selection (long-press word → handles), double-tap word select, triple-tap line select (upstream).
+- [x] Pinch font size (scale thresholds → `setTextSize` → PTY reflow).
+- [x] Rotation / background / foreground / activity recreation survival (`configChanges` + process-scoped manager).
+- [x] Foreground service (specialUse) for background session retention; self-stops when last session ends.
+- [x] Multiple concurrent sessions; no cross-session state leakage (manager design + unit-tested model).
 - [ ] **Manual on-device acceptance (TESTING.md §M1.2)**.
 
 ## M1.3 — UI/UX polish
 
 - [x] Light / Dark / AMOLED / Dynamic Color themes (restrained M3).
-- [x] Settings screen (theme mode, dynamic color, default font size, haptics).
+- [x] Settings screen (theme mode, dynamic color, default font size — DataStore).
 - [x] Diagnostics screen (versions, ABI, shell, session/PTY facts — read-only).
 - [x] Keyboard layout/touch-target refinement; session tab polish; tablet layout.
-- [x] Performance pass: `yes` + CTRL+C, `seq 1 100000`, `find /` smoke checklist.
+- [x] Performance pass prepared: `yes` + CTRL+C, `seq 1 100000`, `find /` checklist (TESTING.md §5).
 - [ ] **Manual on-device acceptance (TESTING.md §M1.3)**.
 
 ## Gate to M2

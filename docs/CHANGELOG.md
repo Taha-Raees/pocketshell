@@ -3,6 +3,40 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.1.0-m1.1 / m1.2 / m1.3] — 2026-08-31 — Keyboard hardening · Input reliability · Polish
+
+### M1.1 — Built-in keyboard hardening
+- System IME fully suppressed inside the terminal (window `SOFT_INPUT_STATE_ALWAYS_HIDDEN`;
+  PocketShell keyboard is the sole typing surface, brief §7).
+- Terminal font size state plumbing (default from Settings, live pinch changes).
+- App shell refactor: screens wired through a single root with settings-aware theming.
+
+### M1.2 — Input reliability
+- Foreground service (`specialUse`) keeps real session processes alive while
+  backgrounded; runs only while sessions exist, stops itself when the last one
+  closes/finishes (brief §24); notification states session count truthfully.
+- Pinch-to-resize font with PTY reflow (scale thresholds → `setTextSize` →
+  upstream `TIOCSWINSZ`).
+- Clipboard copy/paste via upstream selection ActionMode (wired through
+  `PocketShellSessionClient` to the system clipboard).
+
+### M1.3 — UI/UX polish
+- Settings screen: theme mode (System/Light/Dark/AMOLED), dynamic color
+  (Android 12+, honest fallback), default terminal font size (DataStore-persisted).
+- Diagnostics screen: read-only runtime facts only — version, API level, device,
+  ABIs, shell presence, PTY library state, HOME/TMPDIR, real session counts,
+  exact permission list (brief §34).
+- Theme system: restrained brand scheme + AMOLED pure-black surfaces + dynamic
+  color where the platform provides it.
+- Home header gains Settings/Diagnostics entries.
+
+### Verification
+- Full build + all unit tests pass.
+- **Manual on-device acceptance for M1/M1.1/M1.2/M1.3 remains pending
+  (docs/TESTING.md §3–§5) — mandatory human step before M2 (brief §27/§28).**
+
+---
+
 ## [0.1.0-m1] — 2026-08-31 — M1: Terminal Foundation
 
 ### Added
