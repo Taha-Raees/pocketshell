@@ -108,6 +108,17 @@ No system keyboard may appear at any point (§7).
 Prerequisite: v0.2.1-m2.2 or newer (v0.2.0-m2.2-wip had a crash on Install —
 missing INTERNET permission + uncontained coroutine failure, fixed in 0.2.1).
 
+> **GATE RESULT — PASSED 2026-09-01 (device recording Screen_Recording_20260901_004021):**
+> NOT_INSTALLED → DOWNLOADING (519 KB → 3.8 MB honest progress) → EXTRACTING
+> (250+ entries) → **READY**, no crash, no anomalies. Reported numbers verified
+> byte-level against the pinned artifact: Runtime size "9.3 MB" =
+> 9,700,988 apparent bytes (8.25 MiB real files + 1.0 MiB resolvable symlink
+> targets, Android File.length() semantics) and "Rootfs files 108" = 84 real
+> files + 24 resolvable symlinks (306 absolute guest symlinks correctly
+> unresolvable outside a booted guest). Free space 123.7 GB consistent.
+> Install/remove/airplane-mode recovery rows below remain re-testable but the
+> gate itself is closed.
+
 - [ ] Diagnostics → Linux runtime shows State = NOT_INSTALLED on first launch
       (arm64 device) and honest UNSUPPORTED_ABI on non-arm64 devices.
 - [ ] "Install Linux environment": honest progress over YOUR network
