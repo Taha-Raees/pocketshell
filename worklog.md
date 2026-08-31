@@ -71,3 +71,20 @@ Work Log:
 
 Stage Summary:
 - PocketShell M0–M1.3 complete and reproducible; M2 gate = manual on-device acceptance (TESTING.md).
+
+---
+Task ID: 4 (APK delivery)
+Agent: main (Super Z)
+Task: Rebuild environment after sandbox reset and deliver installable APK to download/.
+
+Work Log:
+- Sandbox restart detected: /home/z/tools JDK and /home/z/android-sdk gone, build outputs cleaned, all files mode-flipped 644->755 (neutralized via git config core.fileMode false — no content diffs).
+- Reinstalled toolchain: Temurin JDK 21.0.12.1+1 at /home/z/tools/jdk-21.0.12.1+1 (identical to M0 pin); Android SDK at /home/z/android-sdk (cmdline-tools 11076708, platform-tools, platforms;android-36, build-tools 36.0.0 + 35.0.0 auto-installed by AGP, NDK 28.2.13676358). Wrote gitignored local.properties (sdk.dir).
+- Build failures handled: system java is JRE-only (no javac) -> Temurin JDK; two OOM-killed runs (3.9GB RAM box, dmesg confirmed global OOM) caused by gradle.properties -Xmx3072m + orphaned Kotlin daemons holding ~2.2GB -> killed daemons, rebuilt with command-line-only overrides: --no-daemon, -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxMetaspaceSize=512m", -Dorg.gradle.parallel=false, -Dorg.gradle.workers.max=1, kotlin.compiler.execution.strategy=in-process (-P and -D). No repo files changed for this.
+- BUILD SUCCESSFUL: testDebugUnitTest + assembleDebug (119 tasks). Tests: terminal-emulator 145/145, app 21/21, 0 failures/errors/skipped (166 total).
+- APK verified: 20.0 MB, apksigner certs OK (debug keystore), libtermux.so present for arm64-v8a/armeabi-v7a/x86/x86_64, package app.pocketshell versionName 0.1.0-m1, minSdk 26, targetSdk 36.
+- Delivered: download/PocketShell-v0.1.0-m1-debug.apk (SHA-256 dc9544a9...) + download/README.md artifact sheet.
+
+Stage Summary:
+- Fresh reproducible build environment: JAVA_HOME=/home/z/tools/jdk-21.0.12.1+1, ANDROID_HOME=/home/z/android-sdk; low-RAM build override flags recorded above for future runs.
+- Installable APK of the complete M0-M1.3 feature set delivered to download/; manual on-device acceptance (TESTING.md) remains the M2 gate.
