@@ -88,3 +88,22 @@ Work Log:
 Stage Summary:
 - Fresh reproducible build environment: JAVA_HOME=/home/z/tools/jdk-21.0.12.1+1, ANDROID_HOME=/home/z/android-sdk; low-RAM build override flags recorded above for future runs.
 - Installable APK of the complete M0-M1.3 feature set delivered to download/; manual on-device acceptance (TESTING.md) remains the M2 gate.
+
+---
+Task ID: 5 (M1.2-input-fix)
+Agent: main (Super Z)
+Task: Diagnose on-device bug from user screen recording: terminal took no visible input while built-in keyboard was visible; output only appeared after toggling keyboard off.
+
+Work Log:
+- Analyzed upload/Screen_Recording_20260831_153612_PocketShell.mp4 via frame extraction (ffmpeg 12 frames @2s) + vision model (scripts/analyze_frames.mjs): confirmed keys DID reach PTY (echo appeared in bulk later); TerminalView never repainted while keyboard visible; layout toggles forced the reveal. Stale-view/missing-invalidation diagnosis.
+- Root cause (code): PocketShellSessionClient.onTextChanged was an empty stub with false comment "TerminalView invalidates itself". Upstream contract (termux-app TermuxTerminalSessionClient): the HOST must call TerminalView#onScreenUpdated(); the view never observes session data. TerminalSession dispatches onTextChanged/onColorsChanged on the main thread via its MainThreadHandler (verified in vendored source).
+- Also found: cursor blinker never started (setTerminalCursorBlinkerState = upstream host duty, never called) and view never focused (BT keyboards would not work).
+- Fix (4 files): (1) PocketShellSessionClient: new onScreenUpdate callback invoked from onTextChanged + onColorsChanged, doc comments corrected; (2) TerminalSessionManager: new @Volatile onScreenUpdateListener hook wired per-session (main thread); (3) PocketShellTerminalViewClient: onEmulatorReady callback from onEmulatorSet; (4) TerminalScreen: DisposableEffect installs listener -> terminalViewRef.value?.onScreenUpdated(); blinker start in onEmulatorSet + lifecycle ON_RESUME/ON_PAUSE; view.post { requestFocus() } in AndroidView factory.
+- Version bump 0.1.1-m1 / versionCode 2; docs/TESTING.md §4 got two bold regression items; docs/CHANGELOG.md new [0.1.1-m1] section.
+- Sandbox reset AGAIN mid-task (2nd time): /home/z/tools + /home/z/android-sdk wiped -> reinstalled Temurin JDK 21.0.12.1+1, cmdline-tools, platform-36, build-tools 36.0.0, NDK 28.2.13676358, local.properties (same as Task 4).
+- BUILD SUCCESSFUL (7m23s, cold caches): testDebugUnitTest 166/166 pass; APK verified (v0.1.1-m1, code 2, signed, libtermux.so x4 ABIs).
+- Delivered: download/PocketShell-v0.1.1-m1-debug.apk (SHA-256 336fc6b0...), old v0.1.0 APK removed. Commit 8c2165c "M1.2-input-fix".
+
+Stage Summary:
+- On-device regression is fixed in code; final confirmation needs the user to install v0.1.1 and re-test per TESTING.md §4 first two items (echo while keyboard visible, live output + blinking cursor).
+- Env resets are recurring: recovery recipe lives in Task 4 + Task 5 worklog entries (JDK at /home/z/tools/jdk-21.0.12.1+1, SDK at /home/z/android-sdk, low-RAM gradle flags, local.properties).
