@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.2.0-m2.2-wip
+VERSION=v0.2.1-m2.2
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -41,16 +41,18 @@ them. The complete git history (all milestone checkpoints: initial -> M0
   pocketshell-m2.gitbundle
 
 WHAT IS NEW IN $VERSION (vs v0.1.1-m1):
-  - docs/M2-RESEARCH.md + docs/M2-ARCHITECTURE.md (runtime decision:
-    proot + Alpine 3.24.1 aarch64 minirootfs, primary-source sepolicy
-    evidence, split-loader design)
-  - app/src/main/java/app/pocketshell/runtime/ : RuntimeState machine,
+  - M2.2 runtime installation layer: RuntimeState machine,
     RuntimeInstaller (HTTPS download -> size + SHA-256 verify -> guarded
     tar.gz extraction -> configure -> atomic promotion), RuntimeManager,
     RuntimeChecksum, RuntimeStorage, RuntimeDiagnostics, RuntimePin
-  - Diagnostics screen: Linux environment install section (honest
-    progress + state; no fake data anywhere)
-  - 31 new unit tests; commons-compress 1.28.0 (Apache-2.0) added
+    (Alpine 3.24.1 aarch64 minirootfs); Diagnostics install section
+  - v0.2.1 FIX: tapping "Install Linux environment" crashed the app
+    (missing INTERNET permission + uncontained coroutine failure).
+    Now declared honestly and RuntimeCrashGuard contains any pipeline
+    failure as a retryable FAILED/REPAIR_REQUIRED state
+  - 6 crash-guard regression tests (58 app-module tests total);
+    commons-compress 1.28.0 (Apache-2.0); docs/M2-RESEARCH.md +
+    docs/M2-ARCHITECTURE.md
 
 NOTE: this snapshot installs the Linux userland files only. The Linux
 shell session inside the terminal (proot launch, M2.3) is NOT part of
