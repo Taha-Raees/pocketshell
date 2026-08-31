@@ -107,3 +107,18 @@ Work Log:
 Stage Summary:
 - On-device regression is fixed in code; final confirmation needs the user to install v0.1.1 and re-test per TESTING.md §4 first two items (echo while keyboard visible, live output + blinking cursor).
 - Env resets are recurring: recovery recipe lives in Task 4 + Task 5 worklog entries (JDK at /home/z/tools/jdk-21.0.12.1+1, SDK at /home/z/android-sdk, low-RAM gradle flags, local.properties).
+
+---
+Task ID: 6 (project zip delivery)
+Agent: main (Super Z)
+Task: Deliver complete project zip (without node_modules) to download/.
+
+Work Log:
+- Repo hygiene: discovered v0.1.1 APK (20MB) + v0.1.0 APK (20MB) + user screen recording (3.2MB) had been committed via a broad `git add -A` (upload/ and download/ were not ignored). Untracked download/ APKs + gitignored download/ and upload/.
+- History purge via git filter-branch --index-filter (3 binary paths), refs/original backup refs removed, reflog expired, gc --prune=now --aggressive: .git 42MB -> 440KB.
+- Hash impact: ONLY commits whose trees contained the purged blobs were rewritten (M1.2-input-fix and later: 8c2165c -> 4bb4049, a6bcc3d, 8fc704c...). M0-M1.3 checkpoint chain hashes (92e1e14 initial, 2bf214c M0, 89ee4e0 M1, fc600ed M1.1, b9ecf8c M1.2, a47c7f3 M1.3) are UNCHANGED (verified: 6/6 present).
+- Working tree untouched (source identical; APKs still present on disk in download/, now untracked).
+- Created download/PocketShell-project-v0.1.1-m1.zip: full working tree + .git (complete history), excluding node_modules, build outputs, .gradle/.kotlin caches, skills/ (sandbox infra), upload/, download/, .env, local.properties.
+
+Stage Summary:
+- Clean 440KB .git with intact milestone checkpoint chain; project zip delivered. Repo is now safe to push to any remote (no binary blobs in history).

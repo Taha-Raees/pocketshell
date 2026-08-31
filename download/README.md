@@ -1,5 +1,15 @@
 # PocketShell — Downloadable Artifacts
 
+## PocketShell-project-v0.1.1-m1.zip — complete source project
+Full project snapshot: all sources, docs, Gradle wrapper, and `.git` with the
+complete milestone checkpoint history (M0 → M1.1 → M1.2 → M1.3 → input-fix).
+Excludes: node_modules, build outputs, caches, sandbox-only dirs, the APK
+(delivered separately below).
+
+To build: set `JAVA_HOME` to a JDK 21 and `sdk.dir`/`ANDROID_HOME` to an
+Android SDK with platform 36, build-tools 36.0.0, NDK 28.2.13676358, then
+`./gradlew assembleDebug` (see docs/RESEARCH.md §7 for the pinned toolchain).
+
 ## PocketShell-v0.1.1-m1-debug.apk (20 MB) — LATEST
 Installable build of PocketShell v0.1.1-m1 (M0–M1.3 + terminal-refresh hotfix).
 
