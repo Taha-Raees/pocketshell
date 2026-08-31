@@ -26,3 +26,6 @@ libs/
 
 # Environment (pre-existing, keep ignored)
 .env
+
+# Delivery artifacts live outside the repo (user downloads)
+download/
