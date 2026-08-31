@@ -84,6 +84,8 @@ EOF
 TREE=$STAGE/$TOPDIR
 mkdir -p "$TREE"
 tar --exclude='./.git' --exclude='./.gitignore' --exclude='./.gitattributes' \
+    --exclude='./.gradle' --exclude='./.kotlin' --exclude='./.next' \
+    --exclude='./.zscripts' --exclude='./.idea' \
     --exclude='.*/' --exclude='./_*' \
     --exclude='./node_modules' --exclude='*/node_modules' \
     --exclude='./*/build' --exclude='./build' \
@@ -119,16 +121,20 @@ cp "$ZIP" "$TGZ" "$BUNDLE" "$DIST/"
 # --- 5. sanity checks ---
 echo "== sanity =="
 unzip -t "$ZIP" > /dev/null && echo "zip integrity: OK"
-echo "dot-git entries in zip : $(unzip -l "$ZIP" | rg -c '\.git/' || echo 0)  (want 0)"
-echo "web shim page.tsx      : $(unzip -l "$ZIP" | rg -c 'app/page\.tsx' || echo 0)  (want 0)"
-echo "node_modules entries   : $(unzip -l "$ZIP" | rg -c 'node_modules' || echo 0)  (want 0)"
+LIST=$(unzip -l "$ZIP")
+DOTS=$(echo "$LIST" | rg -c '/\.' || true); DOTS=${DOTS:-0}
+echo "dot-path entries       : $DOTS  (want 0)"
+echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
+echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt \
-           pocketshell-m2.gitbundle RESTORE.txt gradlew; do
-  unzip -l "$ZIP" | rg -q " $key\$" && echo "present: $key" || { echo "MISSING: $key"; exit 1; }
+           app/src/main/java/app/pocketshell/runtime/RuntimeManager.kt \
+           pocketshell-m2.gitbundle RESTORE.txt gradlew \
+           gradle/libs.versions.toml docs/THIRD_PARTY.md; do
+  echo "$LIST" | rg -q "$key\$" && echo "present: $key" || { echo "MISSING: $key"; exit 1; }
 done
-FILES=$(unzip -l "$ZIP" | awk 'END { print $2 }')
-echo "file count in zip      : $FILES"
+FILES=$(echo "$LIST" | awk '/files$/ { print $1 }')
+echo "uncompressed bytes     : $FILES  (files: $(echo "$LIST" | awk '/files$/ { print $2 }'))"
 
 # --- 6. delivery summary ---
 echo "== sha256 (paste into download page) =="
