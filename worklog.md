@@ -122,3 +122,17 @@ Work Log:
 
 Stage Summary:
 - Clean 440KB .git with intact milestone checkpoint chain; project zip delivered. Repo is now safe to push to any remote (no binary blobs in history).
+
+---
+Task ID: 7 (zip re-delivery)
+Agent: main
+Task: User reported files panel only shows the APK, not the project zip.
+
+Work Log:
+- Verified original zip on disk was intact (577KB, 217 files, unzip -t clean)
+- Root cause: zip existed in download/ but never synced to the user's file panel
+- Recreated download/PocketShell-project-v0.1.1-m1.zip fresh (same recipe: full working tree + .git, excluding node_modules, build/, .gradle/, .kotlin/, skills/, upload/, download/, .env, local.properties) to trigger file sync
+- Verified again: 217 files, no errors
+
+Stage Summary:
+- Zip re-published; awaiting user confirmation that it now appears in files
