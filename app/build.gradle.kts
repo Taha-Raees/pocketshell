@@ -14,8 +14,8 @@ android {
         applicationId = "app.pocketshell"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.1-m1"
+        versionCode = 3
+        versionName = "0.2.0-m2.2-wip"
     }
 
     buildTypes {
@@ -59,6 +59,8 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines)
+    // M2 runtime: safe tar.gz extraction of the Alpine minirootfs (Apache-2.0)
+    implementation(libs.commons.compress)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

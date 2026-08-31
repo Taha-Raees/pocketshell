@@ -9,18 +9,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.diagnostics.Diagnostics
+import app.pocketshell.runtime.RuntimeDiagnostics
+import app.pocketshell.runtime.RuntimeManager
+import app.pocketshell.runtime.RuntimePin
+import app.pocketshell.runtime.RuntimeState
+import app.pocketshell.runtime.RuntimeStorage
 
 /**
  * Diagnostics (brief §diagnostics): read-only facts about the real runtime.
@@ -30,6 +39,14 @@ import app.pocketshell.diagnostics.Diagnostics
 fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val rows = remember { Diagnostics.snapshot(context) }
+    val runtimeState by RuntimeManager.state.collectAsStateWithLifecycle()
+    val runtimeEvent by RuntimeManager.lastEvent.collectAsStateWithLifecycle()
+    val storage = remember {
+        RuntimeStorage(context.applicationContext.noBackupFilesDir)
+    }
+    val runtimeReport = remember(runtimeState) {
+        RuntimeDiagnostics.report(storage, runtimeState)
+    }
 
     Column(
         modifier = modifier
@@ -79,5 +96,119 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        // ---- M2.2: Linux runtime facts + install controls ------------------
+        HorizontalDivider(Modifier.padding(top = 10.dp))
+        Text(
+            text = "Linux runtime",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        )
+        RuntimeFactRow("State", runtimeState.name)
+        RuntimeFactRow(
+            "Distribution",
+            if (runtimeState.expectsRuntimeOnDisk) {
+                runtimeReport.metadata
+                    ?.let { "${it.distribution} ${it.distributionVersion} (${it.architecture})" }
+                    ?: "metadata unreadable"
+            } else {
+                "${RuntimePin.DISTRIBUTION} ${RuntimePin.DISTRIBUTION_VERSION} (not installed)"
+            },
+        )
+        RuntimeFactRow(
+            "Runtime size",
+            runtimeReport.runtimeSizeBytes?.let(RuntimeDiagnostics::formatBytes) ?: "—",
+        )
+        RuntimeFactRow("Free space", RuntimeDiagnostics.formatBytes(runtimeReport.freeBytes))
+        runtimeReport.rootfsEntryCount?.let {
+            RuntimeFactRow("Rootfs files", it.toString())
+        }
+        runtimeEvent?.let { event ->
+            RuntimeFactRow("Last event", describe(event))
+        }
+
+        val actionLabel = when {
+            runtimeState == RuntimeState.READY -> "Remove runtime"
+            runtimeState == RuntimeState.NOT_INSTALLED -> "Install Linux environment"
+            runtimeState == RuntimeState.UNSUPPORTED_ABI -> "Unsupported ABI on this device"
+            runtimeState == RuntimeState.FAILED ||
+                runtimeState == RuntimeState.REPAIR_REQUIRED -> "Retry install"
+            else -> null // in-flight states: no action, honest silence
+        }
+        actionLabel?.let { label ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                if (runtimeState == RuntimeState.READY) {
+                    OutlinedButton(
+                        onClick = { RuntimeManager.remove() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(label)
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (runtimeState == RuntimeState.REPAIR_REQUIRED) {
+                                RuntimeManager.repair()
+                            } else {
+                                RuntimeManager.startInstall()
+                            }
+                        },
+                        enabled = runtimeState != RuntimeState.UNSUPPORTED_ABI,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+        }
+        if (runtimeState == RuntimeState.UNSUPPORTED_ABI) {
+            Text(
+                text = "M2 runtime ships an aarch64 (arm64-v8a) rootfs, " +
+                    "which this device does not report among its supported ABIs.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+    }
+}
+
+private fun describe(event: app.pocketshell.runtime.RuntimeInstallEvent): String = when (event) {
+    is app.pocketshell.runtime.RuntimeInstallEvent.DownloadProgress ->
+        "downloading ${RuntimeDiagnostics.formatBytes(event.bytesRead)} / " +
+            RuntimeDiagnostics.formatBytes(event.totalBytes)
+    app.pocketshell.runtime.RuntimeInstallEvent.Downloaded -> "download complete"
+    is app.pocketshell.runtime.RuntimeInstallEvent.VerifyProgress ->
+        "verifying ${RuntimeDiagnostics.formatBytes(event.bytesHashed)}"
+    is app.pocketshell.runtime.RuntimeInstallEvent.ExtractProgress ->
+        "extracting (${event.entriesProcessed} entries)"
+    app.pocketshell.runtime.RuntimeInstallEvent.Configured -> "configured, promoting"
+    app.pocketshell.runtime.RuntimeInstallEvent.Ready -> "ready"
+    is app.pocketshell.runtime.RuntimeInstallEvent.Failed -> "failed: ${event.message}"
+}
+
+@Composable
+private fun RuntimeFactRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.42f),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(0.58f),
+        )
     }
 }

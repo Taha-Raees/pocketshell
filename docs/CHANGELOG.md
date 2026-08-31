@@ -3,6 +3,28 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.2.0-m2.2-wip] — 2026-09-01 — M2.2: real Linux runtime installation layer
+
+### Added
+- `runtime/` package: Linux runtime installation vertical slice
+  (docs/M2-ARCHITECTURE). Alpine minirootfs 3.24.1 (aarch64) pinned by URL,
+  size and SHA-256; pipeline DOWNLOADING → VERIFYING → EXTRACTING →
+  CONFIGURING → atomic promotion → READY.
+- `RuntimeManager` facade + `RuntimeState` machine (illegal transitions
+  rejected; state derived from disk at startup, incl. orphaned-tmp recovery
+  and honest REPAIR_REQUIRED for damaged metadata).
+- Safe extractor: zip-slip guard, GNU longnames, symlink/hardlink handling,
+  POSIX mode preservation. Validated against the REAL Alpine 3.24.1 aarch64
+  minirootfs (410 files, 635 symlinks) in a sandbox test run.
+- Diagnostics screen: Linux runtime section (state, size, free space,
+  metadata, install/retry/remove controls). No Home screen changes.
+- New dependency: commons-compress 1.28.0 (Apache-2.0).
+
+### Notes
+- proot integration is M2.3; no process execution exists yet in M2.2.
+- DEVICE VALIDATION REQUIRED: install flow must be exercised on real
+  hardware (download over mobile network, state transitions, recovery).
+
 ## [0.1.1-m1] — 2026-08-31 — Fix: terminal did not repaint on session output
 
 ### Fixed

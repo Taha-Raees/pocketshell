@@ -65,11 +65,19 @@ retain upstream notices verbatim.
 | androidx.lifecycle:* | 2.11.0 | Apache-2.0 | ViewModels |
 | androidx.datastore:datastore-preferences | 1.2.1 | Apache-2.0 | Settings + CLI app registry |
 | org.jetbrains.kotlinx:kotlinx-serialization-json | 1.9.0 | Apache-2.0 | CliApp registry persistence |
+| org.apache.commons:commons-compress | 1.28.0 | Apache-2.0 | M2 runtime installer: safe tar.gz extraction of the Alpine minirootfs (GNU longname, symlink, mode handling) |
 | junit:junit | 4.13.2 | EPL-1.0 | JVM tests (upstream emulator suite) |
 
 All versions above were verified against Google Maven / Maven Central metadata
 at M0 time (2026-08-30); the version catalog `gradle/libs.versions.toml` is the
-single source of truth.
+single source of truth. commons-compress pinned at M2.1 (2026-09-01).
+
+## M2 runtime artifacts (not code-vendored — distributed/downloaded)
+
+| Component | Origin | License | Distribution form |
+|---|---|---|---|
+| PRoot (planned M2.3) | https://github.com/termux/proot (Termux fork of proot-me/proot; proot 5.1.0 + Android patches) | GPL-2.0 | Compiled by PocketShell from pinned source; bundled in APK as `libproot.so` (jniLibs → `nativeLibraryDir`). License text + source reference ship with the app. |
+| Alpine Linux minirootfs | https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/ (official CDN artifact, pinned: `alpine-minirootfs-3.24.1-aarch64.tar.gz`, sha256 `f55a90f69052c5bd6f92cb09a8f47065970830b194c917a006fb94028e721259`) | Alpine packages under their respective OSS licenses (busybox GPL-2.0, musl MIT, etc.) | Downloaded at runtime over HTTPS, size + SHA-256 verified before extraction (Master Prompt §10). Alpine's license notices are available inside the rootfs (`/usr/share/licenses`, package metadata via `apk info`). |
 
 All resolved from Google Maven / Maven Central at build time with pinned
 versions (version catalog: `gradle/libs.versions.toml`).
