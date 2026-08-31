@@ -167,3 +167,22 @@ Work Log:
 Stage Summary:
 - Payload = full working tree (zero dotfiles) + pocketshell-m1.gitbundle (full milestone history) + RESTORE.txt. User instruction: download .apk, rename to .zip, extract; or open directly with any archive app (content-sniffing).
 - If even this fails: last resort = base64 chunks in chat (payload reproducible via scripts/make_source_zips.sh + dist-master/).
+
+---
+Task ID: 10 (web download page)
+Agent: main
+Task: User asked for a simple HTML page to download the zip (file panel blocks .zip).
+
+Work Log:
+- Initialized fullstack scaffold (overlay into repo root; restored overwritten tracked .gitignore via git checkout; web files excluded via .git/info/exclude — zero repo pollution).
+- Hygiene: untracked dist-master binaries (system snapshot commit 81f95cb raced the amend; blobs remain only in intermediate 617cb01, tip tree clean).
+- Payloads staged in public/: PocketShell-v0.1.1-m1-source.zip (532K, sha256 24b4f451...), .tar.gz twin (476K, c4522baa...), slim git bundle (256K, 55178978..., tip 09fc0db, byte-identical to zip's internal bundle).
+- Page src/app/page.tsx: terminal-themed (zinc-950 + emerald), download cards + sha256, restore instructions, milestone status; mobile-first, sticky footer, aria labels.
+- BUG 1: GET / 404 — Next 16 adopts root app/ (Android module!) as App Router root, src/app invisible (manifest only _not-found). Fix: re-export shims app/page.tsx + app/layout.tsx (git-excluded, Gradle-invisible).
+- BUG 2: Tailwind utilities missing — CSS chunk compiled but theme vars/utilities absent; auto source detection skips files in this hybrid repo. Fix: explicit @source "../" + "../../app" in globals.css (chunk 24K -> 128K, vars present).
+- BUG 3: card titles dark-on-dark (light-theme token) — fixed with text-zinc-100 on Cards.
+- Verified via agent-browser: renders desktop+mobile, zero console errors, click "Download .zip" -> file landed in ~/Downloads, sha256 24b4f451 byte-identical. bun run lint clean.
+
+Stage Summary:
+- Download page live on :3000 (preview link proxies it). Zip download works end-to-end in a real browser regardless of file-panel extension whitelist.
+- Note for future zip regeneration: scripts/make_source_zips.sh must exclude app/page.tsx + app/layout.tsx (web shims) and web scaffold dirs from archives.
