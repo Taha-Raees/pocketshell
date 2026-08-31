@@ -18,6 +18,10 @@ class PocketShellTerminalViewClient(
     private val keyboardState: KeyboardState,
     private val onSingleTap: () -> Unit = {},
     private val onScaleGesture: (Float) -> Float = { it },
+    /** Invoked when the emulator becomes available (after attachSession →
+     *  updateSize). Upstream documents this as the sanctioned moment for the
+     *  host to start the cursor blinker for the first session. */
+    private val onEmulatorReady: () -> Unit = {},
 ) : TerminalViewClient {
 
     // ---- input hooks (peek only) ----------------------------------------------
@@ -60,7 +64,7 @@ class PocketShellTerminalViewClient(
 
     override fun copyModeChanged(copyMode: Boolean) {}
 
-    override fun onEmulatorSet() {}
+    override fun onEmulatorSet() = onEmulatorReady()
 
     // ---- configuration ------------------------------------------------------------
 

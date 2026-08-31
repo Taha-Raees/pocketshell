@@ -22,6 +22,19 @@ import kotlinx.coroutines.flow.update
  */
 object TerminalSessionManager {
 
+    /**
+     * Hook the visible terminal view installs so it can repaint on session
+     * output. Called on the main thread with the id of the session whose
+     * screen changed.
+     *
+     * Upstream contract: TerminalView does not observe session data itself —
+     * the host (Termux: TermuxTerminalSessionClient) calls
+     * [com.termux.view.TerminalView.onScreenUpdated] from this hook. Missing
+     * wiring here = output invisible until a layout pass forces a repaint.
+     */
+    @Volatile
+    var onScreenUpdateListener: ((sessionId: Long) -> Unit)? = null
+
     data class SessionEntry(
         val id: Long,
         val session: TerminalSession,
@@ -67,6 +80,9 @@ object TerminalSessionManager {
             context = appContext,
             onTitleChanged = { mainHandler.post { refreshTitle(id) } },
             onSessionFinished = { mainHandler.post { markFinished(id) } },
+            // Already on the main thread (TerminalSession MainThreadHandler);
+            // invoke the visible view's refresh hook directly.
+            onScreenUpdate = { onScreenUpdateListener?.invoke(id) },
         )
 
         val args = if (initialCommand != null) {

@@ -3,6 +3,31 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.1.1-m1] — 2026-08-31 — Fix: terminal did not repaint on session output
+
+### Fixed
+- **Terminal did not show typed input while the built-in keyboard was visible;
+  text only appeared after toggling the keyboard off** (observed in a device
+  screen recording). Root cause: the vendored `TerminalView` follows the
+  upstream contract that the *host* must call `TerminalView#onScreenUpdated()`
+  when a session's screen changes — the view never observes session data
+  itself. Our `PocketShellSessionClient.onTextChanged` was an empty stub with
+  an incorrect comment ("TerminalView invalidates itself").
+  Fix: session clients now forward screen updates through a new
+  `TerminalSessionManager.onScreenUpdateListener` hook, installed by
+  `TerminalScreen` to call `onScreenUpdated()` (main thread — `TerminalSession`
+  dispatches via its `MainThreadHandler`).
+- Cursor never blinked: `setTerminalCursorBlinkerState` (upstream-documented
+  host duty) was never called. Now started in `onEmulatorSet` and toggled with
+  host lifecycle (ON_RESUME/ON_PAUSE).
+- `TerminalView` was never focused: hardware (Bluetooth) keyboard input could
+  not reach the terminal. The view now takes focus after attach.
+
+### Verification
+- All 166 unit tests pass; APK rebuilt and re-signed as `v0.1.1-m1`
+  (versionCode 2). Regression items added to `docs/TESTING.md` §4 for the
+  mandatory on-device re-check.
+
 ## [0.1.0-m1.1 / m1.2 / m1.3] — 2026-08-31 — Keyboard hardening · Input reliability · Polish
 
 ### M1.1 — Built-in keyboard hardening

@@ -26,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,6 +38,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
 import app.pocketshell.keyboard.TerminalKeyboard
@@ -72,6 +76,36 @@ fun TerminalScreen(
 
     // Modifier state must never leak across sessions (brief §14).
     LaunchedEffect(selectedId) { keyboardState.clearAll() }
+
+    // Upstream contract: TerminalView does not observe session data — the host
+    // must call TerminalView#onScreenUpdated() whenever the session screen
+    // changes, otherwise output stays invisible until a layout pass forces a
+    // repaint (observed on device: typed echo only appeared after toggling
+    // the keyboard). The listener is invoked on the main thread.
+    DisposableEffect(Unit) {
+        TerminalSessionManager.onScreenUpdateListener = { _ ->
+            terminalViewRef.value?.onScreenUpdated()
+        }
+        onDispose { TerminalSessionManager.onScreenUpdateListener = null }
+    }
+
+    // Cursor blinker is a host duty (upstream setTerminalCursorBlinkerState
+    // docs): stop it when the host is not visible, restart on resume. The
+    // initial start happens in onEmulatorSet (TerminalViewHost factory).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME ->
+                    terminalViewRef.value?.setTerminalCursorBlinkerState(true, true)
+                Lifecycle.Event.ON_PAUSE ->
+                    terminalViewRef.value?.setTerminalCursorBlinkerState(false, false)
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         TabStrip(
@@ -228,21 +262,27 @@ private fun TerminalViewHost(
     val appliedSize = remember { mutableStateOf(Int.MIN_VALUE) }
     AndroidView(
         factory = { context ->
-            TerminalView(context, null).apply {
-                setTerminalViewClient(
-                    PocketShellTerminalViewClient(
-                        keyboardState = keyboardState,
-                        onSingleTap = onSingleTap,
-                        onScaleGesture = onScale,
-                    )
+            val view = TerminalView(context, null)
+            view.setTerminalViewClient(
+                PocketShellTerminalViewClient(
+                    keyboardState = keyboardState,
+                    onSingleTap = onSingleTap,
+                    onScaleGesture = onScale,
+                    // Upstream-documented first-session blinker start: called
+                    // once updateSize() has actually created the emulator.
+                    onEmulatorReady = { view.setTerminalCursorBlinkerState(true, true) },
                 )
-                attachSession(entry.session)
-                setTextSize(textSize)
-                appliedSize.value = textSize
-                isFocusable = true
-                isFocusableInTouchMode = true
-                onViewCreated(this)
-            }
+            )
+            view.attachSession(entry.session)
+            view.setTextSize(textSize)
+            appliedSize.value = textSize
+            view.isFocusable = true
+            view.isFocusableInTouchMode = true
+            // Focus is required for hardware (e.g. Bluetooth) keyboard input
+            // to reach the terminal; the post defers until the view is attached.
+            view.post { view.requestFocus() }
+            onViewCreated(view)
+            view
         },
         update = { view ->
             if (view.mTermSession !== entry.session) {

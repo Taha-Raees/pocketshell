@@ -14,8 +14,8 @@ android {
         applicationId = "app.pocketshell"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0-m1"
+        versionCode = 2
+        versionName = "0.1.1-m1"
     }
 
     buildTypes {

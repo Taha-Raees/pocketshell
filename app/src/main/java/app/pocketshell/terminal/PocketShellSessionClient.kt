@@ -10,14 +10,18 @@ import com.termux.terminal.TerminalSessionClient
 /**
  * PocketShell implementation of the upstream [TerminalSessionClient] contract.
  *
- * One instance per session. All callbacks may arrive on the session reader
- * thread — consumers ([TerminalSessionManager]) are responsible for posting to
- * the main thread.
+ * One instance per session. Screen-update callbacks ([onTextChanged],
+ * [onColorsChanged]) are dispatched by [TerminalSession]'s MainThreadHandler —
+ * they arrive on the **main thread**, so it is safe to touch views from
+ * [onScreenUpdate]. The manager additionally posts its own state transitions
+ * to the main thread.
  */
 class PocketShellSessionClient(
     private val context: Context,
     private val onTitleChanged: () -> Unit = {},
     private val onSessionFinished: () -> Unit = {},
+    /** Invoked on the main thread whenever this session's screen changes. */
+    private val onScreenUpdate: () -> Unit = {},
 ) : TerminalSessionClient {
 
     private val clipboard: ClipboardManager? =
@@ -26,7 +30,11 @@ class PocketShellSessionClient(
     // ---- lifecycle -----------------------------------------------------------
 
     override fun onTextChanged(changedSession: TerminalSession) {
-        // TerminalView invalidates itself; nothing to do at app level.
+        // Upstream contract (see Termux TermuxTerminalSessionSessionClient):
+        // TerminalView does NOT observe session data — the host must call
+        // TerminalView#onScreenUpdated() or output stays invisible until an
+        // unrelated layout pass forces a repaint.
+        onScreenUpdate()
     }
 
     override fun onTitleChanged(changedSession: TerminalSession) = onTitleChanged()
@@ -52,7 +60,9 @@ class PocketShellSessionClient(
     // ---- colors / cursor -------------------------------------------------------
 
     override fun onColorsChanged(session: TerminalSession) {
-        // TerminalView picks up colors on next screen update.
+        // Same upstream contract as onTextChanged: refresh the view so the
+        // new color scheme is applied immediately.
+        onScreenUpdate()
     }
 
     override fun onTerminalCursorStateChange(state: Boolean) {

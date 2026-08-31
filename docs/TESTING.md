@@ -65,6 +65,11 @@ No system keyboard may appear at any point (§7).
 
 ## 4. Manual acceptance — M1.2 (input reliability)
 
+- [ ] **Terminal refresh (v0.1.1 regression, seen on device 2026-08-31): with
+      the built-in keyboard visible, typed characters echo immediately — the
+      view must never wait for a keyboard toggle / layout change to repaint.**
+- [ ] **With the keyboard visible, command output (`ls`, `clear`, `seq 1 100`)
+      repaints live; cursor blinks while idle.**
 - [ ] In vim (toybox has none — use available interactive tool, e.g. `less`,
       `more`, `top`): navigation, insert/edit where applicable, ESC handling.
 - [ ] `less /etc/fstab`-style paging: arrows, PGUP/PGDN, HOME/END, q quits.
