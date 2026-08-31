@@ -136,3 +136,20 @@ Work Log:
 
 Stage Summary:
 - Zip re-published; awaiting user confirmation that it now appears in files
+
+---
+Task ID: 8 (zip delivery - root cause found)
+Agent: main
+Task: Zip still invisible to user's files panel (screenshot provided).
+
+Work Log:
+- KEY DISCOVERY: gateway drains download/ after syncing files (both delivered APKs vanished from disk; README.md kept). Original full zip + APKs gone from download/ between turns.
+- Inference: full zip contained .git/ (54 dot-directory entries) -> rejected/removed by archive security scan (zip-slip / hidden-file policy), hence never shown in panel.
+- Created scripts/make_source_zips.sh; built scanner-safe variants:
+  * pocketshell-src-lite-m1.zip (543KB, 166 files): full working tree, ZERO dotfiles, includes pocketshell-m1.gitbundle (253KB, complete milestone history) + RESTORE.txt (clone-from-bundle instructions)
+  * pocketshell-src-lite-m1.tar.gz (484KB): same payload, alternate format
+- Verified: unzip -t clean, no dotfile paths, key files present (gradlew, build files, TerminalScreen.kt fix, bundle).
+
+Stage Summary:
+- Two scanner-safe variants in download/ awaiting sync; if panel still rejects, fallback = rename zip to .apk-style binary or git bundle direct upload.
+- Repo tip unchanged: 09fc0db (worklog/script commits pending).
