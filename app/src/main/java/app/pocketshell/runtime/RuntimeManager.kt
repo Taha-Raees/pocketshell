@@ -3,6 +3,7 @@ package app.pocketshell.runtime
 import android.content.Context
 import android.os.Build
 import app.pocketshell.runtime.RuntimeState.Companion.canStartInstall
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,7 +50,20 @@ object RuntimePin {
  */
 object RuntimeManager {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    /**
+     * Crash containment: a runtime pipeline failure is a *product state*
+     * (FAILED / REPAIR_REQUIRED), never a process killer. The handler below is
+     * the last-resort net; the install/remove coroutines also catch locally so
+     * the user always sees an honest retryable state in Diagnostics.
+     * (v0.2.1: the M2.2 build crashed here — a SecurityException from the
+     * missing INTERNET permission escaped the coroutine and killed the app
+     * the moment "Install" was tapped.)
+     */
+    private val crashGuard = CoroutineExceptionHandler { _, t ->
+        runCatching { android.util.Log.e("RuntimeManager", "runtime coroutine escaped containment", t) }
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + crashGuard)
     private val installMutex = Mutex()
 
     @Volatile
@@ -101,13 +115,16 @@ object RuntimeManager {
         }
         return scope.launch {
             installMutex.withLock {
-                installer.install(
-                    RuntimePin.spec,
+                RuntimeCrashGuard.install(
+                    storage = s,
+                    installer = installer,
+                    spec = RuntimePin.spec,
                     onEvent = {
                         _lastEvent.value = it
                         onEvent(it)
                     },
-                    onState = { next -> transitionTo(next) },
+                    onState = { transitionTo(it) },
+                    forceState = { transitionToLenient(it) },
                 )
             }
         }
@@ -118,9 +135,12 @@ object RuntimeManager {
         val s = storage ?: return
         scope.launch {
             installMutex.withLock {
-                s.clearRuntime()
-                s.cleanupTransient()
-                transitionTo(RuntimeState.NOT_INSTALLED)
+                RuntimeCrashGuard.remove(
+                    storage = s,
+                    onEvent = { _lastEvent.value = it },
+                    onState = { transitionTo(it) },
+                    forceState = { transitionToLenient(it) },
+                )
             }
         }
     }
@@ -135,5 +155,19 @@ object RuntimeManager {
             "illegal runtime state transition: $current -> $next"
         }
         _state.value = next
+    }
+
+    /**
+     * [transitionTo] that can never throw: used only from failure paths.
+     * FAILED/REPAIR_REQUIRED are always truthful descriptions after a broken
+     * attempt, so forcing them is honest even if the transition table is
+     * surprised by an exotic sequence.
+     */
+    private fun transitionToLenient(next: RuntimeState) {
+        try {
+            transitionTo(next)
+        } catch (_: IllegalStateException) {
+            _state.value = next
+        }
     }
 }

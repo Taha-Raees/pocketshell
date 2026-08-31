@@ -102,3 +102,35 @@ No system keyboard may appear at any point (§7).
 - [ ] `unzip -l` shows `lib/arm64-v8a/libtermux.so` (JNI present).
 - [ ] 16 KB alignment: `llvm-objdump -p libtermux.so | grep LOAD` → max-page-size 16384 (NDK r27+ default).
 - [ ] No permissions beyond zero-to-minimal set in merged manifest.
+
+## 7. Manual acceptance — M2.2 (Linux runtime installation)
+
+Prerequisite: v0.2.1-m2.2 or newer (v0.2.0-m2.2-wip had a crash on Install —
+missing INTERNET permission + uncontained coroutine failure, fixed in 0.2.1).
+
+- [ ] Diagnostics → Linux runtime shows State = NOT_INSTALLED on first launch
+      (arm64 device) and honest UNSUPPORTED_ABI on non-arm64 devices.
+- [ ] "Install Linux environment": honest progress over YOUR network
+      (~4 MB from dl-cdn.alpinelinux.org): DOWNLOADING → VERIFYING →
+      EXTRACTING → CONFIGURING → READY.
+- [ ] On READY: Distribution row shows "Alpine 3.24.1 (aarch64)", Rootfs files
+      count > 0, Runtime size > 0.
+- [ ] Kill the app mid-download/mid-extract; relaunch: no half-installed
+      state — either clean NOT_INSTALLED (orphaned tmp cleaned) or honest
+      retryable FAILED. Retry completes to READY.
+- [ ] Retry from FAILED works (transient state cleaned, second attempt READY).
+- [ ] "Remove runtime" on READY returns to NOT_INSTALLED; disk space freed.
+- [ ] Airplane mode ON → Install: lands in FAILED with a readable message
+      (never a crash); airplane mode OFF → Retry reaches READY.
+- [ ] Regression guard (v0.2.1): ANY failure above must show a state + message
+      in Diagnostics — the app must NEVER exit to the launcher from this flow.
+
+### Emulator note (build sandbox)
+Emulator-based verification of this flow was attempted and is currently
+impossible in the build sandbox: only Android 11+ (API 30+) system images
+expose `arm64-v8a` (required by the arm64-gated runtime), and the emulator
+enforces a fixed ~6 GB userdata floor on those images (~7.2 GiB free at boot),
+which cannot coexist with the Android SDK on the 9.9 GB sandbox disk. The
+crash-containment itself is covered by JVM regression tests
+(RuntimeCrashGuardTest — the incident's exact SecurityException through the
+real installer pipeline); the on-device checklist above remains the M2.2 gate.

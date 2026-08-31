@@ -3,6 +3,52 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.2.1-m2.2] — 2026-09-01 — Fix: crash when tapping "Install Linux environment"
+
+### Fixed
+- **The app crashed (silent process death, no dialog) immediately after tapping
+  "Install Linux environment" in Diagnostics** (observed in a device screen
+  recording: spinner on the button → instant return to launcher). Two
+  independent defects, both fixed:
+  1. *Missing `INTERNET` permission.* The M1 app legitimately needed no
+     network, and the manifest said so. M2.2 added a real HTTPS downloader but
+     nobody revisited the permission set — the first connect threw
+     `SecurityException("Permission denied (missing INTERNET permission?)")`.
+     Fix: `INTERNET` is now declared, with the honest justification inline
+     (used solely to fetch the checksum-pinned Alpine minirootfs from
+     dl-cdn.alpinelinux.org).
+  2. *No crash containment around runtime coroutines.* The installer converts
+     its own failures to `FAILED` + a `Failed` event but rethrows; nothing
+     caught the rethrow, so ANY pipeline failure (missing permission, offline
+     device, DNS failure, even an `Error`) killed the whole app mid-install.
+     Fix: `RuntimeCrashGuard` contains install/remove failures — they now land
+     in the retryable `FAILED` / `REPAIR_REQUIRED` states the state machine
+     already designed for them. A scope-level `CoroutineExceptionHandler` is
+     the last-resort net.
+
+### Added
+- `RuntimeCrashGuard` (internal): the containment extracted into a unit-testable
+  unit; `RuntimeManager` delegates to it.
+- Regression tests (`RuntimeCrashGuardTest`, 6 new): the incident's exact
+  `SecurityException` driven through the REAL installer pipeline must land in
+  `FAILED` with transient state cleaned and must NOT escape; non-Exception
+  `Error`s likewise; successful install passes through to `READY`; partially
+  undeletable runtime on remove lands `REPAIR_REQUIRED` (and `clearRuntime()`
+  returning false is now treated as the failure it is); retry transitions from
+  `FAILED`/`REPAIR_REQUIRED` remain legal.
+
+### Notes
+- Emulator re-verification was attempted in the sandbox and is NOT possible
+  there: Android 11+ (API 30+) system images are the only ones exposing
+  `arm64-v8a` (required by the arm64-gated runtime), and the emulator enforces
+  a fixed ~6 GB userdata floor for them (~7.2 GiB free required at boot) which
+  cannot coexist with the SDK on the 9.9 GB sandbox disk. DEVICE VALIDATION
+  for the install flow remains the M2.2 gate (docs/TESTING.md).
+- Live CDN re-check (2026-09-01): pinned Alpine 3.24.1 aarch64 minirootfs
+  still matches `SIZE_BYTES` + `SHA256` byte-for-byte.
+- 58 app-module unit tests (52 + 6 new), 145 terminal-emulator tests, all
+  green; assembleDebug clean.
+
 ## [0.2.0-m2.2-wip] — 2026-09-01 — M2.2: real Linux runtime installation layer
 
 ### Added
