@@ -225,3 +225,25 @@ Stage Summary:
 - Download page now serves: v0.2.0-m2.2-wip APK (primary) + M2.2 source zip/tar.gz/bundle + M1 archive. M2.2 device gate instructions on-page.
 - Note: bundle grew 256KB -> 2.0MB vs M1 — full history legitimately includes the zip-delivery-saga binary commits (617cb01/81f95cb era); NOT slimmed (history rewriting forbidden).
 - Next: user runs M2.2 device gate; then M2.3 (proot build, RuntimeProcessLauncher, Linux shell in existing PTY).
+
+---
+Task ID: 13 (v0.2.1 Install-crash fix + delivery)
+Agent: main
+Task: User device recording showed the app silently dying right after tapping "Install Linux environment". Diagnose, fix, test harder, deliver new APK + zip on the web app.
+
+Work Log:
+- Recording analysis (19 frames @4fps + vision): Home -> Diagnostics -> Install tap -> spinner (f13) -> launcher between f13/f14, no dialog = silent crash ~0.3s after tap, at install start.
+- ROOT CAUSE (two stacked defects): (1) AndroidManifest had NO INTERNET permission ("No internet..." M1-era comment) -> SecurityException at first HTTPS connect; (2) zero crash containment: installer rethrows after reporting FAILED and RuntimeManager's scope.launch had no handler -> any pipeline failure killed the process. Matches recording exactly.
+- FIX: manifest INTERNET + honest comment; RuntimeManager scope got CoroutineExceptionHandler; containment extracted into internal RuntimeCrashGuard (install/remove) used by RuntimeManager; remove() now treats clearRuntime()==false as REPAIR_REQUIRED.
+- TESTS: new RuntimeCrashGuardTest (6) — the incident's EXACT SecurityException("Permission denied (missing INTERNET permission?)") driven through the REAL installer pipeline must land FAILED with tmp cleaned and NOT escape; Error (OOM) likewise; success passes to READY; undeletable-remove -> REPAIR_REQUIRED; retry transitions legal. 58/58 app tests, 145 terminal-emulator, full build green.
+- EMULATOR: attempted per user request — sdkmanager license-EOF abort (fixed via yes|), ENOSPC (freed node_modules/.next/.npm/puppeteer/gradle transforms/NDK), emulator disk-check FATAL "need 7372.80 MB" — INVARIANT across generic/pixel_4 AVD, raw-byte config, -partition-size, DynamicPartition off (image+AVD level): API 30+ images have a hardcoded ~6GB userdata floor (7.2GiB free needed) AND API 30+ is the minimum with arm64-v8a translation (required by the arm64-gated installer). image(2.8G)+emulator(0.4G)+7.2G > 9.9G disk => mathematically impossible in this sandbox. Documented in CHANGELOG/TESTING.md; device validation remains the M2.2 gate.
+- Live CDN re-check: pinned Alpine 3.24.1 sha256+size still byte-exact today.
+- Version 0.2.1-m2.2 (code 4); aapt2-verified INTERNET in merged APK; APK sha256 b7b54d1f...
+- Delivery: payload script bumped (commit 85b46bb), rebuilt: zip 188 files 2.4M (3b581e0d...), tar.gz twin, bundle acf07b1a..., APK in public/; v0.2.0-wip artifacts WITHDRAWN everywhere (crash build); page.tsx/layout.tsx updated to crash-fix release (honest scope + device-gate note); server restarted on :3000; ALL 6 artifacts byte-identical over HTTP; old build 404s; bun deps reinstalled after cache purge (827 pkgs, 7s).
+- agent-browser CLI lost with global npm cache cleanup -> curl-level E2E (status+content+bytes) used; structure visually verified earlier same day.
+
+Stage Summary:
+- v0.2.1-m2.2 delivered on the web page: APK (primary) + source zip/tar.gz/bundle; M1 archive kept; crashed build withdrawn.
+- M2.2 gate: user must run docs/TESTING.md §7 on device (install to READY, kill-mid-install recovery, airplane-mode FAILED-not-crash).
+- Sandbox disk recipe for future: freed ~7G by purging NDK (2.2G, reinstall via scripts/install_toolchain.sh when M2.3 needs it), emulator stack, caches; .gradle transforms regen on next build.
+- Next: M2.3 — compile proot (termux fork pin, NDK reinstall first), RuntimeProcessLauncher, Linux shell in existing PTY.
