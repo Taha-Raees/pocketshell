@@ -206,3 +206,22 @@ Work Log:
 
 Stage Summary:
 - M2.0 PASS, M2.1 PASS, M2.2 code-complete + sandbox-validated; M2.2 GATE (runtime READY on real device) = DEVICE VALIDATION REQUIRED. M2.3 next: compile proot (termux fork pin), RuntimeProcessLauncher, Linux shell in existing PTY.
+
+---
+Task ID: 12 (M2.2 web delivery)
+Agent: main
+Task: Upload M2.2 APK + fresh project zip to the Next.js download app.
+
+Work Log:
+- Wrote scripts/make_payload_m2.sh (bundle + zero-dotfile zip recipe, web scaffold + app/page.tsx + app/layout.tsx shims excluded); committed as 948e9b1 BEFORE building so the bundle tip carries it.
+- First run caught real bugs via sanity gates: .next/ + .kotlin/ (repo-root dot-dirs created by next dev / gradle) leaked into the zip because wildcard exclude '.*/' does not match; 'node_modules' hits were .next chunk filenames, not the real dir. Fixed with explicit per-dir excludes.
+- Payload v0.2.0-m2.2-wip @ tip 948e9b1: PocketShell-v0.2.0-m2.2-wip-source.zip (2.3MB, 185 files, sha256 7df868f6...), tar.gz twin (1302b079...), pocketshell-m2.gitbundle (2.0MB, 4450ec50..., full history incl. delivery-saga binary commits), APK copied to public/ (3f6998db...). All gates pass: 0 dot-paths, 0 shims, 0 node_modules; bundle clone-verified (tip 948e9b1, 127 files, M2 sources present).
+- src/app/page.tsx rewritten: M2.2 APK primary card (adb install + sideload notes), honest "what this build actually does" card, source zip card, tar.gz/bundle alternates, amber device-validation callout (5-step install flow), M1 archive (v0.1.1 zip + bundle kept), updated milestones (M2.0/M2.1 done, M2.2 code-complete/device-gate-open, M2.3-2.6 pending), footer bump. layout.tsx metadata title updated.
+- Server: dev on :3000 via nohup (was left stopped after M2.2). Homepage 200; lint clean.
+- VERIFIED: all 4 new artifacts downloaded over HTTP byte-identical (sha256 match); browser click-through "Download APK" landed 21,412,144 bytes in ~/Downloads byte-identical; M1 archive files still served (200); desktop + mobile full-page screenshots clean; zero page errors/console errors.
+- Masters backed up in dist-master/ (zip, tgz, bundle, APK). download/README.md rewritten as offline manifest.
+
+Stage Summary:
+- Download page now serves: v0.2.0-m2.2-wip APK (primary) + M2.2 source zip/tar.gz/bundle + M1 archive. M2.2 device gate instructions on-page.
+- Note: bundle grew 256KB -> 2.0MB vs M1 — full history legitimately includes the zip-delivery-saga binary commits (617cb01/81f95cb era); NOT slimmed (history rewriting forbidden).
+- Next: user runs M2.2 device gate; then M2.3 (proot build, RuntimeProcessLauncher, Linux shell in existing PTY).
