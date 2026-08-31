@@ -186,3 +186,23 @@ Work Log:
 Stage Summary:
 - Download page live on :3000 (preview link proxies it). Zip download works end-to-end in a real browser regardless of file-panel extension whitelist.
 - Note for future zip regeneration: scripts/make_source_zips.sh must exclude app/page.tsx + app/layout.tsx (web shims) and web scaffold dirs from archives.
+
+---
+Task ID: 11 (M2.0 - M2.2)
+Agent: main
+Task: M2 Master Prompt execution — baseline, research, runtime installation slice.
+
+Work Log:
+- Sandbox reset #3 detected; toolchain rebuilt via NEW reusable scripts/install_toolchain.sh (Temurin 21.0.12.1+1, cmdline-tools 11076708, platform-36, build-tools 36.0.0, NDK 28.2.13676358, local.properties).
+- M2.0 baseline: 166/166 unit tests PASS (matches M1 record), assembleDebug PASS — verified BEFORE any changes.
+- M2.1 research (primary sources): AOSP sepolicy main — neverallow app_data_file:file execute_no_trans for all untrusted apps EXCEPT targetSdk<=28; plain execute/map NOT blocked (b/237289679 comment); termux/proot split-loader (PROOT_UNBUNDLE_LOADER); UserLAnd runs proot distros at targetSdk 35 on Play. DECISION: keep targetSdk 36; proot via jniLibs (M2.3) + Alpine 3.24.1 minirootfs; device-gate the loader path at M2.3; Plan B = targetSdk-28 compat flavor.
+- docs/M2-RESEARCH.md + docs/M2-ARCHITECTURE.md written; commit 75a0fef.
+- M2.2 implemented: app/src/main/java/app/pocketshell/runtime/ (RuntimeState machine, RuntimeMetadata kotlinx-serialization, RuntimeChecksum, RuntimeStorage reconcile/promote, RuntimeInstaller pipeline w/ zip-slip guard + modes + symlinks + hardlinks + GNU longnames, RuntimeManager facade, RuntimeDiagnostics); RuntimePin constants verified against LIVE CDN (sha256 match); diagnostics screen runtime section; PocketShellApp.init; commons-compress 1.28.0 (Apache-2.0) added via version catalog; THIRD_PARTY.md updated.
+- Tests: 31 new unit tests (state machine, checksum vectors, metadata roundtrip, storage reconciliation, installer incl. tamper/traversal/HTTP-error/size-mismatch); 52/52 app tests PASS; full-repo test+assembleDebug PASS (4m13s).
+- REAL-ARCHIVE sandbox validation: actual Alpine minirootfs extracted end-to-end (410 files, 635 symlinks, states DOWNLOADING..READY) — throwaway test, not committed.
+- Version: versionCode 3, versionName 0.2.0-m2.2-wip; CHANGELOG entry; commit 7a950ec.
+- Delivered download/PocketShell-v0.2.0-m2.2-wip-debug.apk (sha256 3f6998db...) for device validation.
+- Next.js dev server left STOPPED (RAM headroom for gradle; download page already delivered — restart on request).
+
+Stage Summary:
+- M2.0 PASS, M2.1 PASS, M2.2 code-complete + sandbox-validated; M2.2 GATE (runtime READY on real device) = DEVICE VALIDATION REQUIRED. M2.3 next: compile proot (termux fork pin), RuntimeProcessLauncher, Linux shell in existing PTY.
