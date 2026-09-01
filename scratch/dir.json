@@ -1,0 +1,2142 @@
+)]}'
+{
+  "id": "6290ea6ef7182ff2f71184c4865a1190519009ca",
+  "entries": [
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f91c1a409b1a19396c6ad3102288a09dd3886141",
+      "name": "access_vectors"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "211405bcfa0f6e9c5141c0606e246bfb54b19f79",
+      "name": "aconfigd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "cd98d4beef93210f8ea640238378b03d04c7fca6",
+      "name": "aconfigd_mainline.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "138c8f51a0ff9a757e9baec62f1745ace0c1041b",
+      "name": "adbd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c24b0292702705516adb6e632e71389a5b62c61b",
+      "name": "adbd_common.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "42fdec4632b347ea13ac0676ef5771780703d242",
+      "name": "adbd_tradeinmode.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "98ab218cddb98235d57f3070ed1d238759a152f3",
+      "name": "aidl_lazy_test_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f1bc2145eba91d9c0e9dc6e4a3e4a688050c2dd1",
+      "name": "apex_test_prepostinstall.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3205b026af7e5790b2ef116eb6c6502d188092cc",
+      "name": "apexd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d4c5496b70a4f965a821379ff5d6d8aa12719ff7",
+      "name": "apexd_derive_classpath.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3219fbe9623f4b0a6a68da525534cbb85ee39cd3",
+      "name": "app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "434fb132e7adb545dc511564ca3b631ec617115a",
+      "name": "app_neverallows.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b51f633d939379827eb3ae2cc9b3115f17819dc2",
+      "name": "app_zygote.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "0922931c28ccbb36ff69fa157b9ec338c8a35883",
+      "name": "art_boot.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7f944f6cbed7ab48588ce8b79047db24183f31bb",
+      "name": "art_exec.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b3f1e5a4466009fac06b5c28725538e7b9c818df",
+      "name": "artd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8c8980ce2005c0cfb3ba3955cf11b638935ce0fa",
+      "name": "asan_extract.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1712648b183e2ea3c8cacdb0cc8c4f736beac66b",
+      "name": "atrace.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "93bf295783524b3daa35849158326494557d4622",
+      "name": "attributes"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5aa8ddec524ffc4b03f98a0d5617ebdd20305d30",
+      "name": "audioserver.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f634d3d1d57f5e717f14b15b8f849dec68d161d0",
+      "name": "auditctl.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "db20696a60925599060afa9369eee098b2fa10ef",
+      "name": "automotive_display_service.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b11bd76f6c354a0c1406d78ceec586c9f94e15a6",
+      "name": "bert_collector.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b8ae9f4ac16b52be2185a0a60c8057c5b75949bc",
+      "name": "binderservicedomain.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "20d50cc5715951dde1227c9ce9859496e0c6ff3a",
+      "name": "blank_screen.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4e972ab95d9168b08d01eaa49190758b7ae84b62",
+      "name": "blkid.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "125677157ebaadf6fce40e245c85904008103b13",
+      "name": "blkid_untrusted.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d3d65bb56a966aa6d1b5d1d347b314e382328d9b",
+      "name": "bluetooth.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fe4f0e663e6ae203381c9e365896f87f919399b2",
+      "name": "bluetoothdomain.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fd3a09b5c79dee431874168ccc387c05f4e62a9f",
+      "name": "bootanim.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9835940188db3c93ac8d9ce15c229a90322dd7bc",
+      "name": "bootstat.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "50fc1fc1c18050810a79b52b0f128f7f850f812f",
+      "name": "boringssl_self_test.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7c8f5c0751f31f8592c50fd6b77ddd0b01c117b8",
+      "name": "bpfdomain.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7d8a7065597977ff2552aab0b3478a60173e1ca2",
+      "name": "bpfloader.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "143c6b557814920d3cd08c564b4c0f926afeaa8e",
+      "name": "bufferhubd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "a4873a7cc2dd9c07913a2ebfb3ac80f42bbc5052",
+      "name": "bug_map"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "352e1b7aafd8ec10a77610559d919a54d268aa79",
+      "name": "camera_service_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "16c1f3d3875cb66375a5d35fbc8ad825b04943c4",
+      "name": "cameraserver.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5673ccd3d223ddb77abdcb7641950fc0564b6f77",
+      "name": "canhalconfigurator.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2d48a60652789e571049313988efa7d95f5a905d",
+      "name": "charger.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d920a3d64e7f0618ee7bab2a954b64207b704c94",
+      "name": "charger_type.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "47bd1983bac63a0e86b046056721cf89eeb36d01",
+      "name": "charger_vendor.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "cd024a78a295b6e04deab3cbf76548d8f712293f",
+      "name": "clatd.te"
+    },
+    {
+      "mode": 16384,
+      "type": "tree",
+      "id": "c86b8a3a520b4bb50972bef00eb7f06f36f8db75",
+      "name": "compat"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "01504eec8dd3686b14407a0369bdd2cdf9fa1380",
+      "name": "compos_fd_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5b3615eeac7359d4ead6ea958263076078207702",
+      "name": "compos_verify.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "409b2cb4c57fe048b4a3aac953676f90571b5128",
+      "name": "composd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7f0ca9d8d8800ced4328ed94580673534253ea55",
+      "name": "coredomain.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1192ba676ee7fcb43ad1ef2900a82cd0a0c27c24",
+      "name": "cppreopts.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4bd1d38218947d93bca0a90d6166fb2b27ea5216",
+      "name": "crash_dump.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "bef5c554a35453f096ce01ea7523a864e40688cc",
+      "name": "credstore.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "11c70adabd3b07d013ecfe607000ba6b7dc61d54",
+      "name": "crosvm.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d7c29c28b4beca7645b0782ccaeffde0d15622ea",
+      "name": "derive_classpath.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c47f0a5bd9a53612324a81810ab49ceef1e894e4",
+      "name": "derive_sdk.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "98c91c2f9a9544e0a458fdf5bda7b4233b3b7c1b",
+      "name": "device_as_webcam.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3a841ced79d21a7254c848488e070cb8d4c104f0",
+      "name": "dex2oat.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b4b35ddcea3174f8ced877a3bca3aa7a1415b08a",
+      "name": "dexopt_chroot_setup.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4c87f99ab5ba94307d6447c6b166129c178e7069",
+      "name": "dexoptanalyzer.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "ce4fef10bc8f38810edbcf3ed5e4da5ec5c05c6c",
+      "name": "dhcp.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c5839fa544b524ab61fdcddd991a93294955ae80",
+      "name": "display_service_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7a12882869104dd487555fbcb7970cf0a8657c19",
+      "name": "dmesgd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "de6c8d6787f2b5ade47272cd6e158e54a175214e",
+      "name": "dnsmasq.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6999586eaf09978949b1ab3fce5bba738870c47a",
+      "name": "domain.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "dfbf3b82b816d3f0630da0913ed471cebcda8af6",
+      "name": "drmserver.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b92ca6fe3090e202f3174024620b4282966f3786",
+      "name": "dumpstate.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3316ce23bbd9362d3c413512bf16a9b1f973ee69",
+      "name": "e2fs.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d1579fe3b5e82a928d5a2960057656bf485ff5a9",
+      "name": "early_virtmgr.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4e1417b63ecbd6cee35859002c2eaa175deb6af2",
+      "name": "ephemeral_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "37726287f8282a5187b43c8b3a32cd7cdf4a545b",
+      "name": "evsmanagerd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f24340de8bc82ce10f8b5f19753213c94a78f039",
+      "name": "extra_free_kbytes.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "a62cc47afec654788a168aab73ae094f0c5c3a0c",
+      "name": "fastbootd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6de346a50730ac930e2a96425c89eb3207e43ee4",
+      "name": "file.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2bed8ed1366ceb437e0bb63ec4bc21b6603144b5",
+      "name": "file_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9554a76188aa2eaa2cfd2a8c3c737884287d6c95",
+      "name": "file_contexts_asan"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e472fade565924ccdc1d43e23d8c3908c57f9a2e",
+      "name": "file_contexts_overlayfs"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "949f9ea0e6ca1f8f0914b69c1eb8819594150f94",
+      "name": "fingerprintd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "db7f08f58416408e3caea73534efc4e08a429a11",
+      "name": "flags_health_check.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "93d7f1b24461e533a62828687cc263752b0a00ec",
+      "name": "fs_use"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "90f7e5120440e4f9ea420709aacfaf422910e3f3",
+      "name": "fsck.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4b55a57e5dfd055c646a05603828607aaa1fff9c",
+      "name": "fsck_untrusted.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4423913d0663ab3a5102d3a9f0be72db8a6c5455",
+      "name": "fuseblkd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b99a49ca8ad052b8a41864903160613219f5ab66",
+      "name": "fuseblkd_untrusted.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5286f3e5653d9d1c337d60d9828bd7e2fdfd0c06",
+      "name": "fwk_bufferhub.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "045294f92f7eb01484653277440e10e991cb844b",
+      "name": "gatekeeperd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3d361489dea9eec85f67e11ff8deb5065078fbaa",
+      "name": "genfs_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "11553893089716670a34fb974ba9d0129b972c99",
+      "name": "gki_apex_prepostinstall.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "148cb7e689091a6ee242af2cb35f652e7d0460b4",
+      "name": "gmscore_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "563854368107938b62b9180a5e69c4db245167d8",
+      "name": "gpuservice.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9391016c45a77ba85a2daa171f8a4c36f07df066",
+      "name": "gsid.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6417b62890215faff687cfebbe395b6d3aa028e4",
+      "name": "hal_allocator.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6ab7eb83bde419bac70a86925e12aaa297d28a44",
+      "name": "hal_allocator_default.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "51d9237f9e7bf175133508b347189e9cdc31f01b",
+      "name": "hal_atrace.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "237ffcd7c6aaedfe8c8e817298568b8471842a22",
+      "name": "hal_audio.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6f45b0ebb38e0e6ca324ea373d6734d8d093f48a",
+      "name": "hal_audiocontrol.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f053cb08ed2c36f6b09d8a6998d15126ba3107c5",
+      "name": "hal_authgraph.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "bbcdb9a33d6ee7cdc4d72bced57141d311f6638a",
+      "name": "hal_authsecret.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2e03ea28a52d0340544c5e173e29bc2fed8e45ee",
+      "name": "hal_bluetooth.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f9b50b032ab544f725badb6efecae834dbfb483c",
+      "name": "hal_bootctl.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "bb882c91330443ecf35f5571b55d41d339d4fb22",
+      "name": "hal_broadcastradio.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "df70ab67439fb21cf672041631a83f7525388b35",
+      "name": "hal_camera.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d48c43f8496fd8488a73286bcfdb0de39041a006",
+      "name": "hal_can.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "056b4c998c920777b5d24288a96cd249a3b32f88",
+      "name": "hal_cas.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "df36ff8f2ab16c15ce99b2a5094cc0244c652e4d",
+      "name": "hal_codec2.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d26e1db7ab5fa380ef1139036523a8541fccf2ae",
+      "name": "hal_configstore.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9896e359045acca250dacbab2bf742bd4097cc6f",
+      "name": "hal_confirmationui.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "14c2dbcfa23d7430c22d1e166c4e24985c4340fb",
+      "name": "hal_contexthub.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f24c326e84879f20ca00bf09ee0ba6ba616815a1",
+      "name": "hal_drm.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "eaa223bb02b0e28c99bbc0a92a3f26bf05c3690a",
+      "name": "hal_dumpstate.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "09a40d80e934bba87922943fbe00d16daf554350",
+      "name": "hal_evs.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5e4395354c5eaa3a3b17edaaf4efa61c09ad062c",
+      "name": "hal_face.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7aecac13eecdc2851168285b0cdd24a73c00efe1",
+      "name": "hal_fastboot.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3295cc7fb03381ce2180a9c8b1a817133a1291cb",
+      "name": "hal_fingerprint.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fc23e649293e91ae8ab45989070a2a2efa1f31be",
+      "name": "hal_gatekeeper.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "59a6df8e30815f91e147b00ae95efb9c55226406",
+      "name": "hal_gnss.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "39ba46ef289d7a04d31eadb5f2790be3dc30e542",
+      "name": "hal_graphics_allocator.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "32505642b528bda8060d134683eb1f54374b73cd",
+      "name": "hal_graphics_composer.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5d7aff5ba263b826d5cdcb815ee81c5ddb9bea90",
+      "name": "hal_health.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4938a162fc70d4b1dd401f00bdd40fca13cf2d38",
+      "name": "hal_health_storage.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8d558ade1753bfbe619d97c6f1ed302ee9883038",
+      "name": "hal_identity.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "70a4b7debb22772985fceadb2a8f294e79ca9683",
+      "name": "hal_input_classifier.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b59b15f5a68070bfd19a8b6f86da221876d305c7",
+      "name": "hal_input_processor.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "452127a343df31f82f01343ab063bc175c1b7916",
+      "name": "hal_ir.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "617effe2241dde4be20ff03bf9ec0a1b3952e17c",
+      "name": "hal_ivn.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3e164ade9401564b97eb45bd63caa193edb8f5b9",
+      "name": "hal_keymaster.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6c7b577272035415f20d54dede5689013f09200a",
+      "name": "hal_keymint.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "0a20870acb9a12573c1f17edce8da3d2a5870f4c",
+      "name": "hal_keymint_system.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "93cf2350bcd52cd8f35aefaccc7c034d10857af8",
+      "name": "hal_lazy_test.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "40829b6bb0071f975372ea9746e4c2a2ff9181fe",
+      "name": "hal_light.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6fb95e9430cd6daddea4ba77dc359f3da500d4a7",
+      "name": "hal_lowpan.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "27225db2195d72e5c67843e33b330451ddb873fc",
+      "name": "hal_macsec.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5bcdbbc32fd120e4f6fb4fe6264d5e736d30bce5",
+      "name": "hal_mediaquality.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "30a4480bd9823c6cbe24657f8c1b91a4e499e8ee",
+      "name": "hal_memtrack.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c7049fd00df89548c3c4a2ba12ecb0de41c3591c",
+      "name": "hal_neuralnetworks.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "356288851c2767b583ed875fcfabbe17b2cdf780",
+      "name": "hal_neverallows.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3d0202b77a11be35f71c7d52bc8d41d7bf2ce0e4",
+      "name": "hal_nfc.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1a738a55ba88e0aef50d0c769ec89a523c913c50",
+      "name": "hal_nlinterceptor.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9f38fa55af13f2970c8eb286380be0a1344c7614",
+      "name": "hal_oemlock.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2611dcd303e869d19000a325db3c56cc604e57d7",
+      "name": "hal_omx.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1eb10a15aadd60e02de697a7a05c5babbeb2a470",
+      "name": "hal_power.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4076effc9230bc8fa5f571efe9bd96b00281f0de",
+      "name": "hal_power_stats.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d16333baeb07bed620ddb7ef4ddfd46a0c71e23a",
+      "name": "hal_rebootescrow.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8a55529c885ee86b6108eb1cf9c9a6a9fd008474",
+      "name": "hal_remoteaccess.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8cc7ce5ae18dc154b52557fcaa6e5f84f65e786b",
+      "name": "hal_remotelyprovisionedcomponent_avf.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "359159f1b37e8616546cbf04d90616464e753ecb",
+      "name": "hal_secretkeeper.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8d3e15c86c08b554e4fda11d6c772d3326fa55e8",
+      "name": "hal_secure_element.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f25a2ea56775149e00fccbea64b34862f6cb0539",
+      "name": "hal_sensors.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "306d4593cce7ad6d0697914702da98a0c8ff1b55",
+      "name": "hal_telephony.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c9553dc23dcd8a23839a2a373ebee77c03c7293d",
+      "name": "hal_tetheroffload.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "13fed00d146a62792c60258f16149a9940cb309e",
+      "name": "hal_thermal.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1f0745bc099f59ad6aff05298c52bfdf6d0f3c04",
+      "name": "hal_threadnetwork.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "658490474a7903b440bccfb8d88bb873adb08b7a",
+      "name": "hal_tv_cec.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "eb01b67c3b09f3836c65295ccb7ef2778bbcc1f1",
+      "name": "hal_tv_hdmi_cec.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f6de27d2740e3558ab10c939abaa0ba1b3bf716d",
+      "name": "hal_tv_hdmi_connection.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2d76fc66595fc750dfac4761c650ae714993d7eb",
+      "name": "hal_tv_hdmi_earc.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b345189a9072a54cba24689d516b80366f71d624",
+      "name": "hal_tv_input.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4b7c030db9f4ac244da34295707be5956910e92f",
+      "name": "hal_tv_tuner.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "45cafaa6979537daee696df4a9a1de86e5e28cca",
+      "name": "hal_usb.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c0df9a9bd7343cf5f59aa7fc27e6cfb9c46cce67",
+      "name": "hal_usb_gadget.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "dc334fce3e2fc22086899c9fca4c7452842a3ebe",
+      "name": "hal_uwb.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c9eff5596c452f9acb2fc090d7c9730a71ba911a",
+      "name": "hal_vehicle.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6909ff2e6704d5c2757fdd7726ef37f218cf1d00",
+      "name": "hal_vibrator.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3197784bf66c98b435807d3ce309b7454f886868",
+      "name": "hal_vm_capabilities.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e52c77fbaa3cb6d0edf418e3500be88dc80e3f9a",
+      "name": "hal_vr.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2b3498992a688f9b7b6d3a43a8f20ad984e35e7e",
+      "name": "hal_weaver.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "a9cae31d66461b71f04f1a8bc2f02dda2c15a538",
+      "name": "hal_widevine_system.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "a0826bb0cf01e72d7bd4dd759c064632fcd39cfc",
+      "name": "hal_wifi.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "eeb72babb10aad3bc5c8baf29c957ef9d2f5a0cb",
+      "name": "hal_wifi_hostapd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "498469d2f153f269bb898f1ed279d2e38b805377",
+      "name": "hal_wifi_supplicant.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9dcd3ee3846a74094ad45970754e76405846f626",
+      "name": "halclientdomain.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f36e0e7d8f15cae1cc86b4259a1610540d9839ce",
+      "name": "halserverdomain.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "cf422ed5779dd7b622e643663a8197dcb0c49503",
+      "name": "healthd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "39d0bbbe051916a31916765a9d57d1040bdb0ec4",
+      "name": "heapprofd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "04e8c9fbe1dbf5f5154668ea73f8af13a07e9b35",
+      "name": "hidl_lazy_test_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1a56eb7a2e4a2b4b405577dcac2874cda5c420a4",
+      "name": "hwservice.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c56454ff5c4be389025a3b7b6a633281a926496a",
+      "name": "hwservice_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5605c4d7c70e7acc56ff832353bd9dabe95181d3",
+      "name": "hwservicemanager.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2c32b913e55c21408cdbd8ba3d28e78415d49b2f",
+      "name": "idmap.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "19db7d752b311ae5a06a02f1dce5693f3c269d28",
+      "name": "incident.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "cdaf144648d2457d041b834347d0a43b2697c4b7",
+      "name": "incident_helper.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "11da9ea36245db5333e61eb117bf54496ab031d7",
+      "name": "incidentd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6f0ee80011e9da2f4dbbb5ce1c42c777b4cdd21d",
+      "name": "init.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "98190510f2a65869b031c62304436979620cdf06",
+      "name": "initial_sid_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "91ac816ba7657261a9f2f486d551626d3cc0ce1e",
+      "name": "initial_sids"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9e8e35bab525bf7c4cd277773ae634cec40deeec",
+      "name": "inputflinger.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "50c378a116c1626bc27ac832b4e1e5446cea1ddd",
+      "name": "installd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9d0fd73a1c8e16450a1fd263cda608f831e89adc",
+      "name": "isolated_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "43f1ac656f118688bb780ab434b82d13179911ab",
+      "name": "isolated_app_all.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f34850e454e37656aa8672fc56955638fcc57087",
+      "name": "isolated_compute_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "adc8c9632f7c0959216685cb028d0d4f2c1fe7a3",
+      "name": "iw.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d569dc0b28f50df606247ddd8761711ab33b33f3",
+      "name": "kcmdlinectrl.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "0d3aa77340676d39659823079c1e3a4aa04e3e5f",
+      "name": "kernel.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fc50ef31402ae29a64d5a90e17c89e7cd0133b09",
+      "name": "keys.conf"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "41c29db158e8c1ef485c35b466f56669b07569f0",
+      "name": "keystore.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "868bf15e40d335ec4494516014cd938b06abb7ff",
+      "name": "keystore2_key_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2f9760850c9b858ca010050b1823d1f61805b1b1",
+      "name": "keystore_keys.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5459c1d7b2656c69ccb385283a584693237b5c6e",
+      "name": "linkerconfig.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "ba483e8c919f4de3f73082dfe8a69c9ad1d8872f",
+      "name": "linux_vm_setup.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9c96dfbf1ccc11a02799a7199b3904bf57c3dfc7",
+      "name": "llkd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "97dc398b88aea5464b1317031846f0c04ce4f78e",
+      "name": "lmkd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b6e8b2700a5462d63b1bf6f1eb280fe199c94001",
+      "name": "logd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "34022d64cc5446ace50f8ca35ce817f1b6764e73",
+      "name": "logpersist.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "09ba0796fd76cda9f6b83a44bad612236e616e16",
+      "name": "lpdumpd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fa8ffcfbef2cec54c695c41ce2a7e6a91ff1a245",
+      "name": "mac_permissions.xml"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "98e95dab3b8a1e867e0e04a6c16f81050cd33fdd",
+      "name": "mdnsd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fdc768104e5a47676acb4a1fa8a37d44cd156260",
+      "name": "mediadrmserver.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c800d89cc6eabe6d87d642e196f7a7f4e9f402e2",
+      "name": "mediaextractor.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "bb12900e62cf2cc5a27faa07a8deb0fa0fec769f",
+      "name": "mediametrics.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "545d9eae53b52669941319a76c99436427a368d3",
+      "name": "mediaprovider.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "064d0d9c449da5923a4863e3b936e7b6480d6256",
+      "name": "mediaprovider_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d72caf62cb5ed5bc568b09728c6fa307aaa038b6",
+      "name": "mediaserver.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c96c9dd709d83ee8cf11e7e49e8383414cf592e2",
+      "name": "mediaswcodec.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "829d9483c6f2cf6ceb2a89676cf61e7c2908bdfa",
+      "name": "mediatranscoding.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5871bea7cca79ef411af561be37fd4b05bdb9c23",
+      "name": "mediatuner.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "80378d3ef58e85fee9e9a99a10b1533c0e0594cc",
+      "name": "memcgv2_activation_depth.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f02acaf30ee69c83527d1df77409dd57aec59348",
+      "name": "microfuchsiad.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b2a1fb10a7fdb4ea394c509082976422ff168e24",
+      "name": "migrate_legacy_obb_data.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2352067a076a4044b561d384bd7caeb87fe9643f",
+      "name": "misctrl.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "955c27b00ff5c9ba6f25d6f8c2df3b5fd37d16a0",
+      "name": "mls"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "dd53bea7e83755ed099489e70215f810e610695e",
+      "name": "mls_decl"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "83e05425b27f234203ac747ca613d8a39fac3d28",
+      "name": "mls_macros"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8fcc1d4038aa59827257b9d161f10c09c5890bd2",
+      "name": "mlstrustedsubject.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4875d40328a6ce1d3e1648ceee2b8d734753a4bf",
+      "name": "mm_events.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7770865343a02d72f57a68868e85fa923de79a28",
+      "name": "mmd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d7b2fc38fd8b706b47d243b1affaa1bfe1ab74cd",
+      "name": "modprobe.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e0418bcf0eb8195d89ebec53372486923d5cf5fa",
+      "name": "mtectrl.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2c2f09143671d88a2a5beebd00fc86a15c53f940",
+      "name": "net.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3b3c697255f185f9f33df93db7cdb8152ee84031",
+      "name": "netd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "28766dd917034a22ba6e013e9b408ea236e66a4f",
+      "name": "netutils_wrapper.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8a072453dfbec8f73a657dcf9419f076a2851345",
+      "name": "network_stack.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7050d5a7bced770fa177c6f52f205713ef022dbe",
+      "name": "nfc.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "97205c25f3da14e03d1603265e8325861355f8e1",
+      "name": "odrefresh.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4af070862fe7ffc2d94b87820400d875aa8e0fdb",
+      "name": "odsign.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7325ce530180aa5d9ead4199407227c26c9af430",
+      "name": "ot_ctl.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "04cb70ffafee1e4165c4d16d50eaac6ce8c0e9ec",
+      "name": "ot_daemon.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2aeab0bcb052e7e34b792b8a45d93237b2be69c2",
+      "name": "otapreopt_chroot.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "27a3b0e084a4380a81cb36b4f10c694b864c3223",
+      "name": "otapreopt_slot.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "12f7b0dcfdfd38ab6114526dd660fdd4bf579af0",
+      "name": "overlay_remounter.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "07d43996c843c474851729c88387cc564d14b76e",
+      "name": "perfetto.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "98107ca363b438143fd9cf0cc370d4aac84730ef",
+      "name": "performanced.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5f8187530e7219f8b6be84536a9d7b8bbd6b77c1",
+      "name": "permissioncontroller_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "38339dad65a6f592942d0e082ec63a209faa2959",
+      "name": "platform_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9290e3ab36427e73a0ce8593de26f87551410a45",
+      "name": "policy_capabilities"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b473c0c9b431fe79309f2df9aa7bfd3c8223b3c8",
+      "name": "port_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5a2804be84c22d40cfc3f1e34f8d0d5d2f1975be",
+      "name": "postinstall.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "cdf403c2e41e7147d2177971333dcdc323c2242f",
+      "name": "postinstall_dexopt.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "69008b5e8a903b9fced216423f3c85de87e7a736",
+      "name": "prefetch.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "ba54b70acad2b89a5cbe4e0610d585ce7154555f",
+      "name": "preloads_copy.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "dcfba14d52fb2f913eb5603303b20bb0f03115ec",
+      "name": "preopt2cachename.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1ef5be1566fc7b01a2f561e0fc3573b12960ee77",
+      "name": "priv_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "299e37b85c1c620431844d8b0dc14e78a6b953c3",
+      "name": "prng_seeder.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8dc2d89aa1bd090a741c51c2e4e16f0b130aba8e",
+      "name": "profcollectd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d1ce92652d008bac7d08d54e452b8e0e31bbe34e",
+      "name": "profman.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9ff56e9259488353975f6d48228a06745f4e1c29",
+      "name": "property.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "aa863c553940b74787ed6b664ea44fc6d0b5fd8f",
+      "name": "property_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "ef384ba6abf28b7ad00ac71231e95ffc0804164e",
+      "name": "radio.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "24dfd43a4ccce7de4d449a31091988cc75edd2b9",
+      "name": "recovery.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "3e3c66c3897572a869f69c43d91ef18c11c214ff",
+      "name": "recovery_persist.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9dd95e30c56e343fd482c2bdfe68297c844db0e4",
+      "name": "recovery_refresh.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "710b43d423a48f1642f5f415fd59131e1b8626ef",
+      "name": "remote_provisioning_service_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5ef7facb5580162f7dc95993b6231b33595748d2",
+      "name": "remount.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e5c9d0748b7f77add19c3a07b65bde31f6c7c72d",
+      "name": "rkp_cert_processor.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "45e3e8dc107995e9182b78d84e9c2a2178e18f3a",
+      "name": "rkpd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e7809e9f1e4ed1d8d4a1ebf8c0672b5b3b0126a1",
+      "name": "rkpd_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c84fcba0ffabdd4ae4460e34b79333466f62f4a9",
+      "name": "roles_decl"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f92fd79ce5c8606bc5ddab3f33c6ec1599388196",
+      "name": "rootdisk_sysdev.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2674c0ef693be1a865ae3061804fb5606618d115",
+      "name": "rs.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "30818c2faca7d15c04676e89d573f75db426fa05",
+      "name": "rss_hwm_reset.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1d9aed01a4f2a375af1682327d764182d125d8e5",
+      "name": "runas.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "88b4abbcdfd738cbb9d815f14135f86a63198377",
+      "name": "runas_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b3cede1682dc53cdf84876b781a47e8e9b456859",
+      "name": "scheduler_service_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7cea8900019c147c40f235d2fb4a735ba6390cea",
+      "name": "sdcardd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "bb150576b0f44363bdf7bba6e753cee77db4fe75",
+      "name": "sdk_sandbox_34.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "41b2799fb1464805e3b6f121e7ddbcee91d59846",
+      "name": "sdk_sandbox_all.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "bb531ca44ad5a737979ed7d807316960dae7fcf7",
+      "name": "sdk_sandbox_audit.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "55e5bc135449cebd1139ffc14d9ee3567eaed3c1",
+      "name": "sdk_sandbox_current.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6fd16ca4c2eb44b48073fb1eb679804b1097cea6",
+      "name": "sdk_sandbox_next.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b615baf51dcf1a26a4d394609d9bf23e9d52255f",
+      "name": "seapp_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fd3b688e458cee8e0a5842a2b8dcaad8903424eb",
+      "name": "secure_element.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "0537214498ab73be146b79b81cf810c88a1dfce3",
+      "name": "security_classes"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "7c526a5f3300cb514bfefcf5b92de77f1de2ec7a",
+      "name": "sensor_service_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "96f208d9b60cd517153c1cccb66a87fb6be51fb4",
+      "name": "service.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "67c84d5de4174c963054a4ec6251d86c1369a3dd",
+      "name": "service_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6764b451f509f6b5ef97248c1dba0374d95b1b7f",
+      "name": "servicemanager.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "42b8c6bf3de390688a77db791a9019eacf76cdc7",
+      "name": "sgdisk.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "31fdb8c911f99939abd56daf97c17aa4513264f2",
+      "name": "shared_relro.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "492d8f5da2658cfdc6c96334583c448f4f975476",
+      "name": "shell.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "46769cba1e402797e2d430249ed8d3dd09d4e609",
+      "name": "simpleperf.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e4871acf8c9ae734b6118f5af2ebaaec94da1e3e",
+      "name": "simpleperf_app_runner.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e71c4929297d661209a5f9eec7562e3fc82377da",
+      "name": "simpleperf_boot.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d7c98680c872dd5fad7bd9031d23d90f8dc5a782",
+      "name": "slideshow.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c92217de97e1b36f0031d670d8905be02af7f1fb",
+      "name": "snapshotctl.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fda3fd13523fae5038aaea828d400e4b2cbce029",
+      "name": "snapuserd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "626130333c6a7e5d6a8a7d428e9a3a3a997c535d",
+      "name": "stats.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "ab8e58a8e9a404b558b916fefea301fde7217b64",
+      "name": "stats_service_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "acc3aa6a857c0ded327285a29a5d0a397e53a61d",
+      "name": "statsd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "bb39e5b73fb8e0179e00d7bbe4a376df6caac810",
+      "name": "storaged.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "247fd0b72cfcec9b74b9e9b5dc4e79978b4c567d",
+      "name": "su.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1e0e1ef9c5e12292c3c45cd12f1064afc30b4cd1",
+      "name": "surfaceflinger.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "06d49e9614043e50166e57d15d56ed5a814db2e7",
+      "name": "system_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "bdfec3bbd5ad798c0087e1d8a43fa1a3abbb6164",
+      "name": "system_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "064e0383c41002f3c8cbca91e5255bd0ff568427",
+      "name": "system_server_startup.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "a525866606558c8d4153ef96e6f9b5fecdec2d91",
+      "name": "system_suspend.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8ff9da9cabf072cc71a039b4047b3338a8035ffa",
+      "name": "system_suspend_internal_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8e8310d5ed1d3b55b5987bb113e18b986577d233",
+      "name": "system_suspend_server.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4286053cafeaa1fbbd156a911594b879a84eea67",
+      "name": "technical_debt.cil"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2f86c4d5e0412d7f502217aaec7916c2666e782b",
+      "name": "tee.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "508cc8c759fb38db1ad1719df646d516f26ce401",
+      "name": "tee_service_contexts"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "734527708fe945300097e8dbc28eea65d81fe0af",
+      "name": "tee_services.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1384835490955068d8f7dd42e0a4e80684ddc44c",
+      "name": "tombstoned.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "265db0a5ae75db29c8501a7ac8a47b587f396ac3",
+      "name": "toolbox.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fbca3fd2621aacd329d6c9c570e34690ff8c944d",
+      "name": "trace_redactor.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "619a55be8c2854eabae5fb17d0d4e7f9cf507560",
+      "name": "traced.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8bd7ad35d750717df5118bfc4b14d71726657d7c",
+      "name": "traced_perf.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6a42eb281dea09d2cb238563a48c22784b07b68a",
+      "name": "traced_probes.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4e6feffcc786eb027b3d9ff612295e4b7534b256",
+      "name": "traceur_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "18cf452e2ec831aaffd934b692c7efa779ed2857",
+      "name": "tradeinmode.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "654f861ea306a81f2994e7502b701b8cb3b1c28b",
+      "name": "ueventd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "156f6849bb3ee7e31d8ac47519b80ddefacb0376",
+      "name": "uncrypt.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d0f9b2417d540ef4ed20dcb4c09cbd691db2874e",
+      "name": "untrusted_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "d59245c3d062795f10ddd862d5fe40645c58376f",
+      "name": "untrusted_app_25.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8c970d86071b0548d5cdf4aec55fa7e0f0d6a75a",
+      "name": "untrusted_app_27.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "ed0bbfc7e6182aa311ac4645ed68e783959d672c",
+      "name": "untrusted_app_29.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c87548ef2c43d531cb092f436fdda585d1a36b9c",
+      "name": "untrusted_app_30.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6e95fd117917a5a39f92e495d934bd561af15115",
+      "name": "untrusted_app_32.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "c646137af33e48e737d47e3cbd85691a6cd08cbf",
+      "name": "untrusted_app_all.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1a6d9c777d28d21c21ca8cf7f981536e05349921",
+      "name": "update_engine.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6de02929c10217c758002f427b284bdf9126f4fb",
+      "name": "update_engine_common.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "2c68f4cec3239086f8a2684596c68defb3665b6b",
+      "name": "update_verifier.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6b8dd552430a670b8f848b6b216f7bc0cf158e44",
+      "name": "uprobestats.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "a444f9cd4f1026dd3cc835be0f9735236173d865",
+      "name": "usbd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9974f36dcd58c10876272e0efa58dbeb304d10b9",
+      "name": "userdata_sysdev.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "51b7b57e6798ca0f476cf87d5de69ae956df26c7",
+      "name": "users"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e59afce5c20ff6d4474d614a5bd13e3ff5bc60fc",
+      "name": "vdc.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "f52794496948e2ed9f0569a34077689ea8abfde6",
+      "name": "vehicle_binding_util.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "939bcc0060a33f4c532a2e95611b07f89eeaf6f6",
+      "name": "vendor_init.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1f27bf900f57d2cf1257cce09ba898e41f81a460",
+      "name": "vendor_misc_writer.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5a5925dfc3be06e229549480401cf4a2604c75d4",
+      "name": "vendor_shell.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "5421dd59c260f5e77f6815809da7299d9455b304",
+      "name": "vendor_toolbox.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "fd6499d6e58a4b3ce7d6ecc7ea3fa80d946a54d9",
+      "name": "vfio_handler.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "86174b15401c3b52faa5868b78d120ec15fdb7b7",
+      "name": "virtual_camera.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "9a805e817ca2a9a5457e59cce0aa5c0348a27323",
+      "name": "virtual_face.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "be20e241a258dc7bf0e29a565d2461c359619ab8",
+      "name": "virtual_fingerprint.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "035b121c32ee40efa2b3292704094b07ed77656e",
+      "name": "virtual_touchpad.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "b743d46fbdb8af21876d363c8f2eda1903e20b7a",
+      "name": "virtualizationmanager.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1acf73456a93ad6b1e20c240cf993658237d57c0",
+      "name": "virtualizationservice.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "6c398a28926bf74ec776f5f0038790fb6ed738c3",
+      "name": "vmlauncher_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "4a706dff5baaef325b11bc7e717bedbcbeea69a7",
+      "name": "vmnic.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "e1753f1750d995cc1bc66bbd9dde99ce94b65338",
+      "name": "vold.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "44c9ea561eefd13db7efd763110ec1fcf4ec73dd",
+      "name": "vold_prepare_subdirs.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "8deb22bc8bf33509742a29cb34a88726c9d96579",
+      "name": "vzwomatrigger_app.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "974a297fc3944cca15a8a9e7dc40d6deb6365e6c",
+      "name": "wait_for_keymaster.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "509e9502428d93fdbc5fef6606a7485db1c313b7",
+      "name": "watchdogd.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "1e32c1f37567b5d7426c87de8d4627cf9318f21e",
+      "name": "webview_zygote.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "dce5a07a78b6ee394216c552e5632e762653003c",
+      "name": "wifi_mainline_supplicant.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "046157367bafb17ffa386e69b34e2f3f22d9afe3",
+      "name": "wificond.te"
+    },
+    {
+      "mode": 33188,
+      "type": "blob",
+      "id": "62312cc7cb1ab99d7948451c20725c431d97c3bf",
+      "name": "zygote.te"
+    }
+  ]
+}
