@@ -17,10 +17,22 @@ import java.io.File
  * libproot.so stays as a fallback. On Android the loader file lives in
  * nativeLibraryDir — the one location that stays executable at targetSdk >= 29
  * (docs/M2-RESEARCH §1.2/§1.3). No app-data file is ever execve()'d.
+ *
+ * v0.3.2 device lesson (Samsung SM-F711B recording 2026-09-01 11:02): bionic's
+ * dynamic linker searches only its default paths (/system/lib64, /vendor/…)
+ * plus LD_LIBRARY_PATH — it does NOT search the app's nativeLibraryDir. proot
+ * DT_NEEDED libtalloc.so therefore died with `CANNOT LINK EXECUTABLE …:
+ * library "libtalloc.so" not found` the moment it was execve()'d. The sandbox
+ * rehearsal masked this: scripts/rehearse_m23_gate.sh exports LD_LIBRARY_PATH
+ * in the shell, glibc-style. The spec environment now ships LD_LIBRARY_PATH
+ * itself, and argv[0] is the executable path (exec convention; bionic names
+ * argv[0] in link errors and proot's getopt would otherwise never see the
+ * first real flag).
  */
 object RuntimeProcessLauncher {
 
     const val PROOT_LIB = "libproot.so"
+    const val TALLOC_LIB = "libtalloc.so"
     const val LOADER_LIB = "libproot-loader.so"
     const val LOADER32_LIB = "libproot-loader32.so"
 
@@ -56,6 +68,12 @@ object RuntimeProcessLauncher {
             return "proot loader is not present in the app's native library directory ($nativeLibraryDir). " +
                 "This build cannot start the Linux guest — please report which APK you installed."
         }
+        val talloc = File(nativeLibraryDir, TALLOC_LIB)
+        if (!talloc.isFile) {
+            return "proot's runtime dependency $TALLOC_LIB is not present in the app's native library " +
+                "directory ($nativeLibraryDir) — the guest would die with a linker error. " +
+                "This build cannot start the Linux guest — please report which APK you installed."
+        }
         return null
     }
 
@@ -81,7 +99,16 @@ object RuntimeProcessLauncher {
             else -> throw IllegalArgumentException(problem)
         }
 
+        val proot = File(nativeLibraryDir, PROOT_LIB)
+        val loader = File(nativeLibraryDir, LOADER_LIB)
+
+        // execvp(cmd, argv) passes this array as argv verbatim
+        // (terminal-emulator jni/termux.c), so argv[0] MUST be the executable
+        // path: proot's getopt starts at argv[1], and bionic quotes argv[0] in
+        // link/exec error messages (v0.3.1 device recording showed
+        // CANNOT LINK EXECUTABLE "--kill-on-exit" for exactly this reason).
         val arguments = listOf(
+            proot.absolutePath,
             "--kill-on-exit",
             "--rootfs=${rootfsDir.absolutePath}",
             "--root-id",
@@ -93,9 +120,11 @@ object RuntimeProcessLauncher {
             "-l",
         )
 
-        val proot = File(nativeLibraryDir, PROOT_LIB)
-        val loader = File(nativeLibraryDir, LOADER_LIB)
         val environment = mutableListOf(
+            // v0.3.2: bionic resolves proot's DT_NEEDED libtalloc.so from here
+            // (see class KDoc) — the rehearsal exported this in the shell, the
+            // device has no shell to do it, so the spec carries it itself.
+            "LD_LIBRARY_PATH=${nativeLibraryDir}",
             "PROOT_LOADER=${loader.absolutePath}",
             "PROOT_TMP_DIR=${prootTmpDir.absolutePath}",
             "HOME=/root",

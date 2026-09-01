@@ -3,6 +3,43 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.3.2-m2.3] — 2026-09-01 — device fix: guest dies at dynamic linking (`libtalloc.so not found`)
+
+### Fixed — Linux Shell session died at exec with a linker error (user recording, Samsung SM-F711B / Android 15)
+- **What the recording shows:** v0.3.1's crash fix works — install runs to
+  READY (9.3 MB), tapping "Linux Shell" no longer kills the app; the session
+  opens and honestly prints the guest's death:
+  `CANNOT LINK EXECUTABLE "--kill-on-exit": library "libtalloc.so" not found:
+  needed by main executable` → `[Process completed (code 1)]`. Two launcher
+  defects, both fixed in `RuntimeProcessLauncher.buildLaunchSpec`:
+  1. **`LD_LIBRARY_PATH` was never set.** proot's `DT_NEEDED` is
+     `libtalloc.so` (verified at build time), which lives in the app's
+     `nativeLibraryDir` — but bionic's dynamic linker searches only its
+     default system paths plus `LD_LIBRARY_PATH`, never `nativeLibraryDir`.
+     The exec'd proot died the instant the linker resolved dependencies. The
+     sandbox rehearsal masked exactly this:
+     `scripts/rehearse_m23_gate.sh` exports `LD_LIBRARY_PATH` in the shell
+     (glibc happily used it), while the device has no shell to do that. Fix:
+     the spec environment now carries
+     `LD_LIBRARY_PATH=<nativeLibraryDir>` itself.
+  2. **argv was misaligned: no argv[0].** The JNI layer execs
+     `execvp(cmd, argv)` with the args array verbatim, and v0.3.1's array
+     started at `"--kill-on-exit"`. Consequences visible in the recording:
+     bionic quoted argv[0] as the executable name (`CANNOT LINK EXECUTABLE
+     "--kill-on-exit"`), and proot's getopt — which starts at argv[1] —
+     silently swallowed the flag. Fix: argv[0] is now the proot path (standard
+     exec convention).
+- **Preflight grew a tooth:** `preconditionProblem()` now also verifies
+  `libtalloc.so` is present next to proot/loader, so this failure class is
+  reported as an honest actionable message instead of spawning a process that
+  can only die.
+- Version 0.3.2-m2.3 (code 7). Same signing cert → direct update over
+  v0.3.1, runtime data kept.
+- 3 new unit tests (218 total): `LD_LIBRARY_PATH` pinned to equal
+  nativeLibraryDir; argv[0] pinned to the executable with `--kill-on-exit` at
+  argv[1]; missing-`libtalloc.so` preflight message pin. The argv-contract
+  test now pins argv[0] too.
+
 ## [0.3.1-m2.3] — 2026-09-01 — device crash fix: Linux Shell tap killed the app
 
 ### Fixed — device crash (user recording, Samsung SM-F711B / Android 15)

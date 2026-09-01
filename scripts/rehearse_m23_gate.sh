@@ -2,6 +2,13 @@
 # M2.3 gate rehearsal on the sandbox host (x86_64 glibc build of the SAME proot
 # source + SAME argv/env the Android launcher will use), against the SAME
 # pinned Alpine version (x86_64 variant).
+#
+# v0.3.2 device lesson: the two exports below are PART OF THE CONTRACT — the
+# launcher spec environment must carry LD_LIBRARY_PATH (bionic does not search
+# nativeLibraryDir for proot's DT_NEEDED libtalloc.so) and PROOT_TMP_DIR, and
+# argv[0] must be the executable path (bash invocations below do this
+# naturally). Keep this script's env list and RuntimeProcessLauncher's spec
+# environment in lockstep; unit tests pin both sides.
 set -uo pipefail
 R=/home/z/tools/m23-rehearsal
 D=/home/z/tools/m23-dist/host

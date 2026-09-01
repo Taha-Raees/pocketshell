@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.3.1-m2.3
+VERSION=v0.3.2-m2.3
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,28 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.3.0-m2.3):
+WHAT IS NEW IN $VERSION (vs v0.3.1-m2.3):
+  - FIXED (device, user recording 2026-09-01 11:02): the Linux Shell session
+    opened but the guest died instantly with `CANNOT LINK EXECUTABLE
+    "--kill-on-exit": library "libtalloc.so" not found: needed by main
+    executable`. Two launcher defects, both fixed:
+    1. The exec environment never set LD_LIBRARY_PATH — bionic resolves
+       proot's DT_NEEDED libtalloc.so only from default system paths plus
+       LD_LIBRARY_PATH, never from the app's nativeLibraryDir. The sandbox
+       rehearsal masked this (the script exported LD_LIBRARY_PATH in the
+       shell; the device has no shell to do it). The spec environment now
+       carries LD_LIBRARY_PATH=<nativeLibraryDir> itself.
+    2. argv had no argv[0]: the args array started at "--kill-on-exit", so
+       bionic named the flag as the executable in errors and proot's getopt
+       silently swallowed it as the program-name slot. argv[0] is now the
+       proot path (standard exec convention).
+  - Preflight now also verifies libtalloc.so next to proot/loader, so this
+    failure class surfaces as an honest actionable message, never a dead
+    session.
+  - 3 new unit tests (218 total, 0 failures). Same signing cert — installs
+    as a direct update over v0.3.1, runtime data kept.
+
+WHAT WAS NEW IN v0.3.1-m2.3:
   - FIXED (device crash): tapping "Linux Shell" exited the app instantly.
     Root cause 1: AGP 8 default extractNativeLibs=false left
     nativeLibraryDir EMPTY, so a bare require() escaped the click handler
@@ -78,9 +99,10 @@ WHAT WAS NEW IN v0.2.x:
     failure as a retryable FAILED/REPAIR_REQUIRED state
 
 NOTE: the on-device gate for M2.3 is `uname; id; echo hello` inside the
-guest (docs/TESTING.md §8) — v0.3.1 makes that gate passable by shipping
+guest (docs/TESTING.md §8) — v0.3.2 makes that gate passable by shipping
 extracted native libs + targetSdk 28 (guest exec allowed in the
-untrusted_app_27 SELinux domain).
+untrusted_app_27 SELinux domain) + LD_LIBRARY_PATH so bionic can link
+libtalloc.so at guest start.
 
 HOW TO RESTORE THE FULL REPOSITORY (with history):
 

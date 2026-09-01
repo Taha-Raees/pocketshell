@@ -136,7 +136,14 @@ missing INTERNET permission + uncontained coroutine failure, fixed in 0.2.1).
 
 ## 8. Manual acceptance — M2.3 (Linux shell via proot) — GATE OPEN
 
-Prerequisite: runtime READY (§7) and **v0.3.1-m2.3 or newer**.
+Prerequisite: runtime READY (§7) and **v0.3.2-m2.3 or newer**.
+
+> **v0.3.2 note (guest linker fix):** on v0.3.1 the session opened but the
+> guest died instantly with `CANNOT LINK EXECUTABLE "--kill-on-exit": library
+> "libtalloc.so" not found`. Root causes: the exec environment had no
+> `LD_LIBRARY_PATH` (bionic never searches nativeLibraryDir), and argv had no
+> argv[0]. v0.3.2 ships both. The app staying alive and printing that error
+> was v0.3.1's crash-proofing working as designed.
 
 > **v0.3.1 note (device crash fix):** v0.3.0 died instantly on tapping
 > "Linux Shell" (extractNativeLibs=false → empty nativeLibraryDir → unhandled

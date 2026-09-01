@@ -22,6 +22,7 @@ class RuntimeProcessLauncherTest {
     private fun makeNativeDir(withLoader32: Boolean = false): File {
         val dir = tmp.newFolder("native-${System.nanoTime()}")
         File(dir, RuntimeProcessLauncher.PROOT_LIB).writeText("proot")
+        File(dir, RuntimeProcessLauncher.TALLOC_LIB).writeText("talloc")
         File(dir, RuntimeProcessLauncher.LOADER_LIB).writeText("loader")
         if (withLoader32) File(dir, RuntimeProcessLauncher.LOADER32_LIB).writeText("loader32")
         return dir
@@ -38,9 +39,11 @@ class RuntimeProcessLauncherTest {
     @Test
     fun `argv matches the rehearsed proot contract`() {
         val rootfs = tmp.newFolder("rootfs")
-        val s = spec(rootfs, makeNativeDir())
+        val native = makeNativeDir()
+        val s = spec(rootfs, native)
         assertEquals(
             listOf(
+                File(native, RuntimeProcessLauncher.PROOT_LIB).absolutePath, // argv[0]
                 "--kill-on-exit",
                 "--rootfs=${rootfs.absolutePath}",
                 "--root-id",
@@ -53,6 +56,20 @@ class RuntimeProcessLauncherTest {
             ),
             s.arguments,
         )
+    }
+
+    /**
+     * v0.3.2 regression pin (Samsung SM-F711B recording): bionic quotes argv[0]
+     * in link/exec errors and proot's getopt starts at argv[1]. v0.3.1 shipped
+     * argv[0]="--kill-on-exit", so the device reported `CANNOT LINK EXECUTABLE
+     * "--kill-on-exit"` and the flag itself was silently swallowed as the
+     * program-name slot. argv[0] must be the executable, always.
+     */
+    @Test
+    fun `argv0 is the executable path`() {
+        val s = spec(tmp.newFolder("rootfs"), makeNativeDir())
+        assertEquals(s.executable, s.arguments.first())
+        assertEquals("--kill-on-exit", s.arguments[1])
     }
 
     @Test
@@ -92,6 +109,7 @@ class RuntimeProcessLauncherTest {
             File(native, RuntimeProcessLauncher.LOADER_LIB).absolutePath,
             map["PROOT_LOADER"],
         )
+        assertEquals(native.absolutePath, map["LD_LIBRARY_PATH"])
         assertTrue((map["PROOT_TMP_DIR"] ?: "").isNotEmpty())
         assertEquals("/root", map["HOME"])
         assertEquals("/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", map["PATH"])
@@ -104,6 +122,23 @@ class RuntimeProcessLauncherTest {
         val s = spec(tmp.newFolder("rootfs"), makeNativeDir(withLoader32 = true))
         val l32 = s.environment.first { it.startsWith("PROOT_LOADER_32=") }
         assertTrue(l32.endsWith(RuntimeProcessLauncher.LOADER32_LIB))
+    }
+
+    /**
+     * v0.3.2 regression pin: the exact device failure from the 2026-09-01
+     * recording — `CANNOT LINK EXECUTABLE "--kill-on-exit": library
+     * "libtalloc.so" not found: needed by main executable`. bionic resolves
+     * DT_NEEDED only from its default paths + LD_LIBRARY_PATH; it never
+     * searches the app's nativeLibraryDir on its own. The exec environment
+     * must therefore carry LD_LIBRARY_PATH pointing at nativeLibraryDir (the
+     * sandbox rehearsal masked this by exporting it in the shell).
+     */
+    @Test
+    fun `environment carries LD_LIBRARY_PATH into the guest linker`() {
+        val native = makeNativeDir()
+        val s = spec(tmp.newFolder("rootfs"), native)
+        val entry = s.environment.firstOrNull { it.startsWith("LD_LIBRARY_PATH=") }
+        assertEquals("LD_LIBRARY_PATH=${native.absolutePath}", entry)
     }
 
     @Test
@@ -189,6 +224,23 @@ class RuntimeProcessLauncherTest {
         val problem = RuntimeProcessLauncher.preconditionProblem(onlyProot.absolutePath, rootfs)
         assertTrue(problem != null)
         assertTrue("message must name the loader", problem!!.contains("loader"))
+    }
+
+    /**
+     * v0.3.2 regression pin: proot + loader present but libtalloc.so missing
+     * is the file-level shape of the device linker failure — preflight must
+     * describe it honestly instead of spawning a process that can only die.
+     */
+    @Test
+    fun `preflight reports a missing libtalloc`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val noTalloc = tmp.newFolder("no-talloc")
+        File(noTalloc, RuntimeProcessLauncher.PROOT_LIB).writeText("x")
+        File(noTalloc, RuntimeProcessLauncher.LOADER_LIB).writeText("x")
+        val problem = RuntimeProcessLauncher.preconditionProblem(noTalloc.absolutePath, rootfs)
+        assertTrue(problem != null)
+        assertTrue("message must name libtalloc.so", problem!!.contains("libtalloc.so"))
+        assertTrue("message must name the dir", problem.contains(noTalloc.absolutePath))
     }
 
     @Test
