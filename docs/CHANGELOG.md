@@ -3,6 +3,56 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.4.1-m2.4] — 2026-09-01 — fix guest DNS + apk cache for real networks (device-recording hotfix)
+
+### Fixed — why every package operation failed on the device (v0.4.0 recording)
+- **Root cause (from the SM-F711B recording, 2026-09-01 13:37):** Explore CLI
+  Apps → Install failed twice, in two different ways, for the SAME underlying
+  reason: the v0.4.0 DNS repair wrote hardcoded public resolvers
+  (`1.1.1.1` / `8.8.8.8`), and on the user's network those are UNREACHABLE
+  (port-53 egress blocked / strict Private DNS is common on carrier and
+  hotspot networks). With `resolv.conf` pointing at dead servers, musl's
+  resolver retried for ~10 s and apk reported `DNS: transient error (try
+  again later)`; under different (instant) blocking the same failure surfaced
+  as the raw errno `Permission denied` — apk-tools 3 passes socket-layer
+  errnos through verbatim (`FETCH_ERRCAT_ERRNO`), which is why the first
+  failure never mentioned DNS at all. No package operation ever reached the
+  network; the Android side had perfect connectivity the whole time.
+- **Fix — guest DNS now uses the DEVICE's own resolvers**
+  (`ConnectivityManager` → `LinkProperties.dnsServers`, IPv4 first, top 3,
+  re-read per operation). The public pair remains only as a fallback when the
+  OS reports nothing usable. A `resolv.conf` that exactly equals the v0.4.0
+  fallback is upgraded in place (PocketShell wrote it, PocketShell replaces
+  it); user- or Alpine-written content is never touched. Requires one new
+  normal permission: `ACCESS_NETWORK_STATE` (read-only, no traffic).
+- **Hardened — apk cache can no longer be blocked by rootfs permissions.**
+  apk-tools 3 keeps its download cache in `etc/apk/cache` (fallback
+  `var/cache/apk`) and failed v0.4.0 installs never got past opening the
+  index there. The package spec now binds two app-owned host directories
+  over both guest cache paths (`--bind=<cache>/etc:/etc/apk/cache`,
+  `--bind=<cache>/var:/var/cache/apk`) — the same proot mechanism as the
+  `/dev`, `/proc`, `/sys` binds, so the cache lives OUTSIDE the rootfs and
+  rootfs-internal ownership/modes can never block a fetch again. The cache
+  dir sits beside the runtime under `noBackupFilesDir`.
+- **Pre-op workspace repair:** every package operation now also guarantees
+  `etc/apk/cache`, `var/cache/apk` and `tmp` exist inside the rootfs with
+  sane modes (best-effort; the binds are the hard guarantee) — runtimes
+  installed by v0.2.x–v0.4.0 are repaired in place, no reinstall needed.
+- **Honest failure surface:** the Explore FAILED banner now also shows apk's
+  real stderr (up to 4 lines) and offers **Retry** for repository updates;
+  Diagnostics' "Check package environment" now runs ONE real bounded
+  `apk update` probe (explicit button press — nothing automatic) and reports
+  the true outcome plus which DNS servers the guest got and where they came
+  from ("device resolvers" vs "public fallback").
+
+### Tests
+- 12 new unit tests (266 total): device-resolver flow into the pre-op repair,
+  v0.4.0-fallback upgrade rule, never-overwrite for user content, cache-bind
+  argv pins (after the fixed binds, before the guest argv), workspace repair
+  creates/fixes dirs, workspace-repair failure refuses the op without exec.
+- Rehearsal (scripts/rehearse_m24_packages.sh) extended with the exact cache
+  binds + workspace repair steps; x86_64 end-to-end apk flow re-run.
+
 ## [0.4.0-m2.4] — 2026-09-01 — real Alpine package management (apk) + CLI app installation foundation
 
 ### Added — the first real package-management layer (M2.4)

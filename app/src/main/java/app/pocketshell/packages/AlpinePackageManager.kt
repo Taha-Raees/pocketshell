@@ -26,17 +26,20 @@ import kotlinx.coroutines.withContext
  * apk-tools 3.0.6 / Alpine 3.24.1): update → search → add → info -e →
  * command -v → nano runs → del → info -e exit 1.
  *
- * @param rootfsDir the installed runtime rootfs (DNS repair target).
+ * @param rootfsDir the installed runtime rootfs (DNS + workspace repair target).
  * @param specFactory builds the proot spec for a guest argv (same builder the
  *   terminal uses — guaranteed single exec infrastructure).
  * @param runner executes specs as dedicated background guest processes.
  * @param readyGuard returns null when work may proceed, else an honest reason.
+ * @param dnsServers the DEVICE's live resolvers (LinkProperties), re-read per
+ *   operation; an empty list makes the repair use the public fallback pair.
  */
 class AlpinePackageManager(
     private val rootfsDir: File,
     val specFactory: SpecFactory,
     private val runner: GuestCommandRunner,
     private val readyGuard: () -> String?,
+    private val dnsServers: () -> List<String> = { emptyList() },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : PackageManager {
 
@@ -126,15 +129,26 @@ class AlpinePackageManager(
     // ------------------------------------------------------------------ core
 
     /**
-     * One real guest exec. Ensures guest DNS first (runtimes installed before
-     * v0.4.0 lack /etc/resolv.conf — see [GuestEnvironment]); a failed repair
-     * fails the operation honestly instead of dying later on DNS errors.
+     * One real guest exec. Repairs the guest environment FIRST (runtimes
+     * installed before v0.4.0 lack /etc/resolv.conf, and the apk cache dirs
+     * must exist with sane modes — see [GuestEnvironment]); a failed repair
+     * fails the operation honestly instead of dying later inside apk.
+     *
+     * v0.4.1 device lesson: DNS repair prefers the device's own resolvers —
+     * hardcoded public ones were unreachable on the user's network, killing
+     * every fetch with "DNS: transient error" / raw EACCES.
      */
     private fun runApk(guestCommand: List<String>, timeoutMs: Long?): PackageResult {
-        if (!GuestEnvironment.ensureDnsResolvers(rootfsDir)) {
+        if (!GuestEnvironment.ensureDnsResolvers(rootfsDir, dnsServers())) {
             return PackageResult.failure(
                 "could not prepare guest DNS (${GuestEnvironment.RESOLV_CONF_RELATIVE}) — " +
                     "guest name resolution would fail; repair the runtime from Diagnostics",
+            )
+        }
+        if (!GuestEnvironment.ensureApkWorkspace(rootfsDir)) {
+            return PackageResult.failure(
+                "could not prepare the apk cache directories inside the runtime — " +
+                    "repair or reinstall the runtime from Diagnostics",
             )
         }
         val spec = specFactory.specFor(guestCommand)

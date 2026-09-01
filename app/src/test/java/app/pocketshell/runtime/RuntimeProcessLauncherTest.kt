@@ -305,4 +305,52 @@ class RuntimeProcessLauncherTest {
             )
         }
     }
+
+    /**
+     * v0.4.1: the apk cache binds must sit AFTER the fixed binds and BEFORE
+     * the guest argv — same proot --bind=host:guest mechanism, app-owned host
+     * dirs, both apk-tools 3 cache locations covered.
+     */
+    @Test
+    fun `apkCacheDir adds cache binds before the guest argv`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val native = makeNativeDir()
+        val cache = tmp.newFolder("apk-cache")
+        val s = RuntimeProcessLauncher.buildLaunchSpec(
+            nativeLibraryDir = native.absolutePath,
+            rootfsDir = rootfs,
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf("/sbin/apk", "update"),
+            apkCacheDir = cache,
+        )
+        assertEquals(
+            listOf(
+                File(native, RuntimeProcessLauncher.PROOT_LIB).absolutePath,
+                "--kill-on-exit",
+                "--rootfs=${rootfs.absolutePath}",
+                "--root-id",
+                "--cwd=/root",
+                "--bind=/dev",
+                "--bind=/proc",
+                "--bind=/sys",
+                "--bind=${File(cache, "etc").absolutePath}:${RuntimeProcessLauncher.GUEST_APK_CACHE_ETC}",
+                "--bind=${File(cache, "var").absolutePath}:${RuntimeProcessLauncher.GUEST_APK_CACHE_VAR}",
+                "/sbin/apk",
+                "update",
+            ),
+            s.arguments,
+        )
+        // bind targets must exist host-side (proot skips missing bindings)
+        assertTrue(File(cache, "etc").isDirectory)
+        assertTrue(File(cache, "var").isDirectory)
+    }
+
+    @Test
+    fun `no apkCacheDir means no cache binds (shell path unchanged)`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val s = spec(rootfs, makeNativeDir())
+        assertTrue(s.arguments.none { it.startsWith("--bind=") && it.contains(":") && !it.startsWith("--bind=/dev") && !it.startsWith("--bind=/proc") && !it.startsWith("--bind=/sys") })
+        assertEquals(RuntimeProcessLauncher.GUEST_SHELL, s.arguments.last())
+    }
 }

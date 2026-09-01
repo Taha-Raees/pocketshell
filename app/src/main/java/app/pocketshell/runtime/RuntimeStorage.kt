@@ -11,6 +11,9 @@ import java.io.File
  */
 class RuntimeStorage(baseDir: File) {
 
+    /** The layout base (app noBackupFilesDir) — also hosts the apk cache dir. */
+    val baseDir: File = baseDir
+
     val rootDir: File = File(baseDir, DIR_RUNTIME)
     val rootfsDir: File = File(rootDir, DIR_ROOTFS)
     val metadataFile: File = File(rootDir, FILE_METADATA)

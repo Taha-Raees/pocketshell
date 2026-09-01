@@ -6,6 +6,11 @@
         - INTERNET (M2.2): the Linux-environment installer downloads the pinned
           Alpine minirootfs over HTTPS from dl-cdn.alpinelinux.org and verifies
           its SHA-256 before use. No other network use; no third-party endpoints.
+        - ACCESS_NETWORK_STATE (M2.4): reads the device's own DNS resolvers
+          (ConnectivityManager LinkProperties) so the guest's /etc/resolv.conf
+          points at servers that actually work on this network — hardcoded
+          public resolvers were unreachable on the user's carrier network.
+          Normal, install-time permission; no network traffic is triggered.
         - FOREGROUND_SERVICE(_SPECIAL_USE): keep real terminal sessions alive
           while the app is backgrounded (brief §24). The service stops itself
           when the last session closes.
@@ -15,6 +20,7 @@
       No storage, no contacts — nothing else.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

@@ -1,6 +1,7 @@
 package app.pocketshell.packages
 
 import android.content.Context
+import android.net.ConnectivityManager
 import app.pocketshell.runtime.GuestEnvironment
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
@@ -37,41 +38,23 @@ object PackageGateway {
      * is "cannot claim installed").
      */
     suspend fun installedVersion(packageName: String): String? {
-        val context = appContext ?: return null
-        val storage = storage ?: return null
-        val manager = AlpinePackageManager(
-            rootfsDir = storage.rootfsDir,
-            specFactory = { guestCommand -> buildSpec(context, storage, guestCommand) },
-            runner = ProcessBuilderGuestCommandRunner(),
-            readyGuard = { if (isRuntimeReady()) null else "runtime not READY" },
-        )
+        val manager = newPackageManager(readyGuard = { if (isRuntimeReady()) null else "runtime not READY" })
+            ?: return null
         val info = manager.getPackageInfo(packageName)
         return if (info.installed) info.version else null
     }
 
     /** Real `command -v` preflight for "Open" (null = not found / refused). */
     suspend fun executablePath(executable: String): String? {
-        val context = appContext ?: return null
-        val storage = storage ?: return null
-        val manager = AlpinePackageManager(
-            rootfsDir = storage.rootfsDir,
-            specFactory = { guestCommand -> buildSpec(context, storage, guestCommand) },
-            runner = ProcessBuilderGuestCommandRunner(),
-            readyGuard = { if (isRuntimeReady()) null else "runtime not READY" },
-        )
+        val manager = newPackageManager(readyGuard = { if (isRuntimeReady()) null else "runtime not READY" })
+            ?: return null
         return manager.guestExecutablePath(executable)
     }
 
     /** Real batch installed-status answer for the catalog screen (one exec). */
     suspend fun installedVersions(packageNames: List<String>): Map<String, String> {
-        val context = appContext ?: return emptyMap()
-        val storage = storage ?: return emptyMap()
-        val manager = AlpinePackageManager(
-            rootfsDir = storage.rootfsDir,
-            specFactory = { guestCommand -> buildSpec(context, storage, guestCommand) },
-            runner = ProcessBuilderGuestCommandRunner(),
-            readyGuard = { if (isRuntimeReady()) null else "runtime not READY" },
-        )
+        val manager = newPackageManager(readyGuard = { if (isRuntimeReady()) null else "runtime not READY" })
+            ?: return emptyMap()
         return manager.getInstalledVersions(packageNames)
     }
 
@@ -82,32 +65,83 @@ object PackageGateway {
         val storage = RuntimeStorage(appContext.noBackupFilesDir)
         this.storage = storage
 
-        val readyGuard: () -> String? = {
-            if (RuntimeManager.state.value == RuntimeState.READY) {
-                null
-            } else {
-                "the Linux runtime is not READY — install or repair it from Diagnostics first"
-            }
-        }
-
         operations = PackageOperationManager(
             runner = ProcessBuilderGuestCommandRunner(),
             packagesFactory = { runner ->
-                AlpinePackageManager(
-                    rootfsDir = storage.rootfsDir,
-                    specFactory = { guestCommand -> buildSpec(appContext, storage, guestCommand) },
-                    runner = runner,
-                    readyGuard = readyGuard,
-                )
+                newPackageManager(runner = runner, readyGuard = defaultReadyGuard())
+                    ?: throw IllegalStateException("gateway not initialized")
             },
             runtimeReady = { RuntimeManager.state.value == RuntimeState.READY },
         )
     }
 
+    private fun defaultReadyGuard(): () -> String? = {
+        if (RuntimeManager.state.value == RuntimeState.READY) {
+            null
+        } else {
+            "the Linux runtime is not READY — install or repair it from Diagnostics first"
+        }
+    }
+
+    /**
+     * One construction path for every [AlpinePackageManager] this gateway
+     * hands out, so the DNS-provider and spec-factory wiring can never drift
+     * between call sites. Null only before [init].
+     */
+    private fun newPackageManager(
+        runner: GuestCommandRunner = ProcessBuilderGuestCommandRunner(),
+        readyGuard: () -> String?,
+    ): AlpinePackageManager? {
+        val context = appContext ?: return null
+        val storage = storage ?: return null
+        return AlpinePackageManager(
+            rootfsDir = storage.rootfsDir,
+            specFactory = { guestCommand -> buildSpec(context, storage, guestCommand) },
+            runner = runner,
+            readyGuard = readyGuard,
+            dnsServers = { deviceDnsServers(context) },
+        )
+    }
+
+    /**
+     * The device's OWN live DNS resolvers (ConnectivityManager LinkProperties),
+     * IPv4 first. v0.4.1 device lesson: hardcoded public resolvers were
+     * unreachable on the user's network while the OS resolvers worked — musl
+     * in the guest must be pointed at the same servers Android itself uses.
+     * Empty on any failure → GuestEnvironment falls back to the public pair.
+     */
+    internal fun deviceDnsServers(context: Context): List<String> = try {
+        val cm = context.getSystemService(ConnectivityManager::class.java)
+            ?: return emptyList()
+        val seen = LinkedHashSet<String>()
+        for (network in cm.allNetworks) {
+            val links = runCatching { cm.getLinkProperties(network) }.getOrNull() ?: continue
+            for (address in links.dnsServers) {
+                val host = runCatching { address.hostAddress }.getOrNull() ?: continue
+                if (!host.isNullOrBlank()) seen.add(host)
+            }
+        }
+        // IPv4 first: on-device IPv6 egress is frequently absent and musl
+        // would burn its retry budget on unreachable v6 resolvers.
+        seen.filterNot { it.contains(':') } + seen.filter { it.contains(':') }
+    } catch (_: Exception) {
+        emptyList()
+    }.let { list -> list.distinct().take(3) }
+
+    /**
+     * App-owned host directory bound over the guest's apk cache paths — the
+     * package cache lives OUTSIDE the rootfs so rootfs-internal permissions
+     * can never block apk (v0.4.1). Sits beside the runtime under
+     * noBackupFilesDir; the download cache is disposable by design.
+     */
+    private fun apkCacheDir(storage: RuntimeStorage): File =
+        File(storage.baseDir, "apk-cache").apply { mkdirs() }
+
     /**
      * One proot spec builder shared by every package command — literally the
      * same [RuntimeProcessLauncher.buildLaunchSpec] the Linux Shell uses, with
-     * a different guest argv (apk commands instead of /bin/sh -l).
+     * a different guest argv (apk commands instead of /bin/sh -l) plus the apk
+     * cache binds. The shell path passes no apkCacheDir and stays untouched.
      */
     private fun buildSpec(
         context: Context,
@@ -120,15 +154,18 @@ object PackageGateway {
             hostCwd = ShellEnvironment.homeDir(context),
             prootTmpDir = File(context.cacheDir, "proot-tmp").apply { mkdirs() },
             guestCommand = guestCommand,
+            apkCacheDir = apkCacheDir(storage),
         )
 
     // ------------------------------------------------------- diagnostics only
 
     /**
      * Read-mostly package environment report for Diagnostics' explicit
-     * "Check package environment" button. NOT called on screen open: the only
-     * network-ish part (`apk --version` is offline, but it still execs the
-     * guest) runs because the user asked. Never mutates the package database.
+     * "Check package environment" button. NOT called on screen open: the
+     * execs (including the REAL `apk update` probe — the same command the
+     * install flow runs) happen only because the user pressed the button.
+     * The probe refreshes the download cache but never mutates the package
+     * database (world / installed are read-only here).
      */
     suspend fun checkEnvironment(): PackageEnvironmentReport = withContext(Dispatchers.IO) {
         val context = appContext
@@ -141,20 +178,25 @@ object PackageGateway {
         val worldFile = File(storage.rootfsDir, "etc/apk/world")
         val resolvFile = File(storage.rootfsDir, GuestEnvironment.RESOLV_CONF_RELATIVE)
 
+        val deviceServers = deviceDnsServers(context)
+
         var apkVersion: String? = null
         var apkExitCode: Int? = null
         var apkError: String? = null
+        var updateProbeOk: Boolean? = null
+        var updateProbeDetail: String? = null
         if (ready) {
             val manager = AlpinePackageManager(
                 rootfsDir = storage.rootfsDir,
                 specFactory = { guestCommand -> buildSpec(context, storage, guestCommand) },
                 runner = ProcessBuilderGuestCommandRunner(),
                 readyGuard = { null },
+                dnsServers = { deviceServers },
             )
             // one bounded offline exec: the version banner proves apk links
             // and runs inside proot (the libtalloc/LD_LIBRARY_PATH chain)
             val outcome = runCatching {
-                manager.let { execOffline(it, listOf(AlpinePackageManager.APK, "--version")) }
+                execOffline(manager, listOf(AlpinePackageManager.APK, "--version"))
             }
             val pair = outcome.getOrNull()
             apkExitCode = pair?.first
@@ -165,6 +207,27 @@ object PackageGateway {
                         (outcome.exceptionOrNull()?.message ?: "unknown error")
                 apkExitCode != 0 -> "apk --version exited with $apkExitCode"
                 else -> null
+            }
+
+            // REAL fetch probe (bounded): exactly what `apk add` runs first.
+            // Honest result either way — this is the button's whole point.
+            if (apkError == null) {
+                val probe = runCatching { manager.updateRepositories() }
+                probe.onSuccess { result ->
+                    updateProbeOk = result.success
+                    updateProbeDetail = if (result.success) {
+                        result.stdout.lineSequence()
+                            .lastOrNull { it.isNotBlank() }
+                            ?: "repositories updated"
+                    } else {
+                        result.error
+                            ?: result.stderr.lineSequence().lastOrNull { it.isNotBlank() }
+                            ?: "apk update exited with ${result.exitCode}"
+                    }
+                }.onFailure {
+                    updateProbeOk = false
+                    updateProbeDetail = it.message ?: it.javaClass.simpleName
+                }
             }
         } else {
             apkError = "runtime not READY"
@@ -181,6 +244,14 @@ object PackageGateway {
             worldPackages = worldFile.takeIf { it.isFile }
                 ?.readLines()?.count { it.isNotBlank() },
             dnsConfigured = resolvFile.isFile && resolvFile.readText().isNotBlank(),
+            dnsServers = resolvFile.takeIf { it.isFile }
+                ?.readLines()?.filter { it.isNotBlank() },
+            dnsSource = when {
+                deviceServers.isEmpty() -> "public fallback (device resolvers unavailable)"
+                else -> "device resolvers (ConnectivityManager)"
+            },
+            updateProbeOk = updateProbeOk,
+            updateProbeDetail = updateProbeDetail,
         )
     }
 
@@ -206,4 +277,8 @@ data class PackageEnvironmentReport(
     val repositories: List<String>? = null,
     val worldPackages: Int? = null,
     val dnsConfigured: Boolean = false,
+    val dnsServers: List<String>? = null,
+    val dnsSource: String? = null,
+    val updateProbeOk: Boolean? = null,
+    val updateProbeDetail: String? = null,
 )

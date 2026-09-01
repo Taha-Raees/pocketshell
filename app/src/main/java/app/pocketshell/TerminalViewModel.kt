@@ -218,6 +218,11 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         PackageGateway.operations.install(entry)
     }
 
+    /** Re-run the failed repository update (honest Retry on the FAILED banner). */
+    fun retryRepositoryUpdate() {
+        PackageGateway.operations.updateRepositories()
+    }
+
     /** Real apk search; results delivered on the gateway's IO completion. */
     fun searchPackages(query: String, onResult: (List<app.pocketshell.packages.PackageSearchResult>) -> Unit) {
         PackageGateway.operations.search(query, onResult)

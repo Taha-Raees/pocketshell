@@ -272,4 +272,82 @@ class AlpinePackageManagerTest {
         assertTrue(result.stderr.contains("no such package"))
         assertTrue(result.stderr.isNotBlank())
     }
+
+    // ------------------------------------------------- v0.4.1 device lessons
+
+    @Test
+    fun `device dns servers flow into the pre-op repair and upgrade the v040 fallback`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        val resolv = File(rootfs, "etc/resolv.conf")
+        resolv.parentFile.mkdirs()
+        // exactly what v0.4.0's repair wrote on the user's device
+        resolv.writeText(app.pocketshell.runtime.GuestEnvironment.RESOLV_CONF_CONTENT)
+        var providerCalls = 0
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(ExecResult(exitCode = 0, stdout = "", stderr = "")),
+            readyGuard = { null },
+            dnsServers = { providerCalls++; listOf("192.168.1.1") },
+        )
+        assertTrue(manager.updateRepositories().success)
+        assertEquals("nameserver 192.168.1.1\n", resolv.readText())
+        assertEquals(1, providerCalls)
+    }
+
+    @Test
+    fun `apk workspace dirs are repaired before every operation`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(ExecResult(exitCode = 0, stdout = "", stderr = "")),
+            readyGuard = { null },
+        )
+        assertTrue(manager.search("nano").isEmpty()) // repair ran, exec returned no hits
+        // uninstall runs the repair path again on the same rootfs
+        recordedSpecs.clear()
+        assertTrue(manager.uninstall("nano").success)
+        for (relative in listOf(
+            app.pocketshell.runtime.GuestEnvironment.APK_CACHE_ETC_RELATIVE,
+            app.pocketshell.runtime.GuestEnvironment.APK_CACHE_VAR_RELATIVE,
+            app.pocketshell.runtime.GuestEnvironment.APK_TMP_RELATIVE,
+        )) {
+            assertTrue(relative, File(rootfs, relative).isDirectory)
+        }
+    }
+
+    @Test
+    fun `workspace repair failure fails the operation honestly without exec`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        // a FILE where the apk tmp DIRECTORY must be: repair cannot win
+        val tmpPath = File(rootfs, app.pocketshell.runtime.GuestEnvironment.APK_TMP_RELATIVE)
+        tmpPath.parentFile.mkdirs()
+        tmpPath.writeText("blocker")
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(),
+            readyGuard = { null },
+        )
+        val result = manager.updateRepositories()
+        assertFalse(result.success)
+        assertTrue(result.error!!.contains("apk cache directories"))
+        assertEquals(0, recordedSpecs.size)
+    }
 }

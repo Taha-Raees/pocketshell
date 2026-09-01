@@ -190,7 +190,8 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
         Text(
-            text = "Nothing is checked automatically — press the button.",
+            text = "Nothing is checked automatically — press the button. " +
+                "The check includes one real apk update (network) so failures show their true cause.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp),
@@ -236,7 +237,21 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             )
             RuntimeFactRow(
                 "Guest DNS",
-                if (report.dnsConfigured) "configured" else "missing (repairs on first package operation)",
+                when {
+                    report.dnsServers?.isNotEmpty() == true ->
+                        report.dnsServers.joinToString(", ") +
+                            " — " + (report.dnsSource ?: "")
+                    report.dnsConfigured -> "configured — " + (report.dnsSource ?: "")
+                    else -> "missing (repairs on first package operation)"
+                },
+            )
+            RuntimeFactRow(
+                "Repository fetch",
+                when {
+                    report.updateProbeOk == null -> "not probed"
+                    report.updateProbeOk == true -> "OK — ${(report.updateProbeDetail ?: "").take(120)}"
+                    else -> "FAILED — ${(report.updateProbeDetail ?: "unknown error").take(200)}"
+                },
             )
         }
     }

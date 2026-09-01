@@ -186,27 +186,35 @@ real installer pipeline); the on-device checklist above remains the M2.2 gate.
 
 ## 9. Manual acceptance — M2.4 (real apk package management) — GATE OPEN
 
-Prerequisite: runtime READY (§7) and **v0.4.0-m2.4 or newer**.
+Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
 
 > **Sandbox ≠ device:** the whole apk flow (update → search → add → verify →
 > run → del) was rehearsed end-to-end on the x86_64 sandbox with the same
 > apk-tools 3.0.6 and the same argv/env the app uses
-> (scripts/rehearse_m24_packages.sh). The checklist below is the real gate.
+> (scripts/rehearse_m24_packages.sh, including the v0.4.1 cache binds). The
+> checklist below is the real gate. v0.4.0 failed on-device with
+> `DNS: transient error` / `Permission denied` because its hardcoded public
+> DNS resolvers were unreachable on the user's network — v0.4.1 uses the
+> device's own resolvers instead.
 
-- [ ] Update the app over v0.3.2 (same signing cert; runtime + any packages
-      are kept).
+- [ ] Update the app over v0.4.0 (same signing cert; runtime + any packages
+      are kept). ACCESS_NETWORK_STATE is added — a normal read-only
+      permission, no prompt expected.
 - [ ] Diagnostics → **Check package environment** (explicit button, nothing
       runs on open): apk version banner (apk-tools 3.x), the two dl-cdn
-      v3.24 repositories, package database present, Guest DNS configured
-      (or "missing (repairs on first package operation)" — the first package
-      operation repairs it in place; re-check afterwards shows configured).
+      v3.24 repositories, package database present, **Guest DNS now lists the
+      DEVICE's resolvers** with the source ("device resolvers
+      (ConnectivityManager)" — not the public fallback), and **Repository
+      fetch: OK** — the button runs ONE real bounded `apk update` and shows
+      its honest outcome. If it fails here, the failure text is the real apk
+      stderr — report it, it becomes the next fix.
 - [ ] Explore CLI Apps (runtime READY): the five featured entries show the
       REAL state — all "Not installed" on a fresh runtime.
 - [ ] **Install Nano**: honest stages only — Updating repositories →
       Installing → Verifying → "nano installed". No fake percent. The output
-      tail shows real apk lines. (First run repairs DNS silently; network
-      failures show the real apk error + Retry path, never "Something went
-      wrong".)
+      tail shows real apk lines. (First run repairs DNS/workspace silently;
+      network failures show the real apk error + stderr tail + Retry button,
+      never "Something went wrong".)
 - [ ] Cross-check in the Linux Shell: `apk info -e -v nano` → a real
       `nano-x.y-rZ` line; `command -v nano` → `/usr/bin/nano`.
 - [ ] **Open Nano**: a NEW session tab opens; nano is real (visible in the

@@ -39,6 +39,10 @@ object RuntimeProcessLauncher {
     /** Guest entry process: Alpine's busybox ash as a login shell. */
     const val GUEST_SHELL = "/bin/sh"
 
+    /** Guest cache paths covered by the apk cache binds (apk-tools 3 layout). */
+    const val GUEST_APK_CACHE_ETC = "/etc/apk/cache"
+    const val GUEST_APK_CACHE_VAR = "/var/cache/apk"
+
     /**
      * Honest gate: only a structurally READY runtime may be entered. The
      * terminal-level gate (`uname; id; echo hello` in the guest) is the user's
@@ -92,6 +96,7 @@ object RuntimeProcessLauncher {
         prootTmpDir: File,
         term: String = "xterm-256color",
         guestCommand: List<String> = listOf(GUEST_SHELL, "-l"),
+        apkCacheDir: File? = null,
     ): LaunchSpec {
         // Same contract as [preconditionProblem], thrown so programmatic
         // callers get a hard, honest failure (UI callers preflight instead).
@@ -111,7 +116,7 @@ object RuntimeProcessLauncher {
         // path: proot's getopt starts at argv[1], and bionic quotes argv[0] in
         // link/exec error messages (v0.3.1 device recording showed
         // CANNOT LINK EXECUTABLE "--kill-on-exit" for exactly this reason).
-        val arguments = listOf(
+        val arguments = mutableListOf(
             proot.absolutePath,
             "--kill-on-exit",
             "--rootfs=${rootfsDir.absolutePath}",
@@ -120,7 +125,21 @@ object RuntimeProcessLauncher {
             "--bind=/dev",
             "--bind=/proc",
             "--bind=/sys",
-        ) + guestCommand
+        )
+        if (apkCacheDir != null) {
+            // v0.4.1 device lesson (Samsung SM-F711B): apk fetches died with
+            // EACCES before ever reaching the network — the cache write path
+            // must never depend on rootfs-internal permissions. Bind two
+            // app-owned host dirs over apk-tools 3's cache locations
+            // (etc/apk/cache is the default, var/cache/apk the fallback), so
+            // the package cache lives OUTSIDE the rootfs entirely. Same proot
+            // bind mechanism as /dev,/proc,/sys — no new exec infrastructure.
+            val etcCache = File(apkCacheDir, "etc").apply { mkdirs() }
+            val varCache = File(apkCacheDir, "var").apply { mkdirs() }
+            arguments.add("--bind=${etcCache.absolutePath}:${GUEST_APK_CACHE_ETC}")
+            arguments.add("--bind=${varCache.absolutePath}:${GUEST_APK_CACHE_VAR}")
+        }
+        arguments.addAll(guestCommand)
 
         val environment = mutableListOf(
             // v0.3.2: bionic resolves proot's DT_NEEDED libtalloc.so from here

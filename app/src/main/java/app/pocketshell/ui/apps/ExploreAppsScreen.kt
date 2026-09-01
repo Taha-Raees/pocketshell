@@ -220,6 +220,21 @@ fun ExploreAppsScreen(
                                         color = MaterialTheme.colorScheme.error,
                                     )
                                 }
+                                if (op.state == PackageOperationState.FAILED &&
+                                    op.stderrTail.isNotBlank() &&
+                                    op.stderrTail != op.error
+                                ) {
+                                    // apk's own stderr — the real failure text
+                                    // (DNS / EACCES / HTTP), never summarized away.
+                                    Text(
+                                        op.stderrTail.lineSequence()
+                                            .filter { it.isNotBlank() }
+                                            .take(4)
+                                            .joinToString("\n"),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                                 if (packageBusy) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -229,6 +244,24 @@ fun ExploreAppsScreen(
                                             onClick = { PackageGateway.operations.cancelCurrent() },
                                         ) { Text("Cancel") }
                                     }
+                                } else if (op.state == PackageOperationState.FAILED &&
+                                    op.kind == app.pocketshell.packages.PackageOperationKind.UPDATE_REPOSITORIES
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { terminalViewModel.retryRepositoryUpdate() },
+                                        ) { Text("Retry") }
+                                    }
+                                }
+                                if (op.state == PackageOperationState.FAILED) {
+                                    Text(
+                                        "Full output stays available in Diagnostics → Check package environment.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
                         }
