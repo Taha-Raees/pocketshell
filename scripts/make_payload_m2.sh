@@ -19,7 +19,7 @@ cd "$PROJECT"
 TIP=$(git rev-parse --short HEAD)
 echo "== payload $VERSION @ git tip $TIP =="
 
-mkdir -p "$DIST"
+mkdir -p "$DIST" "$PUBLIC"
 
 # --- 1. git bundle: complete history, one file ---
 BUNDLE=$STAGE/pocketshell-m2.gitbundle
@@ -71,10 +71,10 @@ WHAT IS NEW IN $VERSION (vs v0.4.0-m2.4):
 
 WHAT WAS NEW IN v0.4.0-m2.4:
   - M2.4: REAL Alpine package management. Explore CLI Apps is now a working
-    frontend for the real apk inside the guest: search (real `apk search`),
-    install (`apk add`), verify (`apk info -e -v` exit codes + POSIX
+    frontend for the real apk inside the guest: search (real \`apk search\`),
+    install (\`apk add\`), verify (\`apk info -e -v\` exit codes + POSIX
     `command -v`), open (new dedicated guest session running the real
-    program), uninstall (`apk del`). The same proot exec infrastructure as
+    program), uninstall (\`apk del\`). The same proot exec infrastructure as
     the Linux Shell is reused; nothing is faked: no fake progress, no fake
     installed state, no fake catalog claims. Package operations run in a
     dedicated background guest process (never typed into a user session).
