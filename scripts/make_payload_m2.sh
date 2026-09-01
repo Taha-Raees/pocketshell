@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.4.1-m2.4
+VERSION=v0.4.2-m2.4
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,30 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.4.0-m2.4):
+WHAT IS NEW IN $VERSION (vs v0.4.1-m2.4):
+  - FIXED the remaining on-device M2.4 failure (user screenshots 2026-09-02,
+    SM-F711B, v0.4.1): every apk fetch still died with "updating and opening
+    ... APKINDEX.tar.gz: Permission denied" while bytes visibly downloaded.
+    Root cause (verified in apk-tools 3.0.6 source + AOSP sepolicy): apk
+    downloads each cached object (APKINDEX and packages) into an anonymous
+    O_TMPFILE file and commits it via linkat("/proc/self/fd/N", ...,
+    AT_SYMLINK_FOLLOW) — and AOSP SELinux app_neverallows.te forbids
+    hardlinks for ALL untrusted apps ("neverallow all_untrusted_apps
+    file_type:file link"), so the link fails with EACCES and apk cancels the
+    whole download. v0.4.1's cache binds could not help (the denial is on
+    the link operation, not the path) and host rehearsals never see it (no
+    SELinux). FIX: package commands no longer bind /proc into the guest;
+    without /proc apk uses its named-tmpfile + renameat commit path (plain
+    create/rename — allowed). Rehearsed with the same apk-tools 3.0.6:
+    update 28645 pkgs -> add nano -> runs -> del, cache commits land in the
+    bound host dir, zero temp leftovers.
+  - HONESTY: catalog cards no longer show "Working…" on every entry while
+    ONE install runs (v0.4.1 bug, same screenshot) — only the target card
+    does; the other cards keep their true Install/Open labels.
+  - v0.4.2 installs OVER v0.4.1 in place (same pinned signing key committed
+    at keystore/debug.keystore). 277 unit tests, 0 failures.
+
+WHAT WAS NEW IN v0.4.1-m2.4 (vs v0.4.0-m2.4):
   - FIXED on-device M2.4 failures (user recording, Samsung SM-F711B): apk
     update died with "Permission denied" / "DNS: transient error". Root
     cause: the v0.4.0 DNS repair hardcoded public resolvers (1.1.1.1/8.8.8.8)
