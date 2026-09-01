@@ -145,6 +145,7 @@ tar --exclude='./.git' --exclude='./.gitignore' --exclude='./.gitattributes' \
     --exclude='./tailwind.config.ts' --exclude='./Caddyfile' \
     --exclude='./dev.log' --exclude='./server.log' \
     --exclude='./skills' --exclude='./upload' --exclude='./download' \
+    --exclude='./scratch' \
     --exclude='./dist-master' --exclude='./examples' --exclude='./mini-services' \
     --exclude='./tests' \
     --exclude='./.env' --exclude='./local.properties' \
