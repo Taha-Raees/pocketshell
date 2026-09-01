@@ -266,3 +266,24 @@ Stage Summary:
 - 9.3 MB runtime size VERIFIED CORRECT (full byte-level reconciliation, no missing or bloated content).
 - M2.3 in progress: proot pin = termux/proot master 7266fb3e8516535682f5a9c8f3a7e70f6506eddb (2026-08-22); talloc 2.4.2 (samba ftp); libandroid-shmem cloned (BSD).
 - KEY BUILD FACT (src/execve/enter.c): runtime env PROOT_LOADER overrides loader path in BOTH unbundle and embedded modes -> build with embedded fallback, ship libproot-loader.so, set PROOT_LOADER=<nativeLibraryDir>/libproot-loader.so. No baked paths needed.
+
+---
+Task ID: 15
+Agent: main
+Task: M2.3 — Linux shell via proot behind the existing PTY; build, test, deliver APK + zip on the Next.js page.
+
+Work Log:
+- Sandbox reset #4 recovery: full toolchain reinstalled (install_toolchain.sh: JDK 21.0.12.1+1, platform-36, build-tools 36.0.0, NDK 28.2.13676358). Repo intact; web scaffold (untracked) wiped.
+- proot pin: termux/proot tag v5.1.107.92 @ 7266fb3e8516535682f5a9c8f3a7e70f6506eddb. talloc 2.4.2 (samba ftp). libandroid-shmem DROPPED (bionic API 26 = native SysV shm).
+- BUILD (scripts/build_proot_m23.sh, all 4 ABIs + x86_64 host): solved waf cross via canned cross-answers file (13 entries incl. run-checks); lld rejects GNU-style version-script locals -> samba_abi.py empty-extend patch; NDK tool naming llvm-; mawk lacks strtonum -> portable loader-info.awk; ashmem_memfd.c missing <string.h> -> micro-patch. talloc SONAME normalized to libtalloc.so (binary string patch); DT_NEEDED verified: libtalloc/libdl/libc only.
+- KEY FACT (enter.c): runtime env PROOT_LOADER overrides loader path in BOTH build modes -> ship libproot-loader.so, embedded loader stays fallback; no baked paths.
+- GATE REHEARSAL PASSED (scripts/rehearse_m23_gate.sh, host build + x86_64 Alpine 3.24.1): argv --kill-on-exit --rootfs=<r> --root-id --cwd=/root --bind=/dev|/proc|/sys /bin/sh -l -> guest uname, uid=0(root), hello, release 3.24.1, busybox works; BOTH loader modes exit 0. (proot long opts require '=' joined form - pinned in tests.)
+- Kotlin: RuntimeProcessLauncher (pure builder + READY gate), TerminalSessionManager spawn()/createLinuxSession(), TerminalViewModel.openLinuxShell(), Home LinuxShellCard (honest state routing to Diagnostics), MainActivity wiring. 8 new tests; 211 total, 0 failures; assembleDebug OK; APK 22.8MB v0.3.0-m2.3 code 5, jniLibs verified for 4 ABIs.
+- Docs: CHANGELOG [0.3.0-m2.3], TESTING §8 gate, THIRD_PARTY (proot/talloc rows + shmem note + our 2 micro-patches), ROADMAP M2 section, docs/licenses/proot-COPYING-GPL-2.0. Commit b57260f.
+- Delivery: payload v0.3.0-m2.3 (zip 224 files 4.6M / tgz / bundle 3.1M / APK) - all sanity gates 0-dot-paths etc. Web scaffold REBUILT from scratch after reset (package.json, Tailwind4 configs, src/app page+layout, app/ shims, git/info/exclude intact); download/README.md manifest updated (7bb3d51). VERIFIED: page 200; all 4 artifacts byte-identical over HTTP (sha256).
+
+Stage Summary:
+- M2.3 code-complete + sandbox-rehearsed; APK + source zip live on the download page (v0.3.0 primary).
+- M2.3 DEVICE GATE OPEN: `uname; id; echo hello` in the guest (TESTING.md §8) - proves split-loader exec under real SELinux; Plan B (targetSdk-28 flavor) documented if it fails.
+- Pending: talloc LGPL-3.0 license text file (gnu.org unreachable) - referenced via THIRD_PARTY + source archive.
+- Next: user device gate §8; then M2.4 (apk package management UI in guest).
