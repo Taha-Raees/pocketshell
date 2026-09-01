@@ -78,6 +78,34 @@ data class PackageOperation(
 )
 
 /**
+ * v0.4.2 honesty rule for catalog cards: a card may show "Working…" ONLY
+ * while the RUNNING mutating operation targets THIS card's package (or the
+ * card itself is being verified). v0.4.1 rendered the global single-flight
+ * busy flag on every card, so installing nano flipped all five buttons to
+ * "Working…" — state those cards did not have (user screenshot 2026-09-02).
+ * Other cards keep their true labels; the mutation lock itself is still
+ * enforced by the manager's single-flight guard. Only ACTIVE operation
+ * states may claim work — a finished (SUCCESS/FAILED) snapshot never does,
+ * even defensively.
+ */
+private val ACTIVE_OPERATION_STATES = setOf(
+    PackageOperationState.IDLE,
+    PackageOperationState.UPDATING_REPOSITORIES,
+    PackageOperationState.INSTALLING,
+    PackageOperationState.VERIFYING,
+    PackageOperationState.UNINSTALLING,
+)
+
+fun packageOperationTargetsCard(
+    packageBusy: Boolean,
+    operation: PackageOperation?,
+    apkPackageName: String,
+): Boolean = packageBusy &&
+    operation != null &&
+    operation.state in ACTIVE_OPERATION_STATES &&
+    operation.packageName == apkPackageName
+
+/**
  * Strict parser for apk-tools 3 output, pinned by the sandbox rehearsal
  * (scripts/rehearse_m24_packages.sh, apk-tools 3.0.6):
  *

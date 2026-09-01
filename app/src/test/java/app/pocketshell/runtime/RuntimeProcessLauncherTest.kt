@@ -252,7 +252,9 @@ class RuntimeProcessLauncherTest {
 
     /**
      * M2.4: package commands reuse the SAME spec builder — only the guest
-     * argv tail differs (apk command instead of /bin/sh -l).
+     * argv tail differs (apk command instead of /bin/sh -l). v0.4.2: package
+     * commands also pass bindProc=false (SELinux hardlink neverallow — see
+     * buildLaunchSpec KDoc), so the pinned package-op argv has NO /proc bind.
      */
     @Test
     fun `guestCommand replaces the shell as the proot argv tail`() {
@@ -264,6 +266,7 @@ class RuntimeProcessLauncherTest {
             hostCwd = tmp.root,
             prootTmpDir = tmp.root,
             guestCommand = listOf("/sbin/apk", "add", "nano"),
+            bindProc = false,
         )
         assertEquals(
             listOf(
@@ -273,7 +276,6 @@ class RuntimeProcessLauncherTest {
                 "--root-id",
                 "--cwd=/root",
                 "--bind=/dev",
-                "--bind=/proc",
                 "--bind=/sys",
                 "/sbin/apk",
                 "add",
@@ -310,6 +312,8 @@ class RuntimeProcessLauncherTest {
      * v0.4.1: the apk cache binds must sit AFTER the fixed binds and BEFORE
      * the guest argv — same proot --bind=host:guest mechanism, app-owned host
      * dirs, both apk-tools 3 cache locations covered.
+     * v0.4.2: package specs pass bindProc=false, so the full pinned package
+     * argv has /dev + /sys + cache binds and NEVER /proc.
      */
     @Test
     fun `apkCacheDir adds cache binds before the guest argv`() {
@@ -323,6 +327,7 @@ class RuntimeProcessLauncherTest {
             prootTmpDir = tmp.root,
             guestCommand = listOf("/sbin/apk", "update"),
             apkCacheDir = cache,
+            bindProc = false,
         )
         assertEquals(
             listOf(
@@ -332,7 +337,6 @@ class RuntimeProcessLauncherTest {
                 "--root-id",
                 "--cwd=/root",
                 "--bind=/dev",
-                "--bind=/proc",
                 "--bind=/sys",
                 "--bind=${File(cache, "etc").absolutePath}:${RuntimeProcessLauncher.GUEST_APK_CACHE_ETC}",
                 "--bind=${File(cache, "var").absolutePath}:${RuntimeProcessLauncher.GUEST_APK_CACHE_VAR}",
@@ -352,5 +356,38 @@ class RuntimeProcessLauncherTest {
         val s = spec(rootfs, makeNativeDir())
         assertTrue(s.arguments.none { it.startsWith("--bind=") && it.contains(":") && !it.startsWith("--bind=/dev") && !it.startsWith("--bind=/proc") && !it.startsWith("--bind=/sys") })
         assertEquals(listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"), s.arguments.takeLast(2))
+    }
+
+    /**
+     * v0.4.2 ROOT-CAUSE PIN (Samsung SM-F711B 2026-09-02 screenshots):
+     * package commands must NEVER carry a /proc bind. With /proc visible,
+     * apk-tools 3.0.x commits downloads via
+     * linkat("/proc/self/fd/N", …, AT_SYMLINK_FOLLOW), which AOSP
+     * app_neverallows.te forbids for untrusted apps — the link fails with
+     * EACCES and apk cancels the whole download ("updating and opening …:
+     * Permission denied"). Without /proc, apk's is_proc_fd_ok() is false and
+     * it commits via named-tmpfile + renameat (create/rename — allowed).
+     * Interactive shell specs keep /proc.
+     */
+    @Test
+    fun `package specs never bind proc while the shell keeps it`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val native = makeNativeDir()
+        val cache = tmp.newFolder("apk-cache")
+        val packageSpec = RuntimeProcessLauncher.buildLaunchSpec(
+            nativeLibraryDir = native.absolutePath,
+            rootfsDir = rootfs,
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf("/sbin/apk", "add", "nano"),
+            apkCacheDir = cache,
+            bindProc = false,
+        )
+        assertTrue(packageSpec.arguments.none { it == "--bind=/proc" })
+        assertTrue(packageSpec.arguments.any { it == "--bind=/dev" })
+        assertTrue(packageSpec.arguments.any { it == "--bind=/sys" })
+
+        val shellSpec = spec(rootfs, native)
+        assertTrue("interactive sessions must keep /proc", shellSpec.arguments.any { it == "--bind=/proc" })
     }
 }

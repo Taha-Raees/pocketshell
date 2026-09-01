@@ -28,6 +28,28 @@ import java.io.File
  * itself, and argv[0] is the executable path (exec convention; bionic names
  * argv[0] in link errors and proot's getopt would otherwise never see the
  * first real flag).
+ *
+ * v0.4.2 device lesson (same device, 2026-09-02 screenshots: "Permission
+ * denied" on every apk fetch while bytes clearly flowed): package-command
+ * specs do NOT bind /proc into the guest. apk-tools 3.0.x (HAVE_O_TMPFILE
+ * build, src/io.c __apk_ostream_to_file/fdo_close) downloads every cached
+ * object — APKINDEX and packages alike — into an ANONYMOUS O_TMPFILE file
+ * and commits it with `linkat(AT_FDCWD, "/proc/self/fd/N", atfd, name,
+ * AT_SYMLINK_FOLLOW)`. AOSP system/sepolicy app_neverallows.te forbids that
+ * for every untrusted app domain: `neverallow all_untrusted_apps
+ * file_type:file link;` — apps keep create/rename/unlink on their own data
+ * (create_file_perms deliberately has no `link`), so the kernel returns
+ * EACCES and apk cancels the WHOLE download (linkat failure →
+ * apk_ostream_cancel(-errno), no retry/fallback). Observed shape on the
+ * device: index bytes download, then `updating and opening …: Permission
+ * denied` — invisible to host rehearsals (no SELinux) and immune to v0.4.1's
+ * cache binds (the denial is on the link OPERATION, not the path). Without
+ * a /proc bind apk's own is_proc_fd_ok() (access("/proc/self/fd")) is false
+ * and it uses the named-tmpfile + renameat commit path — plain
+ * create/rename/unlink, fully allowed. apk needs /proc for nothing else in
+ * this flow (find_mountpoint degrades to a no-op; the cache remount path
+ * only triggers for read-only caches). Interactive sessions keep the /proc
+ * bind unchanged.
  */
 object RuntimeProcessLauncher {
 
@@ -97,6 +119,7 @@ object RuntimeProcessLauncher {
         term: String = "xterm-256color",
         guestCommand: List<String> = listOf(GUEST_SHELL, "-l"),
         apkCacheDir: File? = null,
+        bindProc: Boolean = true,
     ): LaunchSpec {
         // Same contract as [preconditionProblem], thrown so programmatic
         // callers get a hard, honest failure (UI callers preflight instead).
@@ -123,9 +146,15 @@ object RuntimeProcessLauncher {
             "--root-id",
             "--cwd=/root",
             "--bind=/dev",
-            "--bind=/proc",
-            "--bind=/sys",
         )
+        // v0.4.2: package commands run WITHOUT /proc (see class KDoc) — apk
+        // then commits downloads via its named-tmpfile + renameat path instead
+        // of linkat(/proc/self/fd), which Android SELinux neverallows for
+        // untrusted apps (EACCES = the v0.4.0/v0.4.1 "Permission denied").
+        if (bindProc) {
+            arguments.add("--bind=/proc")
+        }
+        arguments.add("--bind=/sys")
         if (apkCacheDir != null) {
             // v0.4.1 device lesson (Samsung SM-F711B): apk fetches died with
             // EACCES before ever reaching the network — the cache write path

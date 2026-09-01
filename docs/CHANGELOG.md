@@ -3,6 +3,57 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.4.2-m2.4] — 2026-09-02 — fix the SELinux hardlink neverallow that killed every apk download (device-screenshot hotfix)
+
+### Fixed — the real reason `apk update` died with "Permission denied" (v0.4.1 device screenshots)
+- **Root cause, verified in apk-tools 3.0.6 source + AOSP sepolicy:** the
+  2026-09-02 device screenshots (SM-F711B, v0.4.1 with working device-DNS)
+  still showed every fetch failing with `updating and opening …
+  APKINDEX.tar.gz: Permission denied` — while the status bar showed real
+  download traffic (3–10 KB/s). That shape (bytes flow, then EACCES) pointed
+  away from DNS entirely and at apk's download COMMIT step: apk-tools 3.0.x
+  (the `HAVE_O_TMPFILE` build Alpine ships) downloads every cached object —
+  APKINDEX **and** packages — into an anonymous `O_TMPFILE` file and commits
+  it with `linkat(AT_FDCWD, "/proc/self/fd/N", atfd, name,
+  AT_SYMLINK_FOLLOW)` (`src/io.c`, `__apk_ostream_to_file`/`fdo_close`). AOSP
+  system/sepolicy `app_neverallows.te` answers that with
+  `neverallow all_untrusted_apps file_type:file link;` — untrusted apps keep
+  create/rename/unlink on their own data (`create_file_perms` deliberately
+  contains no `link`), so the kernel denies the hardlink with EACCES and apk
+  **cancels the whole download** (no retry, no fallback). This is why
+  v0.4.1's cache binds changed nothing (the denial is on the link
+  *operation*, not the path), why host rehearsals never saw it (no SELinux),
+  and why the v0.4.1 DNS fix could not cure it (DNS was never the whole
+  story — the v0.4.1 changelog's "instant blocking" reading of the first
+  EACCES was wrong).
+- **Fix — package commands no longer bind /proc into the guest**
+  (`RuntimeProcessLauncher.buildLaunchSpec(bindProc=…)`, package specs pass
+  `false`; interactive shell/app sessions keep `/proc` unchanged). Without a
+  visible `/proc`, apk's own `is_proc_fd_ok()` (a bare
+  `access("/proc/self/fd")`) is false and it downloads through the
+  named-tmpfile + `renameat` commit path — plain create/rename/unlink, fully
+  allowed for apps. apk needs `/proc` for nothing else in this flow: the
+  only other consumer (`find_mountpoint` → `/proc/mounts`) degrades to a
+  no-op and only matters for read-only cache remounts. Rehearsed end-to-end
+  with the same apk-tools 3.0.6: `update → search → add → run → del` all
+  pass without `/proc`, and the committed `APKINDEX.<hash>.tar.gz` files
+  land in the bound host cache dir with zero leftover temp files.
+
+### Fixed — catalog cards no longer claim work they are not doing
+- v0.4.1 rendered the global single-flight busy flag on every card, so
+  installing nano flipped all five featured cards to "Working…" at once
+  (user screenshot). A card now shows "Working…" only while the running
+  operation targets *that* card's package (`packageOperationTargetsCard`,
+  pinned by unit tests); other cards keep their true Install/Open labels and
+  stay disabled only because the one-mutation-at-a-time lock is honest.
+- The failed-operation banner no longer repeats apk stderr lines verbatim
+  when the summary line already contains them.
+
+### Notes
+- 4 new/updated unit pins: package specs never carry `/proc` while shell
+  specs keep it (exact argv pins), and the per-card busy rule. 272 tests.
+- v0.4.1→v0.4.2 installs as an in-place update (same pinned signing key).
+
 ## [0.4.1-m2.4] — 2026-09-01 — fix guest DNS + apk cache for real networks (device-recording hotfix)
 
 ### Fixed — why every package operation failed on the device (v0.4.0 recording)

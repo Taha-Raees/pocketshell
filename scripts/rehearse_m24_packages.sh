@@ -7,6 +7,16 @@
 # v0.4.1: adds the apk cache binds (etc/apk/cache + var/cache/apk over
 # app-owned host dirs) exactly as PackageGateway.buildSpec now passes them,
 # plus the guest workspace repair steps.
+# v0.4.2: package commands drop --bind=/proc — mirroring bindProc=false.
+# Root cause this pins (Samsung SM-F711B, "updating and opening …: Permission
+# denied"): with /proc visible apk-tools 3.0.x commits every download via
+# linkat("/proc/self/fd/N", …, AT_SYMLINK_FOLLOW) (O_TMPFILE + fdo_close in
+# src/io.c), and AOSP app_neverallows.te neverallows `link` for untrusted
+# apps — EACCES kills the whole download. Without /proc, apk's
+# is_proc_fd_ok() is false and it commits via named tmpfile + renameat
+# (create/rename — allowed). The host cannot reproduce SELinux, but this
+# rehearsal proves the no-/proc apk flow end-to-end incl. the cache commit
+# landing in the bound host dir.
 # Sandbox-only: x86_64 glibc host, NOT device validation (device gate = §9).
 set -uo pipefail
 D=/home/z/tools/m23-dist/host
@@ -43,7 +53,7 @@ g() { # g <guest argv...>
     TERM=xterm-256color LANG=C.UTF-8 TMPDIR=/tmp \
     "$D/libproot.so" \
     --kill-on-exit --rootfs="$R/rootfs" --root-id --cwd=/root \
-    --bind=/dev --bind=/proc --bind=/sys \
+    --bind=/dev --bind=/sys \
     --bind="$R/apk-cache/etc:/etc/apk/cache" \
     --bind="$R/apk-cache/var:/var/cache/apk" "$@"
 }
@@ -73,8 +83,13 @@ g /usr/bin/nano --version | head -2; log "   exit=${PIPESTATUS[0]}"
 step "apk del nano"         g /sbin/apk del nano
 log "== apk info -e nano AFTER del (expect NONZERO)"
 g /sbin/apk info -e nano; rc=$?; log "   exit=$rc (want non-zero)"; [ $rc -ne 0 ] || fail=1
-log "== cache landed in the BOUND host dir (proot bind proof)"
+log "== cache landed in the BOUND host dir (proot bind proof, no /proc)"
 ls -la "$R/apk-cache/etc/" | head -5
+log "== no leftover temp files in the cache (named-tmpfile+renameat commit)"
+leftovers=$(ls "$R/apk-cache/etc/" "$R/apk-cache/var/" 2>/dev/null | grep -c '\.tmp' || true)
+log "   tmp leftovers=$leftovers (want 0)"; [ "$leftovers" -eq 0 ] || fail=1
+log "== guest sees no /proc (is_proc_fd_ok will be false inside apk)"
+g /bin/sh -c 'test -e /proc/self/fd && echo UNEXPECTED /proc present || echo no /proc'; rc=$?; log "   exit=$rc"
 
 log "REHEARSAL $([ $fail -eq 0 ] && echo PASSED || echo FAILED)"
 exit $fail

@@ -142,6 +142,11 @@ object PackageGateway {
      * same [RuntimeProcessLauncher.buildLaunchSpec] the Linux Shell uses, with
      * a different guest argv (apk commands instead of /bin/sh -l) plus the apk
      * cache binds. The shell path passes no apkCacheDir and stays untouched.
+     *
+     * v0.4.2: package specs pass bindProc=false — see
+     * [RuntimeProcessLauncher] KDoc (apk's O_TMPFILE+linkat download commit is
+     * SELinux-neverallowed for untrusted apps; without /proc apk uses its
+     * named-tmpfile+renameat path, which is allowed).
      */
     private fun buildSpec(
         context: Context,
@@ -155,6 +160,7 @@ object PackageGateway {
             prootTmpDir = File(context.cacheDir, "proot-tmp").apply { mkdirs() },
             guestCommand = guestCommand,
             apkCacheDir = apkCacheDir(storage),
+            bindProc = false,
         )
 
     // ------------------------------------------------------- diagnostics only

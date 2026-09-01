@@ -40,6 +40,7 @@ import app.pocketshell.packages.CliAppCatalogEntry
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.packages.PackageOperationState
 import app.pocketshell.packages.PackageSearchResult
+import app.pocketshell.packages.packageOperationTargetsCard
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeState
 
@@ -226,9 +227,12 @@ fun ExploreAppsScreen(
                                 ) {
                                     // apk's own stderr — the real failure text
                                     // (DNS / EACCES / HTTP), never summarized away.
+                                    // Lines the summary already contains are not
+                                    // repeated verbatim (v0.4.2 polish).
                                     Text(
                                         op.stderrTail.lineSequence()
                                             .filter { it.isNotBlank() }
+                                            .filter { line -> op.error?.contains(line) != true }
                                             .take(4)
                                             .joinToString("\n"),
                                         style = MaterialTheme.typography.bodySmall,
@@ -286,7 +290,13 @@ fun ExploreAppsScreen(
                 CatalogAppCard(
                     entry = entry,
                     installedVersion = installedVersions[entry.apkPackageName],
-                    busy = packageBusy || verifyingApp == entry.name,
+                    // v0.4.2 honesty: "Working…" ONLY on the card the running
+                    // operation actually targets (or that is being verified).
+                    // The global mutation lock still disables the OTHER cards'
+                    // actions (single-flight) — but their labels stay true.
+                    busy = verifyingApp == entry.name ||
+                        packageOperationTargetsCard(packageBusy, operation, entry.apkPackageName),
+                    enabled = !packageBusy,
                     onInstall = { terminalViewModel.installCatalogApp(entry) },
                     onUninstall = { terminalViewModel.uninstallCatalogApp(entry) },
                     onOpen = {
@@ -332,6 +342,7 @@ private fun CatalogAppCard(
     entry: CliAppCatalogEntry,
     installedVersion: String?,
     busy: Boolean,
+    enabled: Boolean,
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
     onOpen: () -> Unit,
@@ -365,14 +376,14 @@ private fun CatalogAppCard(
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (installedVersion == null) {
-                    Button(onClick = onInstall, enabled = !busy) {
+                    Button(onClick = onInstall, enabled = enabled) {
                         Text(if (busy) "Working…" else "Install")
                     }
                 } else {
-                    Button(onClick = onOpen, enabled = !busy) {
+                    Button(onClick = onOpen, enabled = enabled) {
                         Text(if (busy) "Working…" else "Open")
                     }
-                    OutlinedButton(onClick = onUninstall, enabled = !busy) {
+                    OutlinedButton(onClick = onUninstall, enabled = enabled) {
                         Text("Uninstall")
                     }
                 }

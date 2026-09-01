@@ -195,20 +195,28 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
 > checklist below is the real gate. v0.4.0 failed on-device with
 > `DNS: transient error` / `Permission denied` because its hardcoded public
 > DNS resolvers were unreachable on the user's network — v0.4.1 uses the
-> device's own resolvers instead.
+> device's own resolvers instead. v0.4.1 STILL failed with `Permission
+> denied` (user screenshots 2026-09-02): the fetch died at apk's
+> O_TMPFILE→linkat("/proc/self/fd") download commit, which Android SELinux
+> neverallows for untrusted apps (hardlink). v0.4.2 drops the /proc bind for
+> package commands, so apk commits downloads via renameat instead.
 
-- [ ] **Uninstall the old app first** (v0.4.1 signs with a NEW debug cert —
-      the old key was lost with a sandbox reset; see CHANGELOG). Then install
-      v0.4.1 and re-run §7: Diagnostics → Install Linux environment → READY
-      (the 9.3 MB runtime comes back in one tap).
+- [ ] **v0.4.2 installs OVER v0.4.1 in place** (same pinned signing key as
+      v0.4.1 — no uninstall needed; the runtime and any installed packages
+      are kept). Only if you are still on v0.4.0: uninstall first (that cert
+      break happened at v0.4.1, see CHANGELOG), then install and re-run §7:
+      Diagnostics → Install Linux environment → READY (the 9.3 MB runtime
+      comes back in one tap).
 - [ ] Diagnostics → **Check package environment** (explicit button, nothing
       runs on open): apk version banner (apk-tools 3.x), the two dl-cdn
       v3.24 repositories, package database present, **Guest DNS now lists the
       DEVICE's resolvers** with the source ("device resolvers
       (ConnectivityManager)" — not the public fallback), and **Repository
       fetch: OK** — the button runs ONE real bounded `apk update` and shows
-      its honest outcome. If it fails here, the failure text is the real apk
-      stderr — report it, it becomes the next fix.
+      its honest outcome. (v0.4.2: the fetch now commits via renameat — if
+      you EVER see `Permission denied` here again, report the text, it
+      becomes the next fix; the previous failure shape was index bytes
+      downloading, then the hardlink commit being denied.)
 - [ ] Explore CLI Apps (runtime READY): the five featured entries show the
       REAL state — all "Not installed" on a fresh runtime.
 - [ ] **Install Nano**: honest stages only — Updating repositories →
