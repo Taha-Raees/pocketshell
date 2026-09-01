@@ -26,7 +26,25 @@ android {
         versionName = "0.4.1-m2.4"
     }
 
+    // v0.4.1: pin the debug signing key IN THE REPO. Lesson from sandbox reset
+    // #5: ~/.android/debug.keystore was wiped and regenerated with a random
+    // key, silently breaking update-installs over every shipped build (debug
+    // APKs are side-loaded; their key IS the update identity). With the
+    // keystore committed, every future build — on any machine — signs with
+    // the same key and stays an in-place update. Debug-only key, no secrets.
+    signingConfigs {
+        getByName("debug") {
+            val pinned = rootProject.file("keystore/debug.keystore")
+            if (pinned.isFile) {
+                storeFile = pinned
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

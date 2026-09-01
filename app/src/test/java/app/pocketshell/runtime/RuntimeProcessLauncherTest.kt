@@ -351,6 +351,6 @@ class RuntimeProcessLauncherTest {
         val rootfs = tmp.newFolder("rootfs")
         val s = spec(rootfs, makeNativeDir())
         assertTrue(s.arguments.none { it.startsWith("--bind=") && it.contains(":") && !it.startsWith("--bind=/dev") && !it.startsWith("--bind=/proc") && !it.startsWith("--bind=/sys") })
-        assertEquals(RuntimeProcessLauncher.GUEST_SHELL, s.arguments.last())
+        assertEquals(listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"), s.arguments.takeLast(2))
     }
 }

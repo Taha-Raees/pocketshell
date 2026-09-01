@@ -23,6 +23,10 @@ libs/
 # Keystore files (never commit)
 *.jks
 *.keystore
+# EXCEPTION (v0.4.1): the DEBUG keystore IS committed on purpose — it is the
+# side-load update identity; committing it keeps every future build an
+# in-place update across sandbox resets (see CHANGELOG 0.4.1 + build.gradle).
+!keystore/debug.keystore
 
 # Environment (pre-existing, keep ignored)
 .env

@@ -197,9 +197,10 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
 > DNS resolvers were unreachable on the user's network — v0.4.1 uses the
 > device's own resolvers instead.
 
-- [ ] Update the app over v0.4.0 (same signing cert; runtime + any packages
-      are kept). ACCESS_NETWORK_STATE is added — a normal read-only
-      permission, no prompt expected.
+- [ ] **Uninstall the old app first** (v0.4.1 signs with a NEW debug cert —
+      the old key was lost with a sandbox reset; see CHANGELOG). Then install
+      v0.4.1 and re-run §7: Diagnostics → Install Linux environment → READY
+      (the 9.3 MB runtime comes back in one tap).
 - [ ] Diagnostics → **Check package environment** (explicit button, nothing
       runs on open): apk version banner (apk-tools 3.x), the two dl-cdn
       v3.24 repositories, package database present, **Guest DNS now lists the

@@ -45,8 +45,23 @@ All notable changes. Milestone checkpoints are named git commits
   the true outcome plus which DNS servers the guest got and where they came
   from ("device resolvers" vs "public fallback").
 
+### Signing certificate changed — ONE-TIME uninstall required (read first)
+- The sandbox reset (#5) destroyed `~/.android/debug.keystore`. Android
+  debug-APK signatures ARE the update identity: a build signed with a
+  regenerated key cannot install over v0.3.x–v0.4.0. The key is
+  unrecoverable (it never left the sandbox), so **v0.4.1 must be installed
+  after uninstalling the old app** — the runtime (9.3 MB) is reinstalled
+  from Diagnostics in one tap; no packages were installed yet (M2.4 never
+  succeeded on v0.4.0).
+- **This is the last time.** The (new) debug keystore is now committed at
+  `keystore/debug.keystore` and pinned via `signingConfigs.debug` — every
+  future build signs identically regardless of sandbox resets, and remains
+  an in-place update over v0.4.1+. New cert SHA-256:
+  `d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659`
+  (was `34391676…cf3f`).
+
 ### Tests
-- 12 new unit tests (266 total): device-resolver flow into the pre-op repair,
+- 12 new unit tests (271 total): device-resolver flow into the pre-op repair,
   v0.4.0-fallback upgrade rule, never-overwrite for user content, cache-bind
   argv pins (after the fixed binds, before the guest argv), workspace repair
   creates/fixes dirs, workspace-repair failure refuses the op without exec.
