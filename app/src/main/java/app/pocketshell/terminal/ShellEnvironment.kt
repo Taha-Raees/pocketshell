@@ -14,6 +14,8 @@ import java.io.File
 object ShellEnvironment {
 
     const val SHELL_PATH = "/system/bin/sh"
+    /** The guest shell inside the Alpine rootfs (proot argv tail). */
+    const val SHELL_PATH_GUEST = "/bin/sh"
     const val TRANSCRIPT_ROWS = 2000
 
     fun homeDir(context: Context): File =

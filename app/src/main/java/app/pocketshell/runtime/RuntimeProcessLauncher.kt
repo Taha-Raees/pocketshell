@@ -91,12 +91,16 @@ object RuntimeProcessLauncher {
         hostCwd: File,
         prootTmpDir: File,
         term: String = "xterm-256color",
+        guestCommand: List<String> = listOf(GUEST_SHELL, "-l"),
     ): LaunchSpec {
         // Same contract as [preconditionProblem], thrown so programmatic
         // callers get a hard, honest failure (UI callers preflight instead).
         when (val problem = preconditionProblem(nativeLibraryDir, rootfsDir)) {
             null -> Unit
             else -> throw IllegalArgumentException(problem)
+        }
+        require(guestCommand.isNotEmpty()) {
+            "guestCommand must not be empty — proot would have nothing to exec"
         }
 
         val proot = File(nativeLibraryDir, PROOT_LIB)
@@ -116,9 +120,7 @@ object RuntimeProcessLauncher {
             "--bind=/dev",
             "--bind=/proc",
             "--bind=/sys",
-            GUEST_SHELL,
-            "-l",
-        )
+        ) + guestCommand
 
         val environment = mutableListOf(
             // v0.3.2: bionic resolves proot's DT_NEEDED libtalloc.so from here

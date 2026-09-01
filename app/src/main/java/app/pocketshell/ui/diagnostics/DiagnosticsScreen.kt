@@ -18,12 +18,16 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import app.pocketshell.diagnostics.Diagnostics
 import app.pocketshell.runtime.RuntimeDiagnostics
 import app.pocketshell.runtime.RuntimeManager
@@ -172,6 +176,67 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+
+        // ---- M2.4: package environment (explicit check only) ---------------
+        // Nothing here runs on open: the check execs the guest (`apk
+        // --version`) and reads package config files — only because the user
+        // pressed the button. No network, no database writes.
+        HorizontalDivider(Modifier.padding(top = 10.dp))
+        Text(
+            text = "Package environment",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        )
+        Text(
+            text = "Nothing is checked automatically — press the button.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        val scope = rememberCoroutineScope()
+        var pkgReport by remember { mutableStateOf<app.pocketshell.packages.PackageEnvironmentReport?>(null) }
+        var pkgChecking by remember { mutableStateOf(false) }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            OutlinedButton(
+                onClick = {
+                    pkgChecking = true
+                    scope.launch {
+                        pkgReport = try {
+                            app.pocketshell.packages.PackageGateway.checkEnvironment()
+                        } finally {
+                            pkgChecking = false
+                        }
+                    }
+                },
+                enabled = !pkgChecking,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (pkgChecking) "Checking…" else "Check package environment")
+            }
+        }
+        pkgReport?.let { report ->
+            RuntimeFactRow("Runtime", if (report.runtimeReady) "READY" else "not READY")
+            RuntimeFactRow(
+                "apk",
+                report.apkVersion ?: report.apkError ?: "—",
+            )
+            RuntimeFactRow(
+                "Repositories",
+                report.repositories?.joinToString(", ") ?: "—",
+            )
+            RuntimeFactRow(
+                "Package database",
+                report.worldPackages?.let { "present ($it packages in world)" } ?: "unreadable",
+            )
+            RuntimeFactRow(
+                "Guest DNS",
+                if (report.dnsConfigured) "configured" else "missing (repairs on first package operation)",
             )
         }
     }

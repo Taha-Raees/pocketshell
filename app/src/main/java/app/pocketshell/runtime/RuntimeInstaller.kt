@@ -320,6 +320,16 @@ class RuntimeInstaller(
                 "bin/busybox missing after extraction",
             )
         }
+        // Guest DNS: the minirootfs ships no /etc/resolv.conf (upstream leaves
+        // it to the target machine), but musl's resolver needs one or every
+        // guest name lookup fails (apk update). See GuestEnvironment KDoc —
+        // never overwrites a file that already has content.
+        if (!GuestEnvironment.ensureDnsResolvers(stagingRootfs)) {
+            throw InstallException(
+                RuntimeState.CONFIGURING,
+                "could not write ${GuestEnvironment.RESOLV_CONF_RELATIVE} into the staging rootfs",
+            )
+        }
         val metadata = RuntimeMetadata(
             distribution = spec.distribution,
             distributionVersion = spec.distributionVersion,

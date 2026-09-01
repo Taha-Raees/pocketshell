@@ -1,0 +1,275 @@
+package app.pocketshell.packages
+
+import app.pocketshell.runtime.RuntimeProcessLauncher
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+
+/**
+ * Pins the real command layer of [AlpinePackageManager] against a scripted
+ * fake guest process runner: exact guest argv (single proot infrastructure —
+ * the spec tail IS the apk command), exit-code semantics, DNS repair before
+ * ops, and honest refusal when the runtime is not READY.
+ */
+class AlpinePackageManagerTest {
+
+    @get:Rule
+    val tmp = TemporaryFolder()
+
+    private val recordedSpecs = mutableListOf<RuntimeProcessLauncher.LaunchSpec>()
+
+    /** A native dir that passes the real preflight (proot/loader/talloc). */
+    private fun makeNativeDir(): String {
+        val dir = tmp.newFolder("native-${System.nanoTime()}")
+        java.io.File(dir, RuntimeProcessLauncher.PROOT_LIB).writeText("x")
+        java.io.File(dir, RuntimeProcessLauncher.TALLOC_LIB).writeText("x")
+        java.io.File(dir, RuntimeProcessLauncher.LOADER_LIB).writeText("x")
+        return dir.absolutePath
+    }
+
+    private fun newRootfs(): File = tmp.newFolder("rootfs-${System.nanoTime()}")
+
+    private fun fakeRunner(vararg results: ExecResult): GuestCommandRunner =
+        object : GuestCommandRunner {
+            private var i = 0
+            override fun start(spec: RuntimeProcessLauncher.LaunchSpec): GuestProcess {
+                recordedSpecs += spec
+                val result = results[results.indices.elementAtOrElse(i) { results.lastIndex }]
+                i++
+                return object : GuestProcess {
+                    override fun waitFor(timeoutMs: Long?) = result
+                    override fun destroy() = Unit
+                }
+            }
+        }
+
+    private fun makeManager(
+        runner: GuestCommandRunner,
+        ready: Boolean = true,
+    ): AlpinePackageManager {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        return AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    nativeLibraryDir = native,
+                    rootfsDir = rootfs,
+                    hostCwd = rootfs,
+                    prootTmpDir = rootfs,
+                    guestCommand = guestCommand,
+                )
+            },
+            runner = runner,
+            readyGuard = { if (ready) null else "the Linux runtime is not READY" },
+        )
+    }
+
+    private fun specToNativeLibDir(spec: RuntimeProcessLauncher.LaunchSpec): String =
+        spec.environment.first { it.startsWith("LD_LIBRARY_PATH=") }.removePrefix("LD_LIBRARY_PATH=")
+
+    @Test
+    fun `update runs real apk update as the proot guest command`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        File(rootfs, "etc").mkdirs()
+        File(rootfs, "etc/resolv.conf").writeText("nameserver 1.1.1.1\n")
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(ExecResult(exitCode = 0, stdout = "OK: 28645 distinct packages available\n", stderr = "")),
+            readyGuard = { null },
+        )
+        val result = manager.updateRepositories()
+        assertTrue(result.success)
+        assertEquals(0, result.exitCode)
+        val spec = recordedSpecs.single()
+        // argv[0] = proot path (v0.3.2 contract), tail = the apk command
+        assertEquals("$native/libproot.so", spec.arguments.first())
+        assertEquals(listOf("/sbin/apk", "update"), spec.arguments.takeLast(2))
+        assertEquals(native, specToNativeLibDir(spec))
+    }
+
+    @Test
+    fun `install constructs apk add with the validated package name`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(ExecResult(exitCode = 0, stdout = "", stderr = "")),
+            readyGuard = { null },
+        )
+        assertTrue(manager.install("nano").success)
+        assertEquals(listOf("/sbin/apk", "add", "nano"), recordedSpecs.single().arguments.takeLast(3))
+    }
+
+    @Test
+    fun `invalid package name fails honestly without any exec`() = runBlocking {
+        val manager = makeManager(fakeRunner(ExecResult(exitCode = 0, stdout = "", stderr = "")))
+        val result = manager.install("bad name; rm")
+        assertFalse(result.success)
+        assertTrue(result.error!!.contains("invalid package name"))
+        assertEquals(0, recordedSpecs.size)
+    }
+
+    @Test
+    fun `getPackageInfo maps exit codes to installed state`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(
+                ExecResult(exitCode = 0, stdout = "nano-9.2-r0\n", stderr = ""),
+                ExecResult(exitCode = 1, stdout = "", stderr = ""),
+            ),
+            readyGuard = { null },
+        )
+        val installed = manager.getPackageInfo("nano")
+        assertTrue(installed.installed)
+        assertEquals("9.2-r0", installed.version)
+        assertEquals(listOf("/sbin/apk", "info", "-e", "-v", "nano"), recordedSpecs[0].arguments.takeLast(5))
+
+        val gone = manager.getPackageInfo("nano")
+        assertFalse(gone.installed)
+    }
+
+    @Test
+    fun `search parses real output and empty query short-circuits`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(
+                ExecResult(exitCode = 0, stdout = "nano-9.2-r0\nnano-doc-9.2-r0\n", stderr = ""),
+            ),
+            readyGuard = { null },
+        )
+        val results = manager.search("nano")
+        assertEquals(listOf("nano", "nano-doc"), results.map { it.name })
+        assertEquals(listOf("/sbin/apk", "search", "nano"), recordedSpecs.single().arguments.takeLast(3))
+
+        assertEquals(emptyList<PackageSearchResult>(), manager.search("  "))
+    }
+
+    @Test
+    fun `guestExecutablePath uses POSIX command -v through a positional arg`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(ExecResult(exitCode = 0, stdout = "/usr/bin/nano\n", stderr = "")),
+            readyGuard = { null },
+        )
+        assertEquals("/usr/bin/nano", manager.guestExecutablePath("nano"))
+        val argv = recordedSpecs.single().arguments
+        assertEquals("/bin/sh", argv[argv.size - 5])
+        assertEquals("-c", argv[argv.size - 4])
+        assertEquals("sh", argv[argv.size - 2])
+        assertEquals("nano", argv.last())
+        assertNull(manager.guestExecutablePath("na no"))
+    }
+
+    @Test
+    fun `dns repair runs before the first command and is not repeated needlessly`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(
+                ExecResult(exitCode = 0, stdout = "", stderr = ""),
+                ExecResult(exitCode = 0, stdout = "", stderr = ""),
+            ),
+            readyGuard = { null },
+        )
+        // no resolv.conf yet — the first op must create it (rehearsal-proven content)
+        assertTrue(manager.uninstall("nano").success)
+        val resolv = File(rootfs, "etc/resolv.conf")
+        assertTrue(resolv.isFile)
+        assertEquals(
+            app.pocketshell.runtime.GuestEnvironment.RESOLV_CONF_CONTENT,
+            resolv.readText(),
+        )
+        // existing content is preserved (never clobbered)
+        resolv.writeText("nameserver 9.9.9.9\n")
+        assertTrue(manager.uninstall("nano").success)
+        assertEquals("nameserver 9.9.9.9\n", resolv.readText())
+    }
+
+    @Test
+    fun `not-ready runtime refuses every operation with the real reason`() = runBlocking {
+        val manager = makeManager(fakeRunner(), ready = false)
+        val result = manager.updateRepositories()
+        assertFalse(result.success)
+        assertTrue(result.error!!.contains("not READY"))
+        assertEquals(0, recordedSpecs.size)
+        assertTrue(manager.search("nano").isEmpty())
+        assertNull(manager.guestExecutablePath("nano"))
+    }
+
+    @Test
+    fun `failed apk add carries the real stderr for honest errors`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        File(rootfs, "etc").mkdirs()
+        File(rootfs, "etc/resolv.conf").writeText("nameserver 1.1.1.1\n")
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(
+                ExecResult(
+                    exitCode = 2,
+                    stdout = "",
+                    stderr = "ERROR: unable to select packages: nano (no such package)\n",
+                ),
+            ),
+            readyGuard = { null },
+        )
+        val result = manager.install("nano")
+        assertFalse(result.success)
+        assertEquals(2, result.exitCode)
+        // the REAL apk stderr is the honest error carrier (no synthetic blur)
+        assertTrue(result.stderr.contains("no such package"))
+        assertTrue(result.stderr.isNotBlank())
+    }
+}

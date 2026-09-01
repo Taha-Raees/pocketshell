@@ -91,7 +91,9 @@ fun PocketShellRoot(
             )
 
             "explore" -> ExploreAppsScreen(
+                terminalViewModel = terminalViewModel,
                 onBack = { screen = "home" },
+                onOpenedSession = { screen = "terminal" },
                 modifier = Modifier.padding(padding),
             )
 

@@ -6,14 +6,19 @@ import androidx.lifecycle.viewModelScope
 import app.pocketshell.cliapps.CliApp
 import app.pocketshell.cliapps.CliAppLauncher
 import app.pocketshell.cliapps.CliAppRegistry
+import app.pocketshell.packages.CliAppCatalogEntry
+import app.pocketshell.packages.PackageGateway
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
 import app.pocketshell.terminal.TerminalSessionManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * UI-side state holder. Sessions themselves live in the process-scoped
@@ -125,6 +130,97 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
             is CliAppLauncher.LaunchResult.Error ->
                 safeFailure("${app.name} could not start: ${result.message}")
         }
+    }
+
+    // ------------------------------------------------------------- M2.4 flows
+
+    /** Package operation state/busy from the process-scoped gateway. */
+    val packageOperation = PackageGateway.operations.current
+    val packageBusy = PackageGateway.operations.busy
+
+    /** True while an "Open" preflight (installed + executable) is running. */
+    private val _verifyingApp = MutableStateFlow<String?>(null)
+    val verifyingApp = _verifyingApp.asStateFlow()
+
+    /**
+     * Open an installed catalog app (M2.4). Verifies the REAL state first —
+     * runtime READY, package in apk's database, executable via command -v —
+     * then creates a NEW dedicated guest session and launches the program in
+     * it. Refusals land in [launchError]; the app never dies and never fakes.
+     *
+     * @param onReady called on the main thread exactly when a real session was
+     *   created and selected (caller navigates).
+     */
+    fun openCatalogApp(entry: CliAppCatalogEntry, onReady: () -> Unit) {
+        val application = getApplication<Application>()
+        if (!PackageGateway.isRuntimeReady()) {
+            safeFailure("${entry.name} needs the Linux runtime — install or repair it from Diagnostics")
+            return
+        }
+        _launchError.value = null
+        _verifyingApp.value = entry.name
+        viewModelScope.launch {
+            try {
+                // preflight against the real guest: package db + executable
+                val installed = withContext(Dispatchers.IO) {
+                    PackageGateway.installedVersion(entry.apkPackageName)
+                }
+                if (installed == null) {
+                    safeFailure(
+                        "${entry.name} is not installed — install it from Explore CLI Apps first " +
+                            "(state verified against the real Alpine package database)",
+                    )
+                    return@launch
+                }
+                val execPath = withContext(Dispatchers.IO) {
+                    PackageGateway.executablePath(entry.executable)
+                }
+                if (execPath == null) {
+                    safeFailure(
+                        "${entry.name} is recorded as installed, but its executable " +
+                            "'${entry.executable}' was not found via command -v — " +
+                            "try reinstalling it",
+                    )
+                    return@launch
+                }
+                var newId: Long? = null
+                val ok = withContext(Dispatchers.Main) {
+                    // TerminalSession construction belongs on the main thread
+                    // (upstream MainThreadHandler contract, same as M2.3 flow)
+                    try {
+                        newId = TerminalSessionManager.createLinuxAppSession(application, entry).id
+                        _selectedId.value = newId
+                        true
+                    } catch (t: Throwable) {
+                        _launchError.value =
+                            "${entry.name} could not start: ${t.message ?: t.javaClass.simpleName}"
+                        false
+                    }
+                }
+                if (ok && newId != null) {
+                    onReady()
+                }
+            } catch (t: Throwable) {
+                safeFailure("${entry.name} could not start: ${t.message ?: t.javaClass.simpleName}")
+            } finally {
+                _verifyingApp.value = null
+            }
+        }
+    }
+
+    /** Trigger a real uninstall of a catalog app (runs in the gateway scope). */
+    fun uninstallCatalogApp(entry: CliAppCatalogEntry) {
+        PackageGateway.operations.uninstall(entry)
+    }
+
+    /** Trigger a real install of a catalog app (runs in the gateway scope). */
+    fun installCatalogApp(entry: CliAppCatalogEntry) {
+        PackageGateway.operations.install(entry)
+    }
+
+    /** Real apk search; results delivered on the gateway's IO completion. */
+    fun searchPackages(query: String, onResult: (List<app.pocketshell.packages.PackageSearchResult>) -> Unit) {
+        PackageGateway.operations.search(query, onResult)
     }
 
     private fun safeFailure(message: String): Boolean {

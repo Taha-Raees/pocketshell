@@ -104,7 +104,42 @@ object TerminalSessionManager {
      * session machinery — only the spawned process differs. Refuses honestly
      * unless the runtime is READY; nothing is ever faked.
      */
-    fun createLinuxSession(context: Context): SessionEntry {
+    fun createLinuxSession(context: Context): SessionEntry = createLinuxSessionInternal(
+        context,
+        guestCommand = listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
+        label = "Alpine Linux",
+    )
+
+    /**
+     * Open an installed catalog CLI app inside a NEW dedicated guest session
+     * (M2.4): the proot spec is identical to the Linux Shell's (same builder,
+     * same guest shell) and the app's launch command is written into THAT NEW
+     * session's PTY only. This is not injection into a user session — the
+     * session exists solely for this app launch, the typed command stays
+     * visible in its scrollback, and exiting the app returns to the guest
+     * shell prompt (real nano → Ctrl+X → real shell).
+     */
+    fun createLinuxAppSession(context: Context, entry: app.pocketshell.packages.CliAppCatalogEntry): SessionEntry {
+        val shellEntry = createLinuxSessionInternal(
+            context,
+            guestCommand = listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
+            label = entry.name,
+        )
+        val command = entry.launchCommand.joinToString(" ") { token ->
+            // catalog launch commands are plain names (pinned by tests); the
+            // quote is defense in depth, never a substitute for validation
+            if (token.matches(Regex("[A-Za-z0-9._/+%-]+"))) token else "'$token'"
+        }
+        val bytes = (command + "\n").toByteArray(Charsets.UTF_8)
+        shellEntry.session.write(bytes, 0, bytes.size)
+        return shellEntry
+    }
+
+    private fun createLinuxSessionInternal(
+        context: Context,
+        guestCommand: List<String>,
+        label: String,
+    ): SessionEntry {
         val appContext = context.applicationContext
         val state = RuntimeManager.state.value
         check(RuntimeProcessLauncher.canEnterLinuxShell(state)) {
@@ -118,10 +153,11 @@ object TerminalSessionManager {
             rootfsDir = storage.rootfsDir,
             hostCwd = ShellEnvironment.homeDir(appContext),
             prootTmpDir = prootTmp,
+            guestCommand = guestCommand,
         )
         return spawn(
             context = appContext,
-            label = spec.guestLabel,
+            label = label,
             command = spec.executable,
             workingDirectory = spec.workingDirectory,
             args = spec.arguments.toTypedArray(),

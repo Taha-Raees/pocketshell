@@ -250,6 +250,51 @@ class RuntimeProcessLauncherTest {
         assertEquals(File(native, RuntimeProcessLauncher.PROOT_LIB).absolutePath, s.executable)
     }
 
+    /**
+     * M2.4: package commands reuse the SAME spec builder — only the guest
+     * argv tail differs (apk command instead of /bin/sh -l).
+     */
+    @Test
+    fun `guestCommand replaces the shell as the proot argv tail`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val native = makeNativeDir()
+        val s = RuntimeProcessLauncher.buildLaunchSpec(
+            nativeLibraryDir = native.absolutePath,
+            rootfsDir = rootfs,
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf("/sbin/apk", "add", "nano"),
+        )
+        assertEquals(
+            listOf(
+                File(native, RuntimeProcessLauncher.PROOT_LIB).absolutePath,
+                "--kill-on-exit",
+                "--rootfs=${rootfs.absolutePath}",
+                "--root-id",
+                "--cwd=/root",
+                "--bind=/dev",
+                "--bind=/proc",
+                "--bind=/sys",
+                "/sbin/apk",
+                "add",
+                "nano",
+            ),
+            s.arguments,
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `empty guestCommand is refused`() {
+        val rootfs = tmp.newFolder("rootfs")
+        RuntimeProcessLauncher.buildLaunchSpec(
+            makeNativeDir().absolutePath,
+            rootfs,
+            tmp.root,
+            tmp.root,
+            guestCommand = emptyList(),
+        )
+    }
+
     @Test
     fun `gate is READY-only across every state`() {
         for (state in RuntimeState.entries) {
