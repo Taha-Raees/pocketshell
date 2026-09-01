@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.3.2-m2.3
+VERSION=v0.4.0-m2.4
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,26 +40,26 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.3.1-m2.3):
-  - FIXED (device, user recording 2026-09-01 11:02): the Linux Shell session
-    opened but the guest died instantly with `CANNOT LINK EXECUTABLE
-    "--kill-on-exit": library "libtalloc.so" not found: needed by main
-    executable`. Two launcher defects, both fixed:
-    1. The exec environment never set LD_LIBRARY_PATH — bionic resolves
-       proot's DT_NEEDED libtalloc.so only from default system paths plus
-       LD_LIBRARY_PATH, never from the app's nativeLibraryDir. The sandbox
-       rehearsal masked this (the script exported LD_LIBRARY_PATH in the
-       shell; the device has no shell to do it). The spec environment now
-       carries LD_LIBRARY_PATH=<nativeLibraryDir> itself.
-    2. argv had no argv[0]: the args array started at "--kill-on-exit", so
-       bionic named the flag as the executable in errors and proot's getopt
-       silently swallowed it as the program-name slot. argv[0] is now the
-       proot path (standard exec convention).
-  - Preflight now also verifies libtalloc.so next to proot/loader, so this
-    failure class surfaces as an honest actionable message, never a dead
-    session.
-  - 3 new unit tests (218 total, 0 failures). Same signing cert — installs
-    as a direct update over v0.3.1, runtime data kept.
+WHAT IS NEW IN $VERSION (vs v0.3.2-m2.3):
+  - M2.4: REAL Alpine package management. Explore CLI Apps is now a working
+    frontend for the real apk inside the guest: search (real `apk search`),
+    install (`apk add`), verify (`apk info -e -v` exit codes + POSIX
+    `command -v`), open (new dedicated guest session running the real
+    program), uninstall (`apk del`). The same proot exec infrastructure as
+    the Linux Shell is reused; nothing is faked: no fake progress, no fake
+    installed state, no fake catalog claims. Package operations run in a
+    dedicated background guest process (never typed into a user session).
+  - Guest DNS repair: the Alpine minirootfs ships no /etc/resolv.conf, so
+    apk would fail every name lookup. Fresh installs get one at configure;
+    existing runtimes are repaired in place before the first package op.
+  - Curated catalog (metadata only): nano, htop, vim, git, python3. Normal
+    shell commands (sh/ls/cat/df/ping...) never become launcher cards.
+  - Diagnostics: explicit "Check package environment" button (apk version,
+    repositories, package database, DNS) - nothing runs automatically.
+  - 41 new unit tests (259 total, 0 failures). Same signing cert - installs
+    as a direct update over v0.3.2; runtime and packages kept.
+  - M2.3 device gate PASSED on the user's device (screenshot 2026-09-01:
+    guest prompt, uname/id/hello, alpine-release 3.24.1, exit clean).
 
 WHAT WAS NEW IN v0.3.1-m2.3:
   - FIXED (device crash): tapping "Linux Shell" exited the app instantly.
@@ -99,10 +99,8 @@ WHAT WAS NEW IN v0.2.x:
     failure as a retryable FAILED/REPAIR_REQUIRED state
 
 NOTE: the on-device gate for M2.3 is `uname; id; echo hello` inside the
-guest (docs/TESTING.md §8) — v0.3.2 makes that gate passable by shipping
-extracted native libs + targetSdk 28 (guest exec allowed in the
-untrusted_app_27 SELinux domain) + LD_LIBRARY_PATH so bionic can link
-libtalloc.so at guest start.
+guest (docs/TESTING.md §8) — the M2.4 package gate is TESTING.md Â§9 (install nano via the UI,
+open it, uninstall).
 
 HOW TO RESTORE THE FULL REPOSITORY (with history):
 

@@ -3,6 +3,79 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.4.0-m2.4] — 2026-09-01 — real Alpine package management (apk) + CLI app installation foundation
+
+### Added — the first real package-management layer (M2.4)
+- **Real `apk`, zero fakery.** Explore CLI Apps is now a working frontend for
+  the real Alpine package manager inside the proot guest:
+  `Android UI → PackageOperationManager → AlpinePackageManager →
+  RuntimeProcessLauncher (the M2.3 launcher, reused — same proot, loader,
+  LD_LIBRARY_PATH, argv contract) → proot → real apk → real package
+  database`. PocketShell never touches Alpine package files directly; every
+  installed/removed claim is confirmed by `apk info -e` exit codes, versions
+  by real `apk info -e -v` stdout, executables by POSIX `command -v`.
+- **M2.4.4 proven in the sandbox first** (scripts/rehearse_m24_packages.sh,
+  apk-tools 3.0.6 on Alpine 3.24.1 x86_64): `apk update` (28,645 packages) →
+  `apk search` → `apk add nano` → `apk info -e nano` → `command -v nano` →
+  nano 9.2 actually runs → `apk del nano` → `apk info -e` exit 1. Device
+  validation (§9) is the actual gate — sandbox ≠ device.
+- **Dedicated background exec, not a PTY session** (Option A): package
+  commands run through a new `GuestCommandRunner` (ProcessBuilder on the same
+  proot spec) with captured stdout/stderr and real exit codes. Nothing is
+  ever typed into a user-visible terminal session; active PTY sessions are
+  untouched. Non-interactive by design (stdin → /dev/null).
+- **Honest operation state machine** (`PackageOperationManager`): IDLE →
+  UPDATING_REPOSITORIES → INSTALLING → VERIFYING → SUCCESS/FAILED
+  (UNINSTALLING for removal, SEARCHING for searches). Every state maps to
+  real in-flight apk work; no percentages, no delays. SUCCESS is emitted only
+  after the guest confirms BOTH the package database entry and the
+  executable; verification failure after a successful `apk add` is reported
+  as FAILED("refusing to claim installation"), never as success.
+- **Single-flight**: one mutating operation at a time (atomic guard). A
+  second concurrent request fails immediately with a readable reason — never
+  queued silently, never overlapping. Operations run in a process-scoped
+  scope (Activity recreation cannot kill a real apk transaction); explicit
+  Cancel destroys the real guest process. Cancel/timeout handling survived a
+  deep sandbox hunt: poll-based wait (a JDK-21 blocking-waitFor quirk), and
+  EOF-drain with grace on cancel (an orphaned child inherits the pipe FDs and
+  would otherwise hang cancellation for the orphan's lifetime).
+- **Guest DNS repair (critical device discovery)**: the Alpine minirootfs
+  ships NO /etc/resolv.conf, so every guest name lookup would fail. Fresh
+  installs now get one written during configure; existing v0.2.x–v0.3.x
+  runtimes are repaired in place before the first package operation
+  (never overwriting a file that already has content). Without this the
+  user's existing 9.3 MB install could never run `apk update`.
+- **Curated catalog (metadata only)**: nano, htop, vim, git, python3 — tiny
+  by design. The catalog cannot claim installation status (no such field
+  exists; pinned by reflection test). Normal shell commands (sh/ls/cat/df/…)
+  are explicitly never launcher cards.
+- **UI**: Explore CLI Apps = search (real `apk search`, apk-tools 3 output
+  parsed strictly, junk lines skipped) + Featured cards with real
+  Install / Open / Uninstall; honest progress card with real apk output tail
+  and Cancel. "Open" re-verifies READY + installed + executable, then starts
+  a NEW dedicated guest session and types the launch command into THAT
+  session only — exiting the app returns to the real guest shell prompt.
+- **Diagnostics**: "Package environment" section with an explicit check
+  button (apk version banner, configured repositories, world package count,
+  DNS state) — nothing runs automatically on screen open.
+- RuntimeProcessLauncher.buildLaunchSpec grew a `guestCommand` parameter
+  (default unchanged: /bin/sh -l — the M2.3 contract is untouched and
+  re-pinned by tests).
+
+### Fixed
+- Payload hygiene follow-up: none this cycle (v0.3.2 carried the fix).
+- `apk info -e` on a runtime without resolv.conf would have failed DNS for
+  ALL networked commands — see GuestEnvironment above (repaired pre-op).
+
+### Changed
+- Version 0.4.0-m2.4 (code 8). Same signing cert → direct update, installed
+  runtime + installed packages kept.
+- 41 new unit tests (259 total, 0 failures): parser pins from real apk-tools
+  3 output, command construction, exit-code mapping, DNS repair, single
+  flight, verification-gated SUCCESS, cancellation process-destroy, real
+  /bin/sh process executor (streams/timeout/destroy/large-output deadlock),
+  catalog invariants.
+
 ## [0.3.2-m2.3] — 2026-09-01 — device fix: guest dies at dynamic linking (`libtalloc.so not found`)
 
 ### Fixed — Linux Shell session died at exec with a linker error (user recording, Samsung SM-F711B / Android 15)

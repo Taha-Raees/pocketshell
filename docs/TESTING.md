@@ -183,3 +183,50 @@ which cannot coexist with the Android SDK on the 9.9 GB sandbox disk. The
 crash-containment itself is covered by JVM regression tests
 (RuntimeCrashGuardTest — the incident's exact SecurityException through the
 real installer pipeline); the on-device checklist above remains the M2.2 gate.
+
+## 9. Manual acceptance — M2.4 (real apk package management) — GATE OPEN
+
+Prerequisite: runtime READY (§7) and **v0.4.0-m2.4 or newer**.
+
+> **Sandbox ≠ device:** the whole apk flow (update → search → add → verify →
+> run → del) was rehearsed end-to-end on the x86_64 sandbox with the same
+> apk-tools 3.0.6 and the same argv/env the app uses
+> (scripts/rehearse_m24_packages.sh). The checklist below is the real gate.
+
+- [ ] Update the app over v0.3.2 (same signing cert; runtime + any packages
+      are kept).
+- [ ] Diagnostics → **Check package environment** (explicit button, nothing
+      runs on open): apk version banner (apk-tools 3.x), the two dl-cdn
+      v3.24 repositories, package database present, Guest DNS configured
+      (or "missing (repairs on first package operation)" — the first package
+      operation repairs it in place; re-check afterwards shows configured).
+- [ ] Explore CLI Apps (runtime READY): the five featured entries show the
+      REAL state — all "Not installed" on a fresh runtime.
+- [ ] **Install Nano**: honest stages only — Updating repositories →
+      Installing → Verifying → "nano installed". No fake percent. The output
+      tail shows real apk lines. (First run repairs DNS silently; network
+      failures show the real apk error + Retry path, never "Something went
+      wrong".)
+- [ ] Cross-check in the Linux Shell: `apk info -e -v nano` → a real
+      `nano-x.y-rZ` line; `command -v nano` → `/usr/bin/nano`.
+- [ ] **Open Nano**: a NEW session tab opens; nano is real (visible in the
+      session as the typed launch command). Type text, save with Ctrl+O,
+      exit with Ctrl+X → you land back at the REAL guest shell prompt
+      (`localhost:~#`). Arrow keys/Enter/ESC/Ctrl shortcuts work (M1
+      keyboard).
+- [ ] **Persistence**: close the app completely, reopen → Explore CLI Apps
+      still shows Nano installed with its real version (discovered from apk,
+      not remembered by the UI).
+- [ ] **Uninstall**: Uninstall → stages → "nano removed"; card returns to
+      Not installed; `apk info -e nano` in the guest exits non-zero.
+- [ ] **Launcher protection**: after uninstall, "Open" is gone (card shows
+      Install); any refused open (e.g. runtime removed first) shows an honest
+      error — the app NEVER crashes or fakes.
+- [ ] **Single-flight**: an Install and an Uninstall cannot run at once —
+      the second attempt reports "another package operation is already
+      running".
+- [ ] Regression guards (§7/§8): normal Terminal works; Linux Shell works;
+      install/remove-reinstall of the runtime still reaches READY.
+- [ ] If the guest process dies mid-`apk add` (app killed): the next package
+      operation just works (apk's own locking/journal keeps the database
+      consistent; partial downloads are discarded by apk).

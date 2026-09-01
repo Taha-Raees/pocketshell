@@ -80,7 +80,7 @@ Android device (§27). M2 scope (research → implement):
 - First installable CLI apps (Hermes/Git/Python/Node/… per catalog).
 - Home "Explore CLI Apps" becomes a real catalog backed by the real installer.
 
-## M2 — Real Linux runtime (M2.0 – M2.3)
+## M2 — Real Linux runtime (M2.0 – M2.4)
 
 - [x] M2.0 baseline: 166/166 tests PASS before any change (strict §27/§28).
 - [x] M2.1 research + architecture (docs/M2-RESEARCH.md, docs/M2-ARCHITECTURE.md):
@@ -97,10 +97,25 @@ Android device (§27). M2 scope (research → implement):
       existing PTY; sandbox rehearsal of the exact gate contract PASSED
       (scripts/rehearse_m23_gate.sh): guest `uname`, `uid=0(root)`, `hello`,
       release 3.24.1, BusyBox works — both loader modes.
-- [ ] **M2.3 device gate (TESTING.md §8)** — requires a human with an arm64
-      device: proves the proot split-loader exec path under real SELinux.
+      **Device gate PASSED 2026-09-01** (TESTING.md §8, Samsung SM-F711B):
+      `uname; id; echo hello`, `cat /etc/alpine-release` → 3.24.1,
+      `ls /usr/bin | head`, clean `exit`. (v0.3.1 fixed the tap-crash:
+      extractNativeLibs + targetSdk 28; v0.3.2 fixed the guest linker death:
+      LD_LIBRARY_PATH + argv[0].)
+- [x] M2.4 real package management foundation: `AlpinePackageManager` runs
+      the REAL `apk` (apk-tools 3.0.6) inside the guest through the same
+      proot exec infrastructure — update/search/add/del/info, exit-code +
+      `apk info -e -v` + `command -v` verification (no human-output state
+      guessing), honest operation state machine, single-flight, dedicated
+      background exec (never touches user PTY sessions), guest DNS repair
+      (minirootfs ships no resolv.conf), curated 5-entry metadata-only
+      catalog, Open-into-new-session launcher. Sandbox rehearsal PASSED
+      (scripts/rehearse_m24_packages.sh); **device gate = TESTING.md §9**.
+- [ ] **M2.4 device gate (TESTING.md §9)** — install nano via the UI, open
+      it interactively, persistence, uninstall, launcher protection.
 
 ## Later (unscheduled, do not start prematurely)
 
-File manager · profiles · AI CLI management · development environments · code
-editor · remote development.
+M2.5 CLI app catalog + installed-apps Home integration · file manager ·
+profiles · AI CLI management · development environments · code editor ·
+remote development.

@@ -22,8 +22,8 @@ android {
         // exact tradeoff Termux makes. Side-load distribution; Play rules do
         // not apply (and Android 14+ still installs targetSdk >= 23).
         targetSdk = 28
-        versionCode = 7
-        versionName = "0.3.2-m2.3"
+        versionCode = 8
+        versionName = "0.4.0-m2.4"
     }
 
     buildTypes {
