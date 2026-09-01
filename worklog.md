@@ -307,3 +307,24 @@ Stage Summary:
 - M2.3 device gate (TESTING §8) is now actually passable: user updates over v0.3.0, taps Linux Shell, runs uname; id; echo hello.
 - If guest exec still fails on the vendor ROM, the terminal now SHOWS the exec error + [process exited] instead of dying (honest, debuggable).
 - Next: user device gate §8 -> M2.4 (guest package management UI).
+
+---
+Task ID: 17
+Agent: main
+Task: v0.3.2-m2.3 — device recording showed the Linux Shell session dying at exec ("libtalloc.so not found"); fix, update APK + zip, put testing steps in chat.
+
+Work Log:
+- Analyzed upload/Screen_Recording_20260901_110211_Permission controller.mp4 (1fps frames + zooms): v0.3.1 crash fix VERIFIED WORKING on device — install runs EXTRACTING→READY (9.3 MB, Alpine 3.24.1 aarch64), Linux Shell tap no longer kills the app; the session opens and honestly prints `CANNOT LINK EXECUTABLE "--kill-on-exit": library "libtalloc.so" not found: needed by main executable` → `[Process completed (code 1)]`. Notification permission dialog in the recording is normal POST_NOTIFICATIONS flow.
+- ROOT CAUSE 1: buildLaunchSpec never set LD_LIBRARY_PATH — proot DT_NEEDED libtalloc.so lives in nativeLibraryDir, but bionic searches only default system paths + LD_LIBRARY_PATH. The host rehearsal masked exactly this (rehearse_m23_gate.sh line 20 exports LD_LIBRARY_PATH in the shell; device has no shell). ROOT CAUSE 2: argv had no argv[0] — JNI execvp(cmd, argv) passes args verbatim (termux.c verified), so bionic quoted "--kill-on-exit" as the executable name (visible in the recording) and proot's getopt swallowed the flag as the program-name slot.
+- FIX: spec environment carries LD_LIBRARY_PATH=<nativeLibraryDir>; arguments[0] = proot path; preconditionProblem now also verifies libtalloc.so (honest pre-spawn message for this failure class).
+- TESTS: 3 new pins (LD_LIBRARY_PATH==nativeLibraryDir; argv[0]==executable + --kill-on-exit at [1]; missing-talloc preflight message). 218 total (73 app + 145 terminal-emulator), 0 failures.
+- Sanity on the built APK (aapt2/llvm-readelf/apksigner): versionCode 7, versionName 0.3.2-m2.3, targetSdk 28, extractNativeLibs=true, libproot/libtalloc/libproot-loader/libtermux in all 4 ABIs, DT_NEEDED libtalloc/libdl/libc, talloc SONAME normalized, signing cert 34391676…cf3f (same as v0.2.x/v0.3.x → update install, runtime kept).
+- PAYLOAD HYGIENE BUG found + fixed: ./scratch (debug frames from this very diagnosis, plus earlier apk-check libs) leaked into source zips — v0.3.1 zip carried scratch/frames + sep policy dumps too (265 files/6.5M). Added --exclude='./scratch' to make_payload_m2.sh; v0.3.2 zip is clean (226 files, 4.6M).
+- Delivery: v0.3.1 artifacts WITHDRAWN from public/ + dist-master/ + download/; v0.3.2 APK + zip + tar.gz + bundle live (APK sha256 25bd9feb…, zip c156738b…, tgz be45d8cf…, bundle 744594e5…); download/README.md manifest + page.tsx rewritten (git tip 9066068); all 4 artifacts byte-identical over HTTP on :3000, old URLs 404, page HTML renders v0.3.2.
+- Commits: 5a46f8e (fix + tests + docs), payload-exclude 9066068, manifest commit; JDK regressed to JRE-only again after reset #4 — install_toolchain.sh restores Temurin but gradle needs JAVA_HOME=/home/z/tools/jdk-21.0.12.1+1 exported (script prints it; low-mem flags unchanged).
+
+Stage Summary:
+- v0.3.2-m2.3 live: the two remaining launch-path defects fixed; 218 tests green; delivery pipeline byte-verified.
+- M2.3 device gate (TESTING §8) is now fully unblocked: update over v0.3.1 → Linux Shell → `uname; id; echo hello` should show the Alpine aarch64 guest (uid=0). Testing steps were posted IN CHAT per user request (zip = version control only).
+- If the gate still fails on the vendor ROM, the terminal will show the exec error honestly — report the text and it becomes the next fix.
+- Next: user device gate §8 → then M2.4 (guest package management UI).
