@@ -287,3 +287,23 @@ Stage Summary:
 - M2.3 DEVICE GATE OPEN: `uname; id; echo hello` in the guest (TESTING.md §8) - proves split-loader exec under real SELinux; Plan B (targetSdk-28 flavor) documented if it fails.
 - Pending: talloc LGPL-3.0 license text file (gnu.org unreachable) - referenced via THIRD_PARTY + source archive.
 - Next: user device gate §8; then M2.4 (apk package management UI in guest).
+
+---
+Task ID: 16
+Agent: main
+Task: v0.3.1-m2.3 — fix device crash shown in user recording (Linux Shell tap killed the app); update APK + zip delivery.
+
+Work Log:
+- Analyzed upload/Screen_Recording_20260901_085828_One UI Home.mp4 (frame-by-frame): install pipeline WORKS (DOWNLOADING 3.8MB -> EXTRACTING -> READY, Alpine 3.24.1 aarch64, 9.3 MB, Samsung SM-F711B API 35); tapping "Linux Shell" at ~12.5s kills the whole app INSTANTLY (Home -> launcher, no terminal screen).
+- Root cause 1 (the crash): shipped APK had extractNativeLibs=false (AGP 8 default, aapt2-verified on the v0.3.0 APK) -> nativeLibraryDir EMPTY on device -> RuntimeProcessLauncher.buildLaunchSpec's bare require(proot.isFile) threw from the Compose click handler -> unhandled main-thread exception -> process death. Everything loadLibrary-based (PTY) worked, which is why only this tap crashed.
+- Root cause 2 (latent): targetSdk 36 could NEVER run the guest. Fetched AOSP sepolicy: app_neverallows.te neverallows execute_no_trans on app_data_file for all untrusted domains EXCEPT untrusted_app_25/_27; seapp_contexts maps targetSdk 28 -> untrusted_app_27 (29+ -> blocked). proot must execve rootfs/bin/sh in app data -> targetSdk 28 is required (exact Termux model; Plan B from TESTING.md §8 promoted by evidence).
+- FIXES: app/build.gradle.kts targetSdk 36->28 (documented inline) + packaging.jniLibs.useLegacyPackaging=true (aapt2-verified extractNativeLibs=true + targetSdk=28 in new APK); RuntimeProcessLauncher.preconditionProblem() pure preflight with honest actionable messages (buildLaunchSpec throws the same message - consistency pinned); TerminalViewModel.safeSpawn single no-crash boundary for ALL spawn paths (Terminal/LinuxShell/CLI app/new session) + launchError StateFlow; Home LaunchErrorCard (dismissible, Diagnostics shortcut), navigation only on real spawn; TerminalSessionManager.spawn() try/finally so _creating can never stick true.
+- Tests: 4 new preflight regression tests pinning the exact v0.3.0 crash conditions (empty nativeLibraryDir etc.). 215 total (70 app + 145 terminal-emulator), 0 failures. JDK had to be reinstalled via install_toolchain.sh (sandbox JDK regressed to JRE-only).
+- Docs: CHANGELOG 0.3.1 entry (full root-cause writeup), TESTING §8 updated (v0.3.1 regression-guard item: remove runtime -> tap Linux Shell -> honest banner, app stays alive).
+- Delivery: versionCode 6 v0.3.1-m2.3; same debug cert (SHA-256 34391676...cf3f verified vs shipped v0.3.0) -> installs as UPDATE, runtime data kept. APK 21M (861f994f...), source zip 265 files 6.5M (09d1039f...), tar.gz (5fc8cc1e...), bundle (e2d6d864...) @ tip bfed594. v0.3.0 artifacts WITHDRAWN everywhere (crashed build). download/README.md manifest + page.tsx rewritten for v0.3.1. Server :3000 200; all 4 artifacts byte-identical over HTTP; old APK 404.
+
+Stage Summary:
+- v0.3.1-m2.3 live on the download page: both crash root causes fixed, launch path crash-proof by construction, 215 tests green.
+- M2.3 device gate (TESTING §8) is now actually passable: user updates over v0.3.0, taps Linux Shell, runs uname; id; echo hello.
+- If guest exec still fails on the vendor ROM, the terminal now SHOWS the exec error + [process exited] instead of dying (honest, debuggable).
+- Next: user device gate §8 -> M2.4 (guest package management UI).
