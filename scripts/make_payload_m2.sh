@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.4.0-m2.4
+VERSION=v0.4.1-m2.4
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,36 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.3.2-m2.3):
+WHAT IS NEW IN $VERSION (vs v0.4.0-m2.4):
+  - FIXED on-device M2.4 failures (user recording, Samsung SM-F711B): apk
+    update died with "Permission denied" / "DNS: transient error". Root
+    cause: the v0.4.0 DNS repair hardcoded public resolvers (1.1.1.1/8.8.8.8)
+    that are UNREACHABLE on the user's network; every apk fetch died in the
+    socket layer before ever reaching dl-cdn. v0.4.1 points the guest
+    /etc/resolv.conf at the DEVICE's own resolvers (ConnectivityManager /
+    LinkProperties, IPv4 first), falls back to the public pair only when the
+    OS reports none, and upgrades the v0.4.0 fallback file in place
+    (user-written resolv.conf is never touched). New normal permission:
+    ACCESS_NETWORK_STATE (read-only metadata, no traffic).
+  - HARDENED: the apk download cache now lives OUTSIDE the rootfs — the
+    package spec binds two app-owned host dirs over /etc/apk/cache and
+    /var/cache/apk (same proot --bind mechanism as /dev,/proc,/sys), plus a
+    pre-op workspace repair inside the rootfs. Rootfs permissions can no
+    longer block apk.
+  - HONESTY: the Explore FAILED banner shows apk's real stderr + a Retry
+    button; Diagnostics "Check package environment" runs ONE real bounded
+    apk update probe (explicit press) and reports the true outcome + which
+    DNS servers the guest received and their source.
+  - SIGNING CERT CHANGED (one-time uninstall required): sandbox reset #5
+    destroyed the old debug keystore; Android debug signatures are the
+    update identity, so v0.4.1 installs AFTER uninstalling v0.4.0 (runtime
+    comes back in one tap). The new debug keystore is COMMITTED at
+    keystore/debug.keystore and pinned in signingConfigs.debug - this is
+    the last cert break: every future build is an in-place update again.
+  - 12 new unit tests (271 total, 0 failures); x86_64 rehearsal re-run with
+    the cache binds (update 28645 pkgs -> add nano -> runs -> del).
+
+WHAT WAS NEW IN v0.4.0-m2.4:
   - M2.4: REAL Alpine package management. Explore CLI Apps is now a working
     frontend for the real apk inside the guest: search (real `apk search`),
     install (`apk add`), verify (`apk info -e -v` exit codes + POSIX
@@ -56,8 +85,7 @@ WHAT IS NEW IN $VERSION (vs v0.3.2-m2.3):
     shell commands (sh/ls/cat/df/ping...) never become launcher cards.
   - Diagnostics: explicit "Check package environment" button (apk version,
     repositories, package database, DNS) - nothing runs automatically.
-  - 41 new unit tests (259 total, 0 failures). Same signing cert - installs
-    as a direct update over v0.3.2; runtime and packages kept.
+  - 41 new unit tests (259 total, 0 failures).
   - M2.3 device gate PASSED on the user's device (screenshot 2026-09-01:
     guest prompt, uname/id/hello, alpine-release 3.24.1, exit clean).
 
@@ -99,7 +127,7 @@ WHAT WAS NEW IN v0.2.x:
     failure as a retryable FAILED/REPAIR_REQUIRED state
 
 NOTE: the on-device gate for M2.3 is `uname; id; echo hello` inside the
-guest (docs/TESTING.md §8) — the M2.4 package gate is TESTING.md Â§9 (install nano via the UI,
+guest (docs/TESTING.md §8) — the M2.4 package gate is TESTING.md §9 (install nano via the UI,
 open it, uninstall).
 
 HOW TO RESTORE THE FULL REPOSITORY (with history):
