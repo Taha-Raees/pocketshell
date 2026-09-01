@@ -136,14 +136,24 @@ missing INTERNET permission + uncontained coroutine failure, fixed in 0.2.1).
 
 ## 8. Manual acceptance — M2.3 (Linux shell via proot) — GATE OPEN
 
-Prerequisite: runtime READY (§7) and v0.3.0-m2.3 or newer.
+Prerequisite: runtime READY (§7) and **v0.3.1-m2.3 or newer**.
+
+> **v0.3.1 note (device crash fix):** v0.3.0 died instantly on tapping
+> "Linux Shell" (extractNativeLibs=false → empty nativeLibraryDir → unhandled
+> require() in the click handler) and targetSdk 36 could never exec the guest
+> anyway (AOSP W^X). v0.3.1 ships extractNativeLibs=true + targetSdk 28
+> (untrusted_app_27 — the Termux model) and a crash-proof launch path.
+> Update over v0.3.0 (same signing cert); the installed runtime survives.
 
 - [ ] Home shows a "Linux Shell" card; before install it reads the true
       runtime state and tapping it opens Diagnostics — never a fake session.
+- [ ] **v0.3.1 regression guard:** remove the runtime in Diagnostics, tap
+      "Linux Shell" → an honest error banner appears ON HOME with the reason
+      and a Diagnostics shortcut. The app must stay alive (v0.3.0 died here).
 - [ ] With runtime READY, tapping "Linux Shell" opens the terminal; the new
       tab is labelled "Alpine Linux" and shows a guest prompt.
-- [ ] **GATE — the highest-risk assumption of M2 (split-loader exec at
-      targetSdk 36):** run `uname; id; echo hello`:
+- [ ] **GATE — split-loader + guest exec under real SELinux
+      (untrusted_app_27):** run `uname; id; echo hello`:
       expected `Linux ... aarch64 ...` (guest view, not the Android kernel
       string), `uid=0(root) ...`, `hello`.
 - [ ] `cat /etc/alpine-release` → 3.24.1; BusyBox applets work in the guest
@@ -154,6 +164,8 @@ Prerequisite: runtime READY (§7) and v0.3.0-m2.3 or newer.
       not-installed state; a new install reaches READY again.
 - [ ] Regression guard (v0.2.1): ANY failure above must show a state + message
       in Diagnostics — the app must NEVER exit to the launcher from this flow.
+      If the guest exec itself fails on a vendor ROM, the terminal shows
+      `exec("...")` + the error and `[process exited]` — visible, not fatal.
 
 ### Emulator note (build sandbox)
 Emulator-based verification of this flow was attempted and is currently

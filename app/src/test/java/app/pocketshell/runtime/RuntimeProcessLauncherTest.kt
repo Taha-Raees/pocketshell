@@ -144,6 +144,53 @@ class RuntimeProcessLauncherTest {
         }
     }
 
+    /**
+     * v0.3.1 regression pin: the preflight reports the EXACT v0.3.0 device
+     * crash (extractNativeLibs=false -> empty nativeLibraryDir) as an honest
+     * string instead of an escaping require(), and never throws itself.
+     */
+    @Test
+    fun `preflight describes an empty nativeLibraryDir instead of crashing`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val emptyNative = tmp.newFolder("empty-native")
+        val problem = RuntimeProcessLauncher.preconditionProblem(emptyNative.absolutePath, rootfs)
+        assertTrue(problem != null)
+        assertTrue("message must name proot", problem!!.contains("proot"))
+        assertTrue("message must name the dir", problem.contains(emptyNative.absolutePath))
+        // ... and buildLaunchSpec throws the SAME message (consistency pin)
+        val thrown = assertThrows(IllegalArgumentException::class.java) {
+            RuntimeProcessLauncher.buildLaunchSpec(emptyNative.absolutePath, rootfs, tmp.root, tmp.root)
+        }
+        assertEquals(problem, thrown.message)
+    }
+
+    @Test
+    fun `preflight reports missing rootfs with repair guidance`() {
+        val native = makeNativeDir()
+        val problem = RuntimeProcessLauncher.preconditionProblem(
+            native.absolutePath,
+            File(tmp.root, "no-such-rootfs"),
+        )
+        assertTrue(problem != null)
+        assertTrue(problem!!.contains("Diagnostics"))
+    }
+
+    @Test
+    fun `preflight is null when every precondition holds`() {
+        val rootfs = tmp.newFolder("rootfs")
+        assertEquals(null, RuntimeProcessLauncher.preconditionProblem(makeNativeDir().absolutePath, rootfs))
+    }
+
+    @Test
+    fun `preflight reports a missing loader even when proot exists`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val onlyProot = tmp.newFolder("only-proot")
+        File(onlyProot, RuntimeProcessLauncher.PROOT_LIB).writeText("x")
+        val problem = RuntimeProcessLauncher.preconditionProblem(onlyProot.absolutePath, rootfs)
+        assertTrue(problem != null)
+        assertTrue("message must name the loader", problem!!.contains("loader"))
+    }
+
     @Test
     fun `executable points into nativeLibraryDir`() {
         val native = makeNativeDir()

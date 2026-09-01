@@ -55,6 +55,8 @@ fun HomeScreen(
     installedApps: List<CliApp>,
     activeSessions: List<TerminalSessionManager.SessionEntry>,
     runtimeState: RuntimeState,
+    launchError: String?,
+    onDismissLaunchError: () -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
     onOpenSession: (Long) -> Unit,
@@ -73,12 +75,57 @@ fun HomeScreen(
         item { Header(onOpenSettings, onOpenDiagnostics) }
         item { TerminalCard(onOpenTerminal) }
         item { LinuxShellCard(runtimeState, onOpenLinuxShell, onOpenDiagnostics) }
+        if (launchError != null) {
+            item {
+                LaunchErrorCard(
+                    message = launchError,
+                    onDismiss = onDismissLaunchError,
+                    onOpenDiagnostics = {
+                        onDismissLaunchError()
+                        onOpenDiagnostics()
+                    },
+                )
+            }
+        }
         item { InstalledAppsSection(installedApps, onLaunchApp) }
         item { ExploreRow(onExploreApps) }
         if (activeSessions.isNotEmpty()) {
             item { ActiveSessionsSection(activeSessions, onOpenSession) }
         }
         item { Spacer(modifier = Modifier.height(24.dp)) }
+    }
+}
+
+/**
+ * Honest, non-fatal launch failure banner (v0.3.1): a refused session spawn
+ * is described here — in the app, on the screen the user tapped — instead of
+ * killing the process. Dismiss or jump straight to Diagnostics.
+ */
+@Composable
+private fun LaunchErrorCard(
+    message: String,
+    onDismiss: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.errorContainer,
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onDismiss) { Text("Dismiss") }
+                TextButton(onClick = onOpenDiagnostics) { Text("Diagnostics") }
+            }
+        }
     }
 }
 

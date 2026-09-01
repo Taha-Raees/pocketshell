@@ -3,6 +3,53 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.3.1-m2.3] — 2026-09-01 — device crash fix: Linux Shell tap killed the app
+
+### Fixed — device crash (user recording, Samsung SM-F711B / Android 15)
+- **Tapping "Linux Shell" exited the app instantly to the launcher.** Two
+  independent root causes, both fixed:
+  1. **Native libraries were never on the filesystem.** AGP 8 defaults to
+     `extractNativeLibs=false`: `.so` files ship only inside the APK,
+     `System.loadLibrary` still works (PT ran, install ran, 9.3 MB runtime
+     installed fine — everything the recording shows), but
+     `applicationInfo.nativeLibraryDir` is EMPTY, so the path-based execve()
+     proot needs is impossible. `buildLaunchSpec`'s bare `require(proot.isFile)`
+     then threw from the Compose click handler → unhandled main-thread
+     exception → process death. Fix: `packaging { jniLibs {
+     useLegacyPackaging = true } }` → `extractNativeLibs=true` in the merged
+     manifest (verified with aapt2).
+  2. **targetSdk 36 could never run the guest anyway (W^X).** AOSP policy
+     (`app_neverallows.te`) neverallows `execute_no_trans` on
+     `app_data_file` for every untrusted-app domain except the legacy ones,
+     and `seapp_contexts` maps targetSdk 28 → `untrusted_app_27` (29+ →
+     blocked domains). proot's whole job is execve()ing the guest shell
+     inside app data, so no amount of loader plumbing fixes targetSdk ≥ 29 —
+     this is precisely why Termux targets 28. **targetSdk 36 → 28** (the
+     pre-documented Plan B, promoted by evidence; side-load distribution is
+     unaffected, Android 14+ installs targetSdk ≥ 23).
+- **Launch path is now crash-proof by construction** (defense in depth — a
+  refused launch can never again kill the process regardless of cause):
+  - `RuntimeProcessLauncher.preconditionProblem()` — pure preflight returning
+    an honest, actionable reason (missing rootfs → "install or repair from
+    Diagnostics"; missing proot/loader → names the directory). `buildLaunchSpec`
+    now throws with exactly that message (consistency pinned by tests).
+  - `TerminalViewModel` routes every spawn (Terminal / Linux Shell / CLI app /
+    new session) through a single `safeSpawn` no-crash boundary; failures set
+    a `launchError` StateFlow instead of propagating.
+  - Home renders a dismissible error banner with a Diagnostics shortcut;
+    navigation to the terminal happens only on a real spawn.
+  - `TerminalSessionManager.spawn()` wraps PTY construction in try/finally so
+    `_creating` can never stick true.
+- If the guest process itself dies on-device (e.g. a vendor policy surprise),
+  the terminal shows the exec error and `[process exited]` — visible, honest,
+  and the app stays alive.
+
+### Changed
+- Version 0.3.1-m2.3 (code 6). Same debug signing cert as v0.2.x/v0.3.0
+  (SHA-256 34391676…cf3f) → installs as a direct update, runtime data kept.
+- 4 new unit tests (215 total, 0 failures): preflight messaging pins for the
+  exact v0.3.0 crash conditions.
+
 ## [0.3.0-m2.3] — 2026-09-01 — Linux shell: proot guest behind the existing PTY
 
 ### Added

@@ -139,34 +139,41 @@ object TerminalSessionManager {
         env: Array<String>,
     ): SessionEntry {
         _creating.value = true
-        val id = nextId++
-        val client = PocketShellSessionClient(
-            context = context,
-            onTitleChanged = { mainHandler.post { refreshTitle(id) } },
-            onSessionFinished = { mainHandler.post { markFinished(id) } },
-            // Already on the main thread (TerminalSession MainThreadHandler);
-            // invoke the visible view's refresh hook directly.
-            onScreenUpdate = { onScreenUpdateListener?.invoke(id) },
-        )
-        val session = TerminalSession(
-            command,
-            workingDirectory,
-            args,
-            env,
-            ShellEnvironment.TRANSCRIPT_ROWS,
-            client,
-        )
-        val entry = SessionEntry(
-            id = id,
-            session = session,
-            label = label ?: "Terminal $id",
-            title = null,
-            isFinished = false,
-        )
-        _sessions.update { it + entry }
-        _creating.value = false
-        syncService(context)
-        return entry
+        try {
+            val id = nextId++
+            val client = PocketShellSessionClient(
+                context = context,
+                onTitleChanged = { mainHandler.post { refreshTitle(id) } },
+                onSessionFinished = { mainHandler.post { markFinished(id) } },
+                // Already on the main thread (TerminalSession MainThreadHandler);
+                // invoke the visible view's refresh hook directly.
+                onScreenUpdate = { onScreenUpdateListener?.invoke(id) },
+            )
+            val session = TerminalSession(
+                command,
+                workingDirectory,
+                args,
+                env,
+                ShellEnvironment.TRANSCRIPT_ROWS,
+                client,
+            )
+            val entry = SessionEntry(
+                id = id,
+                session = session,
+                label = label ?: "Terminal $id",
+                title = null,
+                isFinished = false,
+            )
+            _sessions.update { it + entry }
+            syncService(context)
+            return entry
+        } finally {
+            // Never leave the UI stuck in "creating…" if the PTY/process
+            // construction throws (v0.3.1: failures must be observable, not
+            // fatal or sticky). The exception propagates to the caller's
+            // no-crash boundary (TerminalViewModel.safeSpawn).
+            _creating.value = false
+        }
     }
 
     /** Convenience: launch a registered CLI app (real executable, real session). */

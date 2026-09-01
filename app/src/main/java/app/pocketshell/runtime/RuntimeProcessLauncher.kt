@@ -34,6 +34,31 @@ object RuntimeProcessLauncher {
      */
     fun canEnterLinuxShell(state: RuntimeState): Boolean = state == RuntimeState.READY
 
+    /**
+     * Pure preflight: returns a human-readable reason why a Linux shell launch
+     * would fail, or null when every precondition holds. [buildLaunchSpec]
+     * throws with exactly this message, and the UI calls this first so a
+     * failure is surfaced honestly IN the app — never as a process crash
+     * (v0.3.0 regression: extractNativeLibs=false left nativeLibraryDir empty
+     * and a bare require() escaped the click handler, killing the process).
+     */
+    fun preconditionProblem(nativeLibraryDir: String, rootfsDir: File): String? {
+        if (!rootfsDir.isDirectory) {
+            return "Runtime rootfs not found at ${rootfsDir.absolutePath} — install or repair the Linux environment from Diagnostics."
+        }
+        val proot = File(nativeLibraryDir, PROOT_LIB)
+        if (!proot.isFile) {
+            return "proot binary is not present in the app's native library directory ($nativeLibraryDir). " +
+                "This build cannot start the Linux guest — please report which APK you installed."
+        }
+        val loader = File(nativeLibraryDir, LOADER_LIB)
+        if (!loader.isFile) {
+            return "proot loader is not present in the app's native library directory ($nativeLibraryDir). " +
+                "This build cannot start the Linux guest — please report which APK you installed."
+        }
+        return null
+    }
+
     data class LaunchSpec(
         val executable: String,
         val arguments: List<String>,
@@ -49,11 +74,12 @@ object RuntimeProcessLauncher {
         prootTmpDir: File,
         term: String = "xterm-256color",
     ): LaunchSpec {
-        require(rootfsDir.isDirectory) { "rootfs missing: ${rootfsDir.absolutePath}" }
-        val proot = File(nativeLibraryDir, PROOT_LIB)
-        val loader = File(nativeLibraryDir, LOADER_LIB)
-        require(proot.isFile) { "proot binary missing: ${proot.absolutePath}" }
-        require(loader.isFile) { "proot loader missing: ${loader.absolutePath}" }
+        // Same contract as [preconditionProblem], thrown so programmatic
+        // callers get a hard, honest failure (UI callers preflight instead).
+        when (val problem = preconditionProblem(nativeLibraryDir, rootfsDir)) {
+            null -> Unit
+            else -> throw IllegalArgumentException(problem)
+        }
 
         val arguments = listOf(
             "--kill-on-exit",
@@ -67,6 +93,8 @@ object RuntimeProcessLauncher {
             "-l",
         )
 
+        val proot = File(nativeLibraryDir, PROOT_LIB)
+        val loader = File(nativeLibraryDir, LOADER_LIB)
         val environment = mutableListOf(
             "PROOT_LOADER=${loader.absolutePath}",
             "PROOT_TMP_DIR=${prootTmpDir.absolutePath}",

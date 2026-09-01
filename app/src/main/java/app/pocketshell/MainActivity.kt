@@ -68,6 +68,7 @@ fun PocketShellRoot(
     val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
     val installedApps by terminalViewModel.installedApps.collectAsStateWithLifecycle()
     val runtimeState by terminalViewModel.runtimeState.collectAsStateWithLifecycle()
+    val launchError by terminalViewModel.launchError.collectAsStateWithLifecycle()
 
     val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
@@ -114,18 +115,22 @@ fun PocketShellRoot(
                 installedApps = installedApps,
                 activeSessions = sessions,
                 runtimeState = runtimeState,
-                onOpenTerminal = terminalViewModel::openTerminal,
+                launchError = launchError,
+                onDismissLaunchError = terminalViewModel::dismissLaunchError,
+                onOpenTerminal = {
+                    // Navigate only on a real spawn: a refused launch is
+                    // surfaced honestly on Home (launchError), never fatal.
+                    if (terminalViewModel.openTerminal()) screen = "terminal"
+                },
                 onOpenLinuxShell = {
-                    terminalViewModel.openLinuxShell()
-                    screen = "terminal"
+                    if (terminalViewModel.openLinuxShell()) screen = "terminal"
                 },
                 onOpenSession = { id ->
                     terminalViewModel.select(id)
                     screen = "terminal"
                 },
                 onLaunchApp = { app ->
-                    terminalViewModel.launchApp(app)
-                    screen = "terminal"
+                    if (terminalViewModel.launchApp(app)) screen = "terminal"
                 },
                 onExploreApps = { screen = "explore" },
                 onOpenSettings = { screen = "settings" },

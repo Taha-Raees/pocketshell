@@ -1,16 +1,16 @@
 #!/bin/bash
-# Build the M2.2 delivery payload for the Next.js download page:
+# Build the M2 delivery payload for the Next.js download page:
 #   - full git bundle at current tip (complete milestone history)
 #   - zero-dotfile buildable source tree zip + tar.gz twin
 #     (web scaffold + app/page.tsx + app/layout.tsx shims excluded)
-#   - copies of the M2.2 APK
+#   - copies of the M2 APK
 # Outputs land in public/ (served by the web app) with a backup in dist-master/.
 set -euo pipefail
 
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.3.0-m2.3
+VERSION=v0.3.1-m2.3
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,24 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.2.1-m2.2):
+WHAT IS NEW IN $VERSION (vs v0.3.0-m2.3):
+  - FIXED (device crash): tapping "Linux Shell" exited the app instantly.
+    Root cause 1: AGP 8 default extractNativeLibs=false left
+    nativeLibraryDir EMPTY, so a bare require() escaped the click handler
+    and killed the process. Now useLegacyPackaging=true (libs extracted;
+    verified extractNativeLibs=true in the built APK).
+  - Root cause 2: targetSdk 36 could never run the guest anyway — Android's
+    W^X policy (AOSP app_neverallows.te + seapp_contexts) blocks execve of
+    app-data files for targetSdk >= 29. Now targetSdk 28 (untrusted_app_27,
+    the Termux model) so proot can exec the Alpine guest shell.
+  - Crash-proof launch path: pure preflight (RuntimeProcessLauncher
+    .preconditionProblem), a single no-crash boundary for every session
+    spawn, and an honest dismissible error banner on Home with a
+    Diagnostics shortcut. A refused launch can never kill the process again.
+  - 4 new unit tests (215 total, 0 failures). Same signing cert — installs
+    as a direct update over v0.3.0, runtime data kept.
+
+WHAT WAS NEW IN v0.3.0-m2.3:
   - M2.3 Linux shell: tap "Linux Shell" on Home to enter the installed
     Alpine guest through proot — SAME PTY, SAME terminal, real Linux
     userland (RuntimeProcessLauncher + TerminalSessionManager
@@ -48,9 +65,6 @@ WHAT IS NEW IN $VERSION (vs v0.2.1-m2.2):
   - proot v5.1.107.92 (termux fork, GPL-2.0) + libtalloc 2.4.2 compiled
     from pinned source for all 4 ABIs (scripts/build_proot_m23.sh);
     bundled as libproot.so / libproot-loader.so / libtalloc.so via jniLibs
-  - Launch contract rehearsed end-to-end in the sandbox (guest uname;
-    id; echo hello -> Alpine kernel view, uid=0(root), hello, 3.24.1)
-  - 8 new unit tests pinning the argv/env contract (211 total)
 
 WHAT WAS NEW IN v0.2.x:
   - M2.2 runtime installation layer: RuntimeState machine,
@@ -64,8 +78,9 @@ WHAT WAS NEW IN v0.2.x:
     failure as a retryable FAILED/REPAIR_REQUIRED state
 
 NOTE: the on-device gate for M2.3 is `uname; id; echo hello` inside the
-guest (docs/TESTING.md §8) — it proves the proot split-loader exec path
-under real Android SELinux policy.
+guest (docs/TESTING.md §8) — v0.3.1 makes that gate passable by shipping
+extracted native libs + targetSdk 28 (guest exec allowed in the
+untrusted_app_27 SELinux domain).
 
 HOW TO RESTORE THE FULL REPOSITORY (with history):
 

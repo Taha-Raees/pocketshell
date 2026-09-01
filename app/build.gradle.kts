@@ -13,9 +13,17 @@ android {
     defaultConfig {
         applicationId = "app.pocketshell"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 5
-        versionName = "0.3.0-m2.3"
+        // targetSdk 28 is a deliberate, documented decision (docs/M2-RESEARCH
+        // §1.2, docs/CHANGELOG 0.3.1): Android's W^X policy neverallows
+        // execute_no_trans on app_data_file for every untrusted-app SELinux
+        // domain EXCEPT the legacy ones, and seapp_contexts maps targetSdk
+        // 28 -> untrusted_app_27 (targetSdk 29 -> untrusted_app_29, blocked).
+        // A proot guest shell can only exist in that legacy domain — the
+        // exact tradeoff Termux makes. Side-load distribution; Play rules do
+        // not apply (and Android 14+ still installs targetSdk >= 23).
+        targetSdk = 28
+        versionCode = 6
+        versionName = "0.3.1-m2.3"
     }
 
     buildTypes {
@@ -37,6 +45,15 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            // Extract native libraries to the filesystem at install time.
+            // Without this AGP sets extractNativeLibs=false and ships .so
+            // files only inside the APK: System.loadLibrary still works,
+            // but nativeLibraryDir stays EMPTY, so path-based execve() of
+            // libproot.so is impossible. This was the v0.3.0 device crash:
+            // "proot binary missing" thrown from the Home click handler.
+            useLegacyPackaging = true
         }
     }
 }
