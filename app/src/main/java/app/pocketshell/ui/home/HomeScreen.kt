@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.pocketshell.R
 import app.pocketshell.cliapps.CliApp
+import app.pocketshell.runtime.RuntimeState
 import app.pocketshell.terminal.TerminalSessionManager
 
 /**
@@ -52,7 +54,9 @@ import app.pocketshell.terminal.TerminalSessionManager
 fun HomeScreen(
     installedApps: List<CliApp>,
     activeSessions: List<TerminalSessionManager.SessionEntry>,
+    runtimeState: RuntimeState,
     onOpenTerminal: () -> Unit,
+    onOpenLinuxShell: () -> Unit,
     onOpenSession: (Long) -> Unit,
     onLaunchApp: (CliApp) -> Unit,
     onExploreApps: () -> Unit,
@@ -68,6 +72,7 @@ fun HomeScreen(
     ) {
         item { Header(onOpenSettings, onOpenDiagnostics) }
         item { TerminalCard(onOpenTerminal) }
+        item { LinuxShellCard(runtimeState, onOpenLinuxShell, onOpenDiagnostics) }
         item { InstalledAppsSection(installedApps, onLaunchApp) }
         item { ExploreRow(onExploreApps) }
         if (activeSessions.isNotEmpty()) {
@@ -144,6 +149,68 @@ private fun TerminalCard(onOpenTerminal: () -> Unit) {
                 imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LinuxShellCard(
+    state: RuntimeState,
+    onOpenLinuxShell: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
+) {
+    // Honest gate (docs/M2-ARCHITECTURE §7): the card shows the real runtime
+    // state; only READY enters the guest, everything else routes to the
+    // Diagnostics screen where install/retry/repair actually live.
+    val ready = state == RuntimeState.READY
+    val subtitle = when (state) {
+        RuntimeState.READY -> "Enter the installed Alpine guest (proot)"
+        RuntimeState.NOT_INSTALLED -> "Not installed yet — install from Diagnostics"
+        RuntimeState.DOWNLOADING,
+        RuntimeState.VERIFYING,
+        RuntimeState.EXTRACTING,
+        RuntimeState.CONFIGURING -> "Install in progress — see Diagnostics"
+        RuntimeState.FAILED -> "Install failed — retry from Diagnostics"
+        RuntimeState.REPAIR_REQUIRED -> "Repair needed — open Diagnostics"
+        RuntimeState.UNSUPPORTED_ABI -> "This device has no arm64 CPU — runtime unavailable"
+    }
+    ElevatedCard(
+        onClick = { if (ready) onOpenLinuxShell() else onOpenDiagnostics() },
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Computer,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(36.dp),
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "Linux Shell",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
             )
         }
     }

@@ -67,6 +67,7 @@ fun PocketShellRoot(
     val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
     val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
     val installedApps by terminalViewModel.installedApps.collectAsStateWithLifecycle()
+    val runtimeState by terminalViewModel.runtimeState.collectAsStateWithLifecycle()
 
     val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
@@ -112,7 +113,12 @@ fun PocketShellRoot(
             else -> HomeScreen(
                 installedApps = installedApps,
                 activeSessions = sessions,
+                runtimeState = runtimeState,
                 onOpenTerminal = terminalViewModel::openTerminal,
+                onOpenLinuxShell = {
+                    terminalViewModel.openLinuxShell()
+                    screen = "terminal"
+                },
                 onOpenSession = { id ->
                     terminalViewModel.select(id)
                     screen = "terminal"

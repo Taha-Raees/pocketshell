@@ -247,3 +247,22 @@ Stage Summary:
 - M2.2 gate: user must run docs/TESTING.md §7 on device (install to READY, kill-mid-install recovery, airplane-mode FAILED-not-crash).
 - Sandbox disk recipe for future: freed ~7G by purging NDK (2.2G, reinstall via scripts/install_toolchain.sh when M2.3 needs it), emulator stack, caches; .gradle transforms regen on next build.
 - Next: M2.3 — compile proot (termux fork pin, NDK reinstall first), RuntimeProcessLauncher, Linux shell in existing PTY.
+
+---
+Task ID: 14
+Agent: main
+Task: Verify on-device "runtime 9.3 MB" (user asked "is it correct?"); then keepalive per user request; M2.3 kickoff after user's "Move to m2.3".
+
+Work Log:
+- Sandbox reset #4 detected (tools/, android-sdk/, node_modules/, .gradle, public/, dist-master/ wiped; 9.3G freed). Repo source intact, git clean at 316bbe9.
+- READ-ONLY verification of the pinned rootfs: re-downloaded alpine-minirootfs-3.24.1-aarch64.tar.gz from live CDN - byte-exact vs pin (4,023,732 B, sha256 f55a90f6...).
+- Extracted tree ground truth: 83 regular files (8,652,792 B), 335 symlinks (330 file + 5 dir), 96 dirs. 306 links are ABSOLUTE guest paths (/bin/busybox applet farm) that dangle on Android AND in sandbox - by design, they only resolve inside proot's guest view (M2.3).
+- Explained device reading: RuntimeDiagnostics walks rootDir with java.io link-following: 83 files (8.2525 MiB) + 24 RELATIVE links resolving inside rootfs counted via targets (+1,048,196 B: libc.musl->ld-musl 723,480; cert.pem->ca-bundle 179,359; libz.so.1 133,008; apk keys) + runtime.json ~= 9,701,2xx B = 9.2526 MiB -> "%.1f MB" renders exactly "9.3". VERDICT: 9.3 MB IS CORRECT.
+- Task 11's "410 files + 635 symlinks" sandbox numbers explained: that throwaway counter followed absolute links into the sandbox system (same pollution my first walk emulation hit). Device number is the clean one.
+- Earlier same session: 8h keepalive watchdog + heartbeat loop ran while user slept (no project changes).
+- M2.3 kickoff: toolchain reinstalled via scripts/install_toolchain.sh (JDK 21.0.12.1+1, cmdline-tools, platform-36, build-tools 36.0.0, NDK 28.2.13676358 - all verified).
+
+Stage Summary:
+- 9.3 MB runtime size VERIFIED CORRECT (full byte-level reconciliation, no missing or bloated content).
+- M2.3 in progress: proot pin = termux/proot master 7266fb3e8516535682f5a9c8f3a7e70f6506eddb (2026-08-22); talloc 2.4.2 (samba ftp); libandroid-shmem cloned (BSD).
+- KEY BUILD FACT (src/execve/enter.c): runtime env PROOT_LOADER overrides loader path in BOTH unbundle and embedded modes -> build with embedded fallback, ship libproot-loader.so, set PROOT_LOADER=<nativeLibraryDir>/libproot-loader.so. No baked paths needed.

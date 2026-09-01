@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.pocketshell.cliapps.CliApp
 import app.pocketshell.cliapps.CliAppLauncher
 import app.pocketshell.cliapps.CliAppRegistry
+import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.terminal.TerminalSessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,6 +31,9 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         initialValue = emptyList(),
     )
 
+    /** Runtime state (M2) — Home shows the honest Linux Shell availability. */
+    val runtimeState = RuntimeManager.state
+
     private val _selectedId = MutableStateFlow<Long?>(null)
     val selectedId = _selectedId.asStateFlow()
 
@@ -41,6 +45,16 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     fun newSession() {
         _selectedId.value = createSession()
+    }
+
+    /**
+     * Enter the installed Alpine guest (M2.3). Caller must only invoke this
+     * when [runtimeState] is READY (Home routes otherwise); the manager still
+     * re-checks and would throw rather than fake a session.
+     */
+    fun openLinuxShell() {
+        val entry = TerminalSessionManager.createLinuxSession(getApplication())
+        _selectedId.value = entry.id
     }
 
     fun select(id: Long) {

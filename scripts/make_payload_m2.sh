@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.2.1-m2.2
+VERSION=v0.3.0-m2.3
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,19 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.1.1-m1):
+WHAT IS NEW IN $VERSION (vs v0.2.1-m2.2):
+  - M2.3 Linux shell: tap "Linux Shell" on Home to enter the installed
+    Alpine guest through proot — SAME PTY, SAME terminal, real Linux
+    userland (RuntimeProcessLauncher + TerminalSessionManager
+    .createLinuxSession; honest READY-only gate)
+  - proot v5.1.107.92 (termux fork, GPL-2.0) + libtalloc 2.4.2 compiled
+    from pinned source for all 4 ABIs (scripts/build_proot_m23.sh);
+    bundled as libproot.so / libproot-loader.so / libtalloc.so via jniLibs
+  - Launch contract rehearsed end-to-end in the sandbox (guest uname;
+    id; echo hello -> Alpine kernel view, uid=0(root), hello, 3.24.1)
+  - 8 new unit tests pinning the argv/env contract (211 total)
+
+WHAT WAS NEW IN v0.2.x:
   - M2.2 runtime installation layer: RuntimeState machine,
     RuntimeInstaller (HTTPS download -> size + SHA-256 verify -> guarded
     tar.gz extraction -> configure -> atomic promotion), RuntimeManager,
@@ -50,13 +62,10 @@ WHAT IS NEW IN $VERSION (vs v0.1.1-m1):
     (missing INTERNET permission + uncontained coroutine failure).
     Now declared honestly and RuntimeCrashGuard contains any pipeline
     failure as a retryable FAILED/REPAIR_REQUIRED state
-  - 6 crash-guard regression tests (58 app-module tests total);
-    commons-compress 1.28.0 (Apache-2.0); docs/M2-RESEARCH.md +
-    docs/M2-ARCHITECTURE.md
 
-NOTE: this snapshot installs the Linux userland files only. The Linux
-shell session inside the terminal (proot launch, M2.3) is NOT part of
-this snapshot yet.
+NOTE: the on-device gate for M2.3 is `uname; id; echo hello` inside the
+guest (docs/TESTING.md §8) — it proves the proot split-loader exec path
+under real Android SELinux policy.
 
 HOW TO RESTORE THE FULL REPOSITORY (with history):
 

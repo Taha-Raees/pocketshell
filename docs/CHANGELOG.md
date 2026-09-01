@@ -3,6 +3,43 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.3.0-m2.3] — 2026-09-01 — Linux shell: proot guest behind the existing PTY
+
+### Added
+- **Linux Shell (Home card) enters the installed Alpine guest** when the
+  runtime is READY: `RuntimeProcessLauncher` builds the proot launch line,
+  `TerminalSessionManager.createLinuxSession()` spawns it on the SAME PTY and
+  session machinery as the system shell — no second terminal implementation.
+  In every other runtime state the Home card shows the truth (not installed /
+  installing / failed / repair / unsupported ABI) and routes to Diagnostics.
+- proot stack compiled from pinned source and bundled via jniLibs for all
+  four ABIs: `libproot.so` + `libproot-loader.so` (termux/proot pinned tag
+  **v5.1.107.92** @ 7266fb3e8516535682f5a9c8f3a7e70f6506eddb, GPL-2.0) and
+  `libtalloc.so` 2.4.2 (LGPL-3.0+, dynamic, SONAME normalized). See
+  scripts/build_proot_m23.sh + docs/THIRD_PARTY.md.
+- Loader strategy (the M2 risk item): runtime env `PROOT_LOADER` points at
+  `nativeLibraryDir/libproot-loader.so` — the one location that stays
+  executable at targetSdk ≥ 29 — while the loader embedded in libproot.so
+  remains a fallback. No execve() on app-data files, ever.
+- argv contract: `--kill-on-exit --rootfs=<rootfs> --root-id --cwd=/root
+  --bind=/dev --bind=/proc --bind=/sys /bin/sh -l`. Long options use the
+  joined `=` form (proot rejects the separated form — rehearsed and pinned
+  by unit tests).
+- 8 new unit tests (211 total, 0 failures): argv/env pins, missing-artifact
+  refusal, READY-only gate.
+
+### Verified (sandbox rehearsal)
+- The exact launch contract was rehearsed end-to-end on the sandbox host
+  with the SAME proot source and the x86_64 variant of the SAME pinned
+  Alpine 3.24.1 rootfs: `uname; id; echo hello; cat /etc/alpine-release`
+  returned the guest kernel view, uid=0(root), hello, 3.24.1 and a working
+  BusyBox — in BOTH loader modes, exit 0 (scripts/rehearse_m23_gate.sh).
+- The Android-specific exec/ptrace policy is the remaining risk and stays
+  the M2.3 device gate (docs/TESTING.md §8).
+
+### Changed
+- versionCode 5, versionName 0.3.0-m2.3.
+
 ## [0.2.1-m2.2] — 2026-09-01 — Fix: crash when tapping "Install Linux environment"
 
 ### Fixed

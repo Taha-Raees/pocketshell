@@ -133,6 +133,25 @@ missing INTERNET permission + uncontained coroutine failure, fixed in 0.2.1).
 - [ ] "Remove runtime" on READY returns to NOT_INSTALLED; disk space freed.
 - [ ] Airplane mode ON → Install: lands in FAILED with a readable message
       (never a crash); airplane mode OFF → Retry reaches READY.
+
+## 8. Manual acceptance — M2.3 (Linux shell via proot) — GATE OPEN
+
+Prerequisite: runtime READY (§7) and v0.3.0-m2.3 or newer.
+
+- [ ] Home shows a "Linux Shell" card; before install it reads the true
+      runtime state and tapping it opens Diagnostics — never a fake session.
+- [ ] With runtime READY, tapping "Linux Shell" opens the terminal; the new
+      tab is labelled "Alpine Linux" and shows a guest prompt.
+- [ ] **GATE — the highest-risk assumption of M2 (split-loader exec at
+      targetSdk 36):** run `uname; id; echo hello`:
+      expected `Linux ... aarch64 ...` (guest view, not the Android kernel
+      string), `uid=0(root) ...`, `hello`.
+- [ ] `cat /etc/alpine-release` → 3.24.1; BusyBox applets work in the guest
+      (e.g. `ls /usr/bin | head`).
+- [ ] `exit` ends the guest cleanly; afterwards the System Shell (Terminal
+      card) still starts and runs normally.
+- [ ] Remove runtime in Diagnostics → Home card returns to the honest
+      not-installed state; a new install reaches READY again.
 - [ ] Regression guard (v0.2.1): ANY failure above must show a state + message
       in Diagnostics — the app must NEVER exit to the launcher from this flow.
 

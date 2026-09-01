@@ -4,7 +4,11 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import app.pocketshell.cliapps.CliApp
+import app.pocketshell.runtime.RuntimeManager
+import app.pocketshell.runtime.RuntimeProcessLauncher
+import app.pocketshell.runtime.RuntimeStorage
 import com.termux.terminal.TerminalSession
+import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,40 +77,85 @@ object TerminalSessionManager {
     ): SessionEntry {
         val appContext = context.applicationContext
         ShellEnvironment.ensureDirs(appContext)
-        _creating.value = true
-
-        val id = nextId++
-        val client = PocketShellSessionClient(
-            context = appContext,
-            onTitleChanged = { mainHandler.post { refreshTitle(id) } },
-            onSessionFinished = { mainHandler.post { markFinished(id) } },
-            // Already on the main thread (TerminalSession MainThreadHandler);
-            // invoke the visible view's refresh hook directly.
-            onScreenUpdate = { onScreenUpdateListener?.invoke(id) },
-        )
-
         val args = if (initialCommand != null) {
             arrayOf("-c", initialCommand)
         } else {
             arrayOf("-l")
         }
-
         val env = if (environmentExtras.isEmpty()) {
             ShellEnvironment.environment(appContext)
         } else {
             ShellEnvironment.environment(appContext) +
                 environmentExtras.map { (k, v) -> "$k=$v" }
         }
+        return spawn(
+            context = appContext,
+            label = label,
+            command = ShellEnvironment.SHELL_PATH,
+            workingDirectory = workingDirectory
+                ?: ShellEnvironment.homeDir(appContext).absolutePath,
+            args = args,
+            env = env,
+        )
+    }
 
+    /**
+     * Enter the installed Alpine guest through proot (M2.3): SAME PTY, SAME
+     * session machinery — only the spawned process differs. Refuses honestly
+     * unless the runtime is READY; nothing is ever faked.
+     */
+    fun createLinuxSession(context: Context): SessionEntry {
+        val appContext = context.applicationContext
+        val state = RuntimeManager.state.value
+        check(RuntimeProcessLauncher.canEnterLinuxShell(state)) {
+            "Linux shell requires runtime READY (current state: $state) — refusing to fake one."
+        }
+        ShellEnvironment.ensureDirs(appContext)
+        val storage = RuntimeStorage(appContext.noBackupFilesDir)
+        val prootTmp = File(appContext.cacheDir, "proot-tmp").apply { mkdirs() }
+        val spec = RuntimeProcessLauncher.buildLaunchSpec(
+            nativeLibraryDir = appContext.applicationInfo.nativeLibraryDir,
+            rootfsDir = storage.rootfsDir,
+            hostCwd = ShellEnvironment.homeDir(appContext),
+            prootTmpDir = prootTmp,
+        )
+        return spawn(
+            context = appContext,
+            label = spec.guestLabel,
+            command = spec.executable,
+            workingDirectory = spec.workingDirectory,
+            args = spec.arguments.toTypedArray(),
+            env = spec.environment.toTypedArray(),
+        )
+    }
+
+    /** Single real-session factory: real PTY, real process, real environment. */
+    private fun spawn(
+        context: Context,
+        label: String?,
+        command: String,
+        workingDirectory: String,
+        args: Array<String>,
+        env: Array<String>,
+    ): SessionEntry {
+        _creating.value = true
+        val id = nextId++
+        val client = PocketShellSessionClient(
+            context = context,
+            onTitleChanged = { mainHandler.post { refreshTitle(id) } },
+            onSessionFinished = { mainHandler.post { markFinished(id) } },
+            // Already on the main thread (TerminalSession MainThreadHandler);
+            // invoke the visible view's refresh hook directly.
+            onScreenUpdate = { onScreenUpdateListener?.invoke(id) },
+        )
         val session = TerminalSession(
-            ShellEnvironment.SHELL_PATH,
-            workingDirectory ?: ShellEnvironment.homeDir(appContext).absolutePath,
+            command,
+            workingDirectory,
             args,
             env,
             ShellEnvironment.TRANSCRIPT_ROWS,
             client,
         )
-
         val entry = SessionEntry(
             id = id,
             session = session,
@@ -116,7 +165,7 @@ object TerminalSessionManager {
         )
         _sessions.update { it + entry }
         _creating.value = false
-        syncService(appContext)
+        syncService(context)
         return entry
     }
 

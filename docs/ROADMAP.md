@@ -80,6 +80,26 @@ Android device (§27). M2 scope (research → implement):
 - First installable CLI apps (Hermes/Git/Python/Node/… per catalog).
 - Home "Explore CLI Apps" becomes a real catalog backed by the real installer.
 
+## M2 — Real Linux runtime (M2.0 – M2.3)
+
+- [x] M2.0 baseline: 166/166 tests PASS before any change (strict §27/§28).
+- [x] M2.1 research + architecture (docs/M2-RESEARCH.md, docs/M2-ARCHITECTURE.md):
+      PRoot + Alpine minirootfs chosen; split-loader strategy verified against
+      AOSP sepolicy primary sources; targetSdk kept at 36.
+- [x] M2.2 runtime installation layer: download → verify → extract →
+      configure → atomic promote; honest state machine; crash containment
+      (RuntimeCrashGuard after the v0.2.1 device incident). **Device gate
+      PASSED 2026-09-01** (TESTING.md §7): install → READY, honest numbers
+      verified byte-level ("9.3 MB", 108 rootfs files).
+- [x] M2.3 Linux shell: proot **v5.1.107.92** (@ 7266fb3e) + libtalloc 2.4.2
+      compiled for all 4 ABIs and bundled via jniLibs;
+      `RuntimeProcessLauncher` + `createLinuxSession` enter the guest on the
+      existing PTY; sandbox rehearsal of the exact gate contract PASSED
+      (scripts/rehearse_m23_gate.sh): guest `uname`, `uid=0(root)`, `hello`,
+      release 3.24.1, BusyBox works — both loader modes.
+- [ ] **M2.3 device gate (TESTING.md §8)** — requires a human with an arm64
+      device: proves the proot split-loader exec path under real SELinux.
+
 ## Later (unscheduled, do not start prematurely)
 
 File manager · profiles · AI CLI management · development environments · code
