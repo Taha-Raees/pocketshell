@@ -33,3 +33,11 @@ libs/
 
 # Delivery artifacts live outside the repo (user downloads)
 download/
+
+# delivery/working junk (v0.4.2 hygiene): never track working files
+/vframes/
+/.next/
+/upload/
+/dist-master/
+/public/
+/server.log
