@@ -1,11 +1,11 @@
 const VERSION = "v0.4.1-m2.4";
-const TIP = "ed1ccaf";
+const TIP = "ba15e63";
 
 const HASHES = {
   apk: "2bbb3155bc220623eed878fed6a85259c89f5e84aa6181b185cb04054d26855f",
-  zip: "9ebedbbb2681137b846a9c3e8dc53d0bc0ef1c1f0de2d6f9295f42fbba392c2a",
-  tgz: "4c4fe33b0fcce8bb437ebe7800bfb4d05b9f6201ae55842217d8d447a0b6fabd",
-  bundle: "ec418125b6b2a9791f635923d63bd58574c0a6b648d21de2d920b855f70dd57c",
+  zip: "3a1b81b73be55f1449af55df56111d1b531ad43884445c190db51cf8c12141ac",
+  tgz: "8a000bedd7e60145539c285ea46752219fb23a73fe4d29ee71e72b6a0aeea139",
+  bundle: "064c2ca89f4112b8bdc9a9bb19d7ab74fe4783b463e5675f451cb31783128bd7",
 };
 
 function Sha({ text }: { text: string }) {
