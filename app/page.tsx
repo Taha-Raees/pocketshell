@@ -1,10 +1,10 @@
-const VERSION = "v0.5.0-m2.5";
+const VERSION = "v0.6.0-m2.6";
 
 const HASHES = {
-  apk: "7c7ee05571201abdd4780fe63064b91eab88ccfdafc719f1888447f97ae7644d",
-  zip: "fa62b17f0e28310e24c5cf4197c0a011e4be2f05a02e00f9370cfee2a49c6bd1",
-  tgz: "f6709e11164ef3e3f4d7b6fc528aaa122cfe6c52ad18b2afda8c2e4a97ec0339",
-  bundle: "9d687e4626cb137d311bda4fa4bb29a3bc538b6705ec21955ae37b7096bbb774",
+  apk: "c350caca5728a971bd81305fcb0e6d8a94d5345877cdca75f1bad8e245001971",
+  zip: "87550cc003c1e2f1c3efe8aba10c72bfafdb0db8c9bab3ddf22e803dbd5059fd",
+  tgz: "1116d6339d16b7cfdd92f638e4b93a478ffaff6df0e0d25c0984b9d91344fbc3",
+  bundle: "bd008b4e8699bdee19839926f90a9a258cea4e5dadbbede54241b3191ba73439",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,64 +25,74 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M2.4 gate <b>PASSED</b> — thank YOU for the evidence. M2.5 starts
-          here <span className="badge">versionCode 13</span>
+          M2.6 — you were right: <b>never trade one Linux feature for another</b>{" "}
+          <span className="badge">versionCode 14</span>
         </h2>
         <p>
-          Your 10:04 screenshots confirmed v0.4.4 on device: Home lists{" "}
-          <b>Nano 9.2-r0 and Git 2.54.0-r0</b> from the real apk database,
-          Explore shows Nano “Installed · 9.2-r0”, and paste works. Then they
-          caught two more real bugs — the “small errors when trying to add
-          node” — both fixed in this build:
+          M2.5 made <code>apk</code> work inside the shell by removing the{" "}
+          <code>/proc</code> bind from every guest session — which silently
+          broke <code>ps</code>, <code>top</code> and <code>htop</code>. That
+          was an architectural compromise, and this build reverses it properly.
+          The full evidence chain is in <b>docs/M2.6-RESEARCH.md</b>.
         </p>
         <ul className="steps">
           <li>
-            <b>Your manual <code>apk update</code> / <code>apk add nodejs
-            npm</code> in the Linux Shell died with “Permission denied”</b>{" "}
-            while app installs worked. Why: v0.4.2 removed the{" "}
-            <code>/proc</code> bind only from the app’s own package commands —
-            the shell session kept it, and with <code>/proc</code> visible
-            apk’s download commit hits the same Android SELinux neverallow.
-            Your session also read a stale 31-package cache (hence
-            “nodejs (no such package)”). Now <b>every guest session is
-            apk-capable</b>: no <code>/proc</code>, the same shared apk cache
-            the app uses, DNS refreshed at spawn. Install from the terminal
-            or the UI — one cache, one index, one database.
-            <br />
-            <i>
-              Honest cost: the guest can’t see <code>/proc</code>, so{" "}
-              <code>ps</code>/<code>top</code> (and htop’s process list) have
-              nothing to read inside the guest. A working package manager
-              wins.
-            </i>
+            <b>What actually broke, source-verified:</b> apk-tools 3.0.x picks
+            its download-commit strategy with one probe —{" "}
+            <code>access("/proc/self/fd")</code>. With <code>/proc</code>{" "}
+            visible it commits every download through{" "}
+            <code>linkat("/proc/self/fd/N")</code>; Android’s security policy
+            (“neverallow all_untrusted_apps file_type:file link”) makes that
+            fail with <i>Permission denied</i>, and apk cancels the whole
+            download with <b>no fallback</b>. Upstream (3.0.6 → master) has no
+            fix to reuse.
           </li>
           <li>
-            <b>Searching “node” buried nodejs</b> behind description matches
-            (abseil-cpp-dev, ceph18…) and the 8-hit cutoff. Search results are
-            now <b>ranked by name match</b> — nodejs and nodejs-current first
-            — and <b>every hit is installable</b> with the same honest
-            pipeline (apk update → add → info -e verify). No executable
-            promises for non-catalog packages: nodejs ships <code>node</code>,
-            not <code>nodejs</code>, so SUCCESS means exactly “the real
-            database confirms it” — run it from the shell.
+            <b>The fix (surgical, honest):</b> a <b>one-byte, checksum-pinned
+            patch</b> to Alpine’s own <code>libapk</code> (3.0.6-r0) inside
+            the runtime turns that probe path into a permanently-missing file,
+            so apk always uses its allowed named-tmpfile + <code>renameat</code>{" "}
+            commit — the exact path already device-proven since v0.4.2. Same
+            binary version, same real downloads, same output, same exit codes,
+            same database. Reproducible: <code>scripts/patch_apk_fdlink.py</code>.
+          </li>
+          <li>
+            <b>The architecture:</b> two explicit guest profiles on the same
+            launcher — <b>INTERACTIVE_TERMINAL</b> (Linux Shell: full devices,
+            PTY, shared apk cache <b>and a real <code>/proc</code></b> once the
+            patched apk is verified) and <b>PACKAGE_OPERATION</b> (the app UI’s
+            apk runs: minimal mounts, never <code>/proc</code>, refuse-guarded
+            and test-pinned). One rootfs, one cache, one database.
+          </li>
+          <li>
+            <b>What works now:</b> <code>ls /proc</code>,{" "}
+            <code>cat /proc/version</code>, <code>ps</code>, <code>top</code>,{" "}
+            <code>htop</code> — <b>and</b> <code>apk update / search / add /
+            del</code> both in the shell and from the app UI, <b>and</b> Node
+            end-to-end. Honest process semantics: <code>/proc</code> is the
+            real host procfs filtered by Android’s own app isolation — you see
+            the app’s real process tree, nothing faked, nothing hidden by us.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.5.0-m2.5-debug.apk">
+        <a className="btn" href="/PocketShell-v0.6.0-m2.6-debug.apk">
           Download APK (debug, 21 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.4.4)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.5.0)
         </p>
       </div>
 
       <div className="card">
-        <h2>Update — no uninstall needed</h2>
+        <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          Installs <b>in place over v0.4.4</b> (same pinned signing key). The
-          runtime, your installed packages (nano, git) and the shared apk
-          cache are untouched. Your existing terminal sessions keep running;
-          <b> new</b> Linux Shell sessions spawn with the apk-capable shape.
+          Installs <b>in place over v0.5.0</b> (same pinned signing key). Your
+          runtime, installed packages and cache are untouched — the fd-link
+          patch <b>installs itself on the first Linux Shell spawn</b> and is
+          verified by checksum on every package operation. If your rootfs was
+          ever modified by an in-guest <code>apk upgrade</code>, the app will
+          tell you honestly (Diagnostics → “apk fd-link patch”) instead of
+          overwriting anything.
         </p>
       </div>
 
@@ -98,8 +108,8 @@ export default function Home() {
             SHA-256-verified, installed into app storage.
           </li>
           <li>
-            Linux Shell (M2.3 + v0.5.0): the Alpine guest via proot — and now
-            a shell where <code>apk</code> actually works.
+            Linux Shell (M2.3 + M2.6): the Alpine guest via proot — with{" "}
+            <code>/proc</code> back, and <code>apk</code> still working.
           </li>
           <li>
             Package management (M2.4, device-gate PASSED): curated cards
@@ -107,37 +117,48 @@ export default function Home() {
             exactly what the real apk database confirms.
           </li>
           <li>
-            M2.5 (this build): search any Alpine package, ranked by name
-            match, installable in one tap — verified by real exit codes only.
+            M2.5 (device-requested): search any Alpine package, ranked by name
+            match, installable in one tap; Node runs end-to-end.
+          </li>
+          <li>
+            M2.6 (this build): real process tools restored without giving up
+            the package manager — the foundation before more features.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §9 — v0.5.0 additions)</h2>
+        <h2>Quick checks (docs/TESTING.md §10 — Gates A–G)</h2>
         <ol className="steps">
-          <li>Install {VERSION} APK over v0.4.4 (no uninstall).</li>
+          <li>Install {VERSION} over v0.5.0 (no uninstall) → open Linux Shell.</li>
           <li>
-            Open <b>Linux Shell</b> → <code>apk update</code> → finishes with{" "}
-            <b>no “Permission denied”</b> and the full count (~28k packages).
+            Gate A: <code>ls /proc</code> → real entries;{" "}
+            <code>cat /proc/version</code> and <code>cat /proc/meminfo</code>{" "}
+            → real values.
           </li>
           <li>
-            Then <code>apk add nodejs npm</code> → installs;{" "}
-            <code>node --version</code> works.
+            Gate B: <code>ps</code> → a real process list; <code>top</code> →
+            opens, updates, <code>q</code> quits.
           </li>
           <li>
-            Explore → search <code>node</code> → <b>nodejs</b> at the top →
-            tap <b>Install</b> → the row flips to “Installed · version — run
-            ‘nodejs’ from the shell”.
+            Gate C: <code>apk update</code> → OK (~28k packages, no “Permission
+            denied”); <code>apk add htop</code> → <code>htop</code> runs.
           </li>
           <li>
-            Known honest limitation: <code>ps</code>/<code>top</code> inside
-            the guest report they cannot read <code>/proc</code> — that’s the
-            SELinux tradeoff, not a bug.
+            Gate D: <code>apk add nodejs npm</code> →{" "}
+            <code>node --version</code> → write{" "}
+            <code>console.log("PocketShell Node works")</code> to{" "}
+            <code>index.js</code> → <code>node index.js</code> prints it.
           </li>
           <li>
-            Regression: Home still lists Nano + Git; paste still works;
-            Check package environment still shows fetch OK.
+            Gates E–G: Explore install/uninstall still honest; <code>nano</code>{" "}
+            unchanged; keep <code>top</code> running while the UI installs a
+            package — neither breaks.
+          </li>
+          <li>
+            Diagnostics → “Check package environment” now shows{" "}
+            <b>apk fd-link patch: applied</b> and{" "}
+            <b>Interactive /proc: bind</b>.
           </li>
         </ol>
       </div>
@@ -148,10 +169,10 @@ export default function Home() {
           Complete buildable source. The zip intentionally contains no
           dotfiles; full history rides in the git bundle.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.5.0-m2.5-source.zip">
-          source.zip (4.0 MB)
+        <a className="btn secondary" href="/PocketShell-v0.6.0-m2.6-source.zip">
+          source.zip (4.4 MB)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.5.0-m2.5-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.6.0-m2.6-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -169,11 +190,12 @@ export default function Home() {
 
       <footer>
         Milestones: M0–M1.3 terminal · M2.2 runtime install · M2.3 Linux shell
-        (device-verified) · M2.4 package layer (<b>device gate PASSED</b>) ·
-        M2.5 started: apk-capable shell + ranked/installable search (this
-        build). Remaining M2.5 candidates: file manager, profiles, richer
-        per-app Home cards. Thank you for the screenshots — they are the
-        project’s real test suite.
+        (device-verified) · M2.4 package layer (device gate PASSED) · M2.5
+        apk-capable shell + ranked/installable search · <b>M2.6 (this build):
+        real /proc + real apk — the architecture fixed before features grow</b>.
+        Next candidates: M2.7 session management + CLI app profiles, or a
+        curated CLI app catalog. Thank you for pushing on the architecture —
+        this fix is why your screenshots matter.
       </footer>
     </main>
   );

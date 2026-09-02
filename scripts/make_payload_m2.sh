@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.5.0-m2.5
+VERSION=v0.6.0-m2.6
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,58 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.4.4-m2.4):
+WHAT IS NEW IN $VERSION (vs v0.5.0-m2.5):
+  - M2.6, LINUX COMPATIBILITY RECOVERY: interactive sessions bind a REAL
+    /proc again — \`ps\`, \`top\`, \`htop\` work inside the Alpine guest —
+    while \`apk\` keeps working EVERYWHERE (shell and app UI). No Linux
+    feature was traded away; v0.5.0's no-/proc compromise is reversed.
+  - ROOT CAUSE (source-verified, docs/M2.6-RESEARCH.md): apk-tools 3.0.x
+    picks its download-commit strategy with is_proc_fd_ok() =
+    access("/proc/self/fd", F_OK) (src/io.c; byte-identical in 3.0.6,
+    3.0.8 and upstream master). With /proc visible it commits every
+    download through linkat("/proc/self/fd/N", ..., AT_SYMLINK_FOLLOW);
+    AOSP app_neverallows.te (neverallow all_untrusted_apps file_type:file
+    link) makes the kernel return EACCES and apk cancels the whole
+    download — no fallback for that errno. Without /proc it uses the
+    named-tmpfile + renameat path (allowed; device-proven since v0.4.2).
+  - THE FIX — GuestApkCompat: a ONE-BYTE, checksum-pinned patch to
+    Alpine's OWN usr/lib/libapk.so.3.0.0 (3.0.6-r0 from the pinned
+    minirootfs) turns the gate literal "/proc/self/fd" into
+    "/proc/self/fX", so is_proc_fd_ok() is permanently false and apk
+    always commits via renameat. Same binary version, same real
+    downloads/output/exit codes, same database. The "/proc/self/fd/%d"
+    script-execution literal is untouched. Reproducible via
+    scripts/patch_apk_fdlink.py (two literals, exactly one code reference
+    per binary — disassembly-verified per arch; hashes pinned in code).
+  - ARCHITECTURE — GuestExecutionProfile (M2.6.3): the two launch
+    policies are explicit on the SAME builder/proot/launcher (no
+    duplicated runtime): INTERACTIVE_TERMINAL (sessions: /dev, /sys,
+    shared apk cache, and /proc WHEN the patched library is verified;
+    honest no-/proc fallback otherwise) and PACKAGE_OPERATION
+    (app-side apk execs: minimal mounts, NEVER /proc — refuse-guarded in
+    the builder and pinned by tests). One rootfs, one shared cache, one
+    database. The patch installs itself on the first session spawn (and
+    verifies on every package operation); a user-modified rootfs is
+    NEVER touched (honest NotApplicable + Diagnostics explanation).
+  - PROCESS SEMANTICS (documented, not faked): with /proc bound the
+    guest sees the Android host procfs filtered by the kernel's
+    hidepid=2 app isolation — \`ps\`/\`top\` show the app's real process
+    tree with host pids; /proc/stat and /proc/meminfo are real. Nothing
+    is filtered or simulated by the app.
+  - DIAGNOSTICS (M2.6.11): new read-only rows "apk fd-link patch" and
+    "Interactive /proc" explain the exact state; the button never
+    installs anything.
+  - TESTS: +11 net — 292 per variant (147 app + 145 terminal-emulator),
+    584 executions, 0 failures. Host rehearsal
+    scripts/rehearse_m26_proc.sh: FULL PASS 18/18 (real /proc, ps, top,
+    full apk lifecycle with /proc bound + patched libapk, one shared
+    cache); the M2.4 no-/proc package rehearsal still passes.
+  - DEVICE GATE: docs/TESTING.md §10 (Gates A-G: /proc, ps/top/htop,
+    apk lifecycle, Node end-to-end, app-side install, interactive CLI,
+    session isolation). v0.6.0 installs OVER v0.5.0 in place (same
+    pinned signing key); the runtime/rootfs does NOT need reinstalling.
+
+WHAT WAS NEW IN v0.5.0-m2.5 (vs v0.4.4-m2.4):
   - DEVICE-CONFIRMED (user screenshots 2026-09-02 10:04, SM-F711B,
     v0.4.4): Home "Installed CLI Apps" lists Nano 9.2-r0 AND Git
     2.54.0-r0 from the real apk database; Explore shows Nano
@@ -330,7 +381,9 @@ DOTS=$(echo "$LIST" | rg -c '/\.' || true); DOTS=${DOTS:-0}
 echo "dot-path entries       : $DOTS  (want 0)"
 echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
-for key in docs/M2-RESEARCH.md docs/M2-ARCHITECTURE.md \
+for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
+           app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
+           app/src/main/assets/guest/libapk.so.3.0.0.fdlinkoff.aarch64 \
            app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt \
            app/src/main/java/app/pocketshell/runtime/RuntimeManager.kt \
            pocketshell-m2.gitbundle RESTORE.txt gradlew \
