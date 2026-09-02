@@ -46,8 +46,8 @@ WHAT IS NEW IN $VERSION (vs v0.4.4-m2.4):
     2.54.0-r0 from the real apk database; Explore shows Nano
     "Installed . 9.2-r0" with Open/Uninstall; clipboard paste works
     ("I can copy paste"). M2.4 device gate: PASSED.
-  - M2.5, APK-CAPABLE GUEST SHELL: the user's MANUAL `apk update` /
-    `apk add nodejs npm` typed INSIDE the Linux Shell died with
+  - M2.5, APK-CAPABLE GUEST SHELL: the user's MANUAL \`apk update\` /
+    \`apk add nodejs npm\` typed INSIDE the Linux Shell died with
     "Permission denied" (the v0.4.2 SELinux shape) while app-side
     installs worked - because v0.4.2 dropped the /proc bind from
     APP-SIDE package commands only; interactive sessions kept it
@@ -58,11 +58,11 @@ WHAT IS NEW IN $VERSION (vs v0.4.4-m2.4):
     apk cache binds as the UI's operations + a best-effort DNS/
     workspace refresh at spawn. One cache, one index, one database:
     install from the terminal or the UI - same result.
-    HONEST COST (documented): the guest cannot see /proc, so `ps`,
-    `top` and htop's process list have nothing to read inside the
+    HONEST COST (documented): the guest cannot see /proc, so \`ps\`,
+    \`top\` and htop's process list have nothing to read inside the
     guest. A working package manager wins; Android SELinux forces
     the choice.
-  - M2.5, SEARCH THAT FINDS THE PACKAGE: `apk search` matches names
+  - M2.5, SEARCH THAT FINDS THE PACKAGE: \`apk search\` matches names
     AND descriptions alphabetically, so "node" buried nodejs behind
     abseil-cpp-dev/ceph18/certbot-dns-linode and an 8-hit cutoff.
     Hits are now RANKED (exact name, then name prefix, then name
@@ -71,8 +71,8 @@ WHAT IS NEW IN $VERSION (vs v0.4.4-m2.4):
   - M2.5, INSTALL ANY SEARCHED PACKAGE: every search hit gets a real
     Install button running the same honest pipeline (apk update ->
     apk add -> apk info -e verify) by exact package name. NO
-    executable promise for non-catalog packages (nodejs ships `node`,
-    not `nodejs`); installed hits show "Installed . version - run
+    executable promise for non-catalog packages (nodejs ships \`node\`,
+    not \`nodejs\`); installed hits show "Installed . version - run
     'name' from the shell". Search results join the installed-state
     probe, so a fresh install flips the row without leaving the screen.
   - v0.5.0 installs OVER v0.4.4 in place (same pinned signing key,
