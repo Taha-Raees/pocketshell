@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.4.3-m2.4
+VERSION=v0.4.4-m2.4
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,47 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.4.2-m2.4):
+WHAT IS NEW IN $VERSION (vs v0.4.3-m2.4):
+  - DEVICE GATE PASSED (user screenshots 2026-09-02 09:09-09:10, SM-F711B,
+    v0.4.3): GNU nano 9.2 running in the Alpine guest, apk-tools 3.0.6-r0,
+    combined Guest DNS, "Repository fetch: OK - OK: 28546 distinct packages
+    available". The SELinux + DNS chains are closed. The same screenshots
+    exposed three UI-layer bugs - all fixed here:
+  - FIXED "installed packages are invisible": the Explore installed-state
+    probe ran one shell loop over the catalog and let the loop's EXIT
+    STATUS stand for the whole probe. The catalog's LAST package (python3)
+    was not installed, so the last iteration exited 1, the loop exited 1,
+    and the caller treated the entire exec as failed - DISCARDING the good
+    stdout that contained "nano nano-9.2-r0". An installed nano rendered
+    "Not installed" on every visit, deterministically, whenever the answer
+    was mixed. The probe now calls absolute "/sbin/apk" (the PATH-free
+    form every other apk call already used) and ends with "exit 0" - a
+    completed loop is a successful probe; versions are parsed by the same
+    strict parser as the single-package path ("9.2-r0", not "nano-9.2-r0").
+  - HONESTY: a failed probe can no longer pose as "nothing installed" -
+    timeouts/killed execs now throw PackageProbeException; Explore keeps
+    the last real answer, shows "Installed state unavailable: ..." and
+    renders unknown cards as "Installed state unknown"; Home does the
+    same. "Not installed" is exclusively a real apk answer now.
+  - FIXED Home's "No apps installed yet" over an installed nano: the list
+    read an M1-era DataStore registry that NOTHING in the M2.4 flow ever
+    wrote. Home now renders the catalog subset the real apk database
+    confirms (fresh probe on every visit + after every package operation),
+    with the real version; tapping opens via the same verify-then-launch
+    flow as Explore. The orphaned registry chain is deleted outright - an
+    unused registry claiming installed state is a fake-state hazard.
+  - FIXED terminal Paste doing nothing: the vendored Termux selection
+    toolbar's Paste action ends in the session CLIENT callback, which was
+    an empty body (its comment claimed upstream performs the paste -
+    false). It now reads the real clipboard and pastes via
+    TerminalEmulator.paste (strips escape/C1 bytes, LF->CR, honours
+    bracketed paste mode - nano-aware). Empty clipboard = honest no-op.
+  - v0.4.4 installs OVER v0.4.3 in place (same pinned signing key,
+    keystore/debug.keystore). All fixes are Android-layer: the runtime,
+    its packages and the resolv.conf are untouched. 278 tests per
+    variant (133 app + 145 terminal-emulator), 556 executions, 0 failures.
+
+WHAT WAS NEW IN v0.4.3-m2.4 (vs v0.4.2-m2.4):
   - FIXED the "DNS: transient error (try again later)" that hit every apk
     fetch on the device (user screenshots 2026-09-02 08:13, SM-F711B,
     v0.4.2 — where the SELinux fix itself was CONFIRMED WORKING: the old
