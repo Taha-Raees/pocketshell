@@ -352,3 +352,23 @@ Stage Summary:
 - User must: uninstall old app -> install v0.4.1 -> reinstall runtime (one tap) -> run §9 gate (Check package environment should show device DNS + Repository fetch OK, then Install Nano -> Open -> persistence -> uninstall).
 - Signing identity now pinned in-repo: future builds are in-place updates again.
 - Next: §9 device gate -> M2.5 (CLI app cards on Home).
+
+---
+Task ID: 19 (v0.4.2-m2.4 rebuild + cancel-race wedge fix + delivery)
+Agent: main
+Task: Continue after sandbox reset #6 — the repo source was intact at v0.4.2-m2.4 (SELinux linkat fix, committed 27a3cb5) but ALL binary artifacts (APK/zip/tgz/bundle) and the toolchain were wiped before v0.4.2 ever reached the user (device still on v0.4.1, proven by the 2026-09-02 00:09 screenshots: all-cards "Working…", fetch "Permission denied", device-resolver DNS active). Rebuild, re-verify, deliver.
+
+Work Log:
+- Toolchain rebuilt from scripts/install_toolchain.sh equivalents: Temurin 21.0.12.1 via GitHub mirror (adoptium API stalled again), cmdline-tools 11076708, then DIRECT dl.google.com downloads after sdkmanager stalled again (platform-36_r02, build-tools_r36_linux, ndk-r28b -> ndk/28.2.13676358). local.properties rewritten. keystore/debug.keystore survived (committed in-repo — the v0.4.1 fix paid off).
+- Video re-review was unnecessary: the user's three new screenshots (Screenshot_20260902_000941/000951/001015) are exactly the evidence the previous session used for the v0.4.2 root cause — v0.4.1 with working device DNS (172.20.10.1 = hotspot NAT) still failing the fetch (SELinux linkat neverallow, fixed by bindProc=false -> renameat commit path) and the global "Working…" card bug (fixed by packageOperationTargetsCard).
+- REAL BUG FOUND + FIXED while re-running the suite on this machine: `cancel destroys the process and lands FAILED` failed with "operation never reached a terminal state: null". This is a genuine scheduling race, not a flake: cancelCurrent() firing AFTER startOperation() but BEFORE the IO dispatcher first ran the job body skipped the body entirely -> its finally never released singleFlight/busy -> manager wedged forever ("another package operation is already running" on every later tap) and _current never terminal. FIX: operation job now launches CoroutineStart.ATOMIC + ensureActive() first — the block ALWAYS begins, cleanup finally is unavoidable, cancel-before-start lands honest FAILED("cancelled"); IDLE snapshot built before launch so the terminal state is attributable. The existing pin now passes deterministically on BOTH race orderings (previous session's green run was timing-luck). CHANGELOG 0.4.2 updated + RESTORE.txt hardened note.
+- Tests: FULL suite green — 554 executions (277 tests x debug/release), 0 failures (132 app + 145 terminal-emulator per variant).
+- Build: assembleDebug -> app-debug.apk verified (aapt2/apksigner/unzip): versionCode 10, versionName 0.4.2-m2.4, minSdk 26, targetSdk 28, extractNativeLibs=true, all 4 ABIs carry libproot/libproot-loader/libtalloc/libtermux, signing cert SHA-256 d96a6f66…8bf659 == pinned keystore (in-place update over v0.4.1 kept).
+- Payload: make_payload_m2.sh @ tip 1f72be9 (fix committed BEFORE bundling): zip 4.0 MB/249 files (0 dot-path entries, all key files pinned present), tgz 3.9 MB, bundle 2.5 MB (56 commits), APK 21 MB. sha256: apk 78306b16…d7d680b, zip 5662870e…e90a02, tgz 131c0512…3ecfebf4, bundle 25db79c1…8f05963. Masters in download/ (apk+README) + public/ + dist-master/.
+- Web: app/page.tsx rewritten for v0.4.2 (reset had reverted it to v0.4.1): in-place-update card (NO uninstall), SELinux root-cause summary mapped to the user's screenshots, per-card busy fix, §9 gate rewritten (install over v0.4.1 first, Nano must pass without the banner, plus Linux Shell regression check), new hashes. next dev on :3000 — all 4 artifacts HTTP 200 and byte-identical (sha256 re-verified over HTTP), page HTML renders v0.4.2.
+- NOTE: bundle/zip payloads were cut at tip 1f72be9; the page+worklog commit lands after (same accepted pattern as v0.4.1: payload = app source at a pinned tip, delivery metadata commits follow).
+
+Stage Summary:
+- v0.4.2-m2.4 delivered and HTTP-verified: SELinux linkat fix + per-card busy + cancel-race hardening; 277 tests green; APK 78306b16…d7d680b installs in place over v0.4.1 (cert d96a6f66…8bf659 unchanged).
+- User gate (TESTING §9): update over v0.4.1 -> Install Nano must reach "nano installed" with Working… ONLY on the nano card -> Open/type/Ctrl+O/Ctrl+X -> Check package environment shows fetch OK -> persistence -> uninstall -> Open protection -> Linux Shell still fine.
+- M2.5 stays blocked until the user confirms the §9 gate on device.
