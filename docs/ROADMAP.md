@@ -139,3 +139,30 @@ remote development.
 - [ ] Remaining M2.5 candidates: file manager, profiles, richer per-app
       Home cards (launch metadata for non-catalog packages), development
       environments.
+
+### M2.6 (2026-09-02, v0.6.0) — Linux compatibility & /proc architecture fix
+- [x] Reproduce + document the M2.5 regression: /proc removed from ALL guest
+      sessions → ps/top/htop broken (docs/M2.6-RESEARCH.md §1/§2).
+- [x] Root cause verified from primary sources: apk-tools 3.0.x
+      `is_proc_fd_ok()` → O_TMPFILE + linkat("/proc/self/fd/N") commit →
+      AOSP `neverallow all_untrusted_apps file_type:file link` → EACCES →
+      whole-download cancel, no fallback (identical in 3.0.6/3.0.8/master).
+- [x] Options evaluated A–G (two profiles only, transport wrapper, nested
+      proot, /proc/self/fd masking, apk 2 rollback, patched guest apk);
+      chosen: one-byte checksum-pinned libapk patch + explicit profiles
+      (docs/M2.6-RESEARCH.md §3/§4).
+- [x] GuestApkCompat: hash-driven, idempotent installer/verifier for the
+      patched guest apk library; honest Ready/NotApplicable/Failed states;
+      asset verified against its pinned sha256 before anything is written.
+- [x] GuestExecutionProfile INTERACTIVE_TERMINAL / PACKAGE_OPERATION on the
+      SAME builder/launcher (no duplicated runtime); package profile
+      refuse-guarded against /proc; tests pin no-drift.
+- [x] Interactive sessions bind a REAL /proc again when the patch is
+      verified; honest v0.5.0-shape degradation otherwise; Diagnostics rows
+      ("apk fd-link patch", "Interactive /proc").
+- [x] 292 tests/variant (584 executions) green; host rehearsal
+      (rehearse_m26_proc.sh) green.
+- [ ] Device gate §10 (Gates A–G: /proc, ps/top/htop, apk lifecycle, Node
+      end-to-end, app-side install, interactive CLI, session isolation).
+- [ ] Post-M2.6 candidates (per user direction): M2.7 session management +
+      CLI app profiles, or curated CLI app catalog.

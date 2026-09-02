@@ -167,3 +167,43 @@ Master Prompt §27).
 No UI beyond a Diagnostics runtime section; no proot/native code; no network
 stack beyond the installer's HTTPS GET; no catalog; no Hermes/Node/Python;
 no Home screen changes; no keyboard changes.
+
+## 12. M2.6 guest execution profiles + apk fd-link compat (docs/M2.6-RESEARCH.md)
+
+apk-tools 3.0.x selects its download-commit strategy with
+`is_proc_fd_ok()` = `access("/proc/self/fd", F_OK) == 0` (src/io.c). With
+/proc visible it commits every download via
+`linkat("/proc/self/fd/N", …, AT_SYMLINK_FOLLOW)`; AOSP sepolicy
+neverallows `link` for untrusted apps, so the commit dies with EACCES and
+apk cancels the whole download (no fallback — device-proven v0.4.0–v0.5.0).
+Without /proc apk uses named-tmpfile + renameat (allowed). Upstream
+(3.0.6 = 3.0.8 = master io.c) has no fallback; masking /proc/self/fd breaks
+the probe ineffectively or trades away other features.
+
+M2.6 therefore runs ONE patched guest apk and TWO explicit launch profiles
+on the SAME builder/proot/launcher (configuration only, never a duplicated
+runtime):
+
+- `GuestApkCompat` — verifies (and when needed installs) a ONE-BYTE,
+  checksum-pinned patch to the rootfs's own `usr/lib/libapk.so.3.0.0`
+  (3.0.6-r0): the standalone `"/proc/self/fd"` rodata literal becomes
+  `"/proc/self/fX"`, so `is_proc_fd_ok()` is permanently false and apk
+  always commits via renameat. The `"/proc/self/fd/%d"` script-execution
+  literal is untouched. Hash-driven and idempotent: Ready / NotApplicable
+  (user-modified rootfs is never touched) / Failed (honest reason). The
+  patched library ships as an app asset and is hash-verified before ANY
+  write (temp file + rename + post-write re-verification).
+- `GuestExecutionProfile.INTERACTIVE_TERMINAL` — Linux Shell and
+  catalog-app sessions: `/dev`, `/sys`, shared apk cache binds, and a REAL
+  `/proc` bind exactly when `GuestApkCompat` reports Ready. Otherwise the
+  session degrades honestly to the v0.5.0 shape (no /proc, apk still
+  works) and Diagnostics explains why.
+- `GuestExecutionProfile.PACKAGE_OPERATION` — every app-side apk exec:
+  minimal mounts, NEVER /proc (refuse-guarded in the builder; pinned by
+  tests). Even with the patched apk this profile stays no-/proc — defense
+  in depth on the device-proven safe path.
+
+Process semantics with /proc bound (documented, not faked): the guest sees
+the Android host procfs filtered by the kernel's hidepid=2 app isolation —
+`ps`/`top` show the app's real process tree with host pids; system-wide
+`/proc/stat`/`meminfo` are real. Nothing is filtered or simulated by us.

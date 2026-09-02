@@ -253,8 +253,9 @@ class RuntimeProcessLauncherTest {
     /**
      * M2.4: package commands reuse the SAME spec builder — only the guest
      * argv tail differs (apk command instead of /bin/sh -l). v0.4.2: package
-     * commands also pass bindProc=false (SELinux hardlink neverallow — see
-     * buildLaunchSpec KDoc), so the pinned package-op argv has NO /proc bind.
+     * commands run in the PACKAGE_OPERATION profile (M2.6 naming), which
+     * binds /dev + /sys and NEVER /proc (SELinux hardlink neverallow — see
+     * buildLaunchSpec KDoc).
      */
     @Test
     fun `guestCommand replaces the shell as the proot argv tail`() {
@@ -266,7 +267,7 @@ class RuntimeProcessLauncherTest {
             hostCwd = tmp.root,
             prootTmpDir = tmp.root,
             guestCommand = listOf("/sbin/apk", "add", "nano"),
-            bindProc = false,
+            profile = GuestExecutionProfile.PACKAGE_OPERATION,
         )
         assertEquals(
             listOf(
@@ -283,6 +284,7 @@ class RuntimeProcessLauncherTest {
             ),
             s.arguments,
         )
+        assertEquals(GuestExecutionProfile.PACKAGE_OPERATION, s.profile)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -312,8 +314,9 @@ class RuntimeProcessLauncherTest {
      * v0.4.1: the apk cache binds must sit AFTER the fixed binds and BEFORE
      * the guest argv — same proot --bind=host:guest mechanism, app-owned host
      * dirs, both apk-tools 3 cache locations covered.
-     * v0.4.2: package specs pass bindProc=false, so the full pinned package
-     * argv has /dev + /sys + cache binds and NEVER /proc.
+     * v0.4.2 / M2.6: package specs run in the PACKAGE_OPERATION profile, so
+     * the full pinned package argv has /dev + /sys + cache binds and NEVER
+     * /proc.
      */
     @Test
     fun `apkCacheDir adds cache binds before the guest argv`() {
@@ -327,7 +330,7 @@ class RuntimeProcessLauncherTest {
             prootTmpDir = tmp.root,
             guestCommand = listOf("/sbin/apk", "update"),
             apkCacheDir = cache,
-            bindProc = false,
+            profile = GuestExecutionProfile.PACKAGE_OPERATION,
         )
         assertEquals(
             listOf(
@@ -371,16 +374,19 @@ class RuntimeProcessLauncherTest {
      * Permission denied"). Without /proc, apk's is_proc_fd_ok() is false and
      * it commits via named-tmpfile + renameat (create/rename — allowed).
      *
-     * v0.5.0 (device report 2026-09-02 10:03: manual `apk update` in the
-     * Linux Shell died with the SAME "Permission denied" while app-side
-     * installs worked): INTERACTIVE SESSIONS now use the same shape via
-     * [RuntimeProcessLauncher.buildSessionSpec] — no /proc, plus the SHARED
-     * apk cache binds so the session's manual apk uses one index/cache with
-     * the app-side operations (the 10:03 session also showed a stale
-     * rootfs-internal cache: "31 distinct packages available").
+     * v0.5.0 (device report 2026-09-02 10:03): INTERACTIVE SESSIONS used the
+     * same shape — no /proc, plus the SHARED apk cache binds so the session's
+     * manual apk uses one index/cache with the app-side operations.
+     *
+     * v0.6.0 (M2.6, docs/M2.6-RESEARCH.md): the guest apk is fd-link-patched
+     * (GuestApkCompat), so interactive sessions bind a REAL /proc again when
+     * the patch is verified (procEnabled=true) and degrade honestly to the
+     * v0.5.0 shape when it is not (procEnabled=false). The PACKAGE_OPERATION
+     * profile never binds /proc in either state, and the builder REFUSES a
+     * /proc request for it — the profiles cannot drift.
      */
     @Test
-    fun `package specs never bind proc and sessions are apk-capable`() {
+    fun `package specs never bind proc and sessions are proc-parameterised`() {
         val rootfs = tmp.newFolder("rootfs")
         val native = makeNativeDir()
         val cache = tmp.newFolder("apk-cache")
@@ -391,12 +397,14 @@ class RuntimeProcessLauncherTest {
             prootTmpDir = tmp.root,
             guestCommand = listOf("/sbin/apk", "add", "nano"),
             apkCacheDir = cache,
-            bindProc = false,
+            profile = GuestExecutionProfile.PACKAGE_OPERATION,
         )
         assertTrue(packageSpec.arguments.none { it == "--bind=/proc" })
         assertTrue(packageSpec.arguments.any { it == "--bind=/dev" })
         assertTrue(packageSpec.arguments.any { it == "--bind=/sys" })
+        assertEquals(GuestExecutionProfile.PACKAGE_OPERATION, packageSpec.profile)
 
+        // honest fallback (patch not verified): v0.5.0 shape — no /proc
         val sessionSpec = RuntimeProcessLauncher.buildSessionSpec(
             nativeLibraryDir = native.absolutePath,
             rootfsDir = rootfs,
@@ -404,10 +412,10 @@ class RuntimeProcessLauncherTest {
             prootTmpDir = tmp.root,
             guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
             apkCacheDir = cache,
+            procEnabled = false,
         )
-        assertTrue("sessions must drop /proc (SELinux linkat neverallow)", sessionSpec.arguments.none { it == "--bind=/proc" })
-        assertTrue(sessionSpec.arguments.any { it == "--bind=/dev" })
-        assertTrue(sessionSpec.arguments.any { it == "--bind=/sys" })
+        assertTrue("sessions without a verified fd-link patch must drop /proc", sessionSpec.arguments.none { it == "--bind=/proc" })
+        assertEquals(GuestExecutionProfile.INTERACTIVE_TERMINAL, sessionSpec.profile)
         assertTrue(
             "sessions share the app's apk index/package cache (etc)",
             sessionSpec.arguments.any {
@@ -421,5 +429,47 @@ class RuntimeProcessLauncherTest {
             },
         )
         assertEquals(listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"), sessionSpec.arguments.takeLast(2))
+
+        // M2.6 goal: with the patch verified, the SAME session shape binds a
+        // REAL /proc — ps/top/htop work — while everything else is unchanged.
+        val procSession = RuntimeProcessLauncher.buildSessionSpec(
+            nativeLibraryDir = native.absolutePath,
+            rootfsDir = rootfs,
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
+            apkCacheDir = cache,
+            procEnabled = true,
+        )
+        assertTrue("interactive sessions with a verified fd-link patch bind /proc", procSession.arguments.any { it == "--bind=/proc" })
+        // no drift besides /proc: identical argv minus the /proc bind
+        assertEquals(
+            sessionSpec.arguments.dropWhile { it != "--bind=/sys" },
+            procSession.arguments.dropWhile { it != "--bind=/sys" },
+        )
+        assertEquals(sessionSpec.environment, procSession.environment)
+        assertEquals(sessionSpec.executable, procSession.executable)
+    }
+
+    /**
+     * M2.6 drift guard: the PACKAGE_OPERATION environment exists precisely
+     * because apk must run WITHOUT /proc on Android (linkat neverallow).
+     * Requesting /proc for it is a caller bug — the builder refuses.
+     */
+    @Test
+    fun `package profile refuses a proc bind`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val native = makeNativeDir()
+        assertThrows(IllegalArgumentException::class.java) {
+            RuntimeProcessLauncher.buildLaunchSpec(
+                nativeLibraryDir = native.absolutePath,
+                rootfsDir = rootfs,
+                hostCwd = tmp.root,
+                prootTmpDir = tmp.root,
+                guestCommand = listOf("/sbin/apk", "update"),
+                profile = GuestExecutionProfile.PACKAGE_OPERATION,
+                procEnabled = true,
+            )
+        }
     }
 }

@@ -2,7 +2,9 @@ package app.pocketshell.packages
 
 import android.content.Context
 import android.net.ConnectivityManager
+import app.pocketshell.runtime.GuestApkCompat
 import app.pocketshell.runtime.GuestEnvironment
+import app.pocketshell.runtime.GuestExecutionProfile
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeState
@@ -150,30 +152,53 @@ object PackageGateway {
 
     /**
      * Best-effort guest environment repair before an interactive session
-     * spawns (v0.5.0): refresh the managed resolv.conf to the CURRENT
-     * network's resolvers and make sure the apk cache/tmp dirs exist with
-     * sane modes. Best-effort by design — a failure here never blocks the
-     * session; whatever is genuinely broken surfaces with its real error the
-     * moment apk runs. (Package operations run the same repairs strictly —
-     * see [AlpinePackageManager.runApk].)
+     * spawns (v0.5.0; extended M2.6): refresh the managed resolv.conf to the
+     * CURRENT network's resolvers, make sure the apk cache/tmp dirs exist
+     * with sane modes, and verify (or install) the guest apk fd-link patch —
+     * the M2.6 architecture that lets sessions bind a REAL /proc while apk
+     * keeps its SELinux-safe renameat commit (docs/M2.6-RESEARCH.md).
+     *
+     * Best-effort by design — a failure here never blocks the session; the
+     * returned [GuestApkCompat.Result] tells the caller whether /proc may be
+     * bound, and whatever is genuinely broken surfaces with its real error
+     * the moment apk runs. (Package operations run the DNS/workspace repairs
+     * strictly — see [AlpinePackageManager.runApk] — but never need the
+     * patch: their [GuestExecutionProfile.PACKAGE_OPERATION] spec has no
+     * /proc either way.)
      */
-    fun prepareGuestForSession(context: Context, rootfsDir: File) {
+    fun prepareGuestForSession(context: Context, rootfsDir: File): GuestApkCompat.Result {
+        val compat = runCatching {
+            GuestApkCompat.ensure(rootfsDir, readAsset = ::readGuestAsset)
+        }.getOrElse {
+            GuestApkCompat.Result.Failed("apk fd-link patch check failed: ${it.message ?: it.javaClass.simpleName}")
+        }
         runCatching {
             GuestEnvironment.ensureDnsResolvers(rootfsDir, deviceDnsServers(context))
             GuestEnvironment.ensureApkWorkspace(rootfsDir)
         }
+        return compat
+    }
+
+    /** Reads the embedded patched guest apk library (null = missing asset). */
+    private fun readGuestAsset(name: String): ByteArray? = try {
+        appContext?.assets?.open(name)?.use { it.readBytes() }
+    } catch (_: Exception) {
+        null
     }
 
     /**
-     * One proot spec builder shared by every package command — literally the
-     * same [RuntimeProcessLauncher.buildLaunchSpec] the Linux Shell uses, with
-     * a different guest argv (apk commands instead of /bin/sh -l) plus the apk
-     * cache binds. The shell path passes no apkCacheDir and stays untouched.
+     * One proot spec builder shared by every package command — the
+     * [GuestExecutionProfile.PACKAGE_OPERATION] shape of the SAME
+     * [RuntimeProcessLauncher.buildLaunchSpec] the Linux Shell uses, with a
+     * different guest argv (apk commands instead of /bin/sh -l) plus the apk
+     * cache binds. The builder refuse-guard makes it impossible for this
+     * profile to drift into binding /proc.
      *
-     * v0.4.2: package specs pass bindProc=false — see
-     * [RuntimeProcessLauncher] KDoc (apk's O_TMPFILE+linkat download commit is
-     * SELinux-neverallowed for untrusted apps; without /proc apk uses its
-     * named-tmpfile+renameat path, which is allowed).
+     * v0.4.2 (device-proven): package specs run WITHOUT /proc — apk's
+     * O_TMPFILE+linkat download commit is SELinux-neverallowed for untrusted
+     * apps; without /proc apk uses its named-tmpfile+renameat path, which is
+     * allowed. M2.6 keeps this exactly (defense in depth): even with the
+     * guest apk patched, the package-operation environment stays minimal.
      */
     private fun buildSpec(
         context: Context,
@@ -187,7 +212,7 @@ object PackageGateway {
             prootTmpDir = File(context.cacheDir, "proot-tmp").apply { mkdirs() },
             guestCommand = guestCommand,
             apkCacheDir = apkCacheDir(storage),
-            bindProc = false,
+            profile = GuestExecutionProfile.PACKAGE_OPERATION,
         )
 
     // ------------------------------------------------------- diagnostics only
@@ -266,6 +291,18 @@ object PackageGateway {
             apkError = "runtime not READY"
         }
 
+        // M2.6.11: read-only fd-link patch status (never installs from the
+        // diagnostics button — installation happens on session spawn).
+        val compatStatus = if (ready) {
+            GuestApkCompat.ensure(
+                storage.rootfsDir,
+                readAsset = { readGuestAsset(it) },
+                installIfMissing = false,
+            )
+        } else {
+            GuestApkCompat.Result.Failed("runtime not READY")
+        }
+
         PackageEnvironmentReport(
             runtimeReady = ready,
             apkVersion = apkVersion,
@@ -287,6 +324,22 @@ object PackageGateway {
             },
             updateProbeOk = updateProbeOk,
             updateProbeDetail = updateProbeDetail,
+            // M2.6.11 diagnostics: honest, read-only report of the fd-link
+            // patch state and the /proc policy it licenses. status() NEVER
+            // installs (no mutation from a diagnostics button beyond the
+            // already-explicit apk probe above).
+            apkFdLinkPatch = when (val status = compatStatus) {
+                is GuestApkCompat.Result.Ready ->
+                    "applied — fd-link commit disabled (patched libapk verified)"
+                is GuestApkCompat.Result.NotApplicable -> status.reason
+                is GuestApkCompat.Result.Failed -> status.reason
+            },
+            guestProcPolicy = if (GuestApkCompat.isProcSafe(compatStatus)) {
+                "interactive sessions bind /proc (real process tools)"
+            } else {
+                "interactive sessions run without /proc until the patch is applied " +
+                    "(open the Linux Shell once to install it)"
+            },
         )
     }
 
@@ -316,4 +369,6 @@ data class PackageEnvironmentReport(
     val dnsSource: String? = null,
     val updateProbeOk: Boolean? = null,
     val updateProbeDetail: String? = null,
+    val apkFdLinkPatch: String? = null,
+    val guestProcPolicy: String? = null,
 )

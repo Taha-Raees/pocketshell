@@ -253,6 +253,8 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     else -> "FAILED — ${(report.updateProbeDetail ?: "unknown error").take(200)}"
                 },
             )
+            RuntimeFactRow("apk fd-link patch", report.apkFdLinkPatch ?: "—")
+            RuntimeFactRow("Interactive /proc", report.guestProcPolicy ?: "—")
         }
     }
 }

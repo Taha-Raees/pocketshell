@@ -48,9 +48,54 @@ import java.io.File
  * and it uses the named-tmpfile + renameat commit path — plain
  * create/rename/unlink, fully allowed. apk needs /proc for nothing else in
  * this flow (find_mountpoint degrades to a no-op; the cache remount path
- * only triggers for read-only caches). Interactive sessions keep the /proc
- * bind unchanged.
+ * only triggers for read-only caches).
+ *
+ * v0.5.0 device report (2026-09-02 10:03: manual `apk update` in the Linux
+ * Shell died with the SAME Permission denied): INTERACTIVE sessions dropped
+ * the /proc bind too — apk worked everywhere, but the guest had no procfs at
+ * all, so `ps`, `top`, `htop` had nothing to read. That trade is what M2.6
+ * reverses (docs/M2.6-RESEARCH.md): the guest's libapk is patched (one
+ * checksum-pinned byte — see GuestApkCompat) so is_proc_fd_ok() is
+ * permanently false, and interactive sessions bind a REAL /proc again via
+ * [GuestExecutionProfile.INTERACTIVE_TERMINAL]. The two launch policies are
+ * now explicit profiles on the SAME builder/proot/launcher — configuration
+ * only, never a duplicated runtime:
+ *
+ *  - INTERACTIVE_TERMINAL: full guest devices, PTY, shared apk cache binds
+ *    and /proc WHEN the patched apk library is verified; without that
+ *    verification sessions degrade honestly to the v0.5.0 shape (no /proc).
+ *  - PACKAGE_OPERATION: minimal mounts (no /proc — enforced in the builder
+ *    with require()), the proven-safe apk commit environment.
  */
+
+/**
+ * The two guest launch policies (M2.6, docs/M2.6-RESEARCH.md §4.2). Both run
+ * the SAME proot binary, the SAME rootfs, the SAME shared apk cache — only
+ * the mount configuration differs, and the difference is pinned by tests so
+ * the profiles cannot drift.
+ */
+enum class GuestExecutionProfile(val description: String) {
+    /**
+     * Linux Shell and catalog-app sessions: PTY, full guest devices, shared
+     * apk cache, and a real /proc bind when the guest apk is fd-link-safe
+     * ([GuestApkCompat] verified). /proc exposes the Android host procfs
+     * filtered by the kernel's hidepid=2 app isolation — real process tools
+     * see the app's own real process tree, honestly.
+     */
+    INTERACTIVE_TERMINAL(
+        "interactive shell: full devices, PTY, /proc when the guest apk is fd-link-safe",
+    ),
+
+    /**
+     * Every app-side apk exec (update/search/add/del/info): minimal mounts,
+     * NO /proc — the environment where apk's stock commit path cannot hit the
+     * SELinux linkat neverallow. Never trade this away; the builder refuses.
+     */
+    PACKAGE_OPERATION(
+        "package operation: minimal mounts, no /proc (SELinux-safe apk commit environment)",
+    ),
+}
+
 object RuntimeProcessLauncher {
 
     const val PROOT_LIB = "libproot.so"
@@ -104,19 +149,17 @@ object RuntimeProcessLauncher {
     }
 
     /**
-     * v0.5.0 — THE interactive-session policy. Every guest session the app
-     * spawns (Linux Shell and catalog-app sessions alike) uses this shape:
+     * v0.6.0 — THE interactive-session policy (M2.6). Every guest session the
+     * app spawns (Linux Shell and catalog-app sessions alike) uses this
+     * shape, parameterised on [procEnabled]:
      *
-     * - NO /proc bind. Same SELinux reason as package commands (v0.4.2):
-     *   with /proc visible, apk-tools 3.0.x commits downloads via
-     *   linkat("/proc/self/fd/N", …) — an untrusted-app neverallow — so the
-     *   user's MANUAL `apk update` / `apk add` inside the shell died with
-     *   "Permission denied" (device report 2026-09-02 10:03) while the
-     *   app-side operations (no /proc) worked. Without /proc apk uses its
-     *   named-tmpfile + renameat commit path — allowed. Honest cost: the
-     *   guest cannot see /proc, so process tools (`ps`, `top`, htop's
-     *   process list) have nothing to read. A working package manager wins;
-     *   the tools fail with their own honest errors.
+     * - procEnabled=true: REAL /proc is bound — `ps`, `top`, `htop` work.
+     *   Callers may only pass true after [GuestApkCompat] reported the guest
+     *   apk library fd-link-safe; otherwise the session's own manual `apk`
+     *   would die at the SELinux linkat neverallow again.
+     * - procEnabled=false (the honest default): the v0.5.0 shape — no /proc;
+     *   apk works via its renameat commit, process tools fail with their own
+     *   errors, Diagnostics explains why.
      * - The SAME app-owned apk cache binds the package operations use, so
      *   the session's manual apk shares one index/package cache with the
      *   UI (the 2026-09-02 10:03 session also showed "31 distinct packages"
@@ -129,6 +172,7 @@ object RuntimeProcessLauncher {
         prootTmpDir: File,
         guestCommand: List<String>,
         apkCacheDir: File,
+        procEnabled: Boolean = false,
     ): LaunchSpec = buildLaunchSpec(
         nativeLibraryDir = nativeLibraryDir,
         rootfsDir = rootfsDir,
@@ -136,7 +180,8 @@ object RuntimeProcessLauncher {
         prootTmpDir = prootTmpDir,
         guestCommand = guestCommand,
         apkCacheDir = apkCacheDir,
-        bindProc = false,
+        profile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
+        procEnabled = procEnabled,
     )
 
     data class LaunchSpec(
@@ -145,6 +190,7 @@ object RuntimeProcessLauncher {
         val environment: List<String>,
         val workingDirectory: String,
         val guestLabel: String,
+        val profile: GuestExecutionProfile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
     )
 
     fun buildLaunchSpec(
@@ -155,7 +201,8 @@ object RuntimeProcessLauncher {
         term: String = "xterm-256color",
         guestCommand: List<String> = listOf(GUEST_SHELL, "-l"),
         apkCacheDir: File? = null,
-        bindProc: Boolean = true,
+        profile: GuestExecutionProfile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
+        procEnabled: Boolean = profile == GuestExecutionProfile.INTERACTIVE_TERMINAL,
     ): LaunchSpec {
         // Same contract as [preconditionProblem], thrown so programmatic
         // callers get a hard, honest failure (UI callers preflight instead).
@@ -165,6 +212,13 @@ object RuntimeProcessLauncher {
         }
         require(guestCommand.isNotEmpty()) {
             "guestCommand must not be empty — proot would have nothing to exec"
+        }
+        // Profile-drift guard (M2.6): the package-operation environment exists
+        // precisely because apk must run WITHOUT /proc on Android. A caller
+        // asking for /proc here is a bug, not a preference.
+        require(!(profile == GuestExecutionProfile.PACKAGE_OPERATION && procEnabled)) {
+            "PACKAGE_OPERATION must not bind /proc — the SELinux linkat neverallow " +
+                "makes every apk commit fail; use the patched-guest INTERACTIVE_TERMINAL profile"
         }
 
         val proot = File(nativeLibraryDir, PROOT_LIB)
@@ -183,11 +237,12 @@ object RuntimeProcessLauncher {
             "--cwd=/root",
             "--bind=/dev",
         )
-        // v0.4.2: package commands run WITHOUT /proc (see class KDoc) — apk
-        // then commits downloads via its named-tmpfile + renameat path instead
-        // of linkat(/proc/self/fd), which Android SELinux neverallows for
-        // untrusted apps (EACCES = the v0.4.0/v0.4.1 "Permission denied").
-        if (bindProc) {
+        // /proc policy (see class KDoc + docs/M2.6-RESEARCH.md): interactive
+        // sessions bind a REAL /proc only when the guest apk is fd-link-safe
+        // (patched libapk verified — GuestApkCompat); package operations NEVER
+        // do (require-guarded above), so apk always keeps its allowed
+        // named-tmpfile + renameat commit path.
+        if (procEnabled) {
             arguments.add("--bind=/proc")
         }
         arguments.add("--bind=/sys")
@@ -231,6 +286,7 @@ object RuntimeProcessLauncher {
             environment = environment,
             workingDirectory = hostCwd.absolutePath,
             guestLabel = "Alpine Linux",
+            profile = profile,
         )
     }
 }

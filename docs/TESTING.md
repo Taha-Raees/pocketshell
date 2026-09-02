@@ -300,3 +300,68 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
 - [ ] If the guest process dies mid-`apk add` (app killed): the next package
       operation just works (apk's own locking/journal keeps the database
       consistent; partial downloads are discarded by apk).
+
+## 10. Manual acceptance — M2.6 (Linux compatibility recovery: real /proc + real apk) — DEVICE GATE PENDING
+
+Install v0.6.0-m2.6 in place over v0.5.0 (same signing certificate). The
+guest rootfs does NOT need reinstalling — the fd-link patch installs itself
+on the first session spawn. Architecture evidence: docs/M2.6-RESEARCH.md.
+Sandbox rehearsal passed (scripts/rehearse_m26_proc.sh); the device is the
+gate.
+
+### Gate A — /proc in the interactive guest (Linux Shell)
+- [ ] Open Linux Shell (first spawn also installs the fd-link patch —
+      Diagnostics afterwards shows "apk fd-link patch: applied").
+- [ ] `ls /proc` → real guest-visible procfs (numeric pid entries, version,
+      meminfo, stat, …).
+- [ ] `cat /proc/version` → Linux version banner (the HOST kernel — honest).
+- [ ] `cat /proc/meminfo | head -3` → real values.
+- [ ] `cat /proc/cpuinfo | head -5` → real values.
+
+### Gate B — process tools
+- [ ] `ps` → real process list (the app's own process tree, host pids,
+      hidepid-filtered — see docs/M2.6-RESEARCH.md §4.3).
+- [ ] `top` → opens, updates, redraws; `q` quits. (busybox top is batched:
+      `top -b -n 2` also proves refresh.)
+
+### Gate C — package manager in the SAME session (the M2.6 point)
+- [ ] `apk --version` → apk-tools 3.0.6-r0.
+- [ ] `apk update` → fetches OK (no "Permission denied").
+- [ ] `apk search nano` → hits.
+- [ ] `apk add htop` → installs; `htop` opens, updates, quits.
+
+### Gate D — Node.js end-to-end (M2.5 validation carried forward)
+- [ ] `apk add nodejs npm` → installs.
+- [ ] `node --version` && `npm --version` → real versions.
+- [ ] `mkdir -p ~/test-node && cd ~/test-node`
+- [ ] `echo 'console.log("PocketShell Node works")' > index.js`
+- [ ] `node index.js` → prints `PocketShell Node works`.
+
+### Gate E — app-side installation (M2.5 must keep working)
+- [ ] Explore → search "nano" → Install/Uninstall still honest, per-card
+      "Working…", real apk execution, real installed state.
+- [ ] Home still lists installed catalog apps with real versions.
+
+### Gate F — interactive CLI regression
+- [ ] `nano test.txt` → type, arrows, Enter, Ctrl+O, Ctrl+X — unchanged.
+- [ ] `echo hello`, `pwd`, `ls`, `cd`, `mkdir/rm -rf`, `cat /etc/alpine-release`.
+- [ ] `git --version` (if installed), `node --version` (after Gate D).
+- [ ] Keyboard: CTRL+C/D/Z/L/A/E/W, TAB, ESC, arrows, HOME, END, PgUp/PgDn.
+
+### Gate G — session isolation
+- [ ] Start `top` in the Linux Shell; while it runs, install a package from
+      Explore → top keeps updating, the terminal never freezes, the install
+      completes.
+- [ ] Quit top (`q`) → shell prompt returns.
+
+### Diagnostics (explicit button)
+- [ ] "apk fd-link patch" → `applied — fd-link commit disabled (patched
+      libapk verified)` after the first session spawn.
+- [ ] "Interactive /proc" → `interactive sessions bind /proc (real process
+      tools)`.
+
+### Honest degradation (only if it happens — report it if seen)
+- If "apk fd-link patch" shows `NotApplicable` (e.g. an in-guest
+  `apk upgrade` replaced the library), interactive sessions run WITHOUT
+  /proc (v0.5.0 shape) and Diagnostics says so; reinstall the runtime from
+  Diagnostics to restore the pinned rootfs. apk keeps working either way.

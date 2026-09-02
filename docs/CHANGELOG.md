@@ -3,6 +3,71 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.6.0-m2.6] — 2026-09-02 — M2.6: Linux compatibility recovery — real /proc + real apk, no trade
+
+### Why this milestone exists
+- M2.5 made the interactive guest apk-capable by removing the /proc bind from
+  EVERY guest session. The package manager worked; `ps`, `top` and `htop` had
+  no procfs to read. That violates the product's own compatibility list
+  (top/htop/ps/tmux/vim/…) and the Golden Rule: PocketShell must not trade
+  one Linux feature for another.
+
+### Architecture (docs/M2.6-RESEARCH.md — full evidence chain)
+- **Root cause, source-verified:** apk-tools 3.0.x picks its download-commit
+  strategy with `is_proc_fd_ok()` = `access("/proc/self/fd", F_OK) == 0`
+  (src/io.c, identical in 3.0.6 and 3.0.8 incl. upstream master). With /proc
+  visible it commits every download through
+  `linkat("/proc/self/fd/N", …, AT_SYMLINK_FOLLOW)`; AOSP
+  `app_neverallows.te` (`neverallow all_untrusted_apps file_type:file link`)
+  makes the kernel return EACCES and apk cancels the whole download — no
+  fallback for that errno. Without /proc it uses the named-tmpfile + renameat
+  path (allowed; device-proven since v0.4.2).
+- **The M2.6 fix — GuestApkCompat:** a ONE-BYTE, checksum-pinned patch to
+  Alpine's OWN `usr/lib/libapk.so.3.0.0` (3.0.6-r0 from the pinned
+  minirootfs) turns the gate literal `"/proc/self/fd"` into
+  `"/proc/self/fX"`, so `is_proc_fd_ok()` is permanently false and apk always
+  commits via renameat. Same binary version, same real downloads/output/exit
+  codes, same database. The `"/proc/self/fd/%d"` script-execution literal is
+  untouched. Reproducible: `scripts/patch_apk_fdlink.py` (two literals,
+  exactly one code reference each — disassembly-verified per arch).
+- **GuestExecutionProfile (M2.6.3):** the two launch policies are now
+  explicit on the SAME builder/proot/launcher —
+  `INTERACTIVE_TERMINAL` (sessions; binds a REAL /proc when the patched
+  library is verified, honest no-/proc fallback otherwise) and
+  `PACKAGE_OPERATION` (app-side apk execs; minimal mounts, NEVER /proc —
+  refuse-guarded in the builder and pinned by tests). One rootfs, one shared
+  cache, one database; no duplicated runtime.
+- **Expected process semantics (documented, not faked):** with /proc bound the
+  guest sees the Android host procfs filtered by the kernel's hidepid=2 app
+  isolation — `ps`/`top` show the app's real process tree with host pids;
+  system-wide `/proc/stat`/`meminfo` are real. No filtering, no fake table.
+
+### Added
+- `GuestApkCompat` — hash-driven, idempotent patch installer/verifier:
+  Ready (patched verified) / NotApplicable (user-modified rootfs — never
+  touched) / Failed (honest reason). The patched library ships as an app
+  asset and is verified against its pinned sha256 BEFORE anything is written;
+  install is temp-file + rename with a post-write re-verification.
+- `PackageGateway.prepareGuestForSession` now also verifies/installs the
+  patch and its result decides the session's /proc bind
+  (`TerminalSessionManager`).
+- Diagnostics (M2.6.11): "apk fd-link patch" and "Interactive /proc" rows in
+  the package-environment report — read-only, never installs from the
+  button; explains the exact state and how to fix it.
+- Regression tests: profile pins (proc-enabled session shape, no-drift argv
+  equivalence, PACKAGE_OPERATION refuse-guard), GuestApkCompat matrix
+  (Ready/rewrite/unknown-untouched/missing/corrupt/status-only/unreadable).
+  292 tests per variant, 584 executions, 0 failures.
+
+### Compatibility restored (device gate pending — docs/TESTING.md §10)
+- `ls /proc`, `cat /proc/version`, `/proc/meminfo` real again in the guest;
+  `ps` and `top` work; `apk update/search/add/del` still work BOTH in the
+  shell (patched apk with /proc bound) and from the app UI (no-/proc profile).
+- If the guest rootfs was modified by an in-guest `apk upgrade`, the patch
+  reports NotApplicable, sessions degrade honestly to the v0.5.0 shape, and
+  Diagnostics explains the reinstall path — the user's runtime is never
+  overwritten blindly.
+
 ## [0.5.0-m2.5] — 2026-09-02 — M2.5: an apk-capable guest shell + install-any-searched-package
 
 ### Device context (v0.4.4 confirmed working)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import app.pocketshell.packages.PackageGateway
+import app.pocketshell.runtime.GuestApkCompat
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
@@ -147,12 +148,15 @@ object TerminalSessionManager {
         }
         ShellEnvironment.ensureDirs(appContext)
         val storage = RuntimeStorage(appContext.noBackupFilesDir)
-        // v0.5.0: refresh the guest's DNS/apk-workspace best-effort, then spawn
-        // with the APK-CAPABLE session spec (no /proc + shared apk cache binds
-        // — see RuntimeProcessLauncher.buildSessionSpec): manual `apk update` /
-        // `apk add` inside this session now works and shares ONE cache with
-        // the app-side package operations.
-        PackageGateway.prepareGuestForSession(appContext, storage.rootfsDir)
+        // M2.6: prepare the guest (DNS/apk workspace best-effort + the apk
+        // fd-link patch — docs/M2.6-RESEARCH.md). When the patched guest apk
+        // library is verified, the session binds a REAL /proc again (ps/top/
+        // htop work) while apk keeps its SELinux-safe renameat commit. Any
+        // other outcome degrades honestly to the v0.5.0 shape (no /proc, apk
+        // still works) — never a fake process table, and Diagnostics reports
+        // the exact reason.
+        val compat = PackageGateway.prepareGuestForSession(appContext, storage.rootfsDir)
+        val procEnabled = GuestApkCompat.isProcSafe(compat)
         val prootTmp = File(appContext.cacheDir, "proot-tmp").apply { mkdirs() }
         val spec = RuntimeProcessLauncher.buildSessionSpec(
             nativeLibraryDir = appContext.applicationInfo.nativeLibraryDir,
@@ -161,6 +165,7 @@ object TerminalSessionManager {
             prootTmpDir = prootTmp,
             guestCommand = guestCommand,
             apkCacheDir = PackageGateway.apkCacheDir(storage),
+            procEnabled = procEnabled,
         )
         return spawn(
             context = appContext,
