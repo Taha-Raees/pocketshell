@@ -3,10 +3,12 @@ package app.pocketshell.packages
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -254,20 +256,32 @@ class PackageOperationManager(
         }
         _busy.value = true
         val id = nextId++
-        runningJob = scope.launch {
+        // The IDLE snapshot is built BEFORE launching so a cancel racing the
+        // dispatch can still land an honest terminal state for THIS exact op.
+        val snapshot = PackageOperation(
+            id = id,
+            kind = kind,
+            packageName = packageName,
+            state = PackageOperationState.IDLE,
+            startTimeEpochMs = clock(),
+        )
+        // ATOMIC start: the block ALWAYS begins even if the job was already
+        // cancelled, so the catch/finally below always run. With a plain
+        // start, a cancel landing before the dispatcher first ran the body
+        // would skip the body entirely — its finally would never release
+        // singleFlight/busy (manager wedged: every later op refused with
+        // "another package operation is already running") and _current would
+        // never reach a terminal state. ensureActive() converts that
+        // cancel-before-start into the same honest FAILED("cancelled") as any
+        // later cancel; the fallback to [snapshot] keeps the terminal state
+        // attributable even when the body crashed before its first update().
+        runningJob = scope.launch(start = CoroutineStart.ATOMIC) {
             try {
-                body(
-                    PackageOperation(
-                        id = id,
-                        kind = kind,
-                        packageName = packageName,
-                        state = PackageOperationState.IDLE,
-                        startTimeEpochMs = clock(),
-                    ),
-                )
+                ensureActive()
+                body(snapshot)
             } catch (e: CancellationException) {
-                val op = _current.value
-                if (op != null && op.state != PackageOperationState.SUCCESS && op.state != PackageOperationState.FAILED) {
+                val op = _current.value ?: snapshot
+                if (op.state != PackageOperationState.SUCCESS && op.state != PackageOperationState.FAILED) {
                     _current.value = op.copy(
                         state = PackageOperationState.FAILED,
                         endTimeEpochMs = clock(),
@@ -276,8 +290,8 @@ class PackageOperationManager(
                 }
                 throw e
             } catch (t: Throwable) {
-                val op = _current.value
-                if (op != null && op.state != PackageOperationState.SUCCESS && op.state != PackageOperationState.FAILED) {
+                val op = _current.value ?: snapshot
+                if (op.state != PackageOperationState.SUCCESS && op.state != PackageOperationState.FAILED) {
                     _current.value = op.copy(
                         state = PackageOperationState.FAILED,
                         endTimeEpochMs = clock(),

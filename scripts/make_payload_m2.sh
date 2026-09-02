@@ -60,6 +60,9 @@ WHAT IS NEW IN $VERSION (vs v0.4.1-m2.4):
   - HONESTY: catalog cards no longer show "Working…" on every entry while
     ONE install runs (v0.4.1 bug, same screenshot) — only the target card
     does; the other cards keep their true Install/Open labels.
+  - HARDENED: a cancel racing the operation start can no longer wedge the
+    package manager (the single-flight lock and busy flag are now released
+    by construction; the operation lands FAILED("cancelled") honestly).
   - v0.4.2 installs OVER v0.4.1 in place (same pinned signing key committed
     at keystore/debug.keystore). 277 unit tests, 0 failures.
 

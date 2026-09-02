@@ -49,9 +49,25 @@ All notable changes. Milestone checkpoints are named git commits
 - The failed-operation banner no longer repeats apk stderr lines verbatim
   when the summary line already contains them.
 
+### Fixed — a cancel racing the operation start can no longer wedge the manager
+- Found by the `cancel destroys the process and lands FAILED` pin while
+  rebuilding v0.4.2 (it caught a real scheduling race, not a flake): if
+  `cancelCurrent()` fired after the operation was requested but BEFORE the
+  IO dispatcher first ran the job body, the body never executed — so its
+  `finally` never released the single-flight lock or the busy flag, and
+  `_current` never reached a terminal state. Every later package op would
+  then be refused forever with "another package operation is already
+  running" until the app process died. The operation job now starts
+  `CoroutineStart.ATOMIC` with `ensureActive()` first: the block ALWAYS
+  begins, the cancel lands as an honest `FAILED("cancelled")` (or the real
+  result when the process was already started and destroyed), and the
+  cleanup `finally` is unavoidable. The same pin passes deterministically
+  on both race orderings.
+
 ### Notes
 - 4 new/updated unit pins: package specs never carry `/proc` while shell
-  specs keep it (exact argv pins), and the per-card busy rule. 272 tests.
+  specs keep it (exact argv pins), and the per-card busy rule. 277 tests
+  (132 app + 145 terminal-emulator), 0 failures.
 - v0.4.1→v0.4.2 installs as an in-place update (same pinned signing key).
 
 ## [0.4.1-m2.4] — 2026-09-01 — fix guest DNS + apk cache for real networks (device-recording hotfix)
