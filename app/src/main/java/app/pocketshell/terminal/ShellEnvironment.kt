@@ -41,22 +41,4 @@ object ShellEnvironment {
         "ANDROID_DATA=/data",
         "POCKETSHELL=1",
     )
-
-    /**
-     * Resolve a CLI app's executable against the shell PATH (brief §17 step 2).
-     * Returns the absolute path when a real, executable file is found.
-     */
-    fun resolveExecutable(executable: String, pathDirs: List<File>): String? {
-        if (executable.contains('/')) {
-            val f = File(executable)
-            return if (f.isFile && f.canExecute()) f.absolutePath else null
-        }
-        for (dir in pathDirs) {
-            val candidate = File(dir, executable)
-            if (candidate.isFile && candidate.canExecute()) return candidate.absolutePath
-        }
-        return null
-    }
-
-    fun shellPathDirs(): List<File> = listOf(File("/system/bin"), File("/system/xbin"))
 }

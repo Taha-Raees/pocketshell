@@ -3,20 +3,20 @@ package app.pocketshell
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import app.pocketshell.cliapps.CliApp
-import app.pocketshell.cliapps.CliAppLauncher
-import app.pocketshell.cliapps.CliAppRegistry
+import app.pocketshell.packages.CliAppCatalog
 import app.pocketshell.packages.CliAppCatalogEntry
+import app.pocketshell.packages.InstalledCatalogApp
 import app.pocketshell.packages.PackageGateway
+import app.pocketshell.packages.PackageProbeException
+import app.pocketshell.packages.installedCatalogApps
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
 import app.pocketshell.terminal.TerminalSessionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -29,14 +29,6 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     val sessions = TerminalSessionManager.sessions
     val creating = TerminalSessionManager.creating
-
-    private val registry = CliAppRegistry(application)
-
-    val installedApps = registry.apps.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = emptyList(),
-    )
 
     /** Runtime state (M2) — Home shows the honest Linux Shell availability. */
     val runtimeState = RuntimeManager.state
@@ -117,22 +109,48 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /** Launch a registered CLI app into a real session (brief §17). */
-    fun launchApp(app: CliApp): Boolean {
-        val result = CliAppLauncher.launch(getApplication<Application>(), registry, app)
-        return when (result) {
-            is CliAppLauncher.LaunchResult.Launched -> {
-                _selectedId.value = result.sessionId
-                true
+    // ------------------------------------------------------------- M2.4 flows
+
+    /**
+     * Home's "Installed CLI Apps" rows — the catalog subset the REAL apk
+     * database confirms installed (v0.4.4). The M1-era DataStore registry this
+     * replaces was written by nobody (M2.4 installs never touched it), so Home
+     * claimed "No apps installed yet" over a genuinely installed nano — a
+     * second, invented source of installed state. There is exactly one source
+     * now: [PackageGateway.installedVersions].
+     */
+    private val _installedCatalogApps = MutableStateFlow<List<InstalledCatalogApp>>(emptyList())
+    val installedCatalogApps: StateFlow<List<InstalledCatalogApp>> =
+        _installedCatalogApps.asStateFlow()
+
+    /** Real probe failure for the installed list — rendered, never swallowed. */
+    private val _installedProbeError = MutableStateFlow<String?>(null)
+    val installedProbeError: StateFlow<String?> = _installedProbeError.asStateFlow()
+
+    /**
+     * Ask the guest's apk database which catalog apps are installed. Called
+     * when Home becomes visible (runtime READY) and after every package
+     * operation reaches a terminal state — a terminal install via Explore must
+     * light up Home without a trip through the process killer.
+     */
+    fun refreshInstalledCatalogApps() {
+        if (!PackageGateway.isRuntimeReady()) return
+        viewModelScope.launch {
+            try {
+                val versions = withContext(Dispatchers.IO) {
+                    PackageGateway.installedVersions(
+                        CliAppCatalog.entries.map { it.apkPackageName },
+                    )
+                }
+                _installedCatalogApps.value = installedCatalogApps(versions)
+                _installedProbeError.value = null
+            } catch (e: PackageProbeException) {
+                // Keep the last real answer on screen; the failure is surfaced
+                // next to it — "Not installed" over a dead probe is a lie.
+                _installedProbeError.value = e.message
             }
-            is CliAppLauncher.LaunchResult.ExecutableNotFound ->
-                safeFailure("${app.name} could not start: executable '${app.executable}' not found on this device")
-            is CliAppLauncher.LaunchResult.Error ->
-                safeFailure("${app.name} could not start: ${result.message}")
         }
     }
-
-    // ------------------------------------------------------------- M2.4 flows
 
     /** Package operation state/busy from the process-scoped gateway. */
     val packageOperation = PackageGateway.operations.current
@@ -143,10 +161,11 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     val verifyingApp = _verifyingApp.asStateFlow()
 
     /**
-     * Open an installed catalog app (M2.4). Verifies the REAL state first —
-     * runtime READY, package in apk's database, executable via command -v —
-     * then creates a NEW dedicated guest session and launches the program in
-     * it. Refusals land in [launchError]; the app never dies and never fakes.
+     * Open an installed catalog app (M2.4) — from Explore or Home. Verifies
+     * the REAL state first — runtime READY, package in apk's database,
+     * executable via command -v — then creates a NEW dedicated guest session
+     * and launches the program in it. Refusals land in [launchError]; the app
+     * never dies and never fakes.
      *
      * @param onReady called on the main thread exactly when a real session was
      *   created and selected (caller navigates).

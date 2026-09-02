@@ -237,6 +237,68 @@ class AlpinePackageManagerTest {
     }
 
     @Test
+    fun `installed versions probe pins the v044 script and parses mixed answers`() = runBlocking {
+        val rootfs = newRootfs()
+        val native = makeNativeDir()
+        val manager = AlpinePackageManager(
+            rootfsDir = rootfs,
+            specFactory = { guestCommand ->
+                RuntimeProcessLauncher.buildLaunchSpec(
+                    native, rootfs, rootfs, rootfs, guestCommand = guestCommand,
+                )
+            },
+            runner = fakeRunner(ExecResult(exitCode = 0, stdout = "nano nano-9.2-r0\n", stderr = "")),
+            readyGuard = { null },
+        )
+        val versions = manager.getInstalledVersions(listOf("nano", "htop", "vim", "git", "python3"))
+        // THE device case (user screenshots 2026-09-02 09:10): nano genuinely
+        // installed, the catalog's LAST package (python3) absent. The old
+        // script let the loop's exit status (1) fail the whole probe and
+        // DISCARDED this stdout — every card lied "Not installed". The probe
+        // must succeed and carry nano's real version.
+        assertEquals(mapOf("nano" to "9.2-r0"), versions)
+        // v0.4.4 script: absolute /sbin/apk (no PATH dependence — the only
+        // PATH-dependent apk call the codebase had) + terminal `exit 0` (a
+        // completed loop is a successful probe; real exec failures throw).
+        assertEquals(
+            listOf(
+                "/bin/sh",
+                "-c",
+                "for p in \"\$@\"; do v=\$(\"/sbin/apk\" info -e -v \"\$p\" 2>/dev/null) && " +
+                    "echo \"\$p \$v\"; done; exit 0",
+                "sh",
+                "nano", "htop", "vim", "git", "python3",
+            ),
+            recordedSpecs.single().arguments.takeLast(9),
+        )
+    }
+
+    @Test
+    fun `installed versions probe throws PackageProbeException instead of faking empty`() = runBlocking {
+        val manager = makeManager(
+            fakeRunner(
+                // timeout: killed probe with no exit code
+                ExecResult(exitCode = null, stdout = "", stderr = "", error = "guest process did not finish within 30000ms and was terminated"),
+                // apk itself failed (127: command not found in a broken rootfs)
+                ExecResult(exitCode = 127, stdout = "", stderr = ""),
+            ),
+        )
+        try {
+            manager.getInstalledVersions(listOf("nano"))
+            throw AssertionError("a failed probe must not masquerade as an empty answer")
+        } catch (e: PackageProbeException) {
+            assertTrue(e.message!!.contains("did not finish"))
+            assertNull(e.exitCode)
+        }
+        try {
+            manager.getInstalledVersions(listOf("nano"))
+            throw AssertionError("a failed probe must not masquerade as an empty answer")
+        } catch (e: PackageProbeException) {
+            assertEquals(127, e.exitCode)
+        }
+    }
+
+    @Test
     fun `not-ready runtime refuses every operation with the real reason`() = runBlocking {
         val manager = makeManager(fakeRunner(), ready = false)
         val result = manager.updateRepositories()
@@ -245,6 +307,14 @@ class AlpinePackageManagerTest {
         assertEquals(0, recordedSpecs.size)
         assertTrue(manager.search("nano").isEmpty())
         assertNull(manager.guestExecutablePath("nano"))
+        // the installed-state probe refuses loudly too (v0.4.4) — a guard
+        // refusal is never a silent "not installed" answer
+        try {
+            manager.getInstalledVersions(listOf("nano"))
+            throw AssertionError("not-ready probe must refuse loudly")
+        } catch (e: PackageProbeException) {
+            assertTrue(e.message!!.contains("not READY"))
+        }
     }
 
     @Test

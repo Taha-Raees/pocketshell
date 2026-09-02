@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
@@ -32,19 +31,28 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.R
-import app.pocketshell.cliapps.CliApp
+import app.pocketshell.TerminalViewModel
+import app.pocketshell.packages.InstalledCatalogApp
+import app.pocketshell.packages.PackageOperationState
 import app.pocketshell.runtime.RuntimeState
 import app.pocketshell.terminal.TerminalSessionManager
 
 /**
  * Home screen (brief §12) — strict, honest hierarchy:
  *   1. Terminal (primary, always)
- *   2. Installed CLI Apps (empty until a real install; never pre-populated)
+ *   2. Installed CLI Apps (only what the REAL apk database confirms; empty
+ *      until a real install; never pre-populated — v0.4.4: the list comes
+ *      from `apk info -e -v` probes, not the M1-era DataStore registry that
+ *      nothing wrote and which kept claiming "No apps installed yet" over a
+ *      genuinely installed nano)
  *   3. Explore CLI Apps
  *   4. Active sessions (only when they actually exist)
  *
@@ -52,7 +60,7 @@ import app.pocketshell.terminal.TerminalSessionManager
  */
 @Composable
 fun HomeScreen(
-    installedApps: List<CliApp>,
+    terminalViewModel: TerminalViewModel,
     activeSessions: List<TerminalSessionManager.SessionEntry>,
     runtimeState: RuntimeState,
     launchError: String?,
@@ -60,12 +68,29 @@ fun HomeScreen(
     onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
     onOpenSession: (Long) -> Unit,
-    onLaunchApp: (CliApp) -> Unit,
+    onOpenedSession: () -> Unit,
     onExploreApps: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val installedApps by terminalViewModel.installedCatalogApps.collectAsStateWithLifecycle()
+    val probeError by terminalViewModel.installedProbeError.collectAsStateWithLifecycle()
+    val operation by terminalViewModel.packageOperation.collectAsStateWithLifecycle()
+
+    // Real state whenever Home becomes visible with a READY runtime …
+    LaunchedEffect(runtimeState) {
+        if (runtimeState == RuntimeState.READY) terminalViewModel.refreshInstalledCatalogApps()
+    }
+    // … and after every package operation lands (install/uninstall from
+    // Explore must light this list up without leaving the process).
+    LaunchedEffect(operation?.id, operation?.state) {
+        val state = operation?.state
+        if (state == PackageOperationState.SUCCESS || state == PackageOperationState.FAILED) {
+            if (runtimeState == RuntimeState.READY) terminalViewModel.refreshInstalledCatalogApps()
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -87,7 +112,14 @@ fun HomeScreen(
                 )
             }
         }
-        item { InstalledAppsSection(installedApps, onLaunchApp) }
+        item { InstalledAppsSection(
+            installedApps = installedApps,
+            probeError = probeError,
+            runtimeReady = runtimeState == RuntimeState.READY,
+            onOpenApp = { entry ->
+                terminalViewModel.openCatalogApp(entry) { onOpenedSession() }
+            },
+        ) }
         item { ExploreRow(onExploreApps) }
         if (activeSessions.isNotEmpty()) {
             item { ActiveSessionsSection(activeSessions, onOpenSession) }
@@ -265,8 +297,10 @@ private fun LinuxShellCard(
 
 @Composable
 private fun InstalledAppsSection(
-    installedApps: List<CliApp>,
-    onLaunchApp: (CliApp) -> Unit,
+    installedApps: List<InstalledCatalogApp>,
+    probeError: String?,
+    runtimeReady: Boolean,
+    onOpenApp: (app.pocketshell.packages.CliAppCatalogEntry) -> Unit,
 ) {
     Column {
         Text(
@@ -275,14 +309,34 @@ private fun InstalledAppsSection(
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        if (installedApps.isEmpty()) {
+        if (probeError != null) {
+            // Honest probe failure: never render "No apps installed yet" when
+            // the truth is "we could not ask right now" (v0.4.4).
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
             ) {
                 Text(
-                    text = "No apps installed yet",
+                    text = "Installed state unavailable: $probeError\n" +
+                        "The list below may be out of date — check the package environment from Diagnostics.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        } else if (installedApps.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                Text(
+                    text = if (runtimeReady) {
+                        "No apps installed yet"
+                    } else {
+                        "Install the Linux runtime to add CLI apps"
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(16.dp),
@@ -292,7 +346,7 @@ private fun InstalledAppsSection(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 installedApps.forEach { app ->
                     Card(
-                        onClick = { onLaunchApp(app) },
+                        onClick = { onOpenApp(app.entry) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -303,20 +357,20 @@ private fun InstalledAppsSection(
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    text = app.name,
+                                    text = app.entry.name,
                                     style = MaterialTheme.typography.titleSmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                if (app.description.isNotBlank()) {
-                                    Text(
-                                        text = app.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
+                                Text(
+                                    // description + the REAL version apk reported
+                                    text = app.entry.description +
+                                        "  \u00b7 Installed \u00b7 " + app.version,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,

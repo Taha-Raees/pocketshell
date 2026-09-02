@@ -16,7 +16,11 @@ interface PackageManager {
     /** `apk info -e -v <packageName>` — installed + real version, or not. */
     suspend fun getPackageInfo(packageName: String): PackageInfoResult
 
-    /** Batch variant over one guest exec (UI list refresh). */
+    /**
+     * Batch variant over one guest exec (UI list refresh). Returns only real
+     * answers; a failed guest exec throws [PackageProbeException] so callers
+     * can never mistake "probe failed" for "nothing installed".
+     */
     suspend fun getInstalledVersions(packageNames: List<String>): Map<String, String>
 
     /** `apk add <packageName>` — caller orchestrates verification states. */

@@ -3,7 +3,6 @@ package app.pocketshell.terminal
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import app.pocketshell.cliapps.CliApp
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
@@ -210,27 +209,6 @@ object TerminalSessionManager {
             // no-crash boundary (TerminalViewModel.safeSpawn).
             _creating.value = false
         }
-    }
-
-    /** Convenience: launch a registered CLI app (real executable, real session). */
-    fun createSessionForApp(context: Context, app: CliApp): SessionEntry {
-        val resolved = ShellEnvironment.resolveExecutable(
-            app.executable,
-            ShellEnvironment.shellPathDirs(),
-        ) ?: throw IllegalStateException(
-            "Executable '${app.executable}' for CLI app '${app.name}' not found — refusing to fake a session."
-        )
-        val command = buildString {
-            append(resolved)
-            app.arguments.forEach { append(' ').append(it) }
-        }
-        return createSession(
-            context = context,
-            label = app.name,
-            initialCommand = command,
-            environmentExtras = app.environment,
-            workingDirectory = app.workingDirectory,
-        )
     }
 
     /** Kill the session's process and remove its entry. */

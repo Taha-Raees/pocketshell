@@ -205,6 +205,17 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
 > MAXNS=3, parallel query, first answer wins) and refreshes managed files
 > on every operation, so neither a flaky gateway nor a network change can
 > wedge package management again.
+>
+> **M2.4 GATE PASSED ON DEVICE (2026-09-02 09:09–09:10, v0.4.3):** user
+> screenshots show GNU nano 9.2 running in the Alpine guest, apk-tools
+> 3.0.6-r0, combined Guest DNS and `Repository fetch: OK — OK: 28546
+> distinct packages available`. What the same screenshots exposed next
+> were two UI bugs — fixed in v0.4.4: the installed-state batch probe let
+> the uninstalled LAST catalog package (python3) fail the whole loop and
+> then discarded the good stdout (nano rendered "Not installed"), and
+> Home's list read an M1-era DataStore registry nothing wrote ("No apps
+> installed yet"). Plus: the terminal Paste action was wired to an empty
+> client callback and did nothing. The v0.4.4 checks below pin all three.
 
 - [ ] **v0.4.2 installs OVER v0.4.1 in place** (same pinned signing key as
       v0.4.1 — no uninstall needed; the runtime and any installed packages
@@ -216,6 +227,21 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
       no uninstall needed; the runtime stays). Its DNS repair upgrades the
       old device-only resolv.conf on the first package operation — no
       reinstall, no data loss.
+- [ ] **v0.4.4 installs OVER v0.4.3 in place** (same pinned signing key —
+      no uninstall needed; the runtime and installed packages stay; all
+      fixes are in the Android layer).
+- [ ] **v0.4.4 state sync (the 09:10 bug):** with nano already installed
+      (any version's install — via a card OR typed `apk add nano` in the
+      guest), Explore shows **Nano — Installed · <real version>** with
+      Open/Uninstall (no more "Install"/"Not installed"), and **Home →
+      Installed CLI Apps lists Nano** with its real version. The UI state
+      comes from a fresh `apk info -e -v` probe on every visit — terminal
+      installs made outside the app light up here too.
+- [ ] **v0.4.4 paste:** copy text anywhere on the phone → in a terminal
+      session long-press → select text → **Paste** → the clipboard text
+      lands on the command line (and inside nano's buffer, bracketed-paste
+      aware). Pasting with an empty clipboard does nothing and harms
+      nothing.
 - [ ] Diagnostics → **Check package environment** (explicit button, nothing
       runs on open): apk version banner (apk-tools 3.x), the two dl-cdn
       v3.24 repositories, package database present, **Guest DNS lists the

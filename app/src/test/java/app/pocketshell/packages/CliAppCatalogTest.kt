@@ -70,4 +70,24 @@ class CliAppCatalogTest {
             }
         }
     }
+
+    @Test
+    fun `installedCatalogApps maps only real apk answers in catalog order`() {
+        // The device truth from 2026-09-02 09:10: nano installed, rest absent.
+        val versions = mapOf(
+            "nano" to "9.2-r0",
+            "libintl" to "0.22.5-r0", // non-catalog package: never becomes a row
+        )
+        val apps = installedCatalogApps(versions)
+        assertEquals(listOf("nano"), apps.map { it.entry.apkPackageName })
+        assertEquals("9.2-r0", apps.single().version)
+        assertEquals(CliAppCatalog.byId("nano"), apps.single().entry)
+        // catalog order is preserved when several are installed
+        val many = installedCatalogApps(
+            mapOf("python3" to "3.12.10-r0", "nano" to "9.2-r0", "git" to "2.49.0-r0"),
+        )
+        assertEquals(listOf("nano", "git", "python3"), many.map { it.entry.apkPackageName })
+        // empty real answer = honest empty list
+        assertTrue(installedCatalogApps(emptyMap()).isEmpty())
+    }
 }

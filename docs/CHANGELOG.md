@@ -3,6 +3,84 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.4.4-m2.4] — 2026-09-02 — the app finally sees what apk installed (state-sync hotfix) + clipboard paste that pastes
+
+### Device context (v0.4.3 confirmed working)
+- The 2026-09-02 09:09–09:10 screenshots (SM-F711B, v0.4.3) are the M2.4
+  gate PASSING on real hardware: GNU nano 9.2 running inside the Alpine
+  guest, Diagnostics showing `apk-tools 3.0.6-r0`, combined Guest DNS and
+  `Repository fetch: OK — OK: 28546 distinct packages available`. The DNS
+  and SELinux chains are closed; what remained were two UI-layer bugs the
+  user found immediately.
+
+### Fixed — installed packages stayed invisible in the UI (Explore "Not installed", Home "No apps installed yet")
+- **Bug 1, deterministic root cause (batch probe exit-code misread):** the
+  Explore screen's installed-state probe runs one guest exec:
+  `for p in "$@"; do v=$(apk info -e -v "$p" 2>/dev/null) && echo "$p $v"; done`.
+  A POSIX for-loop's exit status is the LAST command it ran — and the
+  catalog's last package is `python3`, which was not installed, so the last
+  iteration ended with `apk info`'s exit 1 and the loop (and the whole
+  probe) "failed". The caller treated the exec as failed and returned an
+  EMPTY map — discarding the perfectly good stdout that contained
+  `nano nano-9.2-r0`. A genuinely installed nano rendered as "Not
+  installed" on every entry, deterministically, whenever the answer was
+  mixed. The rehearsal missed it because it pinned the single-package
+  `getPackageInfo` path, never the batch script.
+- **Fix:** the probe script now calls the absolute `"/sbin/apk"` (the
+  PATH-free form every other apk invocation already uses — this was the
+  only PATH-dependent apk call in the codebase) and ends with `; exit 0` —
+  a completed loop is a successful probe no matter how many listed packages
+  are absent. The version column is now parsed by the same strict parser as
+  the single probe, so both paths report identical versions ("9.2-r0", not
+  "nano-9.2-r0").
+- **Honesty hardening:** a failed probe can no longer masquerade as
+  "nothing installed". The manager now throws `PackageProbeException`
+  (timeout / destroyed / non-zero exec) instead of returning a silent empty
+  map; Explore keeps the last real answer, shows an "Installed state
+  unavailable: …" banner and renders untouched cards as "Installed state
+  unknown"; Home does the same for its list. "Not installed" is now
+  exclusively a real apk answer.
+- **Bug 2, Home's second invented source of truth:** Home's "Installed CLI
+  Apps" read an M1-era DataStore registry (`CliAppRegistry`) that NOTHING
+  in the M2.4 flow ever wrote — M2.4 installs go through apk, not the
+  registry — so Home claimed "No apps installed yet" over a genuinely
+  installed nano. Home now renders the catalog subset the real apk database
+  confirms (`installedCatalogApps`, probed when Home becomes visible and
+  after every package operation reaches a terminal state), with the real
+  version on each row. Tapping a row runs the same verify-then-launch flow
+  as Explore's Open (`apk info -e` + `command -v`, then a dedicated guest
+  session). The orphaned legacy chain (`CliApp`, `CliAppRegistry`,
+  `CliAppLauncher`, `TerminalSessionManager.createSessionForApp`,
+  `ShellEnvironment.resolveExecutable`) is removed — an unused registry
+  that claims installed state is exactly the kind of fake this project
+  refuses to keep around.
+
+### Fixed — terminal Paste did nothing
+- The vendored Termux selection toolbar's Paste action ends in
+  `TerminalSession.onPasteTextFromClipboard()` → the session CLIENT callback
+  — and PocketShell's implementation was an empty body with a comment
+  claiming "upstream TerminalView performs the actual paste internally"
+  (false: nothing did). The menu item was enabled whenever the clipboard
+  had content, then silently did nothing — the user's exact report
+  ("I can see option for paste but nothing paste when choosed").
+- `PocketShellSessionClient.onPasteTextFromClipboard` now reads the real
+  clipboard and pastes via `TerminalEmulator.paste` — upstream semantics:
+  strips escape/C1 control bytes, converts LF/CRLF to CR, honours bracketed
+  paste mode (nano/auto-indent aware). An absent or empty clip pastes
+  nothing (honest no-op).
+
+### Notes
+- 5 new/updated pins: the v0.4.4 probe script (absolute `/sbin/apk` +
+  `exit 0`) parsing the exact device case (nano installed, python3 last and
+  absent) with the plain version form; `PackageProbeException` on timeout
+  and on exec failure (exit codes carried); not-ready refusal; and the
+  `installedCatalogApps` catalog-order mapping. Legacy `CliAppTest`
+  removed with the chain it tested. 278 tests per variant (133 app + 145
+  terminal-emulator), 556 executions, 0 failures.
+- v0.4.3→v0.4.4 installs as an in-place update (same pinned signing key).
+  No runtime reinstall: the fixes are all in the Android layer; the first
+  Home/Explore visit re-probes the real apk database.
+
 ## [0.4.3-m2.4] — 2026-09-02 — guest DNS can no longer be a single point of failure (device-screenshot hotfix)
 
 ### Fixed — "DNS: transient error (try again later)" on every fetch (v0.4.2 device screenshots)

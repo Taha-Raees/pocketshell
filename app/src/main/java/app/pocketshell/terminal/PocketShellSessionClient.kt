@@ -53,8 +53,21 @@ class PocketShellSessionClient(
     }
 
     override fun onPasteTextFromClipboard(session: TerminalSession?) {
-        // Upstream TerminalView performs the actual paste internally after this
-        // callback; nothing to do here.
+        // The vendored TextSelectionCursorController's Paste action ends HERE:
+        // TerminalSession.onPasteTextFromClipboard() only forwards to this
+        // client callback — nothing upstream performs the paste itself.
+        // v0.4.4 device lesson (user report 2026-09-02: "I can see option for
+        // paste but nothing paste when choosed"): the previous implementation
+        // was an empty body, so the Paste item silently did nothing.
+        // Read the real clipboard and paste through TerminalEmulator.paste —
+        // the same semantics upstream Termux relies on (strips escape/C1
+        // control bytes, converts LF/CRLF to CR, honours bracketed paste
+        // mode). An absent/empty clip pastes nothing — an honest no-op.
+        if (session == null) return
+        val text = clipboard?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+        if (!text.isNullOrEmpty()) {
+            session.emulator?.paste(text)
+        }
     }
 
     // ---- colors / cursor -------------------------------------------------------

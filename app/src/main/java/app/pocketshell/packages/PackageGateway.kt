@@ -51,7 +51,11 @@ object PackageGateway {
         return manager.guestExecutablePath(executable)
     }
 
-    /** Real batch installed-status answer for the catalog screen (one exec). */
+    /**
+     * Real batch installed-status answer for the catalog screens (one exec).
+     * Throws [PackageProbeException] when the guest exec fails — callers must
+     * render that as "state unavailable", never as "Not installed" (v0.4.4).
+     */
     suspend fun installedVersions(packageNames: List<String>): Map<String, String> {
         val manager = newPackageManager(readyGuard = { if (isRuntimeReady()) null else "runtime not READY" })
             ?: return emptyMap()

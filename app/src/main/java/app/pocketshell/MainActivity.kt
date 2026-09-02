@@ -66,7 +66,6 @@ fun PocketShellRoot(
     val sessions by terminalViewModel.sessions.collectAsStateWithLifecycle()
     val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
     val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
-    val installedApps by terminalViewModel.installedApps.collectAsStateWithLifecycle()
     val runtimeState by terminalViewModel.runtimeState.collectAsStateWithLifecycle()
     val launchError by terminalViewModel.launchError.collectAsStateWithLifecycle()
 
@@ -114,7 +113,7 @@ fun PocketShellRoot(
             )
 
             else -> HomeScreen(
-                installedApps = installedApps,
+                terminalViewModel = terminalViewModel,
                 activeSessions = sessions,
                 runtimeState = runtimeState,
                 launchError = launchError,
@@ -131,9 +130,7 @@ fun PocketShellRoot(
                     terminalViewModel.select(id)
                     screen = "terminal"
                 },
-                onLaunchApp = { app ->
-                    if (terminalViewModel.launchApp(app)) screen = "terminal"
-                },
+                onOpenedSession = { screen = "terminal" },
                 onExploreApps = { screen = "explore" },
                 onOpenSettings = { screen = "settings" },
                 onOpenDiagnostics = { screen = "diagnostics" },

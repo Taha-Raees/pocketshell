@@ -62,6 +62,40 @@ data class PackageOperationResult(
     val error: String? = null,
 )
 
+/**
+ * Thrown when a read-only probe (the installed-state batch check) could not
+ * get a real guest answer — timeout, destroyed process, non-zero exec exit.
+ * An EMPTY map means "apk was asked and answered: none of these are
+ * installed"; this exception means "apk never (fully) answered". Rendering
+ * "Not installed" over a failed probe is a lie — exactly what v0.4.3's
+ * exit-code misread did to a genuinely installed nano on the device
+ * (v0.4.4 device lesson, user screenshots 2026-09-02 09:10).
+ */
+class PackageProbeException(
+    override val message: String,
+    val exitCode: Int? = null,
+) : Exception(message)
+
+/**
+ * One Home-screen row: a catalog entry whose installed state the REAL apk
+ * database confirmed (`apk info -e -v`), with the version apk reported.
+ * Built only by [installedCatalogApps] — never from assumptions.
+ */
+data class InstalledCatalogApp(
+    val entry: CliAppCatalogEntry,
+    val version: String,
+)
+
+/**
+ * The catalog subset the real apk database confirms installed, in catalog
+ * order, carrying the real versions. Anything not in the answer is absent —
+ * this function never adds a package the guest did not name.
+ */
+fun installedCatalogApps(versions: Map<String, String>): List<InstalledCatalogApp> =
+    CliAppCatalog.entries.mapNotNull { entry ->
+        versions[entry.apkPackageName]?.let { InstalledCatalogApp(entry, it) }
+    }
+
 /** Immutable snapshot of a (running or finished) operation for the UI. */
 data class PackageOperation(
     val id: Long,

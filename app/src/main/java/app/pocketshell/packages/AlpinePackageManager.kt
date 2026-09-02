@@ -74,25 +74,59 @@ class AlpinePackageManager(
             ApkOutputParser.parseInfoInstalled(result.exitCode, result.stdout)
         }
 
+    /**
+     * Batch installed-status probe: one guest exec for the whole list.
+     *
+     * v0.4.4 device lesson (user screenshots 2026-09-02 09:10: nano genuinely
+     * installed, every card still "Not installed"): the old script (a) called
+     * bare `apk` — the only PATH-dependent apk invocation in the codebase —
+     * and (b) let the for-loop's exit status stand for the whole probe. The
+     * catalog's LAST package (python3) was not installed, `apk info -e` exited
+     * 1, the `&& echo` never ran, the loop exited 1 — and the caller treated
+     * the entire exec as failed, DISCARDING the perfectly good stdout that
+     * contained "nano nano-9.2-r0". A genuinely installed package rendered as
+     * "Not installed", deterministically, whenever the answer was mixed.
+     *
+     * Fixes: absolute "$APK" (the PATH-free form every other apk call already
+     * uses) and a terminal `exit 0` — a completed loop is a successful probe
+     * no matter how many listed packages are absent. REAL exec failures
+     * (timeout, destroy, non-zero from a dead shell) still throw
+     * [PackageProbeException] so the UI can never dress a failed probe up as
+     * "Not installed".
+     */
     override suspend fun getInstalledVersions(packageNames: List<String>): Map<String, String> =
         withContext(ioDispatcher) {
             val names = packageNames.filter { ApkOutputParser.isValidPackageName(it) }
-            if (names.isEmpty() || readyGuard() != null) return@withContext emptyMap()
+            if (names.isEmpty()) return@withContext emptyMap()
+            readyGuard()?.let { throw PackageProbeException(it) }
             // One exec for the whole list — the launcher UI refreshes with a
             // single guest round-trip (POSIX sh; positional args, no quoting).
-            val script = "for p in \"\$@\"; do v=\$(apk info -e -v \"\$p\" 2>/dev/null) && echo \"\$p \$v\"; done"
+            val script =
+                "for p in \"\$@\"; do v=\$(\"$APK\" info -e -v \"\$p\" 2>/dev/null) && " +
+                    "echo \"\$p \$v\"; done; exit 0"
             val result = runApk(
                 listOf("/bin/sh", "-c", script, "sh") + names,
                 timeoutMs = QUICK_TIMEOUT_MS,
             )
-            if (!result.success) return@withContext emptyMap()
+            if (!result.success) {
+                throw PackageProbeException(
+                    message = result.error
+                        ?: result.stderr.lineSequence().lastOrNull { it.isNotBlank() }
+                        ?: "apk exited with code ${result.exitCode}",
+                    exitCode = result.exitCode,
+                )
+            }
             result.stdout.lineSequence().mapNotNull { line ->
                 val parts = line.trim().split(' ', limit = 2)
-                if (parts.size == 2 && ApkOutputParser.isValidPackageName(parts[0])) {
-                    parts[0] to parts[1]
-                } else {
-                    null
+                if (parts.size != 2 || !ApkOutputParser.isValidPackageName(parts[0])) {
+                    return@mapNotNull null
                 }
+                // `apk info -e -v` prints the full "name-version-release" as
+                // the version column; strip to the plain version with the
+                // SAME strict parser the single-package probe uses, so both
+                // paths report identical versions ("9.2-r0", not "nano-9.2-r0").
+                val hit = ApkOutputParser.parseVersionLine(parts[1]) ?: return@mapNotNull null
+                parts[0] to "${hit.version}${hit.release?.let { r -> "-$r" } ?: ""}"
             }.toMap()
         }
 

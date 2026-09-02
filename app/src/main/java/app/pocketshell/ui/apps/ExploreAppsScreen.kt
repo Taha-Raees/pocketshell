@@ -39,6 +39,7 @@ import app.pocketshell.packages.CliAppCatalog
 import app.pocketshell.packages.CliAppCatalogEntry
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.packages.PackageOperationState
+import app.pocketshell.packages.PackageProbeException
 import app.pocketshell.packages.PackageSearchResult
 import app.pocketshell.packages.packageOperationTargetsCard
 import app.pocketshell.runtime.RuntimeManager
@@ -67,13 +68,23 @@ fun ExploreAppsScreen(
     val launchError by terminalViewModel.launchError.collectAsStateWithLifecycle()
 
     var installedVersions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var probeError by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<PackageSearchResult>?>(null) }
 
     suspend fun refreshInstalled() {
-        installedVersions = PackageGateway.installedVersions(
-            CliAppCatalog.entries.map { it.apkPackageName },
-        )
+        try {
+            installedVersions = PackageGateway.installedVersions(
+                CliAppCatalog.entries.map { it.apkPackageName },
+            )
+            probeError = null
+        } catch (e: PackageProbeException) {
+            // v0.4.4 honesty rule: a failed probe is NOT "nothing installed".
+            // Keep the last real answer rendered and say what actually happened
+            // — the old silent emptyMap-over-a-dead-probe is how an installed
+            // nano got hidden behind "Not installed" cards.
+            probeError = e.message
+        }
     }
 
     // Real state on open, and after every operation that reaches a terminal
@@ -285,11 +296,22 @@ fun ExploreAppsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                probeError?.let {
+                    Text(
+                        "Installed state unavailable: $it — cards below may be out of date. " +
+                            "\"Check package environment\" in Diagnostics shows the real cause.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
             items(CliAppCatalog.entries, key = { it.id }) { entry ->
                 CatalogAppCard(
                     entry = entry,
                     installedVersion = installedVersions[entry.apkPackageName],
+                    stateUnknown = probeError != null &&
+                        installedVersions[entry.apkPackageName] == null,
                     // v0.4.2 honesty: "Working…" ONLY on the card the running
                     // operation actually targets (or that is being verified).
                     // The global mutation lock still disables the OTHER cards'
@@ -341,6 +363,7 @@ private fun opLabel(op: app.pocketshell.packages.PackageOperation): String {
 private fun CatalogAppCard(
     entry: CliAppCatalogEntry,
     installedVersion: String?,
+    stateUnknown: Boolean,
     busy: Boolean,
     enabled: Boolean,
     onInstall: () -> Unit,
@@ -362,13 +385,18 @@ private fun CatalogAppCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        // real version from apk info -e -v, or an honest "Not installed"
-                        installedVersion?.let { "Installed · $it" } ?: "Not installed",
+                        // real version from apk info -e -v, an honest "Not
+                        // installed", or — when the probe itself failed —
+                        // "Installed state unknown" (never a guessed state).
+                        when {
+                            installedVersion != null -> "Installed · $installedVersion"
+                            stateUnknown -> "Installed state unknown"
+                            else -> "Not installed"
+                        },
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (installedVersion != null) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                        color = when {
+                            installedVersion != null -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                     )
                 }
@@ -376,6 +404,9 @@ private fun CatalogAppCard(
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (installedVersion == null) {
+                    // "Install" is honest even when the state is unknown: apk
+                    // add on an installed package is a real, safe no-op — and
+                    // the status line above never claims either way.
                     Button(onClick = onInstall, enabled = enabled) {
                         Text(if (busy) "Working…" else "Install")
                     }
