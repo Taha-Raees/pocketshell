@@ -1,11 +1,10 @@
-const VERSION = "v0.4.4-m2.4";
-const TIP = "37d4f82";
+const VERSION = "v0.5.0-m2.5";
 
 const HASHES = {
-  apk: "3161f40fb9e12f8209213205c0609cf0a0dcebdab4f6d584eee4047eefe5baa7",
-  zip: "7bae560dc3a9aea69cca16eac4ef2e41bc196bd4292521f7b6f4a5a0b96363ca",
-  tgz: "10906ec2a6ce94cf587bb81a18f70543fc18cbb39aa5feac937ad0b2855e1b62",
-  bundle: "e9203d0d08b7c3baed13fde16c1c2fe0a9256d44f144c6d3c7adf44ec51761f2",
+  apk: "7c7ee05571201abdd4780fe63064b91eab88ccfdafc719f1888447f97ae7644d",
+  zip: "fa62b17f0e28310e24c5cf4197c0a011e4be2f05a02e00f9370cfee2a49c6bd1",
+  tgz: "f6709e11164ef3e3f4d7b6fc528aaa122cfe6c52ad18b2afda8c2e4a97ec0339",
+  bundle: "9d687e4626cb137d311bda4fa4bb29a3bc538b6705ec21955ae37b7096bbb774",
 };
 
 function Sha({ text }: { text: string }) {
@@ -26,63 +25,64 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M2.4 <b>PASSED on your device</b> — and this build fixes the three
-          bugs your screenshots caught <span className="badge">versionCode 12</span>
+          M2.4 gate <b>PASSED</b> — thank YOU for the evidence. M2.5 starts
+          here <span className="badge">versionCode 13</span>
         </h2>
         <p>
-          Your 09:09–09:10 screenshots are the milestone evidence we were
-          waiting for: <b>GNU nano 9.2 running inside the Alpine guest</b>,
-          apk-tools 3.0.6, combined DNS, and <b>“Repository fetch: OK —
-          28546 distinct packages available”</b>. The SELinux and DNS chains
-          are closed. But the same screenshots caught the app lying to you in
-          three places — all fixed here:
+          Your 10:04 screenshots confirmed v0.4.4 on device: Home lists{" "}
+          <b>Nano 9.2-r0 and Git 2.54.0-r0</b> from the real apk database,
+          Explore shows Nano “Installed · 9.2-r0”, and paste works. Then they
+          caught two more real bugs — the “small errors when trying to add
+          node” — both fixed in this build:
         </p>
         <ul className="steps">
           <li>
-            <b>Nano showed “Not installed” in Explore:</b> the installed-state
-            probe ran one shell loop over the five catalog packages and let
-            the loop’s <i>exit status</i> stand for the whole probe. The last
-            package checked (<code>python3</code>) isn’t installed, so the
-            loop exited 1 — and the app <i>threw away the perfectly good
-            answer</i> that contained <code>nano nano-9.2-r0</code>. Now the
-            probe calls the absolute <code>/sbin/apk</code> and always exits 0
-            when it completes: a mixed answer is a success, and versions come
-            from the same strict parser as everything else.
+            <b>Your manual <code>apk update</code> / <code>apk add nodejs
+            npm</code> in the Linux Shell died with “Permission denied”</b>{" "}
+            while app installs worked. Why: v0.4.2 removed the{" "}
+            <code>/proc</code> bind only from the app’s own package commands —
+            the shell session kept it, and with <code>/proc</code> visible
+            apk’s download commit hits the same Android SELinux neverallow.
+            Your session also read a stale 31-package cache (hence
+            “nodejs (no such package)”). Now <b>every guest session is
+            apk-capable</b>: no <code>/proc</code>, the same shared apk cache
+            the app uses, DNS refreshed at spawn. Install from the terminal
+            or the UI — one cache, one index, one database.
+            <br />
+            <i>
+              Honest cost: the guest can’t see <code>/proc</code>, so{" "}
+              <code>ps</code>/<code>top</code> (and htop’s process list) have
+              nothing to read inside the guest. A working package manager
+              wins.
+            </i>
           </li>
           <li>
-            <b>Home said “No apps installed yet”:</b> that list read an
-            old M1-era registry that nothing ever wrote (M2.4 installs go
-            through apk, not that registry). Home now shows exactly what the
-            real apk database confirms — fresh probe on every visit and after
-            every install/uninstall — with the real version. The dead registry
-            is deleted, not patched.
-          </li>
-          <li>
-            <b>Paste did nothing:</b> the terminal’s Paste action ends in a
-            client callback that was <i>empty</i> (its comment claimed
-            upstream does the paste — it doesn’t, nothing did). It now reads
-            the real clipboard and pastes with upstream semantics —
-            bracketed-paste aware, so it behaves inside nano too. Copy
-            anywhere on your phone → long-press → Paste → it lands.
+            <b>Searching “node” buried nodejs</b> behind description matches
+            (abseil-cpp-dev, ceph18…) and the 8-hit cutoff. Search results are
+            now <b>ranked by name match</b> — nodejs and nodejs-current first
+            — and <b>every hit is installable</b> with the same honest
+            pipeline (apk update → add → info -e verify). No executable
+            promises for non-catalog packages: nodejs ships <code>node</code>,
+            not <code>nodejs</code>, so SUCCESS means exactly “the real
+            database confirms it” — run it from the shell.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.4.4-m2.4-debug.apk">
+        <a className="btn" href="/PocketShell-v0.5.0-m2.5-debug.apk">
           Download APK (debug, 21 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.4.3)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.4.4)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall needed</h2>
         <p>
-          Installs <b>in place over v0.4.3</b> (same pinned signing key). Your
-          Linux runtime, every installed package and the network-managed DNS
-          file are untouched — all three fixes live in the Android layer. The
-          first time you open Home or Explore, the app re-probes the real apk
-          database and your installed nano appears in both places.
+          Installs <b>in place over v0.4.4</b> (same pinned signing key). The
+          runtime, your installed packages (nano, git) and the shared apk
+          cache are untouched. Your existing terminal sessions keep running;
+          <b> new</b> Linux Shell sessions spawn with the apk-capable shape.
         </p>
       </div>
 
@@ -91,50 +91,53 @@ export default function Home() {
         <ul className="steps">
           <li>
             Real terminal (M1): Termux-emulator PTY sessions, full keyboard,
-            themes, diagnostics — plus working clipboard paste (v0.4.4).
+            working clipboard paste.
           </li>
           <li>
-            Linux runtime (M2.2): installs pinned Alpine 3.24.1 aarch64
-            (SHA-256-verified) into app storage.
+            Linux runtime (M2.2): pinned Alpine 3.24.1 aarch64,
+            SHA-256-verified, installed into app storage.
           </li>
           <li>
-            Linux Shell (M2.3): real Alpine guest shell via proot on the same
-            PTY — <code>uname; id; echo hello</code> verified on device.
+            Linux Shell (M2.3 + v0.5.0): the Alpine guest via proot — and now
+            a shell where <code>apk</code> actually works.
           </li>
           <li>
-            Package management (M2.4, <b>device-gate passed</b>): real{" "}
-            <code>apk</code> search / install / open / uninstall; SELinux-safe
-            download commits; parallel-query DNS; and — since this build — UI
-            state that can only come from real apk answers (“Not installed”
-            is never guessed; a failed probe says “state unavailable”).
+            Package management (M2.4, device-gate PASSED): curated cards
+            (nano, htop, vim, git, python3) with Open/Uninstall; Home shows
+            exactly what the real apk database confirms.
+          </li>
+          <li>
+            M2.5 (this build): search any Alpine package, ranked by name
+            match, installable in one tap — verified by real exit codes only.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §9 — the v0.4.4 additions)</h2>
+        <h2>Quick checks (docs/TESTING.md §9 — v0.5.0 additions)</h2>
         <ol className="steps">
-          <li>Install {VERSION} APK over v0.4.3 (no uninstall).</li>
+          <li>Install {VERSION} APK over v0.4.4 (no uninstall).</li>
           <li>
-            Home → <b>Installed CLI Apps</b> now lists <b>Nano</b> with its
-            real version; tapping it opens a real nano session.
+            Open <b>Linux Shell</b> → <code>apk update</code> → finishes with{" "}
+            <b>no “Permission denied”</b> and the full count (~28k packages).
           </li>
           <li>
-            Explore CLI Apps → Nano card shows <b>“Installed · 9.2-r0”</b>{" "}
-            with Open/Uninstall — not “Install”/“Not installed”.
+            Then <code>apk add nodejs npm</code> → installs;{" "}
+            <code>node --version</code> works.
           </li>
           <li>
-            Paste test: copy text anywhere on the phone → terminal →
-            long-press → select → <b>Paste</b> → the text lands on the command
-            line (and inside nano).
+            Explore → search <code>node</code> → <b>nodejs</b> at the top →
+            tap <b>Install</b> → the row flips to “Installed · version — run
+            ‘nodejs’ from the shell”.
           </li>
           <li>
-            Install HTop from Explore → Home’s list updates to show both apps
-            without leaving the app.
+            Known honest limitation: <code>ps</code>/<code>top</code> inside
+            the guest report they cannot read <code>/proc</code> — that’s the
+            SELinux tradeoff, not a bug.
           </li>
           <li>
-            Regression: Check package environment still shows fetch OK;
-            Linux Shell still works.
+            Regression: Home still lists Nano + Git; paste still works;
+            Check package environment still shows fetch OK.
           </li>
         </ol>
       </div>
@@ -142,13 +145,13 @@ export default function Home() {
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Complete buildable source at git tip {TIP}. The zip intentionally
-          contains no dotfiles; full history rides in the git bundle.
+          Complete buildable source. The zip intentionally contains no
+          dotfiles; full history rides in the git bundle.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.4.4-m2.4-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.5.0-m2.5-source.zip">
           source.zip (4.0 MB)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.4.4-m2.4-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.5.0-m2.5-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -166,11 +169,11 @@ export default function Home() {
 
       <footer>
         Milestones: M0–M1.3 terminal · M2.2 runtime install · M2.3 Linux shell
-        (device-verified) · M2.4 package layer (<b>device gate PASSED</b>,
-        v0.4.3; state-sync + paste polish in this build). v0.4.3 and earlier
-        are withdrawn (see CHANGELOG 0.4.2/0.4.3/0.4.4 for the confirmed fixes
-        each shipped). Next: M2.5 — richer CLI-app surface on Home beyond the
-        curated five.
+        (device-verified) · M2.4 package layer (<b>device gate PASSED</b>) ·
+        M2.5 started: apk-capable shell + ranked/installable search (this
+        build). Remaining M2.5 candidates: file manager, profiles, richer
+        per-app Home cards. Thank you for the screenshots — they are the
+        project’s real test suite.
       </footer>
     </main>
   );

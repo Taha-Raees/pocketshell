@@ -1,25 +1,22 @@
 # download/ — delivery masters
 
-Current: v0.4.4-m2.4 (git tip 37d4f82, versionCode 12)
-- PocketShell-v0.4.4-m2.4-debug.apk  sha256 3161f40f…e5baa7
-  Installs IN PLACE over v0.4.3 (same pinned cert d96a6f66…8bf659).
-  M2.4 device gate PASSED on v0.4.3 (nano 9.2 running, fetch OK
-  28546 pkgs). v0.4.4 closes the three UI bugs those screenshots
-  exposed: installed-state probe no longer discards good output when
-  the LAST catalog package (python3) is absent (loop exit-status
-  misread hid an installed nano behind "Not installed"); Home's
-  "Installed CLI Apps" now comes from the real apk database (the
-  never-written M1 DataStore registry is gone); terminal Paste
-  actually pastes (empty client callback → TerminalEmulator.paste,
-  bracketed-paste aware). All Android-layer — runtime + packages
-  untouched (docs/CHANGELOG 0.4.4).
-- PocketShell-v0.4.4-m2.4-source.zip sha256 7bae560d…6363ca  (4.0 MB, 244 files)
-- PocketShell-v0.4.4-m2.4-source.tar.gz sha256 10906ec2…5e1b62  (3.9 MB)
-- pocketshell-m2.gitbundle           sha256 e9203d0d…1761f2  (full history)
+Current: v0.5.0-m2.5 (git tip loaded in bundle, versionCode 13)
+- PocketShell-v0.5.0-m2.5-debug.apk  sha256 7c7ee055…644d
+  Installs IN PLACE over v0.4.4 (same pinned cert d96a6f66…8bf659).
+  M2.4 device gate PASSED (confirmed by your 10:04 screenshots: Nano +
+  Git on Home, paste working). M2.5:
+  · the Linux Shell is now apk-capable — your manual `apk update` /
+    `apk add nodejs npm` works (was: SELinux "Permission denied" +
+    stale 31-package cache, because sessions still bound /proc);
+    honest cost: `ps`/`top` inside the guest can't read /proc.
+  · search "node" now puts nodejs FIRST (name-match ranking) and
+    every search hit has a real Install button (no executable
+    promises for non-catalog packages).
+- PocketShell-v0.5.0-m2.5-source.zip sha256 fa62b17f…c6bd1  (4.0 MB, 244 files)
+- PocketShell-v0.5.0-m2.5-source.tar.gz sha256 f6709e11…c0339  (3.9 MB)
+- pocketshell-m2.gitbundle           sha256 9d687e46…bbb774  (full history)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.4.3 superseded by the state-sync + paste
-fixes; v0.4.2 device DNS was a single point of failure — CHANGELOG
-0.4.3; v0.4.1 SELinux-blocked — 0.4.2; earlier superseded).
-Source history for every milestone stays reachable through the bundle
-inside each source archive.
+Older builds: withdrawn (v0.4.4 superseded by the M2.5 shell/search
+fixes; v0.4.3 closed the DNS chain; earlier superseded — see
+docs/CHANGELOG for each confirmed fix).
