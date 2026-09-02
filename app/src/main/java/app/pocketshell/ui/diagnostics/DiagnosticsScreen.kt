@@ -255,6 +255,7 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             )
             RuntimeFactRow("apk fd-link patch", report.apkFdLinkPatch ?: "—")
             RuntimeFactRow("Interactive /proc", report.guestProcPolicy ?: "—")
+            RuntimeFactRow("sysdata overlays", report.sysDataOverlays ?: "—")
         }
     }
 }

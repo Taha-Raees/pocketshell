@@ -3,7 +3,83 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
-## [0.6.1-m2.6] — 2026-09-02 — M2.6 device-test follow-up: honest expectations for the real host procfs
+## [0.6.2-m2.6] — 2026-09-02 — M2.6.12+M2.6.13: selective /proc sysdata overlay + hardlink extraction fix
+
+### Why this release exists (both layers device-reported 2026-09-02, SM-F711B)
+
+**M2.6.13 — `apk add binutils gcc g++` failed to extract exactly their hardlink
+entries.** The transcript showed 19 "failed to extract … Permission denied"
+errors — byte-for-byte the `hrwxr-xr-x` hardlink entries of the three Alpine
+packages (binutils 11, gcc 5, g++ 3; verified by downloading the packages and
+listing their tar entry types). Every regular file extracted fine, including
+the real driver `usr/bin/aarch64-alpine-linux-musl-gcc`. Root cause: apk's
+extractor materializes hardlink entries with `link()`, and the SAME AOSP
+neverallow that M2.6 worked around for download commits
+(`neverallow all_untrusted_apps file_type:file link`) forbids `link()` to
+untrusted apps outright — EACCES, per entry. The fd-link patch fixed
+downloads only; extraction hardlinks are a separate surface of the same
+neverallow.
+
+**The fix — Termux's own `link2symlink` proot extension (M2.6.13):** our
+shipped `libproot.so` is built from termux/proot pin `7266fb3e`, which
+contains the extension, and Termux PRoot-Distro enables it BY DEFAULT for
+every non-Termux distro (`--link2symlink`). It intercepts `link()`/`linkat()`
+at the ptrace layer and emulates the hard link as a symlink chain (with
+link-count translation for stat/statx), so the kernel never evaluates the
+denied operation. v0.6.2 passes `--link2symlink` in BOTH guest profiles.
+Honest differences, documented and visible: links appear as symlinks
+(`ls -l /usr/bin/ld`), and each emulated link costs the file's disk space.
+Host rehearsal (scripts/rehearse_m262.sh): binutils installs, `ld/ar/readelf
+--version` work through the emulated links, and the emulated binary is
+byte-identical to the control install's real file.
+
+**M2.6.12 — selective /proc sysdata overlay.** The same 2026-09-02 session
+confirmed the kernel also denies this app read access to the STANDARD procfs
+files (/proc/version confirmed on-device; proc_stat/proc_uptime/proc_loadavg/
+proc_vmstat are the same AOSP neverallow class). v0.6.1 documented those
+denials; v0.6.2 repairs them the way Termux PRoot-Distro does
+(proot_distro/sysdata.py, `setup_fake_sysdata()` + `fake_sysdata_bindings()`
+— architecture studied and ADAPTED, not copied):
+
+- PROBE FIRST, REAL WINS (upstream's core honesty mechanism, kept 1:1): at
+  every interactive spawn the app probes each real file with a one-byte
+  read; kernel-readable files are NEVER overlaid — real data always wins.
+  Only genuinely-denied files get a verified compatibility file bound
+  file-over-file ON TOP of the real /proc bind.
+- HONEST CONTENT (adapted from upstream's static constants): /proc/version
+  is composed from the REAL uname(2) identity with an explicit attribution
+  marker ("PocketShell sysdata overlay: kernel identity via uname(2); the
+  kernel's own file is denied to apps by Android SELinux") — this
+  SUPERSEDES v0.6.1's refusal to synthesize /proc/version, per the project
+  owner's direction to adopt the probe-gated overlay model; the marker
+  keeps the no-fake rule intact (any reader sees it IS an overlay).
+  /proc/uptime field 1 is the REAL elapsedRealtime clock; /proc/stat has
+  the REAL core count and REAL btime (epoch now − uptime) with documented
+  zero placeholders for the unreadable global jiffies; /proc/loadavg's
+  process-count tail is the REAL hidepid-filtered pid set; /proc/vmstat is
+  the standard counter-name skeleton with zero values. Scope is exactly the
+  five standard files the gate names — upstream's sysctl entries and
+  /sys/fs/selinux empty-dir bind are deliberately not shipped.
+- WRITE HARDENING (proportionate port of upstream's descriptor discipline):
+  entries are validated before use (regular file, not a symlink, exactly
+  one link — planted entries are dropped and remade), writes are
+  CREATE_NEW+NOFOLLOW, and every overlay is verified by content round-trip
+  before it may be bound. Unlike upstream's write-if-missing, files REFRESH
+  at every spawn.
+- DIAGNOSTICS: new read-only "sysdata overlays" row (probe-only — the
+  Diagnostics button never writes), plus per-spawn overlay status.
+
+### Other
+- GuestSysDataCompat (new, unit-tested — 20 pins: probe matrix, generator
+  formats, planted symlink/hardlink handling, per-entry honest degradation)
+  and launcher guard pins (sysdata binds only on /proc-bound interactive
+  sessions; refused for PACKAGE_OPERATION and no-/proc sessions).
+- Suite: 312 tests/variant (167 app + 145 terminal-emulator), 624
+  executions, 0 failures. Rehearsal scripts/rehearse_m262.sh FULL PASS 19/19.
+- v0.6.2 installs IN PLACE over v0.6.1/v0.6.0/v0.5.0 (same pinned signing
+  key); runtime, packages and cache untouched. Existing broken binutils/gcc/
+  g++ states self-heal on the next `apk fix` after updating (the failed
+  packages were recorded but incomplete; `apk fix` re-extracts them).
 
 ### Why this patch release exists
 - The 2026-09-02 device test (SM-F711B) CONFIRMED the M2.6 architecture end to

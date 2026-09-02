@@ -76,7 +76,7 @@ single source of truth. commons-compress pinned at M2.1 (2026-09-01).
 
 | Component | Origin | License | Distribution form |
 |---|---|---|---|
-| PRoot | https://github.com/termux/proot — **pinned tag `v5.1.107.92` @ `7266fb3e8516535682f5a9c8f3a7e70f6506eddb`** (proot 5.1.0 + Termux Android patches) | GPL-2.0 | Compiled by PocketShell from pinned source (scripts/build_proot_m23.sh, NDK r28c, arm64-v8a/armeabi-v7a/x86/x86_64); bundled in APK as `libproot.so` + `libproot-loader.so` (jniLibs → `nativeLibraryDir`). Build-time micro-patches applied by the build script to the working clone (documented, upstreamable): `<string.h>` include in `extension/ashmem_memfd/ashmem_memfd.c` (bionic + clang ≥ 16 strictness); portable mawk-compatible `loader/loader-info.awk` (upstream requires gawk `strtonum`). License text + source reference ship with the app. |
+| PRoot | https://github.com/termux/proot — **pinned tag `v5.1.107.92` @ `7266fb3e8516535682f5a9c8f3a7e70f6506eddb`** (proot 5.1.0 + Termux Android patches) | GPL-2.0 | Compiled by PocketShell from pinned source (scripts/build_proot_m23.sh, NDK r28c, arm64-v8a/armeabi-v7a/x86/x86_64); bundled in APK as `libproot.so` + `libproot-loader.so` (jniLibs → `nativeLibraryDir`). Build-time micro-patches applied by the build script to the working clone (documented, upstreamable): `<string.h>` include in `extension/ashmem_memfd/ashmem_memfd.c` (bionic + clang ≥ 16 strictness); portable mawk-compatible `loader/loader-info.awk` (upstream requires gawk `strtonum`). License text + source reference ship with the app. The pinned source INCLUDES Termux's link2symlink extension (`--link2symlink`), which PocketShell enables since v0.6.2 (M2.6.13) exactly as Termux PRoot-Distro does by default. |
 | libtalloc | https://www.samba.org/ftp/talloc/ — **pinned 2.4.2** | LGPL-3.0-or-later | Compiled by PocketShell (waf cross-compile with canned cross-answers; SONAME normalized to `libtalloc.so`); linked **dynamically** and bundled as `libtalloc.so` per ABI (LGPL obligations met by shipping the full source archive). |
 | Alpine Linux minirootfs | https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/ (official CDN artifact, pinned: `alpine-minirootfs-3.24.1-aarch64.tar.gz`, sha256 `f55a90f69052c5bd6f92cb09a8f47065970830b194c917a006fb94028e721259`) | Alpine packages under their respective OSS licenses (busybox GPL-2.0, musl MIT, etc.) | Downloaded at runtime over HTTPS, size + SHA-256 verified before extraction (Master Prompt §10). Alpine's license notices are available inside the rootfs (`/usr/share/licenses`, package metadata via `apk info`). |
 
@@ -96,3 +96,9 @@ versions (version catalog: `gradle/libs.versions.toml`).
 4. Run the full upstream test suite (`./gradlew :terminal-emulator:test`).
 5. Execute the manual terminal acceptance checklist (`TESTING.md`) on device.
 6. Update this file and `CHANGELOG.md`.
+
+## Architecture reference (studied, not copied)
+
+| Project | Usage in PocketShell | License | Note |
+|---|---|---|---|
+| Termux PRoot-Distro (https://github.com/termux/proot-distro, 5.8.0 @ f832a56) | M2.6.12: the probe-first /proc sysdata overlay model (setup_fake_sysdata / fake_sysdata_bindings) was studied and ADAPTED as GuestSysDataCompat.kt — original Kotlin implementation, narrower entry set, real-source content, app-private storage. No upstream code was copied. | GPL-3.0 | Architecture-only reference; documented in docs/M2.6-RESEARCH.md §7. |

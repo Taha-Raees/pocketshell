@@ -207,3 +207,35 @@ Process semantics with /proc bound (documented, not faked): the guest sees
 the Android host procfs filtered by the kernel's hidepid=2 app isolation —
 `ps`/`top` show the app's real process tree with host pids; system-wide
 `/proc/stat`/`meminfo` are real. Nothing is filtered or simulated by us.
+
+## 13. v0.6.2 sysdata overlays + link2symlink (M2.6.12/M2.6.13, docs/M2.6-RESEARCH.md §7/§8)
+
+Two additions to the SAME launcher/rootfs architecture — no new exec
+infrastructure:
+
+- `GuestSysDataCompat` (runtime): probe-then-overlay for the five standard
+  /proc files Android denies this app domain (proc_stat, proc_uptime,
+  proc_loadavg, proc_version, proc_vmstat). Probe first (one-byte read of
+  the real file) — kernel-readable files are NEVER overlaid; denied files
+  get a verified overlay written under an app-private `sysdata/` sibling
+  of the rootfs (regular-file + nlink==1 validation, CREATE_NEW+NOFOLLOW
+  write, content round-trip verify; refreshed each spawn). Content is
+  derived from real host sources (uname(2), elapsedRealtime, real core
+  count, real btime, real hidepid-filtered pid set) with documented
+  placeholders where no allowed source exists; /proc/version carries an
+  explicit attribution marker. Architecture adapted from Termux
+  PRoot-Distro's sysdata.py (studied, not copied — see THIRD_PARTY.md).
+  The verified overlays ride the session spec as file-over-file binds
+  DIRECTLY after `--bind=/proc`; the builder refuse-guards every other
+  placement (never PACKAGE_OPERATION, never a no-/proc session).
+- `--link2symlink` (both profiles): Termux proot's own link2symlink
+  extension — already compiled into our pinned libproot.so and enabled by
+  default in Termux PRoot-Distro — intercepts link()/linkat() and emulates
+  hard links as symlink chains, so Alpine packages shipping hardlink
+  entries (binutils, gcc, g++, …) extract despite the SELinux link
+  neverallow that broke them on 2026-09-02 (exactly 19 files).
+
+Diagnostics gains a read-only "sysdata overlays" row (probe-only; the
+button never writes). Package semantics elsewhere are unchanged: one
+rootfs, one shared cache, one database; the fd-link patch, the two
+execution profiles and their refuse-guards are untouched.

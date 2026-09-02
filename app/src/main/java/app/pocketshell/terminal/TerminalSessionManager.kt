@@ -3,6 +3,7 @@ package app.pocketshell.terminal
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import app.pocketshell.packages.GuestSessionPreparation
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.runtime.GuestApkCompat
 import app.pocketshell.runtime.RuntimeManager
@@ -155,8 +156,13 @@ object TerminalSessionManager {
         // other outcome degrades honestly to the v0.5.0 shape (no /proc, apk
         // still works) — never a fake process table, and Diagnostics reports
         // the exact reason.
-        val compat = PackageGateway.prepareGuestForSession(appContext, storage.rootfsDir)
-        val procEnabled = GuestApkCompat.isProcSafe(compat)
+        // M2.6.12: the same prepare phase writes the verified sysdata
+        // overlays for kernel-denied standard /proc files (probe-first —
+        // real files are never overlaid). They ride only on /proc-bound
+        // sessions; the builder refuse-guards the rest.
+        val prep = PackageGateway.prepareGuestForSession(appContext, storage.rootfsDir)
+        val procEnabled = GuestApkCompat.isProcSafe(prep.apkCompat)
+        val sysDataBinds = if (procEnabled) prep.sysData.bindArgs() else emptyList()
         val prootTmp = File(appContext.cacheDir, "proot-tmp").apply { mkdirs() }
         val spec = RuntimeProcessLauncher.buildSessionSpec(
             nativeLibraryDir = appContext.applicationInfo.nativeLibraryDir,
@@ -166,6 +172,7 @@ object TerminalSessionManager {
             guestCommand = guestCommand,
             apkCacheDir = PackageGateway.apkCacheDir(storage),
             procEnabled = procEnabled,
+            sysDataBinds = sysDataBinds,
         )
         return spawn(
             context = appContext,

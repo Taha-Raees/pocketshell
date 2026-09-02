@@ -301,43 +301,80 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
       operation just works (apk's own locking/journal keeps the database
       consistent; partial downloads are discarded by apk).
 
-## 10. Manual acceptance — M2.6 (Linux compatibility recovery: real /proc + real apk) — DEVICE GATE PENDING
+## 10. Manual acceptance — M2.6 (real /proc + real apk + sysdata overlays + hardlink-capable extraction) — DEVICE GATE PENDING
 
-Install v0.6.1-m2.6 in place over v0.6.0/v0.5.0 (same signing certificate).
-The guest rootfs does NOT need reinstalling — the fd-link patch installs itself
-on the first session spawn. Architecture evidence: docs/M2.6-RESEARCH.md.
-Sandbox rehearsal passed (scripts/rehearse_m26_proc.sh); the device is the
-gate. v0.6.1 changes ONLY the wording of the Diagnostics "Interactive /proc"
-row and this section's Gate A expectations, after the 2026-09-02 device test
-confirmed the architecture and surfaced the /proc-version OEM denial (below).
+Install v0.6.2-m2.6 in place over v0.6.1/v0.6.0/v0.5.0 (same signing
+certificate). The guest rootfs does NOT need reinstalling — the fd-link patch
+installs itself on the first session spawn. Architecture evidence:
+docs/M2.6-RESEARCH.md. Sandbox rehearsal passed (scripts/rehearse_m262.sh,
+FULL PASS 19/19); the device is the gate.
 
-### Gate A — /proc in the interactive guest (Linux Shell)
-- [ ] Open Linux Shell (first spawn also installs the fd-link patch —
-      Diagnostics afterwards shows "apk fd-link patch: applied").
+v0.6.2 adds two layers on top of the v0.6.1 wording fixes, both from the same
+2026-09-02 device session:
+
+- PRIMARY GATE (M2.6.12, the user-pinned set): /proc/stat, /proc/uptime,
+  /proc/loadavg, /proc/version, /proc/vmstat and top. Files the kernel denies
+  get a PROBE-GATED compatibility overlay at each spawn (probe first — real
+  files are never overlaid; denied files get content derived from real host
+  sources, attributed in /proc/version itself).
+- M2.6.13: guest sessions run with proot's link2symlink extension
+  (--link2symlink, enabled by default in Termux PRoot-Distro), so packages
+  shipping HARDLINK entries (binutils, gcc, g++, …) extract correctly —
+  the 2026-09-02 run failed exactly those 19 entries with EACCES
+  (SELinux neverallow all_untrusted_apps file_type:file link).
+
+### Gate A — /proc in the interactive guest (Linux Shell) — PRIMARY GATE
+- [ ] Open Linux Shell (first spawn also installs the fd-link patch and
+      writes the sysdata overlays — Diagnostics afterwards shows
+      "apk fd-link patch: applied" and the "sysdata overlays" row).
 - [ ] `ls /proc` → real guest-visible procfs. EXPECTED NOISE: `ls` stats
       every entry, and Android's SELinux policy denies this app getattr on
       kernel-internal nodes (kmsg, kcore, vmcore, kpage*, sched_debug,
       timer_list, sysrq-trigger, …), so those lines read
-      "Permission denied" — that wall is REAL policy output, not a bug.
-      The PASS signal is the readable tail: numeric pid entries, meminfo,
-      cpuinfo, cmdline, uptime, loadavg, mounts, self, thread-self, sys,
-      tty, fs, bus, irq, driver … (Samsung adds memsize/memextra etc.).
-- [ ] `cat /proc/meminfo | head -3` → real values (GATE FILE — required).
+      "Permission denied" — that wall is REAL policy output, not a bug,
+      and v0.6.2 does NOT overlay those (they are not standard
+      compatibility files). The PASS signal is the readable tail: numeric
+      pid entries, meminfo, cpuinfo, cmdline, uptime, loadavg, mounts,
+      self, thread-self, sys, tty, fs, bus, irq, driver … (Samsung adds
+      memsize/memextra etc.).
+- [ ] `cat /proc/meminfo | head -3` → real values (GATE FILE — required;
+      never overlaid — the kernel allows it, and probe-first real wins).
 - [ ] `cat /proc/cpuinfo | head -5` → real values (GATE FILE — required).
-- [ ] `cat /proc/version` → kernel banner ON KERNELS THAT ALLOW IT.
-      Device-observed 2026-09-02 (SM-F711B, One UI): denied with
-      "Permission denied" — the OEM policy denies untrusted_app access to
-      proc_version (targetSdk 28 removes the legacy compat grant). That
-      is honest Android behavior; treat this bullet as INFORMATIONAL on
-      such devices and use `uname -a` for the kernel banner (uname(2) is
-      not policy-restricted). We will NOT synthesize /proc/version from
-      uname — fabricated content is against the project's rules.
+- [ ] `cat /proc/stat` → parseable: an aggregate cpu line + one cpuN line
+      per real core + intr/ctxt/btime/processes/procs_running/
+      procs_blocked/softirq. btime is REAL (epoch boot time); the jiffies
+      counters are documented zero placeholders (global counters are
+      denied to apps). On kernels that ALLOW /proc/stat the REAL file
+      shows instead — probe-first real wins, both outcomes are PASS.
+- [ ] `cat /proc/uptime` → field 1 is the REAL seconds-since-boot
+      (elapsedRealtime clock, includes deep sleep); field 2 (idle) is a
+      documented 0.00 placeholder.
+- [ ] `cat /proc/loadavg` → fields 1–3 are documented 0.00 placeholders
+      (Android exposes no load-average source to apps); the tail
+      "0/N PID" reflects the REAL hidepid-filtered pid set this app can
+      see (its own process tree).
+- [ ] `cat /proc/vmstat` → standard kernel counter-name skeleton, zero
+      values (names are kernel facts; values are honest placeholders).
+- [ ] `cat /proc/version` → ON KERNELS THAT ALLOW IT: the REAL kernel
+      banner (never overlaid). ON DENYING KERNELS (device-observed
+      2026-09-02, SM-F711B/One UI — proc_version not granted to apps
+      targeting SDK 28): the v0.6.2 overlay —
+      "Linux version <real release> (PocketShell sysdata overlay: kernel
+      identity via uname(2); the kernel's own file is denied to apps by
+      Android SELinux) <real build tail>". The release and build tail are
+      the REAL uname(2) identity; the parenthetical plainly says what the
+      file is. This supersedes v0.6.1's "informational only" stance:
+      the file is now readable either way, and `uname -a` still works
+      for comparison.
 
-### Gate B — process tools
+### Gate B — process tools (top is part of the PRIMARY GATE)
 - [ ] `ps` → real process list (the app's own process tree, host pids,
       hidepid-filtered — see docs/M2.6-RESEARCH.md §4.3).
 - [ ] `top` → opens, updates, redraws; `q` quits. (busybox top is batched:
-      `top -b -n 2` also proves refresh.)
+      `top -b -n 2` also proves refresh.) EXPECTED under the overlay:
+      the CPU% column reads ~0% because the kernel's global jiffies
+      counters are denied and the overlay's are static placeholders —
+      the PROCESS ROWS are real. htop renders the same way.
 
 ### Gate C — package manager in the SAME session (the M2.6 point)
 - [ ] `apk --version` → apk-tools 3.0.6-r0.
@@ -369,6 +406,21 @@ confirmed the architecture and surfaced the /proc-version OEM denial (below).
       completes.
 - [ ] Quit top (`q`) → shell prompt returns.
 
+### Gate H — hardlink extraction (M2.6.13; heals the 2026-09-02 broken state)
+- [ ] In the Linux Shell: `apk fix` (or `apk add --force-refresh binutils gcc
+      g++`) → completes with NO "failed to extract … Permission denied"
+      errors. The 2026-09-02 run left binutils/gcc/g++ recorded but
+      incomplete; the first v0.6.2 session re-extracts them.
+- [ ] `gcc --version && g++ --version && ld --version` → real GNU
+      toolchain banners (15.2.x).
+- [ ] `ls -l /usr/bin/ld /usr/bin/gcc` → the cross-arch duplicates are
+      SYMLINK chains, not hardlinks — that is link2symlink's emulation
+      doing its job (the kernel never evaluates the denied link() call).
+      Expected honest difference, not a defect; the binaries are
+      byte-identical to the real ones (rehearsal-proven).
+- [ ] From the app UI: Explore → install any package → still works
+      (PACKAGE_OPERATION sessions carry --link2symlink too).
+
 ### Diagnostics (explicit button)
 - [ ] "apk fd-link patch" → `applied — fd-link commit disabled (patched
       libapk verified)` after the first session spawn (CONFIRMED on device,
@@ -376,6 +428,13 @@ confirmed the architecture and surfaced the /proc-version OEM denial (below).
 - [ ] "Interactive /proc" → `interactive sessions bind /proc (real process
       tools). Host procfs: kernel-internal entries show 'Permission
       denied' — Android SELinux policy, expected` (v0.6.1 wording).
+- [ ] "sysdata overlays" (v0.6.2, read-only probe — the button never
+      writes) → on this kernel expect `overlay at next spawn: stat,
+      uptime, loadavg, version, vmstat (kernel-denied; content from
+      uname(2)/clock, attributed in /proc/version); N of 5 probed files
+      are real`. A kernel granting some of the five shows them as real;
+      a kernel granting all five shows `none — kernel grants all 5
+      probed files (real data wins)`.
 
 ### Expected on-device (NOT bugs — seen and confirmed 2026-09-02, SM-F711B)
 - `ls /proc` prints a wall of `Permission denied` lines for kernel-internal
@@ -390,10 +449,19 @@ confirmed the architecture and surfaced the /proc-version OEM denial (below).
   `ps`/`top`/`htop` do NOT print this noise — they silently skip
   unreadable entries by design.
 - `cat /proc/version` → "Permission denied" on this Samsung/One UI kernel
-  (proc_version is not granted to apps targeting SDK 28). Informational
-  gate only; `uname -a` gives the kernel banner. On kernels that grant
-  proc_version the banner shows the HOST kernel — that is the honest
-  answer, not a bug.
+  (proc_version is not granted to apps targeting SDK 28). v0.6.2 covers
+  this with the probe-gated sysdata overlay (Gate A) — the denial is the
+  REASON the overlay exists, and on kernels that grant proc_version the
+  REAL banner shows instead (never overlaid).
+- v0.6.2 hardlink difference: packages that ship hardlink entries
+  (binutils/gcc/g++) land with those names as symlink chains
+  (`ls -l /usr/bin/ld`), not hardlinks — proot's link2symlink emulation
+  exists because Android SELinux neverallows link() to untrusted apps.
+  Binaries are byte-identical to the real files; `du` counts each copy.
+- Overlay CPU% columns (top/htop) read ~0%: the overlay's /proc/stat
+  jiffies are documented zero placeholders (the kernel denies the global
+  counters to apps), so deltas are zero. Process rows, memory values and
+  uptime remain real.
 - Pids seen in /proc are HOST pids, filtered by hidepid=2 to this app's
   own processes. This is documented process semantics
   (docs/M2.6-RESEARCH.md §4.3), not a defect.
@@ -403,3 +471,10 @@ confirmed the architecture and surfaced the /proc-version OEM denial (below).
   `apk upgrade` replaced the library), interactive sessions run WITHOUT
   /proc (v0.5.0 shape) and Diagnostics says so; reinstall the runtime from
   Diagnostics to restore the pinned rootfs. apk keeps working either way.
+  (No-/proc sessions carry NO sysdata overlays either — the builder
+  refuses to fabricate a partial procfs; pinned by tests.)
+- If a sysdata overlay cannot be written or verified at spawn, that ONE
+  file stays unbound (its real file remains denied — the tool reading it
+  errors honestly) and Diagnostics' sysdata row lists it as FAILED;
+  the other overlays are unaffected. The session itself never fails
+  because of an overlay.

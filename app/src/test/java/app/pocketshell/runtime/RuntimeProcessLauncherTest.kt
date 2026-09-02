@@ -45,6 +45,7 @@ class RuntimeProcessLauncherTest {
             listOf(
                 File(native, RuntimeProcessLauncher.PROOT_LIB).absolutePath, // argv[0]
                 "--kill-on-exit",
+                "--link2symlink",
                 "--rootfs=${rootfs.absolutePath}",
                 "--root-id",
                 "--cwd=/root",
@@ -78,7 +79,7 @@ class RuntimeProcessLauncherTest {
         // rehearsed in the sandbox: "option '--rootfs' and its value must be
         // separated by '='". Flag-like options are the only exceptions.
         val s = spec(tmp.newFolder("rootfs"), makeNativeDir())
-        val flags = setOf("--kill-on-exit", "--root-id")
+        val flags = setOf("--kill-on-exit", "--link2symlink", "--root-id")
         for (arg in s.arguments) {
             if (arg.startsWith("--")) {
                 assertTrue("bare long option leaked: $arg", arg.contains('=') || arg in flags)
@@ -273,6 +274,7 @@ class RuntimeProcessLauncherTest {
             listOf(
                 File(native, RuntimeProcessLauncher.PROOT_LIB).absolutePath,
                 "--kill-on-exit",
+                "--link2symlink",
                 "--rootfs=${rootfs.absolutePath}",
                 "--root-id",
                 "--cwd=/root",
@@ -336,6 +338,7 @@ class RuntimeProcessLauncherTest {
             listOf(
                 File(native, RuntimeProcessLauncher.PROOT_LIB).absolutePath,
                 "--kill-on-exit",
+                "--link2symlink",
                 "--rootfs=${rootfs.absolutePath}",
                 "--root-id",
                 "--cwd=/root",
@@ -469,6 +472,112 @@ class RuntimeProcessLauncherTest {
                 guestCommand = listOf("/sbin/apk", "update"),
                 profile = GuestExecutionProfile.PACKAGE_OPERATION,
                 procEnabled = true,
+            )
+        }
+    }
+
+    /**
+     * M2.6.13 pin (device report 2026-09-02: binutils/gcc/g++ extraction
+     * failed on exactly their tar hardlink entries): BOTH profiles carry
+     * --link2symlink — the Termux proot extension that emulates link() as
+     * symlink chains, because Android SELinux neverallows link() to
+     * untrusted apps. Package operations extract hardlink-bearing packages
+     * too, so the flag is not interactive-only.
+     */
+    @Test
+    fun `both profiles carry link2symlink`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val native = makeNativeDir()
+        val cache = tmp.newFolder("apk-cache")
+        val interactive = RuntimeProcessLauncher.buildSessionSpec(
+            nativeLibraryDir = native.absolutePath,
+            rootfsDir = rootfs,
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
+            apkCacheDir = cache,
+            procEnabled = true,
+        )
+        val packageSpec = RuntimeProcessLauncher.buildLaunchSpec(
+            nativeLibraryDir = native.absolutePath,
+            rootfsDir = rootfs,
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf("/sbin/apk", "add", "binutils"),
+            apkCacheDir = cache,
+            profile = GuestExecutionProfile.PACKAGE_OPERATION,
+        )
+        assertEquals(1, interactive.arguments.count { it == "--link2symlink" })
+        assertEquals(1, packageSpec.arguments.count { it == "--link2symlink" })
+        // extension flags come before --rootfs (proot-distro ordering)
+        assertTrue(interactive.arguments.indexOf("--link2symlink") < interactive.arguments.indexOfFirst { it.startsWith("--rootfs=") })
+    }
+
+    /**
+     * M2.6.12 pins: verified sysdata binds ride DIRECTLY after the real
+     * /proc bind (file-over-file overlays), and every other placement is
+     * refused by construction — PACKAGE_OPERATION, or a no-/proc session
+     * (an overlay without the real /proc under it would fabricate a partial
+     * procfs).
+     */
+    @Test
+    fun `sysdata binds ride directly after the proc bind`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val native = makeNativeDir()
+        val cache = tmp.newFolder("apk-cache")
+        val binds = listOf(
+            "--bind=/data/sysdata/stat:/proc/stat",
+            "--bind=/data/sysdata/uptime:/proc/uptime",
+        )
+        val s = RuntimeProcessLauncher.buildSessionSpec(
+            nativeLibraryDir = native.absolutePath,
+            rootfsDir = rootfs,
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
+            apkCacheDir = cache,
+            procEnabled = true,
+            sysDataBinds = binds,
+        )
+        val procIdx = s.arguments.indexOf("--bind=/proc")
+        assertTrue(procIdx >= 0)
+        assertEquals(binds, s.arguments.drop(procIdx + 1).take(binds.size))
+        // overlays precede /sys, the cache binds and the guest argv
+        assertTrue(s.arguments.indexOf("--bind=/sys") > s.arguments.lastIndexOf("--bind=/data/sysdata"))
+    }
+
+    @Test
+    fun `sysdata binds without a real proc are refused`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val native = makeNativeDir()
+        val cache = tmp.newFolder("apk-cache")
+        assertThrows(IllegalArgumentException::class.java) {
+            RuntimeProcessLauncher.buildSessionSpec(
+                nativeLibraryDir = native.absolutePath,
+                rootfsDir = rootfs,
+                hostCwd = tmp.root,
+                prootTmpDir = tmp.root,
+                guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
+                apkCacheDir = cache,
+                procEnabled = false,
+                sysDataBinds = listOf("--bind=/data/sysdata/stat:/proc/stat"),
+            )
+        }
+    }
+
+    @Test
+    fun `package profile refuses sysdata binds`() {
+        val rootfs = tmp.newFolder("rootfs")
+        val native = makeNativeDir()
+        assertThrows(IllegalArgumentException::class.java) {
+            RuntimeProcessLauncher.buildLaunchSpec(
+                nativeLibraryDir = native.absolutePath,
+                rootfsDir = rootfs,
+                hostCwd = tmp.root,
+                prootTmpDir = tmp.root,
+                guestCommand = listOf("/sbin/apk", "update"),
+                profile = GuestExecutionProfile.PACKAGE_OPERATION,
+                sysDataBinds = listOf("--bind=/data/sysdata/stat:/proc/stat"),
             )
         }
     }

@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import app.pocketshell.runtime.GuestApkCompat
 import app.pocketshell.runtime.GuestEnvironment
 import app.pocketshell.runtime.GuestExecutionProfile
+import app.pocketshell.runtime.GuestSysDataCompat
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeState
@@ -152,31 +153,43 @@ object PackageGateway {
 
     /**
      * Best-effort guest environment repair before an interactive session
-     * spawns (v0.5.0; extended M2.6): refresh the managed resolv.conf to the
-     * CURRENT network's resolvers, make sure the apk cache/tmp dirs exist
-     * with sane modes, and verify (or install) the guest apk fd-link patch —
-     * the M2.6 architecture that lets sessions bind a REAL /proc while apk
-     * keeps its SELinux-safe renameat commit (docs/M2.6-RESEARCH.md).
+     * spawns (v0.5.0; extended M2.6 + M2.6.12): refresh the managed
+     * resolv.conf to the CURRENT network's resolvers, make sure the apk
+     * cache/tmp dirs exist with sane modes, verify (or install) the guest
+     * apk fd-link patch, and prepare the /proc sysdata overlays
+     * (probe-first — only kernel-denied standard files get one; real files
+     * are never overlaid, docs/M2.6-RESEARCH.md §7).
      *
      * Best-effort by design — a failure here never blocks the session; the
-     * returned [GuestApkCompat.Result] tells the caller whether /proc may be
-     * bound, and whatever is genuinely broken surfaces with its real error
-     * the moment apk runs. (Package operations run the DNS/workspace repairs
-     * strictly — see [AlpinePackageManager.runApk] — but never need the
-     * patch: their [GuestExecutionProfile.PACKAGE_OPERATION] spec has no
-     * /proc either way.)
+     * returned preparation tells the caller whether /proc may be bound
+     * ([GuestApkCompat.Result]) and which overlays were verified
+     * ([GuestSysDataCompat.Result]), and whatever is genuinely broken
+     * surfaces with its real error the moment apk runs. (Package
+     * operations run the DNS/workspace repairs strictly — see
+     * [AlpinePackageManager.runApk] — but never need the patch or overlays:
+     * their [GuestExecutionProfile.PACKAGE_OPERATION] spec has no /proc.)
      */
-    fun prepareGuestForSession(context: Context, rootfsDir: File): GuestApkCompat.Result {
+    fun prepareGuestForSession(context: Context, rootfsDir: File): GuestSessionPreparation {
         val compat = runCatching {
             GuestApkCompat.ensure(rootfsDir, readAsset = ::readGuestAsset)
         }.getOrElse {
             GuestApkCompat.Result.Failed("apk fd-link patch check failed: ${it.message ?: it.javaClass.simpleName}")
         }
+        // M2.6.12: sysdata dir is the rootfs's SIBLING (upstream layout:
+        // dirname(rootfs)/sysdata), inside the app's private storage.
+        val sysData = runCatching {
+            GuestSysDataCompat.prepare(
+                sysdataDir = File(rootfsDir.parentFile ?: File("."), GuestSysDataCompat.DIR_NAME),
+                sources = GuestSysDataCompat.Sources.device(),
+            )
+        }.getOrElse {
+            GuestSysDataCompat.Result(dir = null, outcomes = emptyList(), error = it.message ?: it.javaClass.simpleName)
+        }
         runCatching {
             GuestEnvironment.ensureDnsResolvers(rootfsDir, deviceDnsServers(context))
             GuestEnvironment.ensureApkWorkspace(rootfsDir)
         }
-        return compat
+        return GuestSessionPreparation(compat, sysData)
     }
 
     /** Reads the embedded patched guest apk library (null = missing asset). */
@@ -348,7 +361,30 @@ object PackageGateway {
                 "interactive sessions run without /proc until the patch is applied " +
                     "(open the Linux Shell once to install it)"
             },
+            // M2.6.12: read-only probe (no writes from the button) — which
+            // standard /proc files this kernel denies the app; denied ones
+            // get verified overlays at the next session spawn.
+            sysDataOverlays = sysDataProbeText(),
         )
+    }
+
+    /**
+     * Read-only sysdata probe text (M2.6.12): names the kernel-denied
+     * standard files that will be overlaid at the next spawn. NEVER probes
+     * with writes — the Diagnostics button stays read-mostly.
+     */
+    private fun sysDataProbeText(): String {
+        val readable = runCatching { GuestSysDataCompat.probeReport() }.getOrElse { return "probe failed" }
+        val denied = readable.filterValues { !it }.keys.map { it.substringAfterLast('/') }
+        val granted = readable.count { it.value }
+        return when {
+            denied.isEmpty() ->
+                "none — kernel grants all $granted probed files (real data wins)"
+            else ->
+                "overlay at next spawn: ${denied.joinToString(", ")} (kernel-denied; " +
+                    "content from uname(2)/clock, attributed in /proc/version); " +
+                    "$granted of ${readable.size} probed files are real"
+        }
     }
 
     private fun execOffline(
@@ -379,4 +415,11 @@ data class PackageEnvironmentReport(
     val updateProbeDetail: String? = null,
     val apkFdLinkPatch: String? = null,
     val guestProcPolicy: String? = null,
+    val sysDataOverlays: String? = null,
+)
+
+/** Everything a Linux session spawn needs from the prepare phase (M2.6/M2.6.12). */
+data class GuestSessionPreparation(
+    val apkCompat: GuestApkCompat.Result,
+    val sysData: GuestSysDataCompat.Result,
 )

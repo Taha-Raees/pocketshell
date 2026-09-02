@@ -29,3 +29,53 @@ https://nextjs.org/telemetry
  GET / 200 in 93ms
  GET / 200 in 173ms
  GET / 200 in 92ms
+ GET / 200 in 284ms
+ GET / 200 in 365ms
+ GET / 200 in 136ms
+ GET / 200 in 308ms
+ GET / 200 in 117ms
+ GET / 200 in 104ms
+ GET / 200 in 371ms
+ GET / 200 in 143ms
+ GET / 200 in 123ms
+ GET / 200 in 130ms
+ GET / 200 in 108ms
+ GET / 200 in 314ms
+ GET / 200 in 440ms
+ GET / 200 in 137ms
+ GET / 200 in 123ms
+ GET / 200 in 180ms
+ GET / 200 in 125ms
+ GET / 200 in 370ms
+ GET / 200 in 193ms
+ GET / 200 in 188ms
+ GET / 200 in 257ms
+ GET / 200 in 146ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 754ms (530 modules)
+ GET /PocketShell-v0.4.0-m2.4-debug.apk 404 in 982ms
+ ⚠ Cross origin request detected from preview-chat-af9ee1f3-ca8c-465f-89b3-fb2137e3b7e6.space-z.ai to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET / 200 in 215ms
+ GET / 200 in 153ms
+ GET / 200 in 375ms
+ GET / 200 in 152ms
+ GET / 200 in 156ms
+ GET / 200 in 487ms
+ GET / 200 in 516ms
+ GET / 200 in 150ms
+ GET / 200 in 384ms
+ GET / 200 in 129ms
+ GET / 200 in 153ms
+ GET / 200 in 226ms
+ GET / 200 in 165ms
+ GET / 200 in 287ms
+ GET / 200 in 380ms
+ GET / 200 in 150ms
+ GET / 200 in 537ms
+ GET / 200 in 579ms
+ GET / 200 in 281ms
+ GET / 200 in 295ms
+ GET / 200 in 263ms
+ GET / 200 in 172ms
+ GET / 200 in 154ms

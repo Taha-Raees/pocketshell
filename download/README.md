@@ -1,42 +1,46 @@
 # download/ — delivery masters
 
-Current: v0.6.1-m2.6 (git tip loaded in bundle, versionCode 15)
-- PocketShell-v0.6.1-m2.6-debug.apk  sha256 26a8f188079f97cfe41b5a1b7a614c67bd08208c1d02adebe9e7cedc65bb8897
-  Installs IN PLACE over v0.6.0/v0.5.0 (same pinned cert d96a6f66…8bf659).
-  The runtime/rootfs does NOT need reinstalling — behaviorally identical
-  to v0.6.0; only wording/docs changed after the 2026-09-02 device test.
-  DEVICE TEST RESULT (2026-09-02, SM-F711B): the M2.6 architecture is
-  CONFIRMED on hardware — Diagnostics shows "apk fd-link patch: applied",
-  the interactive session binds a REAL /proc (cat /proc/meminfo returns
-  the host's real values; numeric pid dirs visible).
-  EXPECTED ON-DEVICE, NOT BUGS (both are real Android policy):
-  · `ls /proc` prints a wall of "Permission denied" lines for
-    kernel-internal entries (kmsg, kcore, vmcore, kpage*, sched_debug,
-    …) before the readable tail — the guest /proc IS the host procfs
-    (the design) and SELinux denies this app getattr on those nodes.
-    The PASS signal is the readable tail: pid dirs, meminfo, cpuinfo,
-    cmdline, uptime, loadavg, mounts, sys, tty, fs, bus, irq, driver
-    (Samsung adds memsize/memextra). ps/top/htop skip silently.
-  · `cat /proc/version` is denied by the One UI kernel (proc_version is
-    not granted to apps targeting SDK 28). Informational only —
-    `uname -a` shows the kernel banner. Synthesizing /proc/version was
-    considered and REJECTED (no-fake rule).
-  · apk update / search / add / del keep working BOTH in the shell
-    (patched guest apk with /proc bound) and from the app UI
-    (no-/proc PACKAGE_OPERATION profile).
-  · mechanism: ONE checksum-pinned byte inside the guest's own
-    libapk (3.0.6-r0) disables apk's fd-link commit
-    (linkat /proc/self/fd — an Android SELinux neverallow) so apk
-    always uses its allowed renameat commit. Full evidence chain:
-    docs/M2.6-RESEARCH.md. Reproducible: scripts/patch_apk_fdlink.py.
-  · Diagnostics "Interactive /proc" row states the EACCES wall up front;
-    docs/TESTING.md §10 Gate A re-anchored (readable tail + meminfo/
-    cpuinfo; /proc/version is INFORMATIONAL) with an "Expected on-device
-    (NOT bugs)" subsection.
-- PocketShell-v0.6.1-m2.6-source.zip sha256 f198423bd2c6d25dfffd27b4c554d39906c0018fe2dd560b4794019ec4145ecb  (27 MB, 255 files)
-- PocketShell-v0.6.1-m2.6-source.tar.gz sha256 e99561d3d7a235bb7e8bee7c025da7f207c8400907ed6ee6ac47209e4b8c74d0  (27 MB)
-- pocketshell-m2.gitbundle           sha256 1e2afa7e33703d7f6101a64da16a6b23d0f98bcfda95861e691e35a16afcdf5a  (full history; ~25 MB — includes one-time scratch/ objects from the accidental 0380901 snapshot, see the payload-hygiene commit; future bundles no longer grow from scratch)
+Current: v0.6.2-m2.6 (git tip loaded in bundle, versionCode 16)
+- PocketShell-v0.6.2-m2.6-debug.apk  sha256 35c4cd698010cb8039369059df5c60042cc06232630848acb556fc8136249226
+  Installs IN PLACE over v0.6.1/v0.6.0/v0.5.0 (same pinned cert d96a6f66…8bf659).
+  The runtime/rootfs does NOT need reinstalling.
+  M2.6.13 — HARDLINK EXTRACTION FIXED (your 2026-09-02 report):
+  · apk add binutils/gcc/g++ failed with 19 "failed to extract …
+    Permission denied" errors — EXACTLY the hardlink entries of those
+    packages (verified against the tar entry types: 11 + 5 + 3).
+  · root cause: apk materializes tar hardlinks with link(), and Android
+    SELinux neverallows link() to untrusted apps (the same neverallow
+    M2.6 bypassed for download commits — extraction is a different call
+    site).
+  · fix: guest sessions now run proot's link2symlink extension
+    (--link2symlink) — the SAME Termux-proot extension PRoot-Distro
+    enables by default; link() is intercepted and emulated as a symlink
+    chain, so the kernel never evaluates the denied operation. Pure
+    reuse of the proot we already ship; no binary patch.
+  · your broken binutils/gcc/g++ state self-heals on the first
+    `apk fix` under v0.6.2; then gcc/g++/ld --version are real.
+  · honest difference: emulated links appear as symlinks
+    (ls -l /usr/bin/ld) and each costs the file's disk space;
+    binaries are byte-identical (rehearsal-proven).
+  M2.6.12 — SELECTIVE /proc SYSDATA OVERLAY (Termux PRoot-Distro's
+  architecture, adapted; see docs/M2.6-RESEARCH.md §7):
+  · at every interactive spawn the app probes the five standard procfs
+    files (stat, uptime, loadavg, version, vmstat) with a one-byte read;
+    kernel-READABLE files are NEVER overlaid (real wins);
+  · kernel-DENIED files get a verified compatibility overlay bound
+    file-over-file on top of the real /proc bind, content from real host
+    sources: uname(2) identity for /proc/version with an explicit
+    "PocketShell sysdata overlay" attribution marker in the file itself,
+    elapsedRealtime for uptime field 1, real core count + real btime for
+    stat, the real hidepid-filtered pid set for loadavg's tail —
+    documented placeholders where no allowed source exists;
+  · kernel-internal entries (kmsg, kcore, …) stay untouched — the
+    ls /proc EACCES wall remains expected and is not overlaid;
+  · Diagnostics gains a read-only "sysdata overlays" row (probe-only).
+- PocketShell-v0.6.2-m2.6-source.zip sha256 6fa407df1d46a9792cc9627e25fdaa5632bf583dee26a2bc89b0879677d1ce24  (27 MB, 261 files)
+- PocketShell-v0.6.2-m2.6-source.tar.gz sha256 0171633762b29ecb1c153ac527103944cd4ed4b5bfa882a389b1686220aef411  (27 MB)
+- pocketshell-m2.gitbundle           sha256 d0c69c5d2da33ef9db8da0e02cfe59a9eb53e9279ec705d26668017d165e2ff3  (full history; ~25 MB — includes one-time scratch/ objects from the accidental 0380901 snapshot; future bundles stay clean)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.6.0 superseded by the v0.6.1 wording/docs
-update — see docs/CHANGELOG for each confirmed fix).
+Older builds: withdrawn (v0.6.1 superseded by the v0.6.2 hardlink +
+sysdata fixes — see docs/CHANGELOG for each confirmed fix).

@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.6.1-m2.6
+VERSION=v0.6.2-m2.6
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,57 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.6.0-m2.6):
+WHAT IS NEW IN $VERSION (vs v0.6.1-m2.6):
+  - TWO fixes from the same 2026-09-02 device session (SM-F711B), both
+    device-reported and rehearsal-proven:
+  - M2.6.13, HARDLINK EXTRACTION FIXED: "apk add build-base" failed with
+    19 "failed to extract ... Permission denied" errors - exactly the
+    hardlink entries of binutils (11), gcc (5) and g++ (3), verified by
+    listing the tar entry types of the exact Alpine packages. Root cause:
+    apk materializes tar hardlinks with link(), and Android SELinux
+    neverallows link() to untrusted apps (the SAME neverallow M2.6
+    bypassed for download commits; extraction is a different call site).
+    FIX: guest sessions now run with proot's link2symlink extension
+    (--link2symlink), the SAME Termux-proot extension PRoot-Distro
+    enables by default - it intercepts link()/linkat() and emulates hard
+    links as symlink chains, so the kernel never evaluates the denied
+    operation. No binary patch, pure reuse of the proot we already ship.
+    Honest difference (documented): emulated links appear as symlinks and
+    each costs the file's disk space; binaries are byte-identical
+    (rehearsal-proven). The broken binutils/gcc/g++ state self-heals on
+    the first "apk fix" under v0.6.2.
+  - M2.6.12, SELECTIVE /proc SYSDATA OVERLAY (Termux PRoot-Distro's
+    architecture, adapted): Android SELinux denies untrusted apps read
+    access to the STANDARD procfs files (stat, uptime, loadavg, version,
+    vmstat). At every interactive spawn the app now probes each real
+    file with a one-byte read; kernel-READABLE files are never overlaid
+    (real wins), and only genuinely-denied files get a verified
+    compatibility file bound file-over-file ON TOP of the real /proc
+    bind. Content is derived from real host sources - uname(2) for
+    /proc/version (with an explicit "PocketShell sysdata overlay" attri-
+    bution marker in the file itself, superseding v0.6.1's synthesis
+    refusal per the owner's direction), elapsedRealtime for /proc/uptime
+    field 1, real core count + real btime for /proc/stat, the real
+    hidepid-filtered pid set for /proc/loadavg's tail - with documented
+    placeholders where no allowed source exists. Write hardening
+    (regular-file + nlink==1 validation, drop-and-remake, NOFOLLOW,
+    content round-trip verify) is a proportionate port of upstream's
+    descriptor discipline. Kernel-internal entries (kmsg, kcore, ...)
+    stay untouched - the ls /proc EACCES wall remains expected.
+  - DIAGNOSTICS: new read-only "sysdata overlays" row (probe-only; the
+    button never writes).
+  - TESTS: +20 net - 312 per variant (167 app + 145 terminal-emulator),
+    624 executions, 0 failures. Host rehearsal scripts/rehearse_m262.sh:
+    FULL PASS 19/19 (binutils install + working toolchain through the
+    emulated links, byte-identical binaries, sysdata overlays ride the
+    real /proc bind, unoverlaid meminfo stays real, top/ps render).
+  - DEVICE GATE: docs/TESTING.md §10 - Gate A (the five standard files
+    + meminfo/cpuinfo + top as the PRIMARY gate), Gate B (ps/top under
+    the overlay), Gate H (apk fix re-extract + gcc/g++/ld --version).
+    Installs IN PLACE over v0.6.1/v0.6.0/v0.5.0 (same signing key;
+    runtime and packages untouched).
+
+WHAT WAS NEW IN v0.6.1-m2.6 (vs v0.6.0-m2.6):
   - DEVICE TEST RESULT (2026-09-02, SM-F711B): the M2.6 architecture is
     CONFIRMED on hardware - Diagnostics shows "apk fd-link patch: applied"
     and the interactive session binds a REAL /proc (cat /proc/meminfo

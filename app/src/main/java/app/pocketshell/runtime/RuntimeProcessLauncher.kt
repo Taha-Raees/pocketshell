@@ -66,6 +66,33 @@ import java.io.File
  *    verification sessions degrade honestly to the v0.5.0 shape (no /proc).
  *  - PACKAGE_OPERATION: minimal mounts (no /proc — enforced in the builder
  *    with require()), the proven-safe apk commit environment.
+ *
+ * v0.6.2 (M2.6.13, device-reported 2026-09-02): `apk add binutils gcc g++`
+ * failed extracting EXACTLY the tar's hardlink entries (11/5/3 — byte-for-
+ * byte the `hrwxr-xr-x` entries of the Alpine packages; every regular file
+ * extracted fine) — apk's extraction calls link(), and the SAME AOSP
+ * neverallow that M2.6 worked around for download commits
+ * (`neverallow all_untrusted_apps file_type:file link`) forbids link() to
+ * untrusted apps outright. The fix is Termux's own proot extension
+ * link2symlink — compiled into the libproot.so we ship since M2.3 (same
+ * termux/proot pin 7266fb3e) and enabled BY DEFAULT by proot-distro for
+ * every non-Termux distro: `--link2symlink` intercepts link/linkat at the
+ * ptrace layer and emulates the hard link as a symlink chain (with
+ * link-count translation for stat/statx), so the kernel never evaluates
+ * the denied operation. Content and behavior are real; the one honest
+ * difference (links become symlinks, disk usage counts each copy) is
+ * documented and visible. Enabled for BOTH profiles — package operations
+ * extract hardlink-bearing packages too.
+ *
+ * v0.6.2 (M2.6.12, docs/M2.6-RESEARCH.md §7): [GuestSysDataCompat] probes
+ * the standard /proc files Android denies this app domain; a kernel-denied
+ * file gets a verified compatibility overlay bound FILE-over-file on top
+ * of the real /proc bind (real files are never overlaid — probe-first,
+ * real wins). The binds arrive pre-computed via [sysDataBinds]; the
+ * builder only enforces WHERE they may appear: an INTERACTIVE_TERMINAL
+ * session with /proc bound, never PACKAGE_OPERATION, never a no-/proc
+ * session (an overlay without the real /proc under it would fabricate a
+ * partial procfs — refused by construction).
  */
 
 /**
@@ -173,6 +200,7 @@ object RuntimeProcessLauncher {
         guestCommand: List<String>,
         apkCacheDir: File,
         procEnabled: Boolean = false,
+        sysDataBinds: List<String> = emptyList(),
     ): LaunchSpec = buildLaunchSpec(
         nativeLibraryDir = nativeLibraryDir,
         rootfsDir = rootfsDir,
@@ -182,6 +210,7 @@ object RuntimeProcessLauncher {
         apkCacheDir = apkCacheDir,
         profile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
         procEnabled = procEnabled,
+        sysDataBinds = sysDataBinds,
     )
 
     data class LaunchSpec(
@@ -203,6 +232,7 @@ object RuntimeProcessLauncher {
         apkCacheDir: File? = null,
         profile: GuestExecutionProfile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
         procEnabled: Boolean = profile == GuestExecutionProfile.INTERACTIVE_TERMINAL,
+        sysDataBinds: List<String> = emptyList(),
     ): LaunchSpec {
         // Same contract as [preconditionProblem], thrown so programmatic
         // callers get a hard, honest failure (UI callers preflight instead).
@@ -220,6 +250,14 @@ object RuntimeProcessLauncher {
             "PACKAGE_OPERATION must not bind /proc — the SELinux linkat neverallow " +
                 "makes every apk commit fail; use the patched-guest INTERACTIVE_TERMINAL profile"
         }
+        // M2.6.12 guard: sysdata overlays repair files INSIDE a real /proc.
+        // A no-/proc session (package operation, or an interactive session
+        // whose patch never verified) would get a fabricated PARTIAL procfs
+        // — refused by construction, pinned by tests.
+        require(sysDataBinds.isEmpty() || (procEnabled && profile == GuestExecutionProfile.INTERACTIVE_TERMINAL)) {
+            "sysdata overlays require an INTERACTIVE_TERMINAL session with a real /proc bound — " +
+                "they exist only to repair kernel-denied files under it"
+        }
 
         val proot = File(nativeLibraryDir, PROOT_LIB)
         val loader = File(nativeLibraryDir, LOADER_LIB)
@@ -232,6 +270,14 @@ object RuntimeProcessLauncher {
         val arguments = mutableListOf(
             proot.absolutePath,
             "--kill-on-exit",
+            // M2.6.13: emulate link()/linkat() as symlink chains (Termux
+            // link2symlink extension, compiled into this libproot.so).
+            // Android SELinux neverallows link() to untrusted apps, so
+            // Alpine packages shipping hardlink entries (binutils, gcc,
+            // g++, …) could not extract — device-proven 2026-09-02
+            // (11/5/3 failed files == exactly the tar hardlinks). proot
+            // -distro enables this by default for every non-Termux distro.
+            "--link2symlink",
             "--rootfs=${rootfsDir.absolutePath}",
             "--root-id",
             "--cwd=/root",
@@ -244,6 +290,11 @@ object RuntimeProcessLauncher {
         // named-tmpfile + renameat commit path.
         if (procEnabled) {
             arguments.add("--bind=/proc")
+            // M2.6.12: verified sysdata overlays ride DIRECTLY on top of the
+            // real /proc bind (file-over-file, more specific path wins in
+            // proot). Only kernel-DENIED files are listed — real files are
+            // never overlaid (probe-first, GuestSysDataCompat).
+            arguments.addAll(sysDataBinds)
         }
         arguments.add("--bind=/sys")
         if (apkCacheDir != null) {
