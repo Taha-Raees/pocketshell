@@ -517,3 +517,18 @@ Work Log:
 
 Stage Summary:
 - Diagnosis complete and host-reproduced: uv hardlink cache + Android link() neverallow + proot l2s metadata-passthrough = Hermes install failure; one-env-var workaround given to the user; evidence scripts committed; v0.6.3 candidate recorded.
+
+---
+Task ID: 27
+Agent: main (Super Z)
+Task: Verify the user's UV_LINK_MODE=copy retry result, update docs, answer "are we done from this phase".
+
+Work Log:
+- VERIFIED from the paste: Hermes Agent 0.21.0 installed successfully in the guest — 102 packages hash-verified via uv.lock (34.68s prepared + 6.24s installed), hermes-agent built from the cloned source, /usr/local/bin/{hermes,hermes-agent,hermes-acp} launchers, ~/.hermes/{.env,config.yaml,SOUL.md} created, 58 bundled skills synced. The Task 26 workaround is DEVICE-VALIDATED.
+- OBSERVED HYGIENE ITEM: `rm -rf /root/.cache/uv` could NOT clean the old cache — stat EPERMs on the wedged first-run entries (l2s symlinks carry absolute HOST-side targets; guest-side stat translation cannot resolve them; the listing also shows chained `.l2s..l2s.*` names from the failed run's link-of-link emulation). Inert (a few MB); quarantine via `mv` (rename never touches children) works; host-side deletion possible later. Documented in the research doc rather than worked around silently.
+- STILL OPTIONAL on the device: ripgrep/ffmpeg (apk add), Node for browser tools (nodejs.org downloads fail on the device network — three release lines "Node.js unreadable"; Alpine's apk nodejs-current is the reliable path; npm 11.12.1 already present), DuckDuckGo reachability (transient/bot-blocking — GitHub/PyPI clearly work).
+- DOCS: docs/M2.6-RESEARCH.md §8.5 added (second-order link() class, host repro pointers, the on-device validation, the wedged-cache note, v0.6.3 candidates: preset UV_LINK_MODE=copy in guest env + document + upstream report to termux/proot).
+- PHASE STATUS: v0.6.2-m2.6 delivered and now battle-tested in real guest use (Hermes install exercised the session stack: sysdata overlays present, l2s active, apk/git/uv all functional). FORMAL phase close still pending the user's Gates A-H run (TESTING §10) — notably Gate H (`apk fix` → gcc/g++/ld --version) heals the 2026-09-02 broken toolchain state; the installer's "C++ compiler found" suggests the user may have already run it, but the gate checklist is the confirmation.
+
+Stage Summary:
+- Hermes episode closed: root-caused (Task 26), workaround device-validated (Task 27), evidence + docs committed. v0.6.3 candidates recorded. Awaiting the user's Gates A-H results to formally close the M2.6 phase.
