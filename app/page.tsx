@@ -1,11 +1,11 @@
-const VERSION = "v0.4.2-m2.4";
-const TIP = "1f72be9";
+const VERSION = "v0.4.3-m2.4";
+const TIP = "79afdee";
 
 const HASHES = {
-  apk: "78306b16aa4ec43adeda7226ce125f741dff910dd42d6ef4885604401d7d680b",
-  zip: "5662870ed3fcd6827d2133b5d54f0aa67deab904c7da2c8358061f2c56e90a02",
-  tgz: "131c051249c9d537e22b48e2ce3aa9fa33922e8aaa14cd6078e97ca6b3cfebf4",
-  bundle: "25db79c18a1bf5c86b09967324eca5cb1a792e25b7b43188603e41f788f05963",
+  apk: "02e0e746259b3902f90f97df57384c7b96271449047b76e6658c924abfa00fe6",
+  zip: "35ae6adb7f1353c8f49c3713dd60f10291927ce4e6cb633b167846250a26cbcd",
+  tgz: "e38a751352fa22397f22858e71c81089823b0d443a351b6ef291382df797da37",
+  bundle: "39d69f165d18fa3b5cac7b6af2bcb4bb996abc852259a6d50a6b6cb175d7fd17",
 };
 
 function Sha({ text }: { text: string }) {
@@ -26,41 +26,40 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          PocketShell {VERSION} <span className="badge">versionCode 10</span>
+          PocketShell {VERSION} <span className="badge">versionCode 11</span>
         </h2>
         <p>
-          Fixes what your 2026-09-02 screenshots showed on v0.4.1: the
-          repository fetch still dying with <i>“Permission denied”</i> even
-          though DNS was working, and every catalog card flipping to
-          “Working…” when you installed nano. Root cause of the fetch failure
-          (verified in apk-tools 3.0.6 source + AOSP SELinux policy): apk
-          commits each download with a hardlink (
-          <code>linkat(/proc/self/fd/N)</code>), which Android&apos;s
-          neverallow for untrusted apps denies — so apk cancelled the whole
-          download. Package commands no longer bind <code>/proc</code> into
-          the guest, so apk uses its plain create+rename commit path, which is
-          allowed. End-to-end re-rehearsed with the same apk-tools: update →
-          nano → run → del, all green. 277 unit tests green.
+          Your 08:13 screenshots were <b>half good news</b>: the SELinux fix
+          works (“Permission denied” is gone) and only the tapped card shows
+          “Working…” — exactly as designed. The remaining failure is DNS: the
+          guest had a <b>single usable resolver</b> (your hotspot’s gateway,
+          172.20.10.1 — the second entry was an IPv6 link-local with a{" "}
+          <code>%wlan0</code> zone suffix that musl can’t parse). When that
+          one resolver doesn’t answer, every fetch dies with “DNS: transient
+          error”. This build writes <b>device resolvers first + public
+          fallbacks (1.1.1.1, 8.8.8.8), capped at 3</b> — musl queries all of
+          them in parallel and takes the first answer, so one dead resolver
+          can no longer block an install. The file also self-refreshes on
+          every package operation, so switching Wi‑Fi/hotspot can’t break it
+          anymore. 281 unit tests green.
         </p>
-        <a className="btn" href="/PocketShell-v0.4.2-m2.4-debug.apk">
+        <a className="btn" href="/PocketShell-v0.4.3-m2.4-debug.apk">
           Download APK (debug, 21 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1/v0.4.2)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall needed</h2>
         <p>
-          Installs <b>in place over v0.4.1</b> (same pinned signing key,
-          committed at <code>keystore/debug.keystore</code>). Your Linux
-          runtime, its DNS setup and the package cache stay as they are — the
-          fix is in how package commands launch, not in the data. If Android
-          still refuses the update for any reason, uninstall → reinstall and
-          tap “Install Linux environment” once in Diagnostics; nothing else
-          is lost.
+          Installs <b>in place over v0.4.2</b> (same pinned signing key). Your
+          Linux runtime stays. The DNS repair applies itself on the first
+          package operation — no reinstall, no data loss. If you ever see
+          “DNS: transient error” again on <i>this</i> build, it means all
+          three resolvers failed — report it and it becomes the next fix.
         </p>
       </div>
 
@@ -82,8 +81,9 @@ export default function Home() {
           <li>
             Package management (M2.4): Explore CLI Apps — real <code>apk</code>{" "}
             search / install / open / uninstall (nano, htop, vim, git,
-            python3), verified by real exit codes, never faked. Only the card
-            you tap shows “Working…”; the others keep their true labels.
+            python3), verified by real exit codes, never faked. SELinux-safe
+            download commits (no /proc in package commands), parallel-query
+            DNS, per-card busy state.
           </li>
         </ul>
       </div>
@@ -91,11 +91,10 @@ export default function Home() {
       <div className="card">
         <h2>Device gate (docs/TESTING.md §9 — M2.4)</h2>
         <ol className="steps">
-          <li>Install {VERSION} APK over v0.4.1 (no uninstall).</li>
+          <li>Install {VERSION} APK over v0.4.2 (no uninstall).</li>
           <li>
-            Explore CLI Apps → <b>Install Nano</b> → this time the update
-            must pass: no “Permission denied” banner — the card reaches
-            “nano installed” (Working… only on the nano card).
+            Explore CLI Apps → <b>Install Nano</b> → must reach “nano
+            installed” — no “DNS: transient error”, no “Permission denied”.
           </li>
           <li>
             Open → real nano in a real session; type, Ctrl+O save, Ctrl+X
@@ -103,7 +102,9 @@ export default function Home() {
           </li>
           <li>
             Diagnostics → <b>Check package environment</b>: Repository fetch{" "}
-            <b>OK</b>, Guest DNS = <i>device resolvers</i>.
+            <b>OK</b>; Guest DNS shows your resolver first + 1.1.1.1/8.8.8.8,
+            source line “device resolvers first, public fallback (musl
+            queries all in parallel)”.
           </li>
           <li>Reopen app → Nano still installed (read from the real apk db).</li>
           <li>Uninstall → “nano removed” → Open stays protected, no crash.</li>
@@ -117,10 +118,10 @@ export default function Home() {
           Complete buildable source at git tip {TIP}. The zip intentionally
           contains no dotfiles; full history rides in the git bundle.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.4.2-m2.4-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.4.3-m2.4-source.zip">
           source.zip (4.0 MB)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.4.2-m2.4-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.4.3-m2.4-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -139,9 +140,9 @@ export default function Home() {
       <footer>
         Milestones: M0–M1.3 terminal · M2.2 runtime install · M2.3 Linux shell
         (device-verified) · M2.4 package layer (this build — needs your device
-        gate). v0.4.1 and earlier are withdrawn (apk fetch was SELinux-blocked;
-        see CHANGELOG 0.4.2). Next: M2.5 CLI app cards on Home after the §9
-        gate passes.
+        gate). v0.4.2 and earlier are withdrawn (see CHANGELOG 0.4.2/0.4.3 for
+        the confirmed fixes they shipped). Next: M2.5 CLI app cards on Home
+        after the §9 gate passes.
       </footer>
     </main>
   );
