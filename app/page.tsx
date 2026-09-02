@@ -1,11 +1,11 @@
-const VERSION = "v0.4.3-m2.4";
-const TIP = "79afdee";
+const VERSION = "v0.4.4-m2.4";
+const TIP = "37d4f82";
 
 const HASHES = {
-  apk: "02e0e746259b3902f90f97df57384c7b96271449047b76e6658c924abfa00fe6",
-  zip: "35ae6adb7f1353c8f49c3713dd60f10291927ce4e6cb633b167846250a26cbcd",
-  tgz: "e38a751352fa22397f22858e71c81089823b0d443a351b6ef291382df797da37",
-  bundle: "39d69f165d18fa3b5cac7b6af2bcb4bb996abc852259a6d50a6b6cb175d7fd17",
+  apk: "3161f40fb9e12f8209213205c0609cf0a0dcebdab4f6d584eee4047eefe5baa7",
+  zip: "7bae560dc3a9aea69cca16eac4ef2e41bc196bd4292521f7b6f4a5a0b96363ca",
+  tgz: "10906ec2a6ce94cf587bb81a18f70543fc18cbb39aa5feac937ad0b2855e1b62",
+  bundle: "e9203d0d08b7c3baed13fde16c1c2fe0a9256d44f144c6d3c7adf44ec51761f2",
 };
 
 function Sha({ text }: { text: string }) {
@@ -26,40 +26,63 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          PocketShell {VERSION} <span className="badge">versionCode 11</span>
+          M2.4 <b>PASSED on your device</b> — and this build fixes the three
+          bugs your screenshots caught <span className="badge">versionCode 12</span>
         </h2>
         <p>
-          Your 08:13 screenshots were <b>half good news</b>: the SELinux fix
-          works (“Permission denied” is gone) and only the tapped card shows
-          “Working…” — exactly as designed. The remaining failure is DNS: the
-          guest had a <b>single usable resolver</b> (your hotspot’s gateway,
-          172.20.10.1 — the second entry was an IPv6 link-local with a{" "}
-          <code>%wlan0</code> zone suffix that musl can’t parse). When that
-          one resolver doesn’t answer, every fetch dies with “DNS: transient
-          error”. This build writes <b>device resolvers first + public
-          fallbacks (1.1.1.1, 8.8.8.8), capped at 3</b> — musl queries all of
-          them in parallel and takes the first answer, so one dead resolver
-          can no longer block an install. The file also self-refreshes on
-          every package operation, so switching Wi‑Fi/hotspot can’t break it
-          anymore. 281 unit tests green.
+          Your 09:09–09:10 screenshots are the milestone evidence we were
+          waiting for: <b>GNU nano 9.2 running inside the Alpine guest</b>,
+          apk-tools 3.0.6, combined DNS, and <b>“Repository fetch: OK —
+          28546 distinct packages available”</b>. The SELinux and DNS chains
+          are closed. But the same screenshots caught the app lying to you in
+          three places — all fixed here:
         </p>
-        <a className="btn" href="/PocketShell-v0.4.3-m2.4-debug.apk">
+        <ul className="steps">
+          <li>
+            <b>Nano showed “Not installed” in Explore:</b> the installed-state
+            probe ran one shell loop over the five catalog packages and let
+            the loop’s <i>exit status</i> stand for the whole probe. The last
+            package checked (<code>python3</code>) isn’t installed, so the
+            loop exited 1 — and the app <i>threw away the perfectly good
+            answer</i> that contained <code>nano nano-9.2-r0</code>. Now the
+            probe calls the absolute <code>/sbin/apk</code> and always exits 0
+            when it completes: a mixed answer is a success, and versions come
+            from the same strict parser as everything else.
+          </li>
+          <li>
+            <b>Home said “No apps installed yet”:</b> that list read an
+            old M1-era registry that nothing ever wrote (M2.4 installs go
+            through apk, not that registry). Home now shows exactly what the
+            real apk database confirms — fresh probe on every visit and after
+            every install/uninstall — with the real version. The dead registry
+            is deleted, not patched.
+          </li>
+          <li>
+            <b>Paste did nothing:</b> the terminal’s Paste action ends in a
+            client callback that was <i>empty</i> (its comment claimed
+            upstream does the paste — it doesn’t, nothing did). It now reads
+            the real clipboard and pastes with upstream semantics —
+            bracketed-paste aware, so it behaves inside nano too. Copy
+            anywhere on your phone → long-press → Paste → it lands.
+          </li>
+        </ul>
+        <a className="btn" href="/PocketShell-v0.4.4-m2.4-debug.apk">
           Download APK (debug, 21 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1/v0.4.2)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.4.3)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall needed</h2>
         <p>
-          Installs <b>in place over v0.4.2</b> (same pinned signing key). Your
-          Linux runtime stays. The DNS repair applies itself on the first
-          package operation — no reinstall, no data loss. If you ever see
-          “DNS: transient error” again on <i>this</i> build, it means all
-          three resolvers failed — report it and it becomes the next fix.
+          Installs <b>in place over v0.4.3</b> (same pinned signing key). Your
+          Linux runtime, every installed package and the network-managed DNS
+          file are untouched — all three fixes live in the Android layer. The
+          first time you open Home or Explore, the app re-probes the real apk
+          database and your installed nano appears in both places.
         </p>
       </div>
 
@@ -68,7 +91,7 @@ export default function Home() {
         <ul className="steps">
           <li>
             Real terminal (M1): Termux-emulator PTY sessions, full keyboard,
-            themes, diagnostics.
+            themes, diagnostics — plus working clipboard paste (v0.4.4).
           </li>
           <li>
             Linux runtime (M2.2): installs pinned Alpine 3.24.1 aarch64
@@ -79,36 +102,40 @@ export default function Home() {
             PTY — <code>uname; id; echo hello</code> verified on device.
           </li>
           <li>
-            Package management (M2.4): Explore CLI Apps — real <code>apk</code>{" "}
-            search / install / open / uninstall (nano, htop, vim, git,
-            python3), verified by real exit codes, never faked. SELinux-safe
-            download commits (no /proc in package commands), parallel-query
-            DNS, per-card busy state.
+            Package management (M2.4, <b>device-gate passed</b>): real{" "}
+            <code>apk</code> search / install / open / uninstall; SELinux-safe
+            download commits; parallel-query DNS; and — since this build — UI
+            state that can only come from real apk answers (“Not installed”
+            is never guessed; a failed probe says “state unavailable”).
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Device gate (docs/TESTING.md §9 — M2.4)</h2>
+        <h2>Quick checks (docs/TESTING.md §9 — the v0.4.4 additions)</h2>
         <ol className="steps">
-          <li>Install {VERSION} APK over v0.4.2 (no uninstall).</li>
+          <li>Install {VERSION} APK over v0.4.3 (no uninstall).</li>
           <li>
-            Explore CLI Apps → <b>Install Nano</b> → must reach “nano
-            installed” — no “DNS: transient error”, no “Permission denied”.
+            Home → <b>Installed CLI Apps</b> now lists <b>Nano</b> with its
+            real version; tapping it opens a real nano session.
           </li>
           <li>
-            Open → real nano in a real session; type, Ctrl+O save, Ctrl+X
-            exit.
+            Explore CLI Apps → Nano card shows <b>“Installed · 9.2-r0”</b>{" "}
+            with Open/Uninstall — not “Install”/“Not installed”.
           </li>
           <li>
-            Diagnostics → <b>Check package environment</b>: Repository fetch{" "}
-            <b>OK</b>; Guest DNS shows your resolver first + 1.1.1.1/8.8.8.8,
-            source line “device resolvers first, public fallback (musl
-            queries all in parallel)”.
+            Paste test: copy text anywhere on the phone → terminal →
+            long-press → select → <b>Paste</b> → the text lands on the command
+            line (and inside nano).
           </li>
-          <li>Reopen app → Nano still installed (read from the real apk db).</li>
-          <li>Uninstall → “nano removed” → Open stays protected, no crash.</li>
-          <li>Linux Shell → <code>uname; id; echo hello</code> still works.</li>
+          <li>
+            Install HTop from Explore → Home’s list updates to show both apps
+            without leaving the app.
+          </li>
+          <li>
+            Regression: Check package environment still shows fetch OK;
+            Linux Shell still works.
+          </li>
         </ol>
       </div>
 
@@ -118,10 +145,10 @@ export default function Home() {
           Complete buildable source at git tip {TIP}. The zip intentionally
           contains no dotfiles; full history rides in the git bundle.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.4.3-m2.4-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.4.4-m2.4-source.zip">
           source.zip (4.0 MB)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.4.3-m2.4-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.4.4-m2.4-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -139,10 +166,11 @@ export default function Home() {
 
       <footer>
         Milestones: M0–M1.3 terminal · M2.2 runtime install · M2.3 Linux shell
-        (device-verified) · M2.4 package layer (this build — needs your device
-        gate). v0.4.2 and earlier are withdrawn (see CHANGELOG 0.4.2/0.4.3 for
-        the confirmed fixes they shipped). Next: M2.5 CLI app cards on Home
-        after the §9 gate passes.
+        (device-verified) · M2.4 package layer (<b>device gate PASSED</b>,
+        v0.4.3; state-sync + paste polish in this build). v0.4.3 and earlier
+        are withdrawn (see CHANGELOG 0.4.2/0.4.3/0.4.4 for the confirmed fixes
+        each shipped). Next: M2.5 — richer CLI-app surface on Home beyond the
+        curated five.
       </footer>
     </main>
   );
