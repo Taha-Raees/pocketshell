@@ -3,6 +3,49 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.6.1-m2.6] — 2026-09-02 — M2.6 device-test follow-up: honest expectations for the real host procfs
+
+### Why this patch release exists
+- The 2026-09-02 device test (SM-F711B) CONFIRMED the M2.6 architecture end to
+  end: Diagnostics shows `apk fd-link patch: applied` and the interactive
+  session binds a real /proc — `cat /proc/meminfo` returns the host's real
+  values and numeric pid dirs appear. The same test surfaced two behaviors the
+  docs and Diagnostics wording had not prepared anyone for, and one Gate A
+  bullet (`cat /proc/version`) that reads as a failure but is actually
+  device policy working as designed.
+- What the test showed, and what each means:
+  1. `ls /proc` prints a wall of `Permission denied` lines (kmsg, kcore,
+     vmcore, kpage*, sched_debug, timer_list, sysrq-trigger, …) before the
+     readable tail. REAL and EXPECTED: the guest's /proc IS the Android host
+     procfs (the design — no re-export, no simulation), and SELinux genuinely
+     denies this app getattr on kernel-internal nodes; busybox `ls` reports
+     each denial. `ps`/`top`/`htop` skip unreadable entries silently, so only
+     directory listings are noisy.
+  2. `cat /proc/version` → `Permission denied` on this Samsung/One UI kernel:
+     the OEM policy does not grant untrusted_app read on `proc_version` (the
+     legacy grant disappears at targetSdk 28). Informational only —
+     `uname -a` shows the kernel banner. Synthesizing /proc/version from
+     uname() was considered and REJECTED: fabricated content violates the
+     project's no-fake rule.
+  3. The readable set is genuinely useful and real: pid dirs (host pids,
+     hidepid=2-filtered to this app), meminfo, cpuinfo, cmdline, uptime,
+     loadavg, mounts, self, thread-self, sys, tty, fs, bus, irq, driver,
+     plus Samsung extras (memsize, memextra, uid_0_procstat).
+
+### Changed
+- Diagnostics "Interactive /proc" row (patched-libapk state) now states the
+  full truth up front: `interactive sessions bind /proc (real process
+  tools). Host procfs: kernel-internal entries show 'Permission denied' —
+  Android SELinux policy, expected`. The no-patch fallback wording is
+  unchanged.
+- docs/TESTING.md §10 Gate A re-anchored: the PASS signals are the readable
+  tail (`ls /proc`), `cat /proc/meminfo`, `cat /proc/cpuinfo`; the denial
+  wall is documented as expected noise; `cat /proc/version` is INFORMATIONAL
+  (OEM-dependent). New subsection "Expected on-device (NOT bugs)" records
+  the 2026-09-02 observations verbatim.
+- No runtime, launcher, profile, patch, or rootfs changes — the artifacts
+  (APK payload beyond the one string) are behaviorally identical to v0.6.0.
+
 ## [0.6.0-m2.6] — 2026-09-02 — M2.6: Linux compatibility recovery — real /proc + real apk, no trade
 
 ### Why this milestone exists

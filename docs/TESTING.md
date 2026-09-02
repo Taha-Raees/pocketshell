@@ -303,20 +303,35 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
 
 ## 10. Manual acceptance — M2.6 (Linux compatibility recovery: real /proc + real apk) — DEVICE GATE PENDING
 
-Install v0.6.0-m2.6 in place over v0.5.0 (same signing certificate). The
-guest rootfs does NOT need reinstalling — the fd-link patch installs itself
+Install v0.6.1-m2.6 in place over v0.6.0/v0.5.0 (same signing certificate).
+The guest rootfs does NOT need reinstalling — the fd-link patch installs itself
 on the first session spawn. Architecture evidence: docs/M2.6-RESEARCH.md.
 Sandbox rehearsal passed (scripts/rehearse_m26_proc.sh); the device is the
-gate.
+gate. v0.6.1 changes ONLY the wording of the Diagnostics "Interactive /proc"
+row and this section's Gate A expectations, after the 2026-09-02 device test
+confirmed the architecture and surfaced the /proc-version OEM denial (below).
 
 ### Gate A — /proc in the interactive guest (Linux Shell)
 - [ ] Open Linux Shell (first spawn also installs the fd-link patch —
       Diagnostics afterwards shows "apk fd-link patch: applied").
-- [ ] `ls /proc` → real guest-visible procfs (numeric pid entries, version,
-      meminfo, stat, …).
-- [ ] `cat /proc/version` → Linux version banner (the HOST kernel — honest).
-- [ ] `cat /proc/meminfo | head -3` → real values.
-- [ ] `cat /proc/cpuinfo | head -5` → real values.
+- [ ] `ls /proc` → real guest-visible procfs. EXPECTED NOISE: `ls` stats
+      every entry, and Android's SELinux policy denies this app getattr on
+      kernel-internal nodes (kmsg, kcore, vmcore, kpage*, sched_debug,
+      timer_list, sysrq-trigger, …), so those lines read
+      "Permission denied" — that wall is REAL policy output, not a bug.
+      The PASS signal is the readable tail: numeric pid entries, meminfo,
+      cpuinfo, cmdline, uptime, loadavg, mounts, self, thread-self, sys,
+      tty, fs, bus, irq, driver … (Samsung adds memsize/memextra etc.).
+- [ ] `cat /proc/meminfo | head -3` → real values (GATE FILE — required).
+- [ ] `cat /proc/cpuinfo | head -5` → real values (GATE FILE — required).
+- [ ] `cat /proc/version` → kernel banner ON KERNELS THAT ALLOW IT.
+      Device-observed 2026-09-02 (SM-F711B, One UI): denied with
+      "Permission denied" — the OEM policy denies untrusted_app access to
+      proc_version (targetSdk 28 removes the legacy compat grant). That
+      is honest Android behavior; treat this bullet as INFORMATIONAL on
+      such devices and use `uname -a` for the kernel banner (uname(2) is
+      not policy-restricted). We will NOT synthesize /proc/version from
+      uname — fabricated content is against the project's rules.
 
 ### Gate B — process tools
 - [ ] `ps` → real process list (the app's own process tree, host pids,
@@ -356,9 +371,32 @@ gate.
 
 ### Diagnostics (explicit button)
 - [ ] "apk fd-link patch" → `applied — fd-link commit disabled (patched
-      libapk verified)` after the first session spawn.
+      libapk verified)` after the first session spawn (CONFIRMED on device,
+      2026-09-02).
 - [ ] "Interactive /proc" → `interactive sessions bind /proc (real process
-      tools)`.
+      tools). Host procfs: kernel-internal entries show 'Permission
+      denied' — Android SELinux policy, expected` (v0.6.1 wording).
+
+### Expected on-device (NOT bugs — seen and confirmed 2026-09-02, SM-F711B)
+- `ls /proc` prints a wall of `Permission denied` lines for kernel-internal
+  entries (kmsg, kcore, vmcore, kpage*, sched_debug, timer_list,
+  sysrq-trigger, …) BEFORE listing the readable set. Cause: the guest's
+  /proc IS the Android host procfs (the design — no re-export, no
+  simulation), and the kernel's SELinux policy for this app genuinely
+  denies getattr on those nodes. busybox `ls` reports each denial. The
+  readable tail (pid dirs, meminfo, cpuinfo, cmdline, uptime, loadavg,
+  mounts, self, thread-self, sys, tty, fs, bus, irq, driver, plus Samsung
+  extras like memsize/memextra/uid_0_procstat) is the real, working set.
+  `ps`/`top`/`htop` do NOT print this noise — they silently skip
+  unreadable entries by design.
+- `cat /proc/version` → "Permission denied" on this Samsung/One UI kernel
+  (proc_version is not granted to apps targeting SDK 28). Informational
+  gate only; `uname -a` gives the kernel banner. On kernels that grant
+  proc_version the banner shows the HOST kernel — that is the honest
+  answer, not a bug.
+- Pids seen in /proc are HOST pids, filtered by hidepid=2 to this app's
+  own processes. This is documented process semantics
+  (docs/M2.6-RESEARCH.md §4.3), not a defect.
 
 ### Honest degradation (only if it happens — report it if seen)
 - If "apk fd-link patch" shows `NotApplicable` (e.g. an in-guest

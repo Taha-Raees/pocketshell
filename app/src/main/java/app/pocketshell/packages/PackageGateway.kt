@@ -335,7 +335,15 @@ object PackageGateway {
                 is GuestApkCompat.Result.Failed -> status.reason
             },
             guestProcPolicy = if (GuestApkCompat.isProcSafe(compatStatus)) {
-                "interactive sessions bind /proc (real process tools)"
+                // Honest expectations (device-observed 2026-09-02, SM-F711B):
+                // the bound /proc is the ANDROID HOST procfs, so kernel-
+                // internal entries (kmsg, kcore, kpage*, …) genuinely deny
+                // access to this app — ls /proc prints Permission denied
+                // for them while the app-readable set (pid dirs, meminfo,
+                // cpuinfo, cmdline, uptime, loadavg, self, …) is real.
+                "interactive sessions bind /proc (real process tools). " +
+                    "Host procfs: kernel-internal entries show " +
+                    "'Permission denied' — Android SELinux policy, expected"
             } else {
                 "interactive sessions run without /proc until the patch is applied " +
                     "(open the Linux Shell once to install it)"
