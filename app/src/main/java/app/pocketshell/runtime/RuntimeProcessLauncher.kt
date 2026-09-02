@@ -103,6 +103,42 @@ object RuntimeProcessLauncher {
         return null
     }
 
+    /**
+     * v0.5.0 — THE interactive-session policy. Every guest session the app
+     * spawns (Linux Shell and catalog-app sessions alike) uses this shape:
+     *
+     * - NO /proc bind. Same SELinux reason as package commands (v0.4.2):
+     *   with /proc visible, apk-tools 3.0.x commits downloads via
+     *   linkat("/proc/self/fd/N", …) — an untrusted-app neverallow — so the
+     *   user's MANUAL `apk update` / `apk add` inside the shell died with
+     *   "Permission denied" (device report 2026-09-02 10:03) while the
+     *   app-side operations (no /proc) worked. Without /proc apk uses its
+     *   named-tmpfile + renameat commit path — allowed. Honest cost: the
+     *   guest cannot see /proc, so process tools (`ps`, `top`, htop's
+     *   process list) have nothing to read. A working package manager wins;
+     *   the tools fail with their own honest errors.
+     * - The SAME app-owned apk cache binds the package operations use, so
+     *   the session's manual apk shares one index/package cache with the
+     *   UI (the 2026-09-02 10:03 session also showed "31 distinct packages"
+     *   from a rootfs-internal stale cache — now impossible: one cache).
+     */
+    fun buildSessionSpec(
+        nativeLibraryDir: String,
+        rootfsDir: File,
+        hostCwd: File,
+        prootTmpDir: File,
+        guestCommand: List<String>,
+        apkCacheDir: File,
+    ): LaunchSpec = buildLaunchSpec(
+        nativeLibraryDir = nativeLibraryDir,
+        rootfsDir = rootfsDir,
+        hostCwd = hostCwd,
+        prootTmpDir = prootTmpDir,
+        guestCommand = guestCommand,
+        apkCacheDir = apkCacheDir,
+        bindProc = false,
+    )
+
     data class LaunchSpec(
         val executable: String,
         val arguments: List<String>,

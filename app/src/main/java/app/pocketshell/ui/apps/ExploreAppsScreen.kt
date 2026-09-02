@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.TerminalViewModel
+import app.pocketshell.packages.ApkOutputParser
 import app.pocketshell.packages.CliAppCatalog
 import app.pocketshell.packages.CliAppCatalogEntry
 import app.pocketshell.packages.PackageGateway
@@ -44,6 +46,7 @@ import app.pocketshell.packages.PackageSearchResult
 import app.pocketshell.packages.packageOperationTargetsCard
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeState
+import kotlinx.coroutines.launch
 
 /**
  * Explore CLI Apps (M2.4) — the first real package-management frontend.
@@ -70,13 +73,20 @@ fun ExploreAppsScreen(
     var installedVersions by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var probeError by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var searchQueryUsed by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<PackageSearchResult>?>(null) }
+    // M2.5: search hits join the installed-state probe, so a freshly
+    // installed search result flips to "Installed · version" immediately.
+    var probeNames by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val scope = rememberCoroutineScope()
 
     suspend fun refreshInstalled() {
         try {
-            installedVersions = PackageGateway.installedVersions(
-                CliAppCatalog.entries.map { it.apkPackageName },
-            )
+            val names = buildList {
+                addAll(CliAppCatalog.entries.map { it.apkPackageName })
+                addAll(probeNames)
+            }.distinct()
+            installedVersions = PackageGateway.installedVersions(names)
             probeError = null
         } catch (e: PackageProbeException) {
             // v0.4.4 honesty rule: a failed probe is NOT "nothing installed".
@@ -160,8 +170,15 @@ fun ExploreAppsScreen(
                             val q = searchQuery.trim()
                             if (q.isNotEmpty()) {
                                 searchResults = null
+                                searchQueryUsed = q
                                 terminalViewModel.searchPackages(q) { results ->
                                     searchResults = results
+                                    // probe the hit names too (bounded) so Install
+                                    // buttons can show the REAL installed state
+                                    probeNames = results.take(12)
+                                        .map { it.name }
+                                        .toSet()
+                                    scope.launch { refreshInstalled() }
                                 }
                             }
                         },
@@ -181,9 +198,14 @@ fun ExploreAppsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    results.take(8).forEach { hit ->
+                    // M2.5: name matches first (nodejs for "node"), then the
+                    // description-only hits apk also returns — and every hit
+                    // is INSTALLABLE (real apk add by exact package name).
+                    val ranked = ApkOutputParser.rankSearchHits(results, searchQueryUsed)
+                    ranked.take(12).forEach { hit ->
                         val known = CliAppCatalog.entries.firstOrNull { it.apkPackageName == hit.name }
-                        Column(Modifier.padding(vertical = 2.dp)) {
+                        val installedVersion = installedVersions[hit.name]
+                        Column(Modifier.padding(vertical = 4.dp)) {
                             Text(
                                 "${hit.name}  ${hit.version}${hit.release?.let { "-$it" } ?: ""}",
                                 style = MaterialTheme.typography.bodySmall,
@@ -195,7 +217,43 @@ fun ExploreAppsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                            when {
+                                installedVersion != null -> Text(
+                                    "Installed · $installedVersion" +
+                                        if (known == null) {
+                                            " — run '${hit.name}' from the shell"
+                                        } else {
+                                            ""
+                                        },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                else -> Row(
+                                    horizontalArrangement = Arrangement.End,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { terminalViewModel.installSearchResult(hit.name) },
+                                        enabled = !packageBusy,
+                                    ) {
+                                        Text(
+                                            if (packageOperationTargetsCard(packageBusy, operation, hit.name)) {
+                                                "Working…"
+                                            } else {
+                                                "Install"
+                                            },
+                                        )
+                                    }
+                                }
+                            }
                         }
+                    }
+                    if (ranked.size > 12) {
+                        Text(
+                            "…and ${ranked.size - 12} more matches (refine the query to see them).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }

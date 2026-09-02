@@ -237,6 +237,15 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         PackageGateway.operations.install(entry)
     }
 
+    /**
+     * M2.5: install an arbitrary searched package by its exact apk name —
+     * no Open promise (the launcher binary name is unknown for non-catalog
+     * packages; e.g. nodejs ships `node`), SUCCESS = `apk info -e` confirms.
+     */
+    fun installSearchResult(packageName: String) {
+        PackageGateway.operations.installPackage(packageName)
+    }
+
     /** Re-run the failed repository update (honest Retry on the FAILED banner). */
     fun retryRepositoryUpdate() {
         PackageGateway.operations.updateRepositories()

@@ -90,4 +90,32 @@ class ApkOutputParserTest {
         assertFalse(ApkOutputParser.isValidPackageName("\$PATH"))
         assertFalse(ApkOutputParser.isValidPackageName("pack`age"))
     }
+
+    @Test
+    fun `rankSearchHits puts name matches ahead of description-only hits`() {
+        // the exact device shape (screenshot 2026-09-02 10:04): searching
+        // "node" returned ceph18/certbot-dns-linode/abseil-cpp-dev (matches in
+        // the DESCRIPTION text) while nodejs itself was cut off by the limit
+        val hits = listOf(
+            PackageSearchResult("abseil-cpp-dev", "20250814.1", "r0"),
+            PackageSearchResult("dpdk-node", "24.11.6", "r0"),
+            PackageSearchResult("nodejs", "22.16.0", "r0"),
+            PackageSearchResult("ceph18", "18.2.7", "r7"),
+            PackageSearchResult("nodejs-current", "24.2.0", "r0"),
+            PackageSearchResult("certbot-dns-linode", "5.6.0", "r0"),
+        )
+        val ranked = ApkOutputParser.rankSearchHits(hits, "node")
+        assertEquals(
+            listOf(
+                "nodejs", "nodejs-current",       // name prefix matches, alphabetical
+                "certbot-dns-linode", "dpdk-node", // name contains ("liNODE", "-NODE"), alphabetical
+                "abseil-cpp-dev", "ceph18",        // description-only matches, alphabetical
+            ),
+            ranked.map { it.name },
+        )
+        // an exact-name query outranks everything
+        assertEquals("nodejs", ApkOutputParser.rankSearchHits(hits, "nodejs").first().name)
+        // blank query: returned unchanged (nothing to rank against)
+        assertEquals(hits, ApkOutputParser.rankSearchHits(hits, "  "))
+    }
 }

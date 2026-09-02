@@ -172,6 +172,30 @@ object ApkOutputParser {
     fun parseSearch(output: String): List<PackageSearchResult> =
         output.lineSequence().mapNotNull { parseVersionLine(it) }.toList()
 
+    /**
+     * M2.5: `apk search` matches package NAMES *and* descriptions, and
+     * returns everything alphabetically — so searching "node" buried the
+     * actually-wanted `nodejs` behind dozens of description-only hits
+     * (abseil-cpp-dev, ceph18, certbot-dns-linode, …; device screenshot
+     * 2026-09-02 10:04). Rank honestly: exact name first, then name-prefix,
+     * then name-contains, description-only matches last — alphabetical
+     * within each group (stable sort).
+     */
+    fun rankSearchHits(hits: List<PackageSearchResult>, query: String): List<PackageSearchResult> {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return hits
+        return hits.sortedBy { it.name.lowercase() } // stable alphabetical base
+            .sortedBy { hit ->
+                val n = hit.name.lowercase()
+                when {
+                    n == q -> 0
+                    n.startsWith(q) -> 1
+                    n.contains(q) -> 2
+                    else -> 3
+                }
+            }
+    }
+
     /** `apk info -e -v <pkg>`: exit 0 + one line = installed+version. */
     fun parseInfoInstalled(exitCode: Int?, stdout: String): PackageInfoResult {
         if (exitCode != 0) return PackageInfoResult(installed = false)

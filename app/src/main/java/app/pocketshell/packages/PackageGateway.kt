@@ -140,9 +140,29 @@ object PackageGateway {
      * package cache lives OUTSIDE the rootfs so rootfs-internal permissions
      * can never block apk (v0.4.1). Sits beside the runtime under
      * noBackupFilesDir; the download cache is disposable by design.
+     *
+     * v0.5.0: also used by INTERACTIVE sessions ([buildSessionSpec] shape) so
+     * a manual `apk` inside the shell shares ONE index/package cache with the
+     * app-side operations.
      */
-    private fun apkCacheDir(storage: RuntimeStorage): File =
+    fun apkCacheDir(storage: RuntimeStorage): File =
         File(storage.baseDir, "apk-cache").apply { mkdirs() }
+
+    /**
+     * Best-effort guest environment repair before an interactive session
+     * spawns (v0.5.0): refresh the managed resolv.conf to the CURRENT
+     * network's resolvers and make sure the apk cache/tmp dirs exist with
+     * sane modes. Best-effort by design — a failure here never blocks the
+     * session; whatever is genuinely broken surfaces with its real error the
+     * moment apk runs. (Package operations run the same repairs strictly —
+     * see [AlpinePackageManager.runApk].)
+     */
+    fun prepareGuestForSession(context: Context, rootfsDir: File) {
+        runCatching {
+            GuestEnvironment.ensureDnsResolvers(rootfsDir, deviceDnsServers(context))
+            GuestEnvironment.ensureApkWorkspace(rootfsDir)
+        }
+    }
 
     /**
      * One proot spec builder shared by every package command — literally the

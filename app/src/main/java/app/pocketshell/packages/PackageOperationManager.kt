@@ -96,7 +96,18 @@ class PackageOperationManager(
      * only ever emitted after BOTH verifications passed in the real guest.
      */
     fun install(entry: CliAppCatalogEntry): Boolean =
-        startOperation(PackageOperationKind.INSTALL, entry.apkPackageName) { operation ->
+        installPackage(packageName = entry.apkPackageName, executable = entry.executable)
+
+    /**
+     * M2.5: install an arbitrary SEARCHED package by its exact apk name —
+     * same honest flow minus the executable step: a search hit's launcher
+     * binary name is UNKNOWN (nodejs ships `node`, not `nodejs`), so no
+     * `command -v` promise is made and no Open is offered; the package is
+     * runnable from the shell. SUCCESS means only what `apk info -e`
+     * confirmed: the package is in the real database.
+     */
+    fun installPackage(packageName: String, executable: String? = null): Boolean =
+        startOperation(PackageOperationKind.INSTALL, packageName) { operation ->
             update(operation, PackageOperationState.UPDATING_REPOSITORIES)
             val updateResult = packages.updateRepositories()
             if (!updateResult.success) {
@@ -111,7 +122,7 @@ class PackageOperationManager(
                 return@startOperation
             }
             update(operation, PackageOperationState.INSTALLING)
-            val installResult = packages.install(entry.apkPackageName)
+            val installResult = packages.install(packageName)
             if (!installResult.success) {
                 settle(
                     operation,
@@ -124,27 +135,31 @@ class PackageOperationManager(
                 return@startOperation
             }
             update(operation, PackageOperationState.VERIFYING)
-            val info = packages.getPackageInfo(entry.apkPackageName)
+            val info = packages.getPackageInfo(packageName)
             if (!info.installed) {
                 settle(
                     operation,
                     PackageOperationState.FAILED,
-                    error = "apk reported success but '${entry.apkPackageName}' is not in the package " +
+                    error = "apk reported success but '${packageName}' is not in the package " +
                         "database — refusing to claim installation",
                 )
                 return@startOperation
             }
-            val execPath = packages.guestExecutablePath(entry.executable)
-            if (execPath == null) {
-                settle(
-                    operation,
-                    PackageOperationState.FAILED,
-                    error = "package installed, but executable '${entry.executable}' was not found via " +
-                        "command -v — refusing to claim installation",
-                )
-                return@startOperation
+            if (executable != null) {
+                val execPath = packages.guestExecutablePath(executable)
+                if (execPath == null) {
+                    settle(
+                        operation,
+                        PackageOperationState.FAILED,
+                        error = "package installed, but executable '${executable}' was not found via " +
+                            "command -v — refusing to claim installation",
+                    )
+                    return@startOperation
+                }
+                settle(operation, PackageOperationState.SUCCESS, stdout = execPath)
+            } else {
+                settle(operation, PackageOperationState.SUCCESS)
             }
-            settle(operation, PackageOperationState.SUCCESS, stdout = execPath)
         }
 
     /** Real uninstall: `apk del`, then verify absence in the real database. */

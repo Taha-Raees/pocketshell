@@ -22,8 +22,8 @@ android {
         // exact tradeoff Termux makes. Side-load distribution; Play rules do
         // not apply (and Android 14+ still installs targetSdk >= 23).
         targetSdk = 28
-        versionCode = 12
-        versionName = "0.4.4-m2.4"
+        versionCode = 13
+        versionName = "0.5.0-m2.5"
     }
 
     // v0.4.1: pin the debug signing key IN THE REPO. Lesson from sandbox reset

@@ -111,11 +111,31 @@ Android device (§27). M2 scope (research → implement):
       (minirootfs ships no resolv.conf), curated 5-entry metadata-only
       catalog, Open-into-new-session launcher. Sandbox rehearsal PASSED
       (scripts/rehearse_m24_packages.sh); **device gate = TESTING.md §9**.
-- [ ] **M2.4 device gate (TESTING.md §9)** — install nano via the UI, open
-      it interactively, persistence, uninstall, launcher protection.
+- [x] **M2.4 device gate (TESTING.md §9)** — **PASSED on device 2026-09-02**
+      (Samsung SM-F711B, v0.4.3 screenshots: GNU nano 9.2 running in the
+      Alpine guest, Repository fetch OK — 28546 distinct packages; v0.4.4
+      screenshots: installed state visible in Explore AND Home). The v0.4.1→
+      v0.4.4 chain fixed, in order: device-DNS reachability, the SELinux
+      linkat neverallow, single-resolver DNS fragility, the installed-state
+      batch-probe exit-code misread + the never-written Home registry, and
+      the empty clipboard-paste callback.
 
 ## Later (unscheduled, do not start prematurely)
 
 M2.5 CLI app catalog + installed-apps Home integration · file manager ·
 profiles · AI CLI management · development environments · code editor ·
 remote development.
+
+### M2.5 (started 2026-09-02, v0.5.0)
+- [x] Installed-apps Home integration (v0.4.4): Home renders exactly the
+      catalog subset the real apk database confirms — M2-ARCHITECTURE §9
+      contract realized (device-confirmed: Nano + Git cards).
+- [x] Apk-capable guest shell (v0.5.0): interactive sessions drop /proc and
+      share the app's apk cache — manual `apk update` / `apk add` works in
+      the shell (was: SELinux "Permission denied" + stale 31-package cache).
+- [x] Install any searched package (v0.5.0): search hits ranked by name
+      match (nodejs first for "node") and installable with the honest
+      pipeline; no executable promises for non-catalog packages.
+- [ ] Remaining M2.5 candidates: file manager, profiles, richer per-app
+      Home cards (launch metadata for non-catalog packages), development
+      environments.

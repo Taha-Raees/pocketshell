@@ -23,6 +23,7 @@ class PackageOperationManagerTest {
         var executablePath: String? = "/usr/bin/nano",
         var delayInstallFirst: Boolean = false,
     ) : PackageManager {
+        var executableCalls: Int = 0
         override suspend fun updateRepositories() = updateResult
         override suspend fun search(query: String): List<PackageSearchResult> = emptyList()
         override suspend fun getPackageInfo(packageName: String): PackageInfoResult = infoResult
@@ -33,7 +34,10 @@ class PackageOperationManagerTest {
             return installResult
         }
         override suspend fun uninstall(packageName: String) = uninstallResult
-        override suspend fun guestExecutablePath(executable: String) = executablePath
+        override suspend fun guestExecutablePath(executable: String): String? {
+            executableCalls++
+            return executablePath
+        }
     }
 
     private val nano = CliAppCatalog.entries.first { it.id == "nano" }
@@ -120,6 +124,33 @@ class PackageOperationManagerTest {
         assertEquals(PackageOperationState.FAILED, m.current.value!!.state)
         assertTrue(m.current.value!!.error!!.contains("command -v"))
     }
+
+    @Test
+    fun `installPackage (search hit) succeeds without any executable promise`() =
+        runBlocking(Dispatchers.IO) {
+            // M2.5: nodejs ships `node`, NOT `nodejs` — a search install must
+            // NOT claim or verify an executable; SUCCESS = the package is in
+            // the real database (apk info -e), nothing more.
+            val fake = FakePackages()
+            val m = manager(fake)
+            assertTrue(m.installPackage("nodejs"))
+            awaitTerminal(m, packageName = "nodejs")
+            val op = m.current.value!!
+            assertEquals("nodejs", op.packageName)
+            assertEquals(PackageOperationState.SUCCESS, op.state)
+            assertEquals("", op.stdoutTail) // no executable path claimed
+            assertEquals(0, fake.executableCalls) // command -v never ran
+        }
+
+    @Test
+    fun `installPackage keeps the executable gate when an executable is known`() =
+        runBlocking(Dispatchers.IO) {
+            val m = manager(FakePackages(executablePath = null))
+            assertTrue(m.installPackage("nano", executable = "nano"))
+            awaitTerminal(m)
+            assertEquals(PackageOperationState.FAILED, m.current.value!!.state)
+            assertTrue(m.current.value!!.error!!.contains("command -v"))
+        }
 
     @Test
     fun `uninstall verifies real absence before SUCCESS`() = runBlocking {

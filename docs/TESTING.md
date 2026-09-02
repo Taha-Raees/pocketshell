@@ -184,7 +184,7 @@ crash-containment itself is covered by JVM regression tests
 (RuntimeCrashGuardTest — the incident's exact SecurityException through the
 real installer pipeline); the on-device checklist above remains the M2.2 gate.
 
-## 9. Manual acceptance — M2.4 (real apk package management) — GATE OPEN
+## 9. Manual acceptance — M2.4 (real apk package management) — GATE PASSED 2026-09-02 (v0.4.3/v0.4.4); v0.5.0 M2.5 checks below
 
 Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
 
@@ -237,11 +237,25 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
       Installed CLI Apps lists Nano** with its real version. The UI state
       comes from a fresh `apk info -e -v` probe on every visit — terminal
       installs made outside the app light up here too.
+      **PASSED on device 2026-09-02 10:04** (v0.4.4 screenshots: Home lists
+      Nano 9.2-r0 + Git 2.54.0-r0; Explore Nano card shows Open/Uninstall).
 - [ ] **v0.4.4 paste:** copy text anywhere on the phone → in a terminal
       session long-press → select text → **Paste** → the clipboard text
       lands on the command line (and inside nano's buffer, bracketed-paste
       aware). Pasting with an empty clipboard does nothing and harms
-      nothing.
+      nothing. (**PASSED on device** — user: "I can copy paste".)
+- [ ] **v0.5.0 apk-capable guest shell (the 10:03 bug):** update to
+      v0.5.0, open **Linux Shell**, run `apk update` → it must finish with
+      **no "Permission denied"** and a full count ("OK: 28546 distinct
+      packages available" shape, NOT "2 unavailable … 31 distinct"); then
+      `apk add nodejs npm` → installs. (`ps`/`top` inside the guest now
+      honestly report they cannot read /proc — that is the documented cost
+      of a working in-shell apk; see CHANGELOG 0.5.0.)
+- [ ] **v0.5.0 search + install:** Explore → search `node` → **nodejs**
+      appears at the TOP (name match ranking) → tap its **Install** →
+      "nodejs installed"; the hit flips to "Installed · <version> — run
+      'nodejs' from the shell". Cross-check in Linux Shell: `node --version`
+      works.
 - [ ] Diagnostics → **Check package environment** (explicit button, nothing
       runs on open): apk version banner (apk-tools 3.x), the two dl-cdn
       v3.24 repositories, package database present, **Guest DNS lists the

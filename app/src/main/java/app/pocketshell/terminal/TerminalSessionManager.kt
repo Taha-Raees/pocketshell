@@ -3,6 +3,7 @@ package app.pocketshell.terminal
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import app.pocketshell.packages.PackageGateway
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
@@ -146,13 +147,20 @@ object TerminalSessionManager {
         }
         ShellEnvironment.ensureDirs(appContext)
         val storage = RuntimeStorage(appContext.noBackupFilesDir)
+        // v0.5.0: refresh the guest's DNS/apk-workspace best-effort, then spawn
+        // with the APK-CAPABLE session spec (no /proc + shared apk cache binds
+        // — see RuntimeProcessLauncher.buildSessionSpec): manual `apk update` /
+        // `apk add` inside this session now works and shares ONE cache with
+        // the app-side package operations.
+        PackageGateway.prepareGuestForSession(appContext, storage.rootfsDir)
         val prootTmp = File(appContext.cacheDir, "proot-tmp").apply { mkdirs() }
-        val spec = RuntimeProcessLauncher.buildLaunchSpec(
+        val spec = RuntimeProcessLauncher.buildSessionSpec(
             nativeLibraryDir = appContext.applicationInfo.nativeLibraryDir,
             rootfsDir = storage.rootfsDir,
             hostCwd = ShellEnvironment.homeDir(appContext),
             prootTmpDir = prootTmp,
             guestCommand = guestCommand,
+            apkCacheDir = PackageGateway.apkCacheDir(storage),
         )
         return spawn(
             context = appContext,

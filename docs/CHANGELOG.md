@@ -3,6 +3,78 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.5.0-m2.5] — 2026-09-02 — M2.5: an apk-capable guest shell + install-any-searched-package
+
+### Device context (v0.4.4 confirmed working)
+- The 2026-09-02 10:04 screenshots (SM-F711B, v0.4.4) confirm the state-sync
+  fixes on real hardware: Home "Installed CLI Apps" lists **Nano
+  9.2-r0 AND Git 2.54.0-r0** straight from the real apk database; Explore
+  shows Nano "Installed · 9.2-r0" with Open/Uninstall. Clipboard paste
+  works ("I can copy paste"). M2.4's device gate is PASSED; M2.5's Home
+  integration (verified-entries-only) is realized.
+
+### Fixed — the guest shell could not run `apk` (the "small errors when trying to add node")
+- **What the 10:03 terminal screenshot showed:** a MANUAL `apk update` and
+  `apk add nodejs npm` typed INSIDE the Linux Shell died with
+  `updating and opening …/APKINDEX.tar.gz: Permission denied` — the v0.4.2
+  SELinux failure shape — while app-side installs (the user's Git install)
+  worked fine. With the failed index update only the stale rootfs-internal
+  cache remained ("2 unavailable, 0 stale; 31 distinct packages available"),
+  so apk answered `nodejs (no such package)`.
+- **Root cause:** v0.4.2 dropped the /proc bind from APP-SIDE package
+  commands only; INTERACTIVE sessions kept it. With /proc visible, apk-tools
+  3.0.x commits downloads via `linkat("/proc/self/fd/N", …)` — the exact
+  AOSP neverallow for untrusted apps — so every in-session apk fetch died,
+  and the session's apk also read the rootfs-internal cache (no cache binds)
+  instead of the app's healthy index.
+- **Fix — one session shape, `RuntimeProcessLauncher.buildSessionSpec`:**
+  every interactive guest session (Linux Shell AND catalog-app sessions) now
+  uses the SAME SELinux-driven shape as package commands — **no /proc** —
+  plus **the same shared apk cache binds**, and spawns after a best-effort
+  DNS/workspace refresh (`PackageGateway.prepareGuestForSession`). The
+  session's manual `apk update && apk add …` now commits via renameat into
+  the ONE cache the UI uses — install from the terminal or from the UI, the
+  result is the same real database (apk's own lock keeps them serialized).
+- **Honest cost, documented:** the guest can no longer see /proc, so process
+  tools (`ps`, `top`, htop's process list) have nothing to read inside the
+  guest and fail with their own errors. A working package manager in the
+  shell outweighs process listing; Android's SELinux forces the choice.
+
+### Fixed — searching "node" buried nodejs behind description hits
+- `apk search` matches names AND descriptions and returns everything
+  alphabetically — the user's "node" search showed abseil-cpp-dev, ceph18,
+  certbot-dns-linode… while `nodejs` was cut off by the 8-hit limit.
+- **Ranking:** exact-name → name-prefix ("nodejs", "nodejs-current") →
+  name-contains ("dpdk-node", "certbot-dns-li**node**") → description-only
+  matches, alphabetical within groups; 12 hits shown with a "…and N more"
+  note.
+
+### Added — install any searched package (M2.5 catalog surface)
+- Search hits are now **installable**: one tap runs the same honest
+  operation pipeline (`apk update` → `apk add` → `apk info -e` verify) by
+  the exact package name (`PackageOperationManager.installPackage`). No
+  executable promise is made for non-catalog packages (nodejs ships `node`,
+  not `nodejs` — the install verifies ONLY what the real database
+  confirms); installed hits show "Installed · version — run 'name' from the
+  shell". Catalog-known hits keep their descriptions. Per-hit "Working…"
+  busy state follows the running operation exactly (v0.4.2 rule).
+- Search results join the installed-state probe, so a fresh install flips
+  the hit row to Installed without leaving the screen.
+
+### Notes
+- 7 new/updated pins: the apk-capable session spec (no /proc + shared cache
+  binds + guest argv tail), search ranking over the exact device query
+  shape ("node" → nodejs first; the first expectation even caught that
+  certbot-dns-linode is a NAME match via "linode"), and the
+  search-install flow (SUCCESS without any `command -v` call, executable
+  gate kept when an executable IS known). 281 tests per variant (136 app +
+  145 terminal-emulator), 562 executions, 0 failures.
+- v0.4.4→v0.5.0 installs as an in-place update (same pinned signing key);
+  the runtime, its packages and the shared apk cache are untouched. NOTE:
+  the first Linux Shell session opened after updating spawns with the new
+  apk-capable spec — `ps`/`top` inside the guest will honestly report they
+  cannot read /proc; everything else behaves as before, plus working apk.
+
 ## [0.4.4-m2.4] — 2026-09-02 — the app finally sees what apk installed (state-sync hotfix) + clipboard paste that pastes
 
 ### Device context (v0.4.3 confirmed working)

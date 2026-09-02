@@ -351,7 +351,10 @@ class RuntimeProcessLauncherTest {
     }
 
     @Test
-    fun `no apkCacheDir means no cache binds (shell path unchanged)`() {
+    fun `no apkCacheDir means no cache binds (raw builder default unchanged)`() {
+        // builder-level pin only: the APP builds sessions via buildSessionSpec
+        // (apk-capable shape) and package commands via buildLaunchSpec with
+        // apkCacheDir + bindProc=false — see the apk-capable sessions pin.
         val rootfs = tmp.newFolder("rootfs")
         val s = spec(rootfs, makeNativeDir())
         assertTrue(s.arguments.none { it.startsWith("--bind=") && it.contains(":") && !it.startsWith("--bind=/dev") && !it.startsWith("--bind=/proc") && !it.startsWith("--bind=/sys") })
@@ -367,10 +370,17 @@ class RuntimeProcessLauncherTest {
      * EACCES and apk cancels the whole download ("updating and opening …:
      * Permission denied"). Without /proc, apk's is_proc_fd_ok() is false and
      * it commits via named-tmpfile + renameat (create/rename — allowed).
-     * Interactive shell specs keep /proc.
+     *
+     * v0.5.0 (device report 2026-09-02 10:03: manual `apk update` in the
+     * Linux Shell died with the SAME "Permission denied" while app-side
+     * installs worked): INTERACTIVE SESSIONS now use the same shape via
+     * [RuntimeProcessLauncher.buildSessionSpec] — no /proc, plus the SHARED
+     * apk cache binds so the session's manual apk uses one index/cache with
+     * the app-side operations (the 10:03 session also showed a stale
+     * rootfs-internal cache: "31 distinct packages available").
      */
     @Test
-    fun `package specs never bind proc while the shell keeps it`() {
+    fun `package specs never bind proc and sessions are apk-capable`() {
         val rootfs = tmp.newFolder("rootfs")
         val native = makeNativeDir()
         val cache = tmp.newFolder("apk-cache")
@@ -387,7 +397,29 @@ class RuntimeProcessLauncherTest {
         assertTrue(packageSpec.arguments.any { it == "--bind=/dev" })
         assertTrue(packageSpec.arguments.any { it == "--bind=/sys" })
 
-        val shellSpec = spec(rootfs, native)
-        assertTrue("interactive sessions must keep /proc", shellSpec.arguments.any { it == "--bind=/proc" })
+        val sessionSpec = RuntimeProcessLauncher.buildSessionSpec(
+            nativeLibraryDir = native.absolutePath,
+            rootfsDir = rootfs,
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
+            apkCacheDir = cache,
+        )
+        assertTrue("sessions must drop /proc (SELinux linkat neverallow)", sessionSpec.arguments.none { it == "--bind=/proc" })
+        assertTrue(sessionSpec.arguments.any { it == "--bind=/dev" })
+        assertTrue(sessionSpec.arguments.any { it == "--bind=/sys" })
+        assertTrue(
+            "sessions share the app's apk index/package cache (etc)",
+            sessionSpec.arguments.any {
+                it.startsWith("--bind=") && it.endsWith(":${RuntimeProcessLauncher.GUEST_APK_CACHE_ETC}")
+            },
+        )
+        assertTrue(
+            "sessions share the app's apk index/package cache (var)",
+            sessionSpec.arguments.any {
+                it.startsWith("--bind=") && it.endsWith(":${RuntimeProcessLauncher.GUEST_APK_CACHE_VAR}")
+            },
+        )
+        assertEquals(listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"), sessionSpec.arguments.takeLast(2))
     }
 }
