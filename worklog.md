@@ -461,3 +461,24 @@ Stage Summary:
 - M2.6 v0.6.0-m2.6 delivered: the M2.5 /proc-vs-apk trade is REVERSED at the architecture level — interactive sessions bind a real /proc (ps/top/htop work) while apk works everywhere, via one checksum-pinned byte in the guest's own libapk + explicit GuestExecutionProfiles with drift guards. No fake behavior anywhere; honest degradation paths pinned and documented.
 - User gate: docs/TESTING.md §10 Gates A–G (update in place over v0.5.0 → first Linux Shell spawn installs the patch → ls/proc, ps, top, apk lifecycle, Node end-to-end, Explore install, session isolation; Diagnostics must show "apk fd-link patch: applied" + "Interactive /proc: bind").
 - Next (user's call after the gate passes): M2.7 session management + CLI app profiles, or curated CLI app catalog.
+
+---
+Task ID: 24
+Agent: main (Super Z)
+Task: v0.6.1-m2.6 device-test follow-up — finish the interrupted delivery: regenerate artifacts after workspace restore, update the download page honestly (Gate A re-anchor), commit + report.
+
+Work Log:
+- Resumed after context break AND a workspace restore: all v0.6.1 SOURCE work survived (commits 12f9c81 + b9294f6; versionCode 15, honest Diagnostics row, TESTING §10 re-anchor, CHANGELOG, payload script), but /home/z/tools + /home/z/android-sdk were wiped, and the untracked artifacts (APK, zip/tgz/bundle, public/, dist-master/) were gone. app/page.tsx still showed v0.6.0 with v0.6.0 hashes and the old unconditional `cat /proc/version` claim.
+- Toolchain reinstalled via the repeatable recipe scripts/install_toolchain.sh (Temurin jdk-21.0.12.1+1, cmdline-tools 11076708, platform-36, build-tools 36.0.0, NDK 28.2.13676358). LESSON: detached background processes (nohup, even setsid+disown) are reaped between tool calls here — the installer only survives as a FOREGROUND run (completes in ~90s; network is fast).
+- APK rebuilt: `./gradlew --no-daemon --max-workers=1 -Dorg.gradle.jvmargs="-Xmx1536m -XX:MaxMetaspaceSize=384m" -Dkotlin.compiler.execution.strategy=in-process :app:assembleDebug`. LESSON: the documented 2G-heap build OOM-KILLED the Gradle JVM on the 4GB box (dmesg: java at 2.7GB RSS while clang ran); 1 worker + 1.5G heap + in-process Kotlin builds clean in 1m33s.
+- APK verified (aapt2/apksigner/unzip): versionCode 15 / versionName 0.6.1-m2.6, minSdk 26 / targetSdk 28, 4 ABIs, lib*.so Deflated (extractNativeLibs=true — v0.3.1 crash class still fixed), cert d96a6f66…8bf659 (same as v0.4.1–v0.6.1 → in-place over v0.6.0/v0.5.0), assets/guest/libapk.so.3.0.0.fdlinkoff.aarch64 aboard (330360 bytes), 21MB. sha256 26a8f188…5bb8897.
+- Payload re-run on clean tip (ec04aa4): all sanity checks pass (0 dot-paths, 0 web shims, 0 node_modules, 255 files, all key pins present). zip f198423b…45ecb (27MB), tgz e99561d3…8c74d0 (27MB), bundle 1e2afa7e…cdf5a (25MB — includes the documented one-time scratch/ history cost; future bundles stay clean). public/ + dist-master/ regenerated.
+- download/README.md manifest rewritten for v0.6.1-m2.6: device-test CONFIRMATION up top, both "expected, NOT bugs" behaviors verbatim, real hashes.
+- app/page.tsx updated: VERSION v0.6.1-m2.6, versionCode 15 badge, headline "Your device test confirmed M2.6 — v0.6.1 makes the docs as honest as the architecture", new "Expected on-device — NOT bugs (seen on your SM-F711B, 2026-09-02)" card (ls /proc EACCES wall + cat /proc/version OEM denial, uname -a as the banner, synthesis-rejected note), "What works on your device" bullet uses the readable-tail framing, Gate A quick-check re-anchored (readable tail AFTER the wall; meminfo/cpuinfo gate files; /proc/version INFORMATIONAL), Diagnostics row quoted, install-over-v0.6.0/v0.5.0, cert range v0.4.1–v0.6.1, footer milestone updated. All 4 new hashes pasted.
+- HTTP verification on :3000 (next dev): page 200 and renders v0.6.1-m2.6 + the NOT-bugs card; all 4 artifact URLs return sha256 BYTE-IDENTICAL to the local masters.
+- Committed page + manifest + worklog per the accepted pattern (payload cut at tip ec04aa4; this commit follows).
+
+Stage Summary:
+- v0.6.1-m2.6 fully delivered after the workspace restore: source (already committed) + freshly rebuilt APK + payload + honest download page all consistent, HTTP-verified. The user's 2026-09-02 device test stands as the M2.6 architecture confirmation; the page now states the two real-policy behaviors up front instead of promising `cat /proc/version`.
+- Build recipe correction recorded: on this 4GB box use --max-workers=1 -Xmx1536m + in-process Kotlin; run the toolchain installer in the FOREGROUND.
+- Next (user's call): M2.7 session management + CLI app profiles, or a curated CLI app catalog.

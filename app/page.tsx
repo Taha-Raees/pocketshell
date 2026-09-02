@@ -1,10 +1,10 @@
-const VERSION = "v0.6.0-m2.6";
+const VERSION = "v0.6.1-m2.6";
 
 const HASHES = {
-  apk: "c350caca5728a971bd81305fcb0e6d8a94d5345877cdca75f1bad8e245001971",
-  zip: "87550cc003c1e2f1c3efe8aba10c72bfafdb0db8c9bab3ddf22e803dbd5059fd",
-  tgz: "1116d6339d16b7cfdd92f638e4b93a478ffaff6df0e0d25c0984b9d91344fbc3",
-  bundle: "bd008b4e8699bdee19839926f90a9a258cea4e5dadbbede54241b3191ba73439",
+  apk: "26a8f188079f97cfe41b5a1b7a614c67bd08208c1d02adebe9e7cedc65bb8897",
+  zip: "f198423bd2c6d25dfffd27b4c554d39906c0018fe2dd560b4794019ec4145ecb",
+  tgz: "e99561d3d7a235bb7e8bee7c025da7f207c8400907ed6ee6ac47209e4b8c74d0",
+  bundle: "1e2afa7e33703d7f6101a64da16a6b23d0f98bcfda95861e691e35a16afcdf5a",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,15 +25,20 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M2.6 — you were right: <b>never trade one Linux feature for another</b>{" "}
-          <span className="badge">versionCode 14</span>
+          Your device test confirmed M2.6 — v0.6.1 makes the docs as honest as
+          the architecture <span className="badge">versionCode 15</span>
         </h2>
         <p>
-          M2.5 made <code>apk</code> work inside the shell by removing the{" "}
-          <code>/proc</code> bind from every guest session — which silently
-          broke <code>ps</code>, <code>top</code> and <code>htop</code>. That
-          was an architectural compromise, and this build reverses it properly.
-          The full evidence chain is in <b>docs/M2.6-RESEARCH.md</b>.
+          The 2026-09-02 test on your SM-F711B <b>confirmed the M2.6
+          architecture end-to-end</b>: Diagnostics showed <i>apk fd-link
+          patch: applied</i>, the interactive session bound a real
+          <code> /proc</code>, and <code>cat /proc/meminfo</code> returned the
+          host's real values. The same run surfaced two behaviors the wording
+          had not prepared you for — both are genuine Android policy on your
+          device, neither is a bug, and both are now written up front (below
+          and in <b>docs/TESTING.md</b> §10). <b>No runtime, launcher,
+          profile, patch or rootfs changes</b> — v0.6.1 is behaviorally
+          identical to v0.6.0.
         </p>
         <ul className="steps">
           <li>
@@ -65,28 +70,58 @@ export default function Home() {
             and test-pinned). One rootfs, one cache, one database.
           </li>
           <li>
-            <b>What works now:</b> <code>ls /proc</code>,{" "}
-            <code>cat /proc/version</code>, <code>ps</code>, <code>top</code>,{" "}
-            <code>htop</code> — <b>and</b> <code>apk update / search / add /
-            del</code> both in the shell and from the app UI, <b>and</b> Node
-            end-to-end. Honest process semantics: <code>/proc</code> is the
-            real host procfs filtered by Android’s own app isolation — you see
-            the app’s real process tree, nothing faked, nothing hidden by us.
+            <b>What works on your device (confirmed 2026-09-02):</b> the
+            readable <code>/proc</code> tail (pid dirs, <code>meminfo</code>,{" "}
+            <code>cpuinfo</code>, <code>uptime</code>, <code>mounts</code>, …),{" "}
+            <code>ps</code>, <code>top</code>, <code>htop</code> — <b>and</b>{" "}
+            <code>apk update / search / add / del</code> both in the shell and
+            from the app UI, <b>and</b> Node end-to-end. Honest process
+            semantics: <code>/proc</code> is the real host procfs filtered by
+            Android's own app isolation — you see the app's real process
+            tree, nothing faked, nothing hidden by us.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.6.0-m2.6-debug.apk">
+        <a className="btn" href="/PocketShell-v0.6.1-m2.6-debug.apk">
           Download APK (debug, 21 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.5.0)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.6.1)
         </p>
+      </div>
+
+      <div className="card">
+        <h2>Expected on-device — NOT bugs (seen on your SM-F711B, 2026-09-02)</h2>
+        <ul className="steps">
+          <li>
+            <b><code>ls /proc</code> prints a wall of "Permission denied"
+            lines</b> (kmsg, kcore, vmcore, kpage*, sched_debug, timer_list,
+            …) before the readable tail. The guest <code>/proc</code> IS the
+            Android host procfs — the design, no re-export, no simulation —
+            and SELinux genuinely denies this app getattr on kernel-internal
+            nodes; busybox <code>ls</code> reports each denial. The PASS
+            signal is the readable tail: numeric pid dirs, meminfo, cpuinfo,
+            cmdline, uptime, loadavg, mounts, sys, tty, fs, bus, irq, driver
+            (Samsung adds memsize/memextra). <code>ps</code>/
+            <code>top</code>/<code>htop</code> skip unreadable entries
+            silently — only directory listings are noisy.
+          </li>
+          <li>
+            <b><code>cat /proc/version</code> is denied</b> on this
+            Samsung/One UI kernel: proc_version is not granted to apps
+            targeting SDK 28. Informational only — <code>uname -a</code> shows
+            the kernel banner (uname(2) is not policy-restricted).
+            Synthesizing <code>/proc/version</code> from uname() was
+            considered and <b>rejected</b>: fabricated content violates the
+            no-fake rule.
+          </li>
+        </ul>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          Installs <b>in place over v0.5.0</b> (same pinned signing key). Your
+          Installs <b>in place over v0.6.0/v0.5.0</b> (same pinned signing key). Your
           runtime, installed packages and cache are untouched — the fd-link
           patch <b>installs itself on the first Linux Shell spawn</b> and is
           verified by checksum on every package operation. If your rootfs was
@@ -130,11 +165,14 @@ export default function Home() {
       <div className="card">
         <h2>Quick checks (docs/TESTING.md §10 — Gates A–G)</h2>
         <ol className="steps">
-          <li>Install {VERSION} over v0.5.0 (no uninstall) → open Linux Shell.</li>
+          <li>Install {VERSION} over v0.6.0/v0.5.0 (no uninstall) → open Linux Shell.</li>
           <li>
-            Gate A: <code>ls /proc</code> → real entries;{" "}
-            <code>cat /proc/version</code> and <code>cat /proc/meminfo</code>{" "}
-            → real values.
+            Gate A: <code>ls /proc</code> → the readable tail AFTER the
+            expected "Permission denied" wall on kernel-internal entries;{" "}
+            <code>cat /proc/meminfo</code> and <code>cat /proc/cpuinfo</code>{" "}
+            → real values (gate files); <code>uname -a</code> → kernel banner
+            (<code>cat /proc/version</code> is INFORMATIONAL — denied on One
+            UI, see the NOT-bugs card above).
           </li>
           <li>
             Gate B: <code>ps</code> → a real process list; <code>top</code> →
@@ -156,9 +194,11 @@ export default function Home() {
             package — neither breaks.
           </li>
           <li>
-            Diagnostics → “Check package environment” now shows{" "}
-            <b>apk fd-link patch: applied</b> and{" "}
-            <b>Interactive /proc: bind</b>.
+            Diagnostics → “Check package environment” shows{" "}
+            <b>apk fd-link patch: applied</b> (confirmed on your device) and
+            the <b>Interactive /proc</b> row that now says it up front:
+            “kernel-internal entries show 'Permission denied' — Android
+            SELinux policy, expected”.
           </li>
         </ol>
       </div>
@@ -169,10 +209,10 @@ export default function Home() {
           Complete buildable source. The zip intentionally contains no
           dotfiles; full history rides in the git bundle.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.6.0-m2.6-source.zip">
-          source.zip (4.4 MB)
+        <a className="btn secondary" href="/PocketShell-v0.6.1-m2.6-source.zip">
+          source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.6.0-m2.6-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.6.1-m2.6-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -191,11 +231,12 @@ export default function Home() {
       <footer>
         Milestones: M0–M1.3 terminal · M2.2 runtime install · M2.3 Linux shell
         (device-verified) · M2.4 package layer (device gate PASSED) · M2.5
-        apk-capable shell + ranked/installable search · <b>M2.6 (this build):
-        real /proc + real apk — the architecture fixed before features grow</b>.
-        Next candidates: M2.7 session management + CLI app profiles, or a
-        curated CLI app catalog. Thank you for pushing on the architecture —
-        this fix is why your screenshots matter.
+        apk-capable shell + ranked/installable search · M2.6 real /proc + real
+        apk (<b>device-CONFIRMED 2026-09-02</b>) · <b>v0.6.1 (this build): the
+        docs now match what Android honestly says on real hardware</b>. Next
+        candidates: M2.7 session management + CLI app profiles, or a curated
+        CLI app catalog. Your screenshots did it again — they confirmed the
+        architecture and sharpened the docs.
       </footer>
     </main>
   );
