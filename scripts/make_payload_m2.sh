@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.4.4-m2.4
+VERSION=v0.5.0-m2.5
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,46 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.4.3-m2.4):
+WHAT IS NEW IN $VERSION (vs v0.4.4-m2.4):
+  - DEVICE-CONFIRMED (user screenshots 2026-09-02 10:04, SM-F711B,
+    v0.4.4): Home "Installed CLI Apps" lists Nano 9.2-r0 AND Git
+    2.54.0-r0 from the real apk database; Explore shows Nano
+    "Installed . 9.2-r0" with Open/Uninstall; clipboard paste works
+    ("I can copy paste"). M2.4 device gate: PASSED.
+  - M2.5, APK-CAPABLE GUEST SHELL: the user's MANUAL `apk update` /
+    `apk add nodejs npm` typed INSIDE the Linux Shell died with
+    "Permission denied" (the v0.4.2 SELinux shape) while app-side
+    installs worked - because v0.4.2 dropped the /proc bind from
+    APP-SIDE package commands only; interactive sessions kept it
+    (and read the stale rootfs-internal cache: "31 distinct packages").
+    Every interactive session now spawns with the SAME SELinux-driven
+    shape as package commands (RuntimeProcessLauncher.buildSessionSpec):
+    NO /proc (apk commits via renameat - allowed) + the SAME shared
+    apk cache binds as the UI's operations + a best-effort DNS/
+    workspace refresh at spawn. One cache, one index, one database:
+    install from the terminal or the UI - same result.
+    HONEST COST (documented): the guest cannot see /proc, so `ps`,
+    `top` and htop's process list have nothing to read inside the
+    guest. A working package manager wins; Android SELinux forces
+    the choice.
+  - M2.5, SEARCH THAT FINDS THE PACKAGE: `apk search` matches names
+    AND descriptions alphabetically, so "node" buried nodejs behind
+    abseil-cpp-dev/ceph18/certbot-dns-linode and an 8-hit cutoff.
+    Hits are now RANKED (exact name, then name prefix, then name
+    contains, then the rest) and 12 are shown with a "...and N more"
+    note.
+  - M2.5, INSTALL ANY SEARCHED PACKAGE: every search hit gets a real
+    Install button running the same honest pipeline (apk update ->
+    apk add -> apk info -e verify) by exact package name. NO
+    executable promise for non-catalog packages (nodejs ships `node`,
+    not `nodejs`); installed hits show "Installed . version - run
+    'name' from the shell". Search results join the installed-state
+    probe, so a fresh install flips the row without leaving the screen.
+  - v0.5.0 installs OVER v0.4.4 in place (same pinned signing key,
+    keystore/debug.keystore). 281 tests per variant (136 app + 145
+    terminal-emulator), 562 executions, 0 failures.
+
+WHAT WAS NEW IN v0.4.4-m2.4 (vs v0.4.3-m2.4):
   - DEVICE GATE PASSED (user screenshots 2026-09-02 09:09-09:10, SM-F711B,
     v0.4.3): GNU nano 9.2 running in the Alpine guest, apk-tools 3.0.6-r0,
     combined Guest DNS, "Repository fetch: OK - OK: 28546 distinct packages
