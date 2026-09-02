@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.4.2-m2.4
+VERSION=v0.4.3-m2.4
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,31 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.4.1-m2.4):
+WHAT IS NEW IN $VERSION (vs v0.4.2-m2.4):
+  - FIXED the "DNS: transient error (try again later)" that hit every apk
+    fetch on the device (user screenshots 2026-09-02 08:13, SM-F711B,
+    v0.4.2 — where the SELinux fix itself was CONFIRMED WORKING: the old
+    "Permission denied" is gone and only the tapped card shows
+    "Working..."). Root cause: v0.4.1-v0.4.2 wrote a DEVICE-ONLY guest
+    resolv.conf — one usable resolver (the hotspot gateway 172.20.10.1;
+    the second entry was a LinkProperties link-local with %wlan0 scope
+    syntax that musl's inet_pton rejects) — so when that ONE resolver
+    timed out, every fetch died. v0.4.3 writes a COMBINED file (device
+    resolvers first, then public fallbacks 1.1.1.1/8.8.8.8, capped at
+    musl MAXNS=3): musl queries all nameservers in parallel and takes the
+    first answer, so one dead resolver can no longer block a fetch.
+  - SELF-HEALING: the file now carries a "# managed by PocketShell"
+    marker and is refreshed on EVERY package operation to the CURRENT
+    network's resolvers (the old never-overwrite rule kept yesterday's
+    hotspot gateway forever — a guaranteed failure after any network
+    change). Legacy shapes we wrote (v0.4.0 public-only constant,
+    v0.4.0-v0.4.2 bare nameserver lists incl. the %wlan0 form) upgrade in
+    place on the first package operation — no runtime reinstall needed.
+    User content (comments/options/search/hostnames) is never touched.
+  - v0.4.3 installs OVER v0.4.2 in place (same pinned signing key,
+    keystore/debug.keystore). 281 unit tests, 0 failures.
+
+WHAT WAS NEW IN v0.4.2-m2.4 (vs v0.4.1-m2.4):
   - FIXED the remaining on-device M2.4 failure (user screenshots 2026-09-02,
     SM-F711B, v0.4.1): every apk fetch still died with "updating and opening
     ... APKINDEX.tar.gz: Permission denied" while bytes visibly downloaded.

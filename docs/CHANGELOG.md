@@ -3,6 +3,52 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.4.3-m2.4] — 2026-09-02 — guest DNS can no longer be a single point of failure (device-screenshot hotfix)
+
+### Fixed — "DNS: transient error (try again later)" on every fetch (v0.4.2 device screenshots)
+- **What the 2026-09-02 08:13 device screenshots showed (SM-F711B,
+  v0.4.2):** the SELinux fix WORKED — the old "Permission denied" is gone,
+  and only the tapped card shows "Working…" (both v0.4.2 fixes confirmed on
+  device). The remaining failure moved to name resolution: Diagnostics
+  showed the guest resolv.conf containing `nameserver 172.20.10.1` (the
+  hotspot's gateway) plus `nameserver fe80::8c98:6bff:fe13:bf64%wlan0`, and
+  both `apk update` attempts died with `DNS: transient error (try again
+  later)`.
+- **Root cause:** v0.4.1–v0.4.2 wrote a DEVICE-ONLY resolv.conf — a single
+  usable resolver (the second entry is LinkProperties scope syntax;
+  musl's `inet_pton` rejects the `%wlan0` zone suffix, so that line was
+  dead weight). When that one resolver doesn't answer, musl exhausts its
+  retry budget and getaddrinfo returns EAI_AGAIN — apk's "DNS: transient
+  error". One resolver is a single point of failure; v0.4.0 had already
+  proven the public resolvers ARE reachable on this network (its fetch
+  downloaded the index fine before dying at the linkat commit).
+- **Fix — combined, self-healing guest DNS** (`GuestEnvironment`): the
+  resolv.conf now lists usable device resolvers FIRST, then the public
+  fallbacks (1.1.1.1, 8.8.8.8), capped at musl's MAXNS=3. musl queries all
+  configured nameservers in parallel and takes the first answer, so one
+  dead resolver can no longer block a fetch. Files carry a
+  `# managed by PocketShell` marker and are refreshed on EVERY package
+  operation to the CURRENT network's resolvers (a resolv.conf pointing at
+  yesterday's hotspot gateway is a guaranteed failure tomorrow — the old
+  never-overwrite rule kept stale resolvers forever). Legacy shapes we
+  wrote (v0.4.0 public-only constant, v0.4.0–v0.4.2 bare
+  `nameserver <literal>` lists) are upgraded in place on the first package
+  operation; anything with comments/options/search lines/hostnames is user
+  content and is never touched. Zone-suffixed link-locals are dropped at
+  the source (`deviceDnsServers`) and by shape when building the file.
+- Diagnostics "Guest DNS" now renders without comment lines and reports
+  the source honestly: "device resolvers first, public fallback (musl
+  queries all in parallel)".
+
+### Notes
+- 9 new/updated DNS pins in `GuestEnvironmentTest` (combined content, MAXNS
+  cap, zone-suffix drop, v0.4.1→combined upgrade of the exact on-device
+  file, stale-network refresh, user-content protection, managed-shape
+  recognition) + the pre-op repair pins in `AlpinePackageManagerTest`.
+  281 tests total, 0 failures.
+- v0.4.2→v0.4.3 installs as an in-place update (same pinned signing key);
+  the DNS repair applies on the first package operation — no reinstall.
+
 ## [0.4.2-m2.4] — 2026-09-02 — fix the SELinux hardlink neverallow that killed every apk download (device-screenshot hotfix)
 
 ### Fixed — the real reason `apk update` died with "Permission denied" (v0.4.1 device screenshots)

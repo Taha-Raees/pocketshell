@@ -193,13 +193,18 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
 > apk-tools 3.0.6 and the same argv/env the app uses
 > (scripts/rehearse_m24_packages.sh, including the v0.4.1 cache binds). The
 > checklist below is the real gate. v0.4.0 failed on-device with
-> `DNS: transient error` / `Permission denied` because its hardcoded public
-> DNS resolvers were unreachable on the user's network — v0.4.1 uses the
-> device's own resolvers instead. v0.4.1 STILL failed with `Permission
-> denied` (user screenshots 2026-09-02): the fetch died at apk's
-> O_TMPFILE→linkat("/proc/self/fd") download commit, which Android SELinux
-> neverallows for untrusted apps (hardlink). v0.4.2 drops the /proc bind for
-> package commands, so apk commits downloads via renameat instead.
+> `DNS: transient error` / `Permission denied` — the fetch actually worked;
+> it died at apk's O_TMPFILE→linkat("/proc/self/fd") download commit, which
+> Android SELinux neverallows for untrusted apps (hardlink). v0.4.2 drops
+> the /proc bind for package commands, so apk commits downloads via
+> renameat instead — and the failure moved to DNS: v0.4.1–v0.4.2 wrote a
+> DEVICE-ONLY resolv.conf (one hotspot gateway resolver + an unparseable
+> zone-suffixed link-local), so when that one resolver timed out every
+> fetch died with `DNS: transient error` (user screenshots 2026-09-02
+> 08:13). v0.4.3 writes device resolvers FIRST + public fallbacks (musl
+> MAXNS=3, parallel query, first answer wins) and refreshes managed files
+> on every operation, so neither a flaky gateway nor a network change can
+> wedge package management again.
 
 - [ ] **v0.4.2 installs OVER v0.4.1 in place** (same pinned signing key as
       v0.4.1 — no uninstall needed; the runtime and any installed packages
@@ -207,16 +212,24 @@ Prerequisite: runtime READY (§7) and **v0.4.1-m2.4 or newer**.
       break happened at v0.4.1, see CHANGELOG), then install and re-run §7:
       Diagnostics → Install Linux environment → READY (the 9.3 MB runtime
       comes back in one tap).
+- [ ] **v0.4.3 installs OVER v0.4.2 in place** (same pinned signing key —
+      no uninstall needed; the runtime stays). Its DNS repair upgrades the
+      old device-only resolv.conf on the first package operation — no
+      reinstall, no data loss.
 - [ ] Diagnostics → **Check package environment** (explicit button, nothing
       runs on open): apk version banner (apk-tools 3.x), the two dl-cdn
-      v3.24 repositories, package database present, **Guest DNS now lists the
-      DEVICE's resolvers** with the source ("device resolvers
-      (ConnectivityManager)" — not the public fallback), and **Repository
-      fetch: OK** — the button runs ONE real bounded `apk update` and shows
-      its honest outcome. (v0.4.2: the fetch now commits via renameat — if
-      you EVER see `Permission denied` here again, report the text, it
-      becomes the next fix; the previous failure shape was index bytes
-      downloading, then the hardlink commit being denied.)
+      v3.24 repositories, package database present, **Guest DNS lists the
+      device's resolver(s) FIRST plus the public fallbacks (1.1.1.1,
+      8.8.8.8), capped at 3** with the source line "device resolvers first,
+      public fallback (musl queries all in parallel)" (v0.4.3 — musl takes
+      the first answer of the parallel query, so one dead resolver — e.g. a
+      flaky hotspot gateway — can no longer block every fetch, which is
+      exactly what the 2026-09-02 "DNS: transient error" screenshots
+      showed), and **Repository fetch: OK** — the button runs ONE real
+      bounded `apk update` and shows its honest outcome. (v0.4.2: the fetch
+      commits via renameat — if you EVER see `Permission denied` here again,
+      report the text; `DNS: transient error` on v0.4.3+ means ALL THREE
+      resolvers failed — report that too, it becomes the next fix.)
 - [ ] Explore CLI Apps (runtime READY): the five featured entries show the
       REAL state — all "Not installed" on a fresh runtime.
 - [ ] **Install Nano**: honest stages only — Updating repositories →

@@ -218,18 +218,22 @@ class AlpinePackageManagerTest {
             ),
             readyGuard = { null },
         )
-        // no resolv.conf yet — the first op must create it (rehearsal-proven content)
+        // no resolv.conf yet — the first op must create it (marked, public pair)
         assertTrue(manager.uninstall("nano").success)
         val resolv = File(rootfs, "etc/resolv.conf")
         assertTrue(resolv.isFile)
-        assertEquals(
-            app.pocketshell.runtime.GuestEnvironment.RESOLV_CONF_CONTENT,
-            resolv.readText(),
-        )
-        // existing content is preserved (never clobbered)
-        resolv.writeText("nameserver 9.9.9.9\n")
+        val text = resolv.readText()
+        assertTrue(text.startsWith(app.pocketshell.runtime.GuestEnvironment.RESOLV_CONF_MARKER))
+        assertTrue(text.contains("nameserver 1.1.1.1\n"))
+        assertTrue(text.contains("nameserver 8.8.8.8\n"))
+        // existing MANAGED content is refreshed to the current desired body
+        resolv.writeText(app.pocketshell.runtime.GuestEnvironment.RESOLV_CONF_MARKER + "\nnameserver 9.9.9.9\n")
         assertTrue(manager.uninstall("nano").success)
-        assertEquals("nameserver 9.9.9.9\n", resolv.readText())
+        assertFalse(resolv.readText().contains("9.9.9.9"))
+        // USER content (comments/options) is never clobbered
+        resolv.writeText("# mine\nnameserver 9.9.9.9\noptions timeout:1\n")
+        assertTrue(manager.uninstall("nano").success)
+        assertEquals("# mine\nnameserver 9.9.9.9\noptions timeout:1\n", resolv.readText())
     }
 
     @Test
@@ -296,7 +300,10 @@ class AlpinePackageManagerTest {
             dnsServers = { providerCalls++; listOf("192.168.1.1") },
         )
         assertTrue(manager.updateRepositories().success)
-        assertEquals("nameserver 192.168.1.1\n", resolv.readText())
+        val text = resolv.readText()
+        assertTrue(text.startsWith(app.pocketshell.runtime.GuestEnvironment.RESOLV_CONF_MARKER))
+        assertTrue(text.contains("nameserver 192.168.1.1\n"))
+        assertTrue(text.contains("nameserver 8.8.8.8\n"))
         assertEquals(1, providerCalls)
     }
 

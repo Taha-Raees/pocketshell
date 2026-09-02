@@ -118,7 +118,10 @@ object PackageGateway {
             val links = runCatching { cm.getLinkProperties(network) }.getOrNull() ?: continue
             for (address in links.dnsServers) {
                 val host = runCatching { address.hostAddress }.getOrNull() ?: continue
-                if (!host.isNullOrBlank()) seen.add(host)
+                // Drop zone-suffixed link-locals ("fe80::…%wlan0"): that is
+                // Android scope syntax, musl's inet_pton rejects it, so the
+                // line was dead weight in the guest resolv.conf (v0.4.3).
+                if (!host.isNullOrBlank() && !host.contains('%')) seen.add(host)
             }
         }
         // IPv4 first: on-device IPv6 egress is frequently absent and musl
@@ -251,10 +254,12 @@ object PackageGateway {
                 ?.readLines()?.count { it.isNotBlank() },
             dnsConfigured = resolvFile.isFile && resolvFile.readText().isNotBlank(),
             dnsServers = resolvFile.takeIf { it.isFile }
-                ?.readLines()?.filter { it.isNotBlank() },
+                ?.readLines()?.filter {
+                    it.isNotBlank() && !it.trimStart().startsWith("#")
+                },
             dnsSource = when {
                 deviceServers.isEmpty() -> "public fallback (device resolvers unavailable)"
-                else -> "device resolvers (ConnectivityManager)"
+                else -> "device resolvers first, public fallback (musl queries all in parallel)"
             },
             updateProbeOk = updateProbeOk,
             updateProbeDetail = updateProbeDetail,

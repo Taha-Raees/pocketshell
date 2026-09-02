@@ -323,7 +323,9 @@ class RuntimeInstaller(
         // Guest DNS: the minirootfs ships no /etc/resolv.conf (upstream leaves
         // it to the target machine), but musl's resolver needs one or every
         // guest name lookup fails (apk update). See GuestEnvironment KDoc —
-        // never overwrites a file that already has content.
+        // fresh installs get the marked public pair; the first package op
+        // refreshes managed files with the device's own resolvers, and files
+        // we did not write are never touched.
         if (!GuestEnvironment.ensureDnsResolvers(stagingRootfs)) {
             throw InstallException(
                 RuntimeState.CONFIGURING,
