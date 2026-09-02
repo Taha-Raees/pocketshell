@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.6.0-m2.6
+VERSION=v0.6.1-m2.6
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,36 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.5.0-m2.5):
+WHAT IS NEW IN $VERSION (vs v0.6.0-m2.6):
+  - DEVICE TEST RESULT (2026-09-02, SM-F711B): the M2.6 architecture is
+    CONFIRMED on hardware - Diagnostics shows "apk fd-link patch: applied"
+    and the interactive session binds a REAL /proc (cat /proc/meminfo
+    returns the host's real values; numeric pid dirs are visible). The
+    same test surfaced two behaviors the wording had not prepared anyone
+    for - both are real Android policy, neither is a bug:
+  - EXPECTED, NOT A BUG (1): \`ls /proc\` prints a wall of "Permission
+    denied" lines (kmsg, kcore, vmcore, kpage*, sched_debug, ...) before
+    the readable tail. The guest /proc IS the Android host procfs (the
+    design - no re-export, no simulation) and SELinux genuinely denies
+    this app getattr on kernel-internal nodes; busybox ls reports each
+    denial. ps/top/htop skip unreadable entries silently - only
+    directory listings are noisy.
+  - EXPECTED, NOT A BUG (2): \`cat /proc/version\` is denied on this
+    Samsung/One UI kernel (proc_version is not granted to apps targeting
+    SDK 28). Informational only: \`uname -a\` shows the kernel banner.
+    Synthesizing /proc/version from uname() was considered and REJECTED -
+    fabricated content violates the no-fake rule.
+  - CHANGED: the Diagnostics "Interactive /proc" row now says it up front
+    ("... Host procfs: kernel-internal entries show 'Permission denied' -
+    Android SELinux policy, expected"); docs/TESTING.md §10 Gate A is
+    re-anchored to the readable tail + meminfo/cpuinfo with a new
+    "Expected on-device (NOT bugs)" subsection; docs/M2.6-RESEARCH.md §6
+    records the device result. NO runtime/launcher/profile/patch/rootfs
+    changes - behaviorally identical to v0.6.0. 292 tests/variant, 584
+    executions, 0 failures. Installs IN PLACE over v0.6.0/v0.5.0 (same
+    signing key; runtime and packages untouched).
+
+WHAT WAS NEW IN v0.6.0-m2.6 (vs v0.5.0-m2.5):
   - M2.6, LINUX COMPATIBILITY RECOVERY: interactive sessions bind a REAL
     /proc again — \`ps\`, \`top\`, \`htop\` work inside the Alpine guest —
     while \`apk\` keeps working EVERYWHERE (shell and app UI). No Linux
