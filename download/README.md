@@ -37,9 +37,9 @@ Current: v0.6.2-m2.6 (git tip loaded in bundle, versionCode 16)
   · kernel-internal entries (kmsg, kcore, …) stay untouched — the
     ls /proc EACCES wall remains expected and is not overlaid;
   · Diagnostics gains a read-only "sysdata overlays" row (probe-only).
-- PocketShell-v0.6.2-m2.6-source.zip sha256 6fa407df1d46a9792cc9627e25fdaa5632bf583dee26a2bc89b0879677d1ce24  (27 MB, 261 files)
-- PocketShell-v0.6.2-m2.6-source.tar.gz sha256 0171633762b29ecb1c153ac527103944cd4ed4b5bfa882a389b1686220aef411  (27 MB)
-- pocketshell-m2.gitbundle           sha256 d0c69c5d2da33ef9db8da0e02cfe59a9eb53e9279ec705d26668017d165e2ff3  (full history; ~25 MB — includes one-time scratch/ objects from the accidental 0380901 snapshot; future bundles stay clean)
+- PocketShell-v0.6.2-m2.6-source.zip sha256 2336c0de5ff55e89a0e5ae1f7277f8a32d8fbabe0dde3bd8c3c09ee4e433b83d  (27 MB, 261 files)
+- PocketShell-v0.6.2-m2.6-source.tar.gz sha256 ac74c7e6659ca92f5d86c455a087d68facb0de9618aff856f164869b6d46ede9  (27 MB)
+- pocketshell-m2.gitbundle           sha256 66da676c8850d1ef3e55155fbaeb063e937b566e55c6faaf6fc6b7f4ebc64328  (full history @ 615f467; ~25 MB — includes one-time scratch/ objects from the accidental 0380901 snapshot; future bundles stay clean)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.6.1 superseded by the v0.6.2 hardlink +

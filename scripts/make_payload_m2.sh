@@ -462,6 +462,9 @@ echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
+           app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
+           app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \
+           scripts/rehearse_m262.sh \
            app/src/main/assets/guest/libapk.so.3.0.0.fdlinkoff.aarch64 \
            app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt \
            app/src/main/java/app/pocketshell/runtime/RuntimeManager.kt \

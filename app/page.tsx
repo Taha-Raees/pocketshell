@@ -1,10 +1,10 @@
-const VERSION = "v0.6.1-m2.6";
+const VERSION = "v0.6.2-m2.6";
 
 const HASHES = {
-  apk: "26a8f188079f97cfe41b5a1b7a614c67bd08208c1d02adebe9e7cedc65bb8897",
-  zip: "f198423bd2c6d25dfffd27b4c554d39906c0018fe2dd560b4794019ec4145ecb",
-  tgz: "e99561d3d7a235bb7e8bee7c025da7f207c8400907ed6ee6ac47209e4b8c74d0",
-  bundle: "1e2afa7e33703d7f6101a64da16a6b23d0f98bcfda95861e691e35a16afcdf5a",
+  apk: "35c4cd698010cb8039369059df5c60042cc06232630848acb556fc8136249226",
+  zip: "2336c0de5ff55e89a0e5ae1f7277f8a32d8fbabe0dde3bd8c3c09ee4e433b83d",
+  tgz: "ac74c7e6659ca92f5d86c455a087d68facb0de9618aff856f164869b6d46ede9",
+  bundle: "66da676c8850d1ef3e55155fbaeb063e937b566e55c6faaf6fc6b7f4ebc64328",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,95 +25,113 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Your device test confirmed M2.6 — v0.6.1 makes the docs as honest as
-          the architecture <span className="badge">versionCode 15</span>
+          The device session that confirmed M2.6 also broke your build tools —
+          v0.6.2 fixes both findings{" "}
+          <span className="badge">versionCode 16</span>
         </h2>
         <p>
-          The 2026-09-02 test on your SM-F711B <b>confirmed the M2.6
-          architecture end-to-end</b>: Diagnostics showed <i>apk fd-link
-          patch: applied</i>, the interactive session bound a real
-          <code> /proc</code>, and <code>cat /proc/meminfo</code> returned the
-          host's real values. The same run surfaced two behaviors the wording
-          had not prepared you for — both are genuine Android policy on your
-          device, neither is a bug, and both are now written up front (below
-          and in <b>docs/TESTING.md</b> §10). <b>No runtime, launcher,
-          profile, patch or rootfs changes</b> — v0.6.1 is behaviorally
-          identical to v0.6.0.
+          The 2026-09-02 run on your SM-F711B confirmed the M2.6 architecture
+          end-to-end <b>and</b> exposed two real Android-SELinux walls this
+          build now repairs — with the same discipline as before: reuse what
+          the ecosystem already proved, derive everything from real host
+          sources, and say plainly what is overlaid and why.
         </p>
         <ul className="steps">
           <li>
-            <b>What actually broke, source-verified:</b> apk-tools 3.0.x picks
-            its download-commit strategy with one probe —{" "}
-            <code>access("/proc/self/fd")</code>. With <code>/proc</code>{" "}
-            visible it commits every download through{" "}
-            <code>linkat("/proc/self/fd/N")</code>; Android’s security policy
-            (“neverallow all_untrusted_apps file_type:file link”) makes that
-            fail with <i>Permission denied</i>, and apk cancels the whole
-            download with <b>no fallback</b>. Upstream (3.0.6 → master) has no
-            fix to reuse.
+            <b>M2.6.13 — hardlink extraction, fixed:</b>{" "}
+            <code>apk add binutils gcc g++</code> failed with exactly 19{" "}
+            <i>"failed to extract … Permission denied"</i> errors — byte-for-
+            byte the hardlink entries of those packages (11 + 5 + 3). apk
+            materializes tar hardlinks with <code>link()</code>, and Android
+            neverallows <code>link()</code> to untrusted apps (the same
+            neverallow M2.6 bypassed for download commits — extraction is a
+            different call site). The fix is <b>Termux's own proot extension</b>{" "}
+            <code>--link2symlink</code> (compiled into the libproot we ship
+            since M2.3; PRoot-Distro enables it by default): link/linkat are
+            intercepted and emulated as symlink chains, so the kernel never
+            evaluates the denied call. Binaries are byte-identical
+            (rehearsal-proven); the honest difference — emulated links show as
+            symlinks and each costs its own disk space — is documented. Your
+            broken binutils/gcc/g++ state <b>self-heals on the first{" "}
+            <code>apk fix</code></b> under v0.6.2.
           </li>
           <li>
-            <b>The fix (surgical, honest):</b> a <b>one-byte, checksum-pinned
-            patch</b> to Alpine’s own <code>libapk</code> (3.0.6-r0) inside
-            the runtime turns that probe path into a permanently-missing file,
-            so apk always uses its allowed named-tmpfile + <code>renameat</code>{" "}
-            commit — the exact path already device-proven since v0.4.2. Same
-            binary version, same real downloads, same output, same exit codes,
-            same database. Reproducible: <code>scripts/patch_apk_fdlink.py</code>.
+            <b>M2.6.12 — selective /proc sysdata overlay (Termux
+            PRoot-Distro's architecture, adapted):</b> at every interactive
+            spawn the app probes the five standard procfs files Android's
+            policy denies this app domain (<code>stat</code>,{" "}
+            <code>uptime</code>, <code>loadavg</code>, <code>version</code>,{" "}
+            <code>vmstat</code>) with a one-byte read. <b>Kernel-readable
+            files are NEVER overlaid — real wins.</b> Only genuinely-denied
+            files get a verified compatibility overlay bound file-over-file on
+            top of the real <code>/proc</code> bind, with content from real
+            host sources: <code>uname(2)</code> identity for{" "}
+            <code>/proc/version</code> (with an explicit{" "}
+            <i>"PocketShell sysdata overlay"</i> attribution marker in the file
+            itself), <code>elapsedRealtime</code> for uptime, real core count
+            + real btime for <code>/proc/stat</code>, the real
+            hidepid-filtered pid set for <code>/proc/loadavg</code>'s tail —
+            and documented placeholders where no allowed source exists. The
+            kernel-internal wall (<code>kmsg</code>, <code>kcore</code>, …)
+            stays untouched: those are not standard compatibility files.
           </li>
           <li>
-            <b>The architecture:</b> two explicit guest profiles on the same
-            launcher — <b>INTERACTIVE_TERMINAL</b> (Linux Shell: full devices,
-            PTY, shared apk cache <b>and a real <code>/proc</code></b> once the
-            patched apk is verified) and <b>PACKAGE_OPERATION</b> (the app UI’s
-            apk runs: minimal mounts, never <code>/proc</code>, refuse-guarded
-            and test-pinned). One rootfs, one cache, one database.
-          </li>
-          <li>
-            <b>What works on your device (confirmed 2026-09-02):</b> the
-            readable <code>/proc</code> tail (pid dirs, <code>meminfo</code>,{" "}
-            <code>cpuinfo</code>, <code>uptime</code>, <code>mounts</code>, …),{" "}
-            <code>ps</code>, <code>top</code>, <code>htop</code> — <b>and</b>{" "}
-            <code>apk update / search / add / del</code> both in the shell and
-            from the app UI, <b>and</b> Node end-to-end. Honest process
-            semantics: <code>/proc</code> is the real host procfs filtered by
-            Android's own app isolation — you see the app's real process
-            tree, nothing faked, nothing hidden by us.
+            <b>What stays real:</b> the readable <code>/proc</code> tail (pid
+            dirs, <code>meminfo</code>, <code>cpuinfo</code>,{" "}
+            <code>mounts</code>, …), <code>ps</code>/<code>top</code>/
+            <code>htop</code>'s process rows, <code>apk update / search / add
+            / del</code> everywhere, Node end-to-end. Probe-first is the
+            honesty rule: if your kernel allows a standard file, you get the
+            kernel's own file — never our overlay.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.6.1-m2.6-debug.apk">
+        <a className="btn" href="/PocketShell-v0.6.2-m2.6-debug.apk">
           Download APK (debug, 21 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.6.1)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.6.2)
         </p>
       </div>
 
       <div className="card">
-        <h2>Expected on-device — NOT bugs (seen on your SM-F711B, 2026-09-02)</h2>
+        <h2>Expected on-device — updated for v0.6.2 (SM-F711B)</h2>
         <ul className="steps">
           <li>
-            <b><code>ls /proc</code> prints a wall of "Permission denied"
-            lines</b> (kmsg, kcore, vmcore, kpage*, sched_debug, timer_list,
-            …) before the readable tail. The guest <code>/proc</code> IS the
-            Android host procfs — the design, no re-export, no simulation —
-            and SELinux genuinely denies this app getattr on kernel-internal
-            nodes; busybox <code>ls</code> reports each denial. The PASS
-            signal is the readable tail: numeric pid dirs, meminfo, cpuinfo,
-            cmdline, uptime, loadavg, mounts, sys, tty, fs, bus, irq, driver
-            (Samsung adds memsize/memextra). <code>ps</code>/
-            <code>top</code>/<code>htop</code> skip unreadable entries
-            silently — only directory listings are noisy.
+            <b><code>ls /proc</code> still prints a wall of "Permission
+            denied" lines</b> (kmsg, kcore, vmcore, kpage*, sched_debug, …)
+            before the readable tail — Android SELinux genuinely denies this
+            app getattr on kernel-internal nodes, and v0.6.2 deliberately does
+            NOT overlay those (they are not standard compatibility files).
+            The PASS signal remains the readable tail: numeric pid dirs,
+            meminfo, cpuinfo, cmdline, uptime, loadavg, mounts, sys, tty, fs,
+            bus, irq, driver (Samsung adds memsize/memextra).
           </li>
           <li>
-            <b><code>cat /proc/version</code> is denied</b> on this
-            Samsung/One UI kernel: proc_version is not granted to apps
-            targeting SDK 28. Informational only — <code>uname -a</code> shows
-            the kernel banner (uname(2) is not policy-restricted).
-            Synthesizing <code>/proc/version</code> from uname() was
-            considered and <b>rejected</b>: fabricated content violates the
-            no-fake rule.
+            <b><code>cat /proc/version</code> is now REPAIRED on denying
+            kernels:</b> the overlay shows{" "}
+            <i>"Linux version &lt;real release&gt; (PocketShell sysdata
+            overlay: kernel identity via uname(2); the kernel's own file is
+            denied to apps by Android SELinux) &lt;real build tail&gt;"</i> —
+            the release and build tail are the real <code>uname(2)</code>{" "}
+            identity; the parenthetical says plainly what the file is. This
+            supersedes v0.6.1's synthesis refusal per the project owner's
+            direction, with the marker keeping it honest. On kernels that
+            allow the file, you get the real kernel banner — never overlaid.
+            <code> uname -a</code> still works for comparison.
+          </li>
+          <li>
+            <b><code>top</code>'s CPU% column reads ~0%</b> under the overlay:
+            the kernel's global jiffies counters are denied to apps, so the
+            overlay's counters are static, documented placeholders — the
+            process ROWS stay real. On kernels that allow <code>/proc/stat</code>{" "}
+            the real file wins and CPU% comes alive.
+          </li>
+          <li>
+            <b>Emulated hardlinks appear as symlinks</b> ({" "}
+            <code>ls -l /usr/bin/ld</code> shows a symlink chain): that is{" "}
+            <code>link2symlink</code> doing its job, not a defect — the
+            binaries are byte-identical to the real ones.
           </li>
         </ul>
       </div>
@@ -121,13 +139,15 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          Installs <b>in place over v0.6.0/v0.5.0</b> (same pinned signing key). Your
-          runtime, installed packages and cache are untouched — the fd-link
-          patch <b>installs itself on the first Linux Shell spawn</b> and is
-          verified by checksum on every package operation. If your rootfs was
-          ever modified by an in-guest <code>apk upgrade</code>, the app will
-          tell you honestly (Diagnostics → “apk fd-link patch”) instead of
-          overwriting anything.
+          Installs <b>in place over v0.6.1/v0.6.0/v0.5.0</b> (same pinned
+          signing key). Your runtime, installed packages and cache are
+          untouched: the fd-link patch is already applied on your device, the
+          sysdata overlays write themselves on the first Linux Shell spawn
+          (probe-gated, verified before binding), and the first{" "}
+          <code>apk fix</code> re-extracts the binutils/gcc/g++ state the
+          2026-09-02 run left broken. If anything cannot be written or
+          verified, that one entry degrades honestly and Diagnostics reports
+          it — a spawn never fails because an overlay failed.
         </p>
       </div>
 
@@ -144,7 +164,7 @@ export default function Home() {
           </li>
           <li>
             Linux Shell (M2.3 + M2.6): the Alpine guest via proot — with{" "}
-            <code>/proc</code> back, and <code>apk</code> still working.
+            <code>/proc</code>, and <code>apk</code> still working.
           </li>
           <li>
             Package management (M2.4, device-gate PASSED): curated cards
@@ -156,49 +176,65 @@ export default function Home() {
             match, installable in one tap; Node runs end-to-end.
           </li>
           <li>
-            M2.6 (this build): real process tools restored without giving up
-            the package manager — the foundation before more features.
+            M2.6 (confirmed on device 2026-09-02): real process tools without
+            giving up the package manager.
+          </li>
+          <li>
+            <b>v0.6.2 (this build):</b> the two SELinux walls that same device
+            session exposed — standard procfs files denied to apps, and
+            hardlink extraction denied to apk — repaired with Termux-proven
+            architecture (PRoot-Distro's sysdata model + proot's{" "}
+            <code>link2symlink</code>), real-source content, and honest
+            attribution markers.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §10 — Gates A–G)</h2>
+        <h2>Quick checks (docs/TESTING.md §10 — Gates A–H)</h2>
         <ol className="steps">
-          <li>Install {VERSION} over v0.6.0/v0.5.0 (no uninstall) → open Linux Shell.</li>
+          <li>Install {VERSION} over v0.6.1/v0.6.0/v0.5.0 (no uninstall) → open Linux Shell.</li>
           <li>
-            Gate A: <code>ls /proc</code> → the readable tail AFTER the
-            expected "Permission denied" wall on kernel-internal entries;{" "}
-            <code>cat /proc/meminfo</code> and <code>cat /proc/cpuinfo</code>{" "}
-            → real values (gate files); <code>uname -a</code> → kernel banner
-            (<code>cat /proc/version</code> is INFORMATIONAL — denied on One
-            UI, see the NOT-bugs card above).
+            <b>Gate A (PRIMARY):</b> the five standard files —{" "}
+            <code>cat /proc/stat</code> (parseable; real btime),{" "}
+            <code>cat /proc/uptime</code> (real field 1),{" "}
+            <code>cat /proc/loadavg</code> (real pid tail),{" "}
+            <code>cat /proc/version</code> (real uname identity + attribution
+            marker), <code>cat /proc/vmstat</code> (kernel-name skeleton) —
+            plus <code>meminfo</code>/<code>cpuinfo</code> still real
+            (never overlaid) and the <code>ls /proc</code> EACCES wall still
+            expected on kernel-internal entries.
           </li>
           <li>
-            Gate B: <code>ps</code> → a real process list; <code>top</code> →
-            opens, updates, <code>q</code> quits.
+            <b>Gate B:</b> <code>ps</code> → real process rows;{" "}
+            <code>top</code> → opens, updates, <code>q</code> quits (CPU% ~0%
+            is the documented overlay placeholder — rows are real).
           </li>
           <li>
-            Gate C: <code>apk update</code> → OK (~28k packages, no “Permission
-            denied”); <code>apk add htop</code> → <code>htop</code> runs.
+            <b>Gate C:</b> <code>apk update</code> → OK (~28k packages, no
+            "Permission denied"); <code>apk add htop</code> →{" "}
+            <code>htop</code> runs.
           </li>
           <li>
-            Gate D: <code>apk add nodejs npm</code> →{" "}
-            <code>node --version</code> → write{" "}
-            <code>console.log("PocketShell Node works")</code> to{" "}
-            <code>index.js</code> → <code>node index.js</code> prints it.
+            <b>Gate D:</b> <code>apk add nodejs npm</code> →{" "}
+            <code>node --version</code> → <code>node index.js</code> prints
+            your line.
           </li>
           <li>
-            Gates E–G: Explore install/uninstall still honest; <code>nano</code>{" "}
-            unchanged; keep <code>top</code> running while the UI installs a
-            package — neither breaks.
+            <b>Gate H (new, heals your device):</b> <code>apk fix</code> →
+            completes with NO extract errors;{" "}
+            <code>gcc --version && g++ --version && ld --version</code> → real
+            GNU banners; <code>ls -l /usr/bin/ld</code> → symlink chain
+            (expected, documented).
           </li>
           <li>
-            Diagnostics → “Check package environment” shows{" "}
-            <b>apk fd-link patch: applied</b> (confirmed on your device) and
-            the <b>Interactive /proc</b> row that now says it up front:
-            “kernel-internal entries show 'Permission denied' — Android
-            SELinux policy, expected”.
+            Gates E–G: Explore install/uninstall still honest;{" "}
+            <code>nano</code> unchanged; session isolation intact.
+          </li>
+          <li>
+            Diagnostics → <b>apk fd-link patch: applied</b> (confirmed on your
+            device) + the new read-only <b>sysdata overlays</b> row, which
+            names exactly which files are real and which are overlaid.
           </li>
         </ol>
       </div>
@@ -207,12 +243,12 @@ export default function Home() {
         <h2>Source (version control)</h2>
         <p>
           Complete buildable source. The zip intentionally contains no
-          dotfiles; full history rides in the git bundle.
+          dotfiles; full history rides in the git bundle (tip 615f467).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.6.1-m2.6-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.6.2-m2.6-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.6.1-m2.6-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.6.2-m2.6-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -232,11 +268,12 @@ export default function Home() {
         Milestones: M0–M1.3 terminal · M2.2 runtime install · M2.3 Linux shell
         (device-verified) · M2.4 package layer (device gate PASSED) · M2.5
         apk-capable shell + ranked/installable search · M2.6 real /proc + real
-        apk (<b>device-CONFIRMED 2026-09-02</b>) · <b>v0.6.1 (this build): the
-        docs now match what Android honestly says on real hardware</b>. Next
+        apk (<b>device-CONFIRMED 2026-09-02</b>) · v0.6.1: docs matched the
+        honest device behavior · <b>v0.6.2 (this build): the two SELinux walls
+        that run exposed are now repaired — Termux PRoot-Distro's sysdata
+        architecture adapted, proot's own link2symlink enabled</b>. Next
         candidates: M2.7 session management + CLI app profiles, or a curated
-        CLI app catalog. Your screenshots did it again — they confirmed the
-        architecture and sharpened the docs.
+        CLI app catalog. Your device keeps doing the QA that matters.
       </footer>
     </main>
   );
