@@ -1,5 +1,6 @@
 package app.pocketshell.ui.apps
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.TerminalViewModel
@@ -49,18 +51,25 @@ import app.pocketshell.runtime.RuntimeState
 import kotlinx.coroutines.launch
 
 /**
- * Explore CLI Apps (M2.4) — the first real package-management frontend.
+ * Packages (M2.4) — the real package-management frontend.
  *
  * Everything here is a view over the real Alpine `apk`: install status comes
  * from `apk info -e -v`, search from `apk search`, installs/uninstalls are
  * real apk transactions observed through [PackageGateway.operations]. The
  * catalog below is metadata only; it can never claim an installed state.
+ *
+ * Phase 3.4 (docs/PHASE-3.4-DESIGN.md §3): the not-ready state is inline
+ * text on the canvas — never a container (the 3.3 §9 rule) — and carries a
+ * working `Open Diagnostics` affordance because that is where the runtime is
+ * installed. Per-package surfaces stay: they are real objects (an installable
+ * package with actions), which the 3.3 §4 card rules explicitly allow.
  */
 @Composable
 fun ExploreAppsScreen(
     terminalViewModel: TerminalViewModel,
     onBack: () -> Unit,
     onOpenedSession: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -119,22 +128,43 @@ fun ExploreAppsScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = "Back")
             }
-            Text("Explore CLI Apps", style = MaterialTheme.typography.titleLarge)
+            Text("Packages", style = MaterialTheme.typography.titleLarge)
         }
 
         if (runtimeState != RuntimeState.READY) {
+            // §9 honesty: an empty/blocked state is three quiet text lines on
+            // the canvas, never a container. The Diagnostics link is real —
+            // that is where the runtime install lives.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                InfoCard(
-                    title = "The Linux runtime is not installed yet",
-                    body = "These apps are installed with the real Alpine package manager (apk) " +
+                Text(
+                    text = "The Linux runtime is not installed yet.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Packages are installed with the real Alpine package manager (apk) " +
                         "inside the PocketShell Linux runtime. Install the runtime from " +
                         "Diagnostics first — this screen never pretends otherwise.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Open Diagnostics",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(top = 6.dp)
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = "Open Diagnostics",
+                        ) { onOpenDiagnostics() }
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                 )
             }
             return@Column
@@ -477,25 +507,6 @@ private fun CatalogAppCard(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun InfoCard(title: String, body: String) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

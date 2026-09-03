@@ -3,9 +3,13 @@ package app.pocketshell.ui.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import app.pocketshell.settings.SettingsRepository
 import app.pocketshell.settings.ThemeMode
@@ -34,6 +39,11 @@ import kotlinx.coroutines.launch
 /**
  * Settings (brief §25/§M1.3): theme mode, dynamic color, default font size.
  * Persisted via DataStore; changes apply immediately where sensible.
+ *
+ * Phase 3.4 (docs/PHASE-3.4-DESIGN.md §4): the visual language stays the
+ * app-theme Material look (the 3.3 §10 decision), but every selectable row is
+ * a whole-row touch target — OS idiom, ≥48dp — not a 24dp radio dot or a
+ * 40dp switch floating at the end of an inert label.
  */
 @Composable
 fun SettingsScreen(
@@ -77,13 +87,21 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable(
+                        role = Role.RadioButton,
+                        onClickLabel = "Select $label",
+                    ) { onThemeMode(mode) }
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // onClick = null: the ROW is the touch target and carries the
+                // RadioButton role; the dot is only the state renderer.
                 RadioButton(
                     selected = themeMode == mode,
-                    onClick = { onThemeMode(mode) },
+                    onClick = null,
                 )
+                Spacer(Modifier.width(8.dp))
                 Text(label, style = MaterialTheme.typography.bodyLarge)
             }
         }
@@ -94,6 +112,8 @@ fun SettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clickable(role = Role.Switch) { onDynamicColor(!dynamicColor) }
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -106,9 +126,11 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            // onClick = null: the row toggles (Role.Switch); the switch only
+            // renders the state.
             Switch(
                 checked = dynamicColor,
-                onCheckedChange = { onDynamicColor(it) },
+                onCheckedChange = null,
             )
         }
 

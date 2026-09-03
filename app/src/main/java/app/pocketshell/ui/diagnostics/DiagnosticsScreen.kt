@@ -38,6 +38,11 @@ import app.pocketshell.runtime.RuntimeStorage
 /**
  * Diagnostics (brief §diagnostics): read-only facts about the real runtime.
  * No simulated values, no "everything looks great" decoration.
+ *
+ * Phase 3.4 (docs/PHASE-3.4-DESIGN.md §5): one hierarchy for every section —
+ * full-width divider + header (System / Linux runtime / Package environment),
+ * then plain label/value fact rows with a uniform rhythm. No internal
+ * per-row dividers: the section is the separation unit, not the row.
  */
 @Composable
 fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -69,35 +74,34 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             Text("Diagnostics", style = MaterialTheme.typography.titleLarge)
         }
 
-        rows.forEachIndexed { index, row ->
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = row.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(0.42f),
-                    )
-                    Text(
-                        text = row.value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when (row.ok) {
-                            true -> MaterialTheme.colorScheme.primary
-                            false -> MaterialTheme.colorScheme.error
-                            null -> MaterialTheme.colorScheme.onSurface
-                        },
-                        modifier = Modifier.weight(0.58f),
-                    )
-                }
-                if (index != rows.lastIndex) {
-                    HorizontalDivider(
-                        Modifier.padding(top = 6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    )
-                }
+        Text(
+            text = "System",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        )
+        rows.forEach { row ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = row.label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(0.42f),
+                )
+                Text(
+                    text = row.value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = when (row.ok) {
+                        true -> MaterialTheme.colorScheme.primary
+                        false -> MaterialTheme.colorScheme.error
+                        null -> MaterialTheme.colorScheme.onSurface
+                    },
+                    modifier = Modifier.weight(0.58f),
+                )
             }
         }
 
@@ -279,7 +283,7 @@ private fun RuntimeFactRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(

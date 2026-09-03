@@ -124,6 +124,9 @@ fun PocketShellRoot(
                 terminalViewModel = terminalViewModel,
                 onBack = { screen = "home" },
                 onOpenedSession = { screen = "terminal" },
+                // Phase 3.4: the not-ready state carries a real affordance —
+                // the runtime is installed from Diagnostics.
+                onOpenDiagnostics = { screen = "diagnostics" },
                 modifier = Modifier.padding(padding),
             )
 
