@@ -1,20 +1,20 @@
 package app.pocketshell.ui.diagnostics
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,23 +22,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 import app.pocketshell.ui.components.PSScreenHeader
+import app.pocketshell.ui.components.PSSectionLabel
 import app.pocketshell.diagnostics.Diagnostics
 import app.pocketshell.runtime.RuntimeDiagnostics
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimePin
 import app.pocketshell.runtime.RuntimeState
 import app.pocketshell.runtime.RuntimeStorage
+import app.pocketshell.ui.theme.PSSpacing
+import kotlinx.coroutines.launch
 
 /**
- * Diagnostics (brief §diagnostics): read-only facts about the real runtime.
- * No simulated values, no "everything looks great" decoration.
+ * Diagnostics (docs/UI-REDESIGN.md §11): read-only facts about the real
+ * runtime, grouped into design-system cards. No simulated values, no
+ * "everything looks great" decoration — every row and every button from the
+ * M2.x milestones is preserved verbatim.
  */
 @Composable
 fun DiagnosticsScreen(onMenu: () -> Unit, modifier: Modifier = Modifier) {
@@ -56,7 +59,8 @@ fun DiagnosticsScreen(onMenu: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = PSSpacing.gutter),
     ) {
         PSScreenHeader(
             title = "Diagnostics",
@@ -64,29 +68,18 @@ fun DiagnosticsScreen(onMenu: () -> Unit, modifier: Modifier = Modifier) {
             onMenu = onMenu,
         )
 
-        rows.forEachIndexed { index, row ->
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = row.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(0.42f),
-                    )
-                    Text(
-                        text = row.value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when (row.ok) {
-                            true -> MaterialTheme.colorScheme.primary
-                            false -> MaterialTheme.colorScheme.error
-                            null -> MaterialTheme.colorScheme.onSurface
-                        },
-                        modifier = Modifier.weight(0.58f),
-                    )
-                }
+        // ---- device -----------------------------------------------------
+        DiagnosticsSection("Device") {
+            rows.forEachIndexed { index, row ->
+                FactRow(
+                    label = row.label,
+                    value = row.value,
+                    valueColor = when (row.ok) {
+                        true -> MaterialTheme.colorScheme.primary
+                        false -> MaterialTheme.colorScheme.error
+                        null -> MaterialTheme.colorScheme.onSurface
+                    },
+                )
                 if (index != rows.lastIndex) {
                     HorizontalDivider(
                         Modifier.padding(top = 6.dp),
@@ -96,109 +89,97 @@ fun DiagnosticsScreen(onMenu: () -> Unit, modifier: Modifier = Modifier) {
             }
         }
 
-        // ---- M2.2: Linux runtime facts + install controls ------------------
-        HorizontalDivider(Modifier.padding(top = 10.dp))
-        Text(
-            text = "Linux runtime",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
-        RuntimeFactRow("State", runtimeState.name)
-        RuntimeFactRow(
-            "Distribution",
-            if (runtimeState.expectsRuntimeOnDisk) {
-                runtimeReport.metadata
-                    ?.let { "${it.distribution} ${it.distributionVersion} (${it.architecture})" }
-                    ?: "metadata unreadable"
-            } else {
-                "${RuntimePin.DISTRIBUTION} ${RuntimePin.DISTRIBUTION_VERSION} (not installed)"
-            },
-        )
-        RuntimeFactRow(
-            "Runtime size",
-            runtimeReport.runtimeSizeBytes?.let(RuntimeDiagnostics::formatBytes) ?: "—",
-        )
-        RuntimeFactRow("Free space", RuntimeDiagnostics.formatBytes(runtimeReport.freeBytes))
-        runtimeReport.rootfsEntryCount?.let {
-            RuntimeFactRow("Rootfs files", it.toString())
-        }
-        runtimeEvent?.let { event ->
-            RuntimeFactRow("Last event", describe(event))
-        }
-
-        val actionLabel = when {
-            runtimeState == RuntimeState.READY -> "Remove runtime"
-            runtimeState == RuntimeState.NOT_INSTALLED -> "Install Linux environment"
-            runtimeState == RuntimeState.UNSUPPORTED_ABI -> "Unsupported ABI on this device"
-            runtimeState == RuntimeState.FAILED ||
-                runtimeState == RuntimeState.REPAIR_REQUIRED -> "Retry install"
-            else -> null // in-flight states: no action, honest silence
-        }
-        actionLabel?.let { label ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            ) {
-                if (runtimeState == RuntimeState.READY) {
-                    OutlinedButton(
-                        onClick = { RuntimeManager.remove() },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(label)
-                    }
+        // ---- M2.2: Linux runtime facts + install controls ---------------
+        DiagnosticsSection("Linux runtime") {
+            FactRow("State", runtimeState.name)
+            FactRow(
+                "Distribution",
+                if (runtimeState.expectsRuntimeOnDisk) {
+                    runtimeReport.metadata
+                        ?.let { "${it.distribution} ${it.distributionVersion} (${it.architecture})" }
+                        ?: "metadata unreadable"
                 } else {
-                    Button(
-                        onClick = {
-                            if (runtimeState == RuntimeState.REPAIR_REQUIRED) {
-                                RuntimeManager.repair()
-                            } else {
-                                RuntimeManager.startInstall()
-                            }
-                        },
-                        enabled = runtimeState != RuntimeState.UNSUPPORTED_ABI,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(label)
+                    "${RuntimePin.DISTRIBUTION} ${RuntimePin.DISTRIBUTION_VERSION} (not installed)"
+                },
+            )
+            FactRow(
+                "Runtime size",
+                runtimeReport.runtimeSizeBytes?.let(RuntimeDiagnostics::formatBytes) ?: "—",
+            )
+            FactRow("Free space", RuntimeDiagnostics.formatBytes(runtimeReport.freeBytes))
+            runtimeReport.rootfsEntryCount?.let {
+                FactRow("Rootfs files", it.toString())
+            }
+            runtimeEvent?.let { event ->
+                FactRow("Last event", describe(event))
+            }
+
+            val actionLabel = when {
+                runtimeState == RuntimeState.READY -> "Remove runtime"
+                runtimeState == RuntimeState.NOT_INSTALLED -> "Install Linux environment"
+                runtimeState == RuntimeState.UNSUPPORTED_ABI -> "Unsupported ABI on this device"
+                runtimeState == RuntimeState.FAILED ||
+                    runtimeState == RuntimeState.REPAIR_REQUIRED -> "Retry install"
+                else -> null // in-flight states: no action, honest silence
+            }
+            actionLabel?.let { label ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = PSSpacing.md),
+                ) {
+                    if (runtimeState == RuntimeState.READY) {
+                        OutlinedButton(
+                            onClick = { RuntimeManager.remove() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(label)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                if (runtimeState == RuntimeState.REPAIR_REQUIRED) {
+                                    RuntimeManager.repair()
+                                } else {
+                                    RuntimeManager.startInstall()
+                                }
+                            },
+                            enabled = runtimeState != RuntimeState.UNSUPPORTED_ABI,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(label)
+                        }
                     }
                 }
             }
-        }
-        if (runtimeState == RuntimeState.UNSUPPORTED_ABI) {
-            Text(
-                text = "M2 runtime ships an aarch64 (arm64-v8a) rootfs, " +
-                    "which this device does not report among its supported ABIs.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
+            if (runtimeState == RuntimeState.UNSUPPORTED_ABI) {
+                Text(
+                    text = "M2 runtime ships an aarch64 (arm64-v8a) rootfs, " +
+                        "which this device does not report among its supported ABIs.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = PSSpacing.sm),
+                )
+            }
         }
 
-        // ---- M2.4: package environment (explicit check only) ---------------
+        // ---- M2.4: package environment (explicit check only) -------------
         // Nothing here runs on open: the check execs the guest (`apk
         // --version`) and reads package config files — only because the user
         // pressed the button. No network, no database writes.
-        HorizontalDivider(Modifier.padding(top = 10.dp))
-        Text(
-            text = "Package environment",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
-        Text(
-            text = "Nothing is checked automatically — press the button. " +
-                "The check includes one real apk update (network) so failures show their true cause.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        val scope = rememberCoroutineScope()
-        var pkgReport by remember { mutableStateOf<app.pocketshell.packages.PackageEnvironmentReport?>(null) }
-        var pkgChecking by remember { mutableStateOf(false) }
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        ) {
+        DiagnosticsSection("Package environment") {
+            Text(
+                text = "Nothing is checked automatically — press the button. " +
+                    "The check includes one real apk update (network) so failures " +
+                    "show their true cause.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val scope = rememberCoroutineScope()
+            var pkgReport by remember {
+                mutableStateOf<app.pocketshell.packages.PackageEnvironmentReport?>(null)
+            }
+            var pkgChecking by remember { mutableStateOf(false) }
             OutlinedButton(
                 onClick = {
                     pkgChecking = true
@@ -211,47 +192,98 @@ fun DiagnosticsScreen(onMenu: () -> Unit, modifier: Modifier = Modifier) {
                     }
                 },
                 enabled = !pkgChecking,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = PSSpacing.md),
             ) {
                 Text(if (pkgChecking) "Checking…" else "Check package environment")
             }
+            pkgReport?.let { report ->
+                Spacer(Modifier.height(PSSpacing.sm))
+                FactRow("Runtime", if (report.runtimeReady) "READY" else "not READY")
+                FactRow("apk", report.apkVersion ?: report.apkError ?: "—")
+                FactRow(
+                    "Repositories",
+                    report.repositories?.joinToString(", ") ?: "—",
+                )
+                FactRow(
+                    "Package database",
+                    report.worldPackages?.let { "present ($it packages in world)" } ?: "unreadable",
+                )
+                FactRow(
+                    "Guest DNS",
+                    when {
+                        report.dnsServers?.isNotEmpty() == true ->
+                            report.dnsServers.joinToString(", ") +
+                                " — " + (report.dnsSource ?: "")
+                        report.dnsConfigured -> "configured — " + (report.dnsSource ?: "")
+                        else -> "missing (repairs on first package operation)"
+                    },
+                )
+                FactRow(
+                    "Repository fetch",
+                    when {
+                        report.updateProbeOk == null -> "not probed"
+                        report.updateProbeOk == true ->
+                            "OK — ${(report.updateProbeDetail ?: "").take(120)}"
+                        else -> "FAILED — ${(report.updateProbeDetail ?: "unknown error").take(200)}"
+                    },
+                )
+                FactRow("apk fd-link patch", report.apkFdLinkPatch ?: "—")
+                FactRow("Interactive /proc", report.guestProcPolicy ?: "—")
+                FactRow("sysdata overlays", report.sysDataOverlays ?: "—")
+            }
         }
-        pkgReport?.let { report ->
-            RuntimeFactRow("Runtime", if (report.runtimeReady) "READY" else "not READY")
-            RuntimeFactRow(
-                "apk",
-                report.apkVersion ?: report.apkError ?: "—",
+
+        Spacer(Modifier.height(PSSpacing.xl))
+    }
+}
+
+/** A diagnostics card: section label + bordered surface of honest facts. */
+@Composable
+private fun DiagnosticsSection(
+    title: String,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Column(Modifier.padding(bottom = PSSpacing.lg)) {
+        PSSectionLabel(title)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 1.dp,
+        ) {
+            Column(
+                modifier = Modifier.padding(PSSpacing.lg),
+                content = content,
             )
-            RuntimeFactRow(
-                "Repositories",
-                report.repositories?.joinToString(", ") ?: "—",
-            )
-            RuntimeFactRow(
-                "Package database",
-                report.worldPackages?.let { "present ($it packages in world)" } ?: "unreadable",
-            )
-            RuntimeFactRow(
-                "Guest DNS",
-                when {
-                    report.dnsServers?.isNotEmpty() == true ->
-                        report.dnsServers.joinToString(", ") +
-                            " — " + (report.dnsSource ?: "")
-                    report.dnsConfigured -> "configured — " + (report.dnsSource ?: "")
-                    else -> "missing (repairs on first package operation)"
-                },
-            )
-            RuntimeFactRow(
-                "Repository fetch",
-                when {
-                    report.updateProbeOk == null -> "not probed"
-                    report.updateProbeOk == true -> "OK — ${(report.updateProbeDetail ?: "").take(120)}"
-                    else -> "FAILED — ${(report.updateProbeDetail ?: "unknown error").take(200)}"
-                },
-            )
-            RuntimeFactRow("apk fd-link patch", report.apkFdLinkPatch ?: "—")
-            RuntimeFactRow("Interactive /proc", report.guestProcPolicy ?: "—")
-            RuntimeFactRow("sysdata overlays", report.sysDataOverlays ?: "—")
         }
+    }
+}
+
+@Composable
+private fun FactRow(
+    label: String,
+    value: String,
+    valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.42f),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = valueColor,
+            modifier = Modifier.weight(0.58f),
+        )
     }
 }
 
@@ -267,26 +299,4 @@ private fun describe(event: app.pocketshell.runtime.RuntimeInstallEvent): String
     app.pocketshell.runtime.RuntimeInstallEvent.Configured -> "configured, promoting"
     app.pocketshell.runtime.RuntimeInstallEvent.Ready -> "ready"
     is app.pocketshell.runtime.RuntimeInstallEvent.Failed -> "failed: ${event.message}"
-}
-
-@Composable
-private fun RuntimeFactRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.42f),
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(0.58f),
-        )
-    }
 }

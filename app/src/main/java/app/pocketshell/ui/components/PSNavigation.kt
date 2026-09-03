@@ -70,6 +70,26 @@ fun PSHamburgerIcon(modifier: Modifier = Modifier) {
 }
 
 /**
+ * The tappable menu button: hamburger inside a 44dp disc, with an
+ * accessibility label (icon-only control — brief §16).
+ */
+@Composable
+fun PSMenuButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier
+            .size(44.dp)
+            .semantics { contentDescription = "Open menu" },
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            PSHamburgerIcon()
+        }
+    }
+}
+
+/**
  * Screen header: hamburger + title + optional trailing actions. Every screen
  * uses this — no screen carries its own back-arrow language; back goes Home
  * (system back) and the drawer is always top-left.

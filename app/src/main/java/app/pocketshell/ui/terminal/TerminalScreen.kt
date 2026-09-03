@@ -46,7 +46,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import app.pocketshell.ui.components.PSHamburgerIcon
+import app.pocketshell.ui.components.PSMenuButton
 import app.pocketshell.ui.components.PSEmptyState
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
@@ -236,16 +236,7 @@ private fun SessionChrome(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(PSSpacing.xs),
         ) {
-            Surface(
-                onClick = onMenu,
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.padding(end = 2.dp),
-            ) {
-                Box(Modifier.padding(PSSpacing.md)) {
-                    PSHamburgerIcon()
-                }
-            }
+            PSMenuButton(onClick = onMenu)
 
             LazyRow(
                 modifier = Modifier.weight(1f),

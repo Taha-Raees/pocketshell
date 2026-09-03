@@ -32,7 +32,7 @@ import app.pocketshell.ui.components.PSActionTile
 import app.pocketshell.ui.components.PSAssistantFab
 import app.pocketshell.ui.components.PSBanner
 import app.pocketshell.ui.components.PSBannerSeverity
-import app.pocketshell.ui.components.PSHamburgerIcon
+import app.pocketshell.ui.components.PSMenuButton
 import app.pocketshell.ui.components.PSHeroCard
 import app.pocketshell.ui.components.PSListCard
 import app.pocketshell.ui.components.PSLogo
@@ -195,16 +195,7 @@ private fun HomeHeader(runtimeState: RuntimeState, onMenu: () -> Unit) {
             .padding(top = PSSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            onClick = onMenu,
-            shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.padding(PSSpacing.xs),
-        ) {
-            Box(Modifier.padding(PSSpacing.md)) {
-                PSHamburgerIcon()
-            }
-        }
+        PSMenuButton(onClick = onMenu)
         Spacer(Modifier.weight(1f))
         PSStatusPill(
             text = when (runtimeState) {
