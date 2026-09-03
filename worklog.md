@@ -577,3 +577,20 @@ Work Log:
 
 Stage Summary:
 - Delivery chain fully live again: preview page + 4 byte-verified artifacts. Lesson re-confirmed: toolchain foreground install, dex-merge OOM = single retry, artifacts must be re-cut from git (nothing user-visible was lost).
+
+---
+Task ID: 30
+Agent: main (Super Z)
+Task: User direction — "moving back to 0.6.2, we will do phase 3 again completely". Roll the project to the v0.6.2 baseline and stand by for the fresh UI phase.
+
+Work Log:
+- ROLLBACK EXECUTED (history NOT rewritten): scripts/rollback_v062.sh restores the tree to 23c7234 (the pre-UI v0.6.2 snapshot, which includes the Task 26/27 M2.6 close-out records — repro scripts + M2.6-RESEARCH §8.5 Hermes/uv knowledge are KEPT). Everything UI-phase is out of the tree: UI-REDESIGN.md, Quiet Aurora theme/components, drawer navigation, redesigned Home/Terminal/Packages/Settings/Diagnostics, final-keyboard layout, launchable-apps layer, OpenRouter settings, 0.7.0-ui docs entries, v0.7.0 delivery page/artifacts. Commit 4a4ab0d; verification diff vs 23c7234 = worklog.md ONLY (append-only discipline).
+- The discarded UI phase remains fully in history (26e0abb..6c752c4 + snapshots) — nothing lost, referenceable anytime.
+- REBUILT: full test suite back to the v0.6.2 baseline — 624 tests (167 app + 145 terminal-emulator per variant), 0 failures. APK: versionCode 16 / 0.6.2-m2.6, cert d96a6f66…8bf659.
+- BIT-PERFECT REPRODUCTION: rebuilt APK sha256 35c4cd69…9226 == the ORIGINAL v0.6.2 delivery byte-for-byte (rollback is provably exact at the artifact level).
+- PAYLOAD re-cut at rollback tip 4a4ab0d (bundle now carries the full history INCLUDING the discarded UI attempt + this rollback — honest, no rewrites): sanity clean (265 files, 0 dot-paths, 0 shims, 0 node_modules, all 16 v0.6.2 key pins). New source-artifact hashes: zip 7236ad1c…98e836, tgz 0545fae7…655cc, bundle 4391b064…495bb; APK hash UNCHANGED (35c4cd69…9226). v0.7.0 artifacts withdrawn from download//public//dist-master; three-way identity verified.
+- PAGE/MANIFEST: restored v0.6.2 delivery page + download/README.md updated with the re-cut hashes and the new bundle tip (4a4ab0d). Server on :3000: page renders v0.6.2-m2.6/versionCode 16, all 4 artifacts HTTP byte-identical, v0.7.0 URLs 404.
+- DEVICE DOWNGRADE CAVEAT (documented for the user): Android will NOT install versionCode 16 over an installed versionCode 17 (v0.7.0-ui). Getting v0.6.2 back on the device requires uninstalling v0.7.0-ui first — which wipes the app data (Alpine runtime, Hermes install). After installing v0.6.2: one-tap runtime reinstall from Diagnostics, then the M2.6 Gates A–H + the UV_LINK_MODE=copy Hermes workaround (M2.6-RESEARCH §8.5) still apply.
+
+Stage Summary:
+- Project is back at the v0.6.2-m2.6 baseline with a clean, verified delivery chain; ready to run phase 3 (UI/UX redesign) again completely from this base. The prior attempt's history remains available as reference.

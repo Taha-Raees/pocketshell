@@ -1,6 +1,6 @@
 # download/ — delivery masters
 
-Current: v0.6.2-m2.6 (git tip loaded in bundle, versionCode 16)
+Current: v0.6.2-m2.6 (git tip 4a4ab0d — rollback commit; full history incl. the discarded UI attempt rides in the bundle, versionCode 16)
 - PocketShell-v0.6.2-m2.6-debug.apk  sha256 35c4cd698010cb8039369059df5c60042cc06232630848acb556fc8136249226
   Installs IN PLACE over v0.6.1/v0.6.0/v0.5.0 (same pinned cert d96a6f66…8bf659).
   The runtime/rootfs does NOT need reinstalling.
@@ -37,9 +37,9 @@ Current: v0.6.2-m2.6 (git tip loaded in bundle, versionCode 16)
   · kernel-internal entries (kmsg, kcore, …) stay untouched — the
     ls /proc EACCES wall remains expected and is not overlaid;
   · Diagnostics gains a read-only "sysdata overlays" row (probe-only).
-- PocketShell-v0.6.2-m2.6-source.zip sha256 2336c0de5ff55e89a0e5ae1f7277f8a32d8fbabe0dde3bd8c3c09ee4e433b83d  (27 MB, 261 files)
-- PocketShell-v0.6.2-m2.6-source.tar.gz sha256 ac74c7e6659ca92f5d86c455a087d68facb0de9618aff856f164869b6d46ede9  (27 MB)
-- pocketshell-m2.gitbundle           sha256 66da676c8850d1ef3e55155fbaeb063e937b566e55c6faaf6fc6b7f4ebc64328  (full history @ 615f467; ~25 MB — includes one-time scratch/ objects from the accidental 0380901 snapshot; future bundles stay clean)
+- PocketShell-v0.6.2-m2.6-source.zip sha256 7236ad1c2d2db31389c173ea06fbaf1a09ecbad41dab02468aebf6f5ad98e836  (27 MB, 261 files)
+- PocketShell-v0.6.2-m2.6-source.tar.gz sha256 0545fae70d96b52f1dc61df8b9ce75f91b8531a98cf165aac1409a7e1db655cc  (27 MB)
+- pocketshell-m2.gitbundle           sha256 4391b064cc6013930c9c1b587afb29234df1c1e4888eb004be1b4aa836d495bb  (full history @ 615f467; ~25 MB — includes one-time scratch/ objects from the accidental 0380901 snapshot; future bundles stay clean)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.6.1 superseded by the v0.6.2 hardlink +
