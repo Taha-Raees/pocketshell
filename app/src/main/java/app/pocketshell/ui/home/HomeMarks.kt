@@ -136,18 +136,24 @@ fun MountainMark(size: Dp, modifier: Modifier = Modifier) {
  * §6). Polished, consistent, honest (never a broken placeholder logo).
  */
 @Composable
-fun MonogramTile(monogram: String, size: Dp, modifier: Modifier = Modifier) {
+fun MonogramTile(
+    monogram: String,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    radius: Dp = HomeTokens.appTileRadius,
+    fontSizeScale: Float = 0.34f,
+) {
     Box(
         modifier = modifier
             .size(size)
-            .background(HomeTokens.surfaceApp, RoundedCornerShape(HomeTokens.appTileRadius)),
+            .background(HomeTokens.surfaceApp, RoundedCornerShape(radius)),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = monogram,
             fontFamily = TerminalTheme.mono,
             fontWeight = FontWeight.Medium,
-            fontSize = (size.value * 0.34f).sp,
+            fontSize = (size.value * fontSizeScale).sp,
             color = HomeTokens.accentBright,
         )
     }

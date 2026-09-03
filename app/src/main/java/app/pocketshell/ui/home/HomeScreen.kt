@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -29,8 +30,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,10 +43,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -193,7 +200,18 @@ fun HomeScreen(
                     onOpenDiagnostics = onOpenDiagnostics,
                 )
 
-                Spacer(Modifier.height(24.dp))
+                // ONE CLI control in the header area (§5) — rendered only when
+                // the guest actually confirmed apps; never a dead button.
+                if (commandApps.apps.isNotEmpty()) {
+                    Spacer(Modifier.height(16.dp))
+                    CliAppsMenu(
+                        apps = commandApps.apps,
+                        onOpenCommandApp = onOpenCommandApp,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                } else {
+                    Spacer(Modifier.height(24.dp))
+                }
                 SectionDivider()
                 Spacer(Modifier.height(16.dp))
 
@@ -480,6 +498,99 @@ private fun ReadyDot() {
             .size(6.dp)
             .background(HomeTokens.accent, CircleShape),
     )
+}
+
+// --------------------------------------------------------------- CLI Apps menu
+
+/**
+ * The ONE CLI control (§5): a quiet "CLI Apps ▾" trigger in the header area
+ * opening a compact launcher menu of the command apps the guest actually
+ * confirmed — the Phase 3.2 discovery state, presented as an OS menu (no
+ * dialog, no logos): monogram plate + name, launch command dim and secondary.
+ * A row tap runs the exact Phase 3.2 launch pipeline (fresh verify →
+ * dedicated guest session → focus).
+ */
+@Composable
+private fun CliAppsMenu(
+    apps: List<CommandApp>,
+    onOpenCommandApp: (CommandApp) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(160, easing = FastOutSlowInEasing),
+        label = "cliAppsChevron",
+    )
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        Box {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = if (expanded) "Close the CLI Apps menu" else "Open the CLI Apps menu",
+                    ) { expanded = !expanded }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "CLI Apps",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 13.sp,
+                    letterSpacing = 1.2.sp,
+                    color = HomeTokens.textDim,
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = HomeTokens.textDim,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .rotate(chevronRotation),
+                )
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.widthIn(min = 236.dp, max = 320.dp),
+                shape = RoundedCornerShape(HomeTokens.chipRadius),
+                containerColor = HomeTokens.surfaceEnv,
+                tonalElevation = 0.dp,
+                shadowElevation = 6.dp,
+                border = BorderStroke(1.dp, HomeTokens.hairline),
+            ) {
+                apps.forEach { app ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = app.displayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = HomeTokens.textPrimary,
+                            )
+                        },
+                        onClick = { expanded = false; onOpenCommandApp(app) },
+                        leadingIcon = {
+                            MonogramTile(
+                                monogram = app.monogram,
+                                size = 28.dp,
+                                radius = 9.dp,
+                                fontSizeScale = 0.42f,
+                            )
+                        },
+                        trailingIcon = {
+                            Text(
+                                text = app.launchCommand.joinToString(" "),
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 11.sp,
+                                color = HomeTokens.textDim,
+                            )
+                        },
+                    )
+                }
+            }
+        }
+    }
 }
 
 // --------------------------------------------------------------- tools section
