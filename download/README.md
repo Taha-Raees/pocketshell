@@ -1,6 +1,6 @@
 # download/ — delivery masters
 
-Current: **v0.7.0-ui** (git tip 639a760, versionCode 17) — the UI/UX redesign
+Current: **v0.7.0-ui** (git tip d662ed7, versionCode 17) — the UI/UX redesign
 release ("Quiet Aurora" design system + final keyboard). The Linux runtime
 stack (M2.6) is UNTOUCHED — update in place and re-run Gates A–H after.
 
@@ -34,10 +34,10 @@ stack (M2.6) is UNTOUCHED — update in place and re-run Gates A–H after.
   - DIAGNOSTICS: every row/button preserved, grouped into cards.
   - DEVICE GATE: docs/TESTING.md §11 + re-run §10 Gates A–H after update.
 
-- PocketShell-v0.7.0-ui-source.zip  sha256 b37a8084cfb5a3aec36d3fb7bc7a588cdf22ae798f543565e710483c42ec44ef
-- PocketShell-v0.7.0-ui-source.tar.gz  sha256 22e96ff3f17b575574da169798585d1b6f83b1a73023c58b35955db019d3f258
-- pocketshell-m2.gitbundle  sha256 6254414796296b3b4e42f4749382fe9c7ddc514eb5fd8624dc4b0ac87d87e947
-  (bundle tip = 639a760; full milestone history incl. the UI phase)
+- PocketShell-v0.7.0-ui-source.zip  sha256 05aab694e3ec8c6f53456e92c66213e6c52ee793686716e8cebdf5d9d138bf26
+- PocketShell-v0.7.0-ui-source.tar.gz  sha256 08ef0a80345fcd541b3d1e9fcfadffc369ec61eaf47cd54a0bd9c4ce88063360
+- pocketshell-m2.gitbundle  sha256 3edd2bbd397176b09010126e8cf744638e1f5b8c5306cbd55907a223180d8198
+  (bundle tip = d662ed7; full milestone history incl. the UI phase)
 
-Sanity: 290 files in the source archive, 0 dot-paths, 0 web shims,
+Sanity: 293 files in the source archive, 0 dot-paths, 0 web shims,
 0 node_modules; all 20 key-file pins verified at payload time.
