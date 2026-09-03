@@ -714,3 +714,55 @@ Design contract: `docs/PHASE-3.3-DESIGN.md`.
       state; §12.6 Linux set still passes.
 - [ ] Phase 3.2 regression: §13.1–13.3 honesty checks (packages never on
       Home, Hermes iff available, tap-launch), §13.5 sessions behavior.
+
+## 15. Manual acceptance — Phase 3.4 (Registry Expansion + System Pages, v0.7.0-m3.4) — DEVICE GATE PENDING
+
+One registry data fix (the user-reported "installed kilocli doesn't show up")
+plus the Phase 3.3 guidelines applied to the non-Home screens. No pipeline
+changes — §12/§13/§14 re-run as regressions. Contract:
+`docs/PHASE-3.4-DESIGN.md`.
+
+### 15.1 Kilo Code appears (the fix)
+- [ ] With `kilo` installed in the guest (`npm i -g @kilocode/cli` inside a
+      READY runtime): revisiting Home surfaces a **Kilo Code** entry under
+      "Your tools" AND in the `CLI Apps ▾` menu — within one Home revisit, no
+      app restart needed (the probe re-runs on Home-visible-with-READY and
+      after package operations).
+- [ ] Tap launches a dedicated guest session running `kilo` (same
+      verify-then-launch pipeline as every other command app).
+- [ ] `npm uninstall -g @kilocode/cli` (or removing the binary) → the tile
+      disappears on the next probe. Never renders when the command is absent.
+- [ ] The other seeded agents (gemini/codex/aider/qwen) do NOT appear unless
+      actually installed — expansion entries are probe-gated like every app.
+- [ ] Pre-existing entries unchanged: Hermes still appears iff available;
+      nano/git/python still NEVER appear.
+
+### 15.2 Packages screen
+- [ ] Title reads "Packages".
+- [ ] With the runtime NOT installed: the state is inline text (three quiet
+      lines, NO card/container) and carries a working `Open Diagnostics`
+      accent link that actually routes to Diagnostics.
+- [ ] With the runtime READY: search, featured catalog cards (per-package
+      surfaces = real objects — unchanged), install/uninstall/open all behave
+      exactly as §9/§13.
+
+### 15.3 Settings
+- [ ] Tapping ANYWHERE on a theme row (label included) selects that theme;
+      the radio dot only reflects state. Rows are ≥48dp tall.
+- [ ] Tapping anywhere on the "Use wallpaper-based colors" row toggles the
+      switch; the switch itself also works.
+- [ ] Font-size slider unchanged; no visual restyle of this screen.
+
+### 15.4 Diagnostics
+- [ ] Sections read, in order: **System** → **Linux runtime** →
+      **Package environment**, each = full-width divider + header + plain
+      label/value rows (no internal row dividers).
+- [ ] Values, colors (ok=primary / fail=error), install/remove/check buttons,
+      and the explicit check-only package gate are unchanged (§10 set).
+
+### 15.5 Regressions
+- [ ] §14 (Phase 3.3 Home structure) unchanged — especially: Home itself
+      gained NO new elements from this phase; kilo only ADDS entries to the
+      existing tools grid/menu.
+- [ ] §12 Phase 3.1 keyboard/terminal set still passes; §13.1–13.5 command
+      app + sessions behavior still passes.

@@ -251,6 +251,26 @@ Home PRESENTS it (docs/PHASE-3.3-DESIGN.md):
   states); everything else separates via spacing, section labels, hairline
   dividers and Midnight tone steps.
 
+### Phase 3.4 update (2026-09-04): registry expansion + system pages
+
+No architecture change — two applications of the existing rules
+(docs/PHASE-3.4-DESIGN.md):
+
+- The registry is the designed extension point of the command-app
+  architecture: five terminal AI agents seeded (`kilo` → Kilo Code, `gemini`,
+  `codex`, `aider`, `qwen`), appended after the brief's four so existing
+  launcher order never shuffles. Classification/probing code untouched — an
+  entry still only surfaces when the guest's login shell finds its command.
+  Root-caused the "installed Kilo CLI doesn't show up" report to registry
+  absence (the probe only asks registry names — the honesty contract
+  deliberately never guesses from unknown PATH binaries).
+- System pages adopted the Phase 3.3 §9/§10 rules concretely: the Packages
+  not-ready state is inline text with a real Diagnostics affordance (no
+  container; screen titled "Packages"), Settings selection rows are
+  whole-row targets (≥48dp, Role.RadioButton/Switch on the row), and
+  Diagnostics uses one uniform section pattern (divider + header + plain
+  fact rows) across System / Linux runtime / Package environment.
+
 ---
 
 ## 7. Rendering & performance notes (§23)

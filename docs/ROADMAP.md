@@ -231,3 +231,25 @@ remote development.
       assembleDebug OK; versionCode 20 / 0.7.0-m3.3; cert chain unbroken.
 - [ ] Device gate §14 (no-boxes sweep, CLI menu honesty, empty-state
       lightness, FAB purpose, §12/§13 regressions).
+
+### Phase 3.4 (2026-09-04, v0.7.0-m3.4) — Registry Expansion + System Pages
+- [x] Design contract committed before implementation
+      (docs/PHASE-3.4-DESIGN.md, plan-first discipline).
+- [x] Root-caused "installed Kilo CLI doesn't show up": discovery = registry
+      ∩ guest PATH; `kilo` was unregistered, so the probe never asked about
+      it (honesty contract — never guess from unknown binaries).
+- [x] Registry expanded by data only: Kilo Code (`kilo`), Gemini CLI
+      (`gemini`), Codex (`codex`), Aider (`aider`), Qwen Code (`qwen`) —
+      appended after the brief's four (order stability), probe-gated like
+      every app, forbidden-namespace excluded; 4 new test pins.
+- [x] Packages screen: not-ready state inline on the canvas with a real
+      `Open Diagnostics` link (container deleted); title → "Packages";
+      package-object cards kept (§4-allowed).
+- [x] Settings: whole-row selection targets ≥48dp with correct roles
+      (visual language unchanged).
+- [x] Diagnostics: uniform section pattern — System / Linux runtime /
+      Package environment headers + plain fact rows, no internal dividers.
+- [x] 648 test executions green (644 baseline + 4 new); assembleDebug OK;
+      versionCode 21 / 0.7.0-m3.4; cert chain unbroken.
+- [ ] Device gate §15 (kilo appears iff installed and launches; Packages/
+      Settings/Diagnostics checks; §12/§13/§14 regressions).

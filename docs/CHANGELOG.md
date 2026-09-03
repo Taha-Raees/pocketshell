@@ -3,6 +3,57 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m3.4] — 2026-09-04 — Phase 3.4: Registry Expansion + System Pages
+
+Scope: one registry data fix + applying the Phase 3.3 design guidelines to
+the non-Home screens. No pipeline, terminal, or runtime changes — probing,
+verify-before-launch, guest sessions, and the forbidden package list are
+untouched. Contract: `docs/PHASE-3.4-DESIGN.md` (committed before
+implementation, plan-first).
+
+### Command registry (the "installed Kilo CLI doesn't show up" fix)
+- Root cause: discovery = registry ∩ guest PATH. The probe asks the login
+  shell `command -v <name>` only for REGISTRY names; Kilo Code CLI (command
+  `kilo`, from `npm i -g @kilocode/cli`) had no entry, so it was never probed
+  and could never appear. Correct per the honesty contract (no guessing from
+  unknown PATH binaries) — the registry is the designed extension point.
+- Five terminal AI agents seeded: **Kilo Code** (`kilo`), **Gemini CLI**
+  (`gemini`), **Codex** (`codex`), **Aider** (`aider`), **Qwen Code**
+  (`qwen`) — appended after the brief's four, so launcher order on installed
+  devices never shuffles. Each still surfaces ONLY when the guest's login
+  shell finds its command; uninstall makes it disappear.
+- Test pins added: kilo identity (id/name/command/monogram), the four peers,
+  append-order stability, probe-gating for expansion entries, and
+  forbidden-namespace exclusion. Home needs zero changes — the tools grid and
+  the CLI Apps ▾ menu render from the registry automatically.
+
+### Packages screen
+- The "runtime not installed" state is now inline text on the canvas (the
+  Phase 3.3 §9 rule: empty/blocked states are never containers) with a real
+  **Open Diagnostics** accent link — the action the copy always pointed at.
+  The `InfoCard` container is deleted.
+- Title renamed "Explore CLI Apps" → **"Packages"** (one name per object,
+  matching the Home affordances). Per-package surfaces stay — real objects
+  (an installable package with actions) are explicitly allowed.
+
+### Settings
+- Whole-row selection: theme radio rows and the dynamic-color switch row are
+  ≥48dp full-row touch targets with the correct accessibility roles; the
+  radio dot / switch are state renderers only. Visual language unchanged
+  (app-theme Material, per the 3.3 §10 decision).
+
+### Diagnostics
+- One hierarchy for every section: full-width divider + header —
+  **System / Linux runtime / Package environment** (the first block had no
+  header) — then plain label/value fact rows in one uniform rhythm (the
+  snapshot block's internal per-row dividers removed).
+
+### Validation
+- 648 test executions green (179 app × 2 variants + 145 terminal-emulator
+  × 2 variants; 644 baseline + 4 new registry assertions); assembleDebug OK;
+  versionCode 21 / 0.7.0-m3.4; cert chain intact (d96a6f66…8bf659) for
+  in-place update 16→21. Device gate: TESTING §15.
+
 ## [0.7.0-m3.3] — 2026-09-04 — Phase 3.3: Home & System UI Redesign
 
 Scope: **visual architecture + Home interaction cleanup ONLY**. No backend
