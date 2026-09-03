@@ -6,15 +6,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * Modifier states for the PocketShell keyboard (brief §10).
+ * Modifier states for the PocketShell keyboard (docs/UI-REDESIGN.md §7).
  *
  * OFF      — modifier inactive.
  * ONE_SHOT — applies to the next dispatched key only, then auto-clears.
  * LOCKED   — persists until the modifier key is tapped again; always visible.
+ *
+ * Visual state only — no textual ON/OFF indicators: filled cap = active,
+ * bold label = one-shot, lock dot = LOCKED.
  */
 enum class ModifierState { OFF, ONE_SHOT, LOCKED }
 
-enum class ModifierKey { CTRL, ALT, SHIFT, FN }
+enum class ModifierKey { CTRL, ALT, SHIFT }
 
 /**
  * Single source of truth for keyboard modifier state (brief §9).
@@ -62,13 +65,14 @@ class KeyboardState {
         (_modifiers.value[key] ?: ModifierState.OFF) != ModifierState.OFF
 
     val shiftActive: Boolean get() = isActive(ModifierKey.SHIFT)
-    val fnActive: Boolean get() = isActive(ModifierKey.FN)
 
     // TerminalViewClient hooks — peek only, never consume (see class kdoc).
     fun readControlKey(): Boolean = isActive(ModifierKey.CTRL)
     fun readAltKey(): Boolean = isActive(ModifierKey.ALT)
     fun readShiftKey(): Boolean = isActive(ModifierKey.SHIFT)
-    fun readFnKey(): Boolean = isActive(ModifierKey.FN)
+
+    /** Upstream client hook: the dedicated FN layer was removed (UI redesign §7). */
+    fun readFnKey(): Boolean = false
 
     fun anySticky(): Boolean = _modifiers.value.values.any { it != ModifierState.OFF }
 }

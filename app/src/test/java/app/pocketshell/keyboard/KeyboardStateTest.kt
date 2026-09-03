@@ -66,11 +66,11 @@ class KeyboardStateTest {
 
     @Test
     fun `clearAll resets locked too`() {
-        state.tap(ModifierKey.FN)
-        state.tap(ModifierKey.FN)
+        state.tap(ModifierKey.CTRL)
+        state.tap(ModifierKey.CTRL)
         state.clearAll()
         assertFalse(state.anySticky())
-        assertFalse(state.fnActive)
+        assertFalse(state.readControlKey())
     }
 
     @Test
@@ -80,6 +80,12 @@ class KeyboardStateTest {
         assertTrue(state.readControlKey())
         assertTrue(state.readShiftKey())
         assertFalse(state.readAltKey())
+    }
+
+    @Test
+    fun `fn layer is removed - hook always false`() {
+        // The dedicated FN key was removed in the UI redesign (§7); the
+        // upstream TerminalViewClient hook must honestly report false.
         assertFalse(state.readFnKey())
     }
 

@@ -19,6 +19,8 @@ class SettingsRepository(private val context: Context) {
     private val themeKey = stringPreferencesKey("theme_mode")
     private val dynamicKey = stringPreferencesKey("dynamic_color")
     private val fontSizeKey = intPreferencesKey("default_font_size")
+    private val openRouterKey = stringPreferencesKey("openrouter_api_key")
+    private val openRouterModelKey = stringPreferencesKey("openrouter_model")
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
         when (prefs[themeKey]) {
@@ -38,6 +40,22 @@ class SettingsRepository(private val context: Context) {
         prefs[fontSizeKey] ?: DEFAULT_FONT_SIZE
     }
 
+    /**
+     * OpenRouter API key for the future built-in assistant (docs/UI-REDESIGN.md
+     * §10). Stored in the app's PRIVATE DataStore — never logged, never in
+     * Diagnostics, never in crash surfaces. The UI masks it after entry and
+     * the settings screen states honestly that OS-keystore-backed storage is
+     * a planned upgrade.
+     */
+    val openRouterApiKey: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[openRouterKey]?.takeIf { it.isNotBlank() }
+    }
+
+    /** OpenRouter model id — free text, no fixed list (owner requirement). */
+    val openRouterModel: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[openRouterModelKey]?.takeIf { it.isNotBlank() }
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.settingsDataStore.edit { it[themeKey] = mode.name }
     }
@@ -50,9 +68,26 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[fontSizeKey] = size }
     }
 
+    suspend fun setOpenRouterApiKey(key: String?) {
+        context.settingsDataStore.edit {
+            if (key.isNullOrBlank()) it.remove(openRouterKey) else it[openRouterKey] = key
+        }
+    }
+
+    suspend fun setOpenRouterModel(model: String?) {
+        context.settingsDataStore.edit {
+            if (model.isNullOrBlank()) it.remove(openRouterModelKey) else it[openRouterModelKey] = model
+        }
+    }
+
     companion object {
         const val DEFAULT_FONT_SIZE = 28
         const val MIN_FONT_SIZE = 12
         const val MAX_FONT_SIZE = 40
+
+        /** UI mask helper: show only the last 4 characters of a stored key. */
+        fun maskKey(key: String?): String? = key?.let {
+            if (it.length <= 4) "••••" else "••••••••${it.takeLast(4)}"
+        }
     }
 }

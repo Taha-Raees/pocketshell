@@ -121,14 +121,32 @@ object TerminalSessionManager {
      * visible in its scrollback, and exiting the app returns to the guest
      * shell prompt (real nano → Ctrl+X → real shell).
      */
-    fun createLinuxAppSession(context: Context, entry: app.pocketshell.packages.CliAppCatalogEntry): SessionEntry {
+    fun createLinuxAppSession(context: Context, entry: app.pocketshell.packages.CliAppCatalogEntry): SessionEntry =
+        createCommandSession(context, label = entry.name, launchCommand = entry.launchCommand)
+
+    /**
+     * Open a guest-confirmed launchable app (docs/UI-REDESIGN.md §9) in a NEW
+     * dedicated guest session — same shape as [createLinuxAppSession]: the
+     * command is written into THAT session's PTY only, scrollback shows the
+     * real invocation, exiting returns to the guest shell.
+     */
+    fun createLaunchableAppSession(
+        context: Context,
+        app: app.pocketshell.packages.LaunchableApp,
+    ): SessionEntry = createCommandSession(context, label = app.name, launchCommand = app.launchCommand)
+
+    private fun createCommandSession(
+        context: Context,
+        label: String,
+        launchCommand: List<String>,
+    ): SessionEntry {
         val shellEntry = createLinuxSessionInternal(
             context,
             guestCommand = listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
-            label = entry.name,
+            label = label,
         )
-        val command = entry.launchCommand.joinToString(" ") { token ->
-            // catalog launch commands are plain names (pinned by tests); the
+        val command = launchCommand.joinToString(" ") { token ->
+            // launch commands are plain names (pinned by tests); the
             // quote is defense in depth, never a substitute for validation
             if (token.matches(Regex("[A-Za-z0-9._/+%-]+"))) token else "'$token'"
         }

@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import app.pocketshell.ui.components.PSScreenHeader
 import app.pocketshell.diagnostics.Diagnostics
 import app.pocketshell.runtime.RuntimeDiagnostics
 import app.pocketshell.runtime.RuntimeManager
@@ -40,7 +41,7 @@ import app.pocketshell.runtime.RuntimeStorage
  * No simulated values, no "everything looks great" decoration.
  */
 @Composable
-fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun DiagnosticsScreen(onMenu: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val rows = remember { Diagnostics.snapshot(context) }
     val runtimeState by RuntimeManager.state.collectAsStateWithLifecycle()
@@ -57,17 +58,11 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = "Back")
-            }
-            Text("Diagnostics", style = MaterialTheme.typography.titleLarge)
-        }
+        PSScreenHeader(
+            title = "Diagnostics",
+            subtitle = "Real runtime facts — read-only",
+            onMenu = onMenu,
+        )
 
         rows.forEachIndexed { index, row ->
             Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
