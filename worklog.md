@@ -532,3 +532,32 @@ Work Log:
 
 Stage Summary:
 - Hermes episode closed: root-caused (Task 26), workaround device-validated (Task 27), evidence + docs committed. v0.6.3 candidates recorded. Awaiting the user's Gates A-H results to formally close the M2.6 phase.
+
+---
+Task ID: 28
+Agent: main (Super Z)
+Task: UI/UX redesign phase (v0.7.0-ui) — plan, design system, all checkpoints UI.0–UI.8, delivery.
+
+Work Log:
+- STATE: sandbox reset #7 detected (JDK/SDK wiped) — toolchain rebuilt via scripts/install_toolchain.sh (foreground recipe). Linux runtime phase confirmed closed (Task 27); user issued the UI redesign master prompt (Style A + tiny D, no IDE, no tabs, honest UI, UI.0–UI.8 checkpoints).
+- UI.0 BASELINE: full app inspection (PocketShellRoot string-when navigation, 5 screens, keyboard model KeyLayouts/KeyboardState/Dispatcher, CliAppCatalog, M2.6 runtime gating). Tests + assembleDebug green BEFORE any change (624 tests, v0.6.2 APK).
+- RESEARCH: web research (M3 Expressive shape/type/motion, Android drawer-vs-bottom-nav guidance, 2026 mobile UX playbook, terminal accessory-row conventions). Grounded, not copied.
+- PLAN FIRST: docs/UI-REDESIGN.md written and committed BEFORE implementation (26e0abb) — "Quiet Aurora" tokens, navigation architecture, per-screen specs, keyboard final spec, launchable-app detection rules, checkpoint plan.
+- UI.1 DESIGN SYSTEM: ui/theme/{Color,Type,Shape}.kt + Theme.kt rewrite (Light/Dark/AMOLED schemes + Material You option; terminal canvas fixed framed-ink; exactly ONE gradient in the app). ui/components/ kit: PSLogo (drawn brand mark), PSBanner, PSEmptyState, PSActionTile, PSListCard, PSSectionLabel, PSStatusPill/Dot, PSScreenHeader, PSNavDrawer, PSMenuButton (a11y-labeled hamburger), PSHeroCard, PSAssistantFab.
+- UI.2 NAVIGATION: typed Screen enum + DismissibleNavigationDrawer (M3 1.4 REMOVED ModalNavigationDrawer — discovered at compile time via javap on the resolved material3 1.4.0; Dismissible* is its successor); hamburger on every screen; Back = drawer→close else →Home. Drawer Terminal/Linux Shell entries reuse the exact spawn flows (refusals surface in Home's banner).
+- UI.3 HOME: brand block + 2×2 launcher grid (Terminal hero, Linux Shell state-aware→Diagnostics routing kept, Apps, Packages); CLI-utility cards REMOVED from Home; active sessions + honest launch-error banner; assistant FAB. Fourth grid slot deliberately empty (no placeholder).
+- LAUNCHABLE APPS (new): packages/LaunchableApps.kt — documented rules: guest-confirmed ONLY (live `command -v` probe on screen visibility), seed hermes/opencode, CLI tools excluded (test-pinned ≤8 + forbidden-list pin); TerminalSessionManager.createLaunchableAppSession (shared createCommandSession refactor); TerminalViewModel.refreshLaunchableApps/openLaunchableApp (same verify-then-launch discipline); LaunchableAppsScreen with honest empty/probe-failure surfaces.
+- UI.4 TERMINAL: session-pill chrome (close on selected tab w/ confirm dialog — kills a real process), overflow menu, framed-ink canvas with padding; engine/repaint/blinker/pinch contracts untouched.
+- UI.5 KEYBOARD FINAL SPEC: top row Esc·Tab·(spring)·arrows (long-press → HOME/END/PGUP/PGDN); bottom row icon-only ⌨ toggle (permanent first, no ON/OFF text)·Ctrl·Alt·Space·Shift·Enter; Android IME toggled via InputMethodManager on the TerminalView's real InputConnection (imePadding sandwich); ModifierKey.FN REMOVED (readFnKey() honestly false); F1–F12 via Esc long-press strip; M1 typing pages deleted; KeyLayouts/KeyLayoutsTest + KeyboardState(Test) rewritten to the final spec; dispatcher simplified (fnRemap retired).
+- UI.6 PACKAGES: ExploreAppsScreen → PackagesScreen — every honesty rule verbatim (v0.4.2 per-card busy, v0.4.4 probe-failure surface, M2.5 ranking), new skin.
+- UI.7 SETTINGS/DIAGNOSTICS: Settings grouped cards + AI Assistant section (OpenRouter key masked — last-4 only, never logged/Diagnostics; free-text model; storage honestly "app-private DataStore, keystore upgrade planned"; chat honestly not-yet); SettingsRepository/ViewModel extended. Diagnostics grouped into Device/Linux runtime/Package environment cards — every row/button preserved.
+- UI.8: a11y pass (PSMenuButton label, icon-only controls carry contentDescription), consistency sweep, versionCode 17 / 0.7.0-ui.
+- TESTS: 636 per variant (173 app + 145 terminal-emulator), 0 failures, full `gradlew test` green; APK verified (aapt2/apksigner: versionCode 17, cert d96a6f66…8bf659 → in-place update over v0.6.2).
+- DOCS: CHANGELOG [0.7.0-ui], TESTING §11 device gate (keyboard sandwich, drawer, Apps honesty, Packages regression, Settings/AI, visual sweep + §10 re-run), ROADMAP UI checklist, README status; payload script re-cut (v0.7.0-ui block + 11 new key-pins).
+- PAYLOAD: cut at tip 639a760 AFTER docs commit; sanity: 290 files, 0 dot-paths, 0 shims, 0 node_modules, 20/20 key pins. sha256: apk f8db8394…799d719, zip b37a8084…ec44ef, tgz 22e96ff3…585d1b6, bundle 62544147…d87e947. download/ == public/ == dist-master/ (three-way sha256 identity verified).
+- WEB: app/page.tsx rewritten (v0.7.0-ui, keyboard spec block, §11 pointer, in-place update note); next dev on :3000 — page 200 renders v0.7.0-ui; ALL 4 artifacts HTTP byte-identical; v0.6.2 URLs 404.
+
+Stage Summary:
+- v0.7.0-ui delivered end-to-end: plan-first discipline held (design contract committed before code), design system + all 6 screens + final keyboard implemented, 636 tests green, artifacts consistent and HTTP-verified.
+- NOT YET device-proven (needs the human): keyboard sandwich + IME toggle feel, drawer ergonomics, Apps detection on-device, visual sweep — TESTING §11 is the gate; M2.6 Gates A–H re-run after update.
+- v0.6.2 delivery discipline intact: milestone history preserved, no rewrites; cert chain unbroken.
