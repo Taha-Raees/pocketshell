@@ -4,14 +4,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,10 +26,12 @@ import androidx.compose.ui.unit.sp
 import app.pocketshell.ui.theme.TerminalTheme
 
 /**
- * Phase 3.2 — PocketShell's own icon language (docs/PHASE-3.2-DESIGN.md §3/§5):
- * original drawn marks, one stroke family, Sapphire on blue-dark. No emoji, no
- * third-party logos (the mountain is original art; no distro logo is copied),
- * no broken placeholders — apps without icons get the neutral monogram tile.
+ * PocketShell's own icon language (Phase 3.2/3.3): original drawn marks, one
+ * stroke family, Sapphire on blue-dark. No emoji, no third-party logos (the
+ * mountain is original art; no distro logo is copied), no broken placeholders
+ * — apps without icons get the neutral monogram plate. Marks are IDENTITY:
+ * they appear in the header and on the environment tiles they belong to —
+ * never as decoration elsewhere (docs/PHASE-3.3-DESIGN.md §12).
  */
 
 /** The PocketShell brand mark: a pocket-shaped tile with a prompt chevron + cursor. */
@@ -133,17 +130,17 @@ fun MountainMark(size: Dp, modifier: Modifier = Modifier) {
 }
 
 /**
- * A command app's launcher tile: the neutral monogram treatment — a rounded
- * square on surfaceApp with a hairline and the app's monogram in the terminal
- * typeface. Polished, consistent, honest (never a broken placeholder logo).
+ * A command app's launcher icon: the neutral monogram plate — a borderless
+ * tone step (keyAlt) with the app's monogram in the terminal typeface. An app
+ * icon on the workspace canvas, not a card: no border, no shadow (Phase 3.3
+ * §6). Polished, consistent, honest (never a broken placeholder logo).
  */
 @Composable
 fun MonogramTile(monogram: String, size: Dp, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(size)
-            .background(HomeTokens.surfaceApp, RoundedCornerShape(HomeTokens.appTileRadius))
-            .border(1.dp, HomeTokens.hairline, RoundedCornerShape(HomeTokens.appTileRadius)),
+            .background(HomeTokens.surfaceApp, RoundedCornerShape(HomeTokens.appTileRadius)),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -167,44 +164,7 @@ fun PlusGlyph(size: Dp, color: Color, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * The empty-launcher illustration: three ghost tiles with a faint plus —
- * quiet, drawn, honest (nothing pretend is "loading" here).
- */
-@Composable
-fun GhostTiles(size: Dp, modifier: Modifier = Modifier) {
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        GhostTile(size, alpha = 0.55f, withPlus = false)
-        Spacer(Modifier.width(10.dp))
-        GhostTile(size, alpha = 0.8f, withPlus = true)
-        Spacer(Modifier.width(10.dp))
-        GhostTile(size, alpha = 0.35f, withPlus = false)
-    }
-}
-
-@Composable
-private fun GhostTile(size: Dp, alpha: Float, withPlus: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(size)
-            .background(
-                HomeTokens.surfaceApp.copy(alpha = 0.4f * alpha),
-                RoundedCornerShape(size * 0.28f),
-            )
-            .border(
-                1.dp,
-                HomeTokens.hairline.copy(alpha = alpha),
-                RoundedCornerShape(size * 0.28f),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (withPlus) {
-            PlusGlyph(size = size * 0.4f, color = HomeTokens.accent.copy(alpha = 0.8f))
-        }
-    }
-}
-
-/** Section label — small, dim, spaced (the launcher's quiet wayfinding). */
+/** Section label — small, dim, spaced (the workspace's quiet wayfinding). */
 @Composable
 fun HomeSectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -217,14 +177,3 @@ fun HomeSectionLabel(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** Tiny drawn chevron used by the terminal tile's hint (mono identity). */
-@Composable
-fun PromptHint(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        modifier = modifier,
-        fontFamily = TerminalTheme.mono,
-        fontSize = 12.sp,
-        color = HomeTokens.accent.copy(alpha = 0.85f),
-    )
-}

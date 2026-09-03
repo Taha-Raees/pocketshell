@@ -42,7 +42,10 @@ object HomeTokens {
     val danger = app.pocketshell.ui.theme.TerminalTheme.danger
 
     // ---- geometry --------------------------------------------------------------
-    val heroRadius: Dp = 20.dp
+    // Phase 3.3 radius discipline (docs/PHASE-3.3-DESIGN.md §4): environment
+    // tiles and menus at 14dp, app icon plates at 16dp — nothing on Home
+    // exceeds 16dp, and no element carries a decorative border at rest.
+    val heroRadius: Dp = 14.dp
     val appTileRadius: Dp = 16.dp
     val chipRadius: Dp = 14.dp
 
