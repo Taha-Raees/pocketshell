@@ -1,0 +1,146 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Reusing configuration cache.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :terminal-emulator:preBuild UP-TO-DATE
+> Task :terminal-emulator:preDebugBuild UP-TO-DATE
+> Task :terminal-emulator:writeDebugAarMetadata UP-TO-DATE
+> Task :terminal-view:preBuild UP-TO-DATE
+> Task :terminal-view:preDebugBuild UP-TO-DATE
+> Task :terminal-view:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :terminal-emulator:processDebugNavigationResources UP-TO-DATE
+> Task :terminal-view:processDebugNavigationResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :terminal-emulator:generateDebugResValues UP-TO-DATE
+> Task :terminal-emulator:generateDebugResources UP-TO-DATE
+> Task :terminal-emulator:packageDebugResources UP-TO-DATE
+> Task :terminal-view:generateDebugResValues UP-TO-DATE
+> Task :terminal-view:generateDebugResources UP-TO-DATE
+> Task :terminal-view:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :terminal-emulator:extractDeepLinksDebug UP-TO-DATE
+> Task :terminal-emulator:processDebugManifest UP-TO-DATE
+> Task :terminal-view:extractDeepLinksDebug UP-TO-DATE
+> Task :terminal-view:processDebugManifest UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :terminal-emulator:compileDebugLibraryResources UP-TO-DATE
+> Task :terminal-emulator:parseDebugLocalResources UP-TO-DATE
+> Task :terminal-emulator:generateDebugRFile UP-TO-DATE
+> Task :terminal-view:compileDebugLibraryResources UP-TO-DATE
+> Task :terminal-view:parseDebugLocalResources UP-TO-DATE
+> Task :terminal-view:generateDebugRFile UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :terminal-emulator:javaPreCompileDebug UP-TO-DATE
+> Task :terminal-emulator:compileDebugJavaWithJavac UP-TO-DATE
+> Task :terminal-emulator:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :terminal-view:javaPreCompileDebug UP-TO-DATE
+> Task :terminal-view:compileDebugJavaWithJavac UP-TO-DATE
+> Task :terminal-view:bundleLibCompileToJarDebug UP-TO-DATE
+
+> Task :app:compileDebugKotlin
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/keyboard/TerminalKeyboard.kt:113:29 No value passed for parameter 'dispatcher'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:66:46 Unresolved reference 'collectAsStateWithLifecycle'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:67:57 Unresolved reference 'collectAsStateWithLifecycle'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:68:54 Unresolved reference 'collectAsStateWithLifecycle'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:69:56 Unresolved reference 'collectAsStateWithLifecycle'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:70:54 Unresolved reference 'collectAsStateWithLifecycle'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:100:31 Unresolved reference 'id'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:100:46 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:101:32 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:156:55 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:183:35 Unresolved reference 'not' for operator '!'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:222:55 Unresolved reference 'not' for operator '!'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:253:24 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:253:24 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:253:24 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
+fun <T, R> T.let(block: (T) -> R): R
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:253:30 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:254:39 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:257:49 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:263:40 Unresolved reference 'stdoutTail'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:265:44 Unresolved reference 'stdoutTail'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:266:59 Unresolved reference 'it'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:269:40 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:270:40 Unresolved reference 'stderrTail'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:271:40 Unresolved reference 'stderrTail'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:271:57 Unresolved reference 'error'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:279:44 Unresolved reference 'stderrTail'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:280:55 Unresolved reference 'it'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:281:55 Cannot infer type for value parameter 'line'. Specify it explicitly.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:281:66 Unresolved reference 'error'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:290:36 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:291:40 Unresolved reference 'kind'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:298:36 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:299:40 Unresolved reference 'kind'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:305:32 Unresolved reference 'state'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:348:31 Unresolved reference 'not' for operator '!'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:357:30 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:357:30 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:357:30 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
+fun <T, R> T.let(block: (T) -> R): R
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/apps/PackagesScreen.kt:357:34 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/components/PSCore.kt:60:39 None of the following candidates is applicable:
+
+fun times(other: Byte): Float:
+  Argument type mismatch: actual type is 'TextUnit', but 'Byte' was expected.
+
+fun times(other: Short): Float:
+  Argument type mismatch: actual type is 'TextUnit', but 'Short' was expected.
+
+fun times(other: Int): Float:
+  Argument type mismatch: actual type is 'TextUnit', but 'Int' was expected.
+
+fun times(other: Long): Float:
+  Argument type mismatch: actual type is 'TextUnit', but 'Long' was expected.
+
+fun times(other: Float): Float:
+  Argument type mismatch: actual type is 'TextUnit', but 'Float' was expected.
+
+fun times(other: Double): Double:
+  Argument type mismatch: actual type is 'TextUnit', but 'Double' was expected.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/components/PSNavigation.kt:138:5 None of the following candidates is applicable:
+
+fun DismissibleDrawerSheet(modifier: Modifier = ..., drawerShape: Shape = ..., drawerContainerColor: Color = ..., drawerContentColor: Color = ..., drawerTonalElevation: Dp = ..., windowInsets: WindowInsets = ..., content: ComposableFunction1<ColumnScope, Unit>): Unit:
+  No parameter with name 'drawerState' found.
+
+fun DismissibleDrawerSheet(drawerState: DrawerState, modifier: Modifier = ..., drawerShape: Shape = ..., drawerContainerColor: Color = ..., drawerContentColor: Color = ..., drawerTonalElevation: Dp = ..., windowInsets: WindowInsets = ..., content: ComposableFunction1<ColumnScope, Unit>): Unit
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/components/PSNavigation.kt:140:9 No parameter with name 'containerColor' found.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/components/PSNavigation.kt:142:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/home/HomeScreen.kt:15:62 Unresolved reference 'Terminal'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/home/HomeScreen.kt:85:52 Unresolved reference 'Terminal'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/navigation/Screen.kt:4:62 Unresolved reference 'Terminal'.
+e: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/navigation/Screen.kt:25:54 Unresolved reference 'Terminal'.
+
+> Task :app:compileDebugKotlin FAILED
+
+[Incubating] Problems report is available at: file:///home/z/my-project/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 16s
+42 actionable tasks: 1 executed, 41 up-to-date
+Configuration cache entry reused.

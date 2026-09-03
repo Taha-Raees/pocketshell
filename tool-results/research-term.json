@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://blog.prototypr.io/keyboard-ux-for-mobile-apps-30938cb40271",
+    "name": "Keyboard UX for Mobile Apps - by Alex Zlatkus",
+    "snippet": "Mar 15, 2021 — Keyboard UX for Mobile Apps Make it easy for your users to input data One might think keyboards are a trivial component to mobile UX design.",
+    "host_name": "blog.prototypr.io",
+    "rank": 0,
+    "date": "Mar 15, 2021",
+    "favicon": ""
+  },
+  {
+    "url": "https://uxdesign.cc/the-sorry-state-of-keyboard-navigation-6d1489b7221d",
+    "name": "How to design for people who navigate via keyboard",
+    "snippet": "Jan 18, 2022 — It's good practice to introduce skip links, which allows people using only a keyboard to tab directly to the main section of a page.",
+    "host_name": "uxdesign.cc",
+    "rank": 1,
+    "date": "Jan 18, 2022",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/commandline/comments/1f9rot9/how_could_a_hypothetical_mobile_interface_rival",
+    "name": "How could a hypothetical mobile interface rival the",
+    "snippet": "why I find CLIs so good?\n\nI find the command line interface to be incredibly pleasant to work with, and it has a simpler mental model.\n\nI suspect a huge ...",
+    "host_name": "www.reddit.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.android.com/develop/ui/views/touch-and-input/keyboard-input/navigation",
+    "name": "Support keyboard navigation | Views | Android Developers",
+    "snippet": "May 28, 2026 — Install your app on a device that offers a hardware keyboard . · To test your app, use only the Tab key to navigate through your UI. · Start again ... Read more",
+    "host_name": "developer.android.com",
+    "rank": 3,
+    "date": "May 28, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.forasoft.com/blog/article/mobile-app-ux-design-best-practices",
+    "name": "Mobile App UX Design: 2026 Best-Practices Playbook",
+    "snippet": "Jul 24, 2026 — Mobile app UX design best practices for 2026: thumb-zone layout, 60-second onboarding, WCAG 2.2 AA, passkeys, Right keyboard , right input. ...",
+    "host_name": "www.forasoft.com",
+    "rank": 4,
+    "date": "Jul 24, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://protoio.medium.com/designing-for-mobile-user-input-686ac9632b25",
+    "name": "Designing For Mobile User Input - Proto.io - Medium",
+    "snippet": "1. Use the Relevant Keyboards 2. Know the Native UI Controls 3. Keep the Labels Above the Fields 4. Integrate Social Login Methods 5. Make Use ...",
+    "host_name": "protoio.medium.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]
