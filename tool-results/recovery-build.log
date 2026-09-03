@@ -1,0 +1,1450 @@
+Downloading https://services.gradle.org/distributions/gradle-8.14.5-bin.zip
+.............10%.............20%.............30%.............40%.............50%.............60%..............70%.............80%.............90%.............100%
+
+Welcome to Gradle 8.14.5!
+
+Here are the highlights of this release:
+ - Java 24 support
+ - GraalVM Native Image toolchain selection
+ - Enhancements to test reporting
+ - Build Authoring improvements
+
+For more details see https://docs.gradle.org/8.14.5/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: test assembleDebug
+Checking the license for package Android SDK Build-Tools 35 in /home/z/android-sdk/licenses
+License for package Android SDK Build-Tools 35 accepted.
+Preparing "Install Android SDK Build-Tools 35 v.35.0.0".
+"Install Android SDK Build-Tools 35 v.35.0.0" ready.
+Installing Android SDK Build-Tools 35 in /home/z/android-sdk/build-tools/35.0.0
+"Install Android SDK Build-Tools 35 v.35.0.0" complete.
+"Install Android SDK Build-Tools 35 v.35.0.0" finished.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :terminal-emulator:preBuild UP-TO-DATE
+> Task :terminal-emulator:preDebugBuild UP-TO-DATE
+> Task :terminal-emulator:writeDebugAarMetadata
+> Task :terminal-view:preBuild UP-TO-DATE
+> Task :terminal-view:preDebugBuild UP-TO-DATE
+> Task :terminal-view:writeDebugAarMetadata
+> Task :app:checkDebugAarMetadata
+> Task :terminal-emulator:processDebugNavigationResources
+> Task :terminal-view:processDebugNavigationResources
+> Task :app:processDebugNavigationResources
+> Task :app:compileDebugNavigationResources
+> Task :app:generateDebugResValues
+> Task :terminal-emulator:generateDebugResValues FROM-CACHE
+> Task :terminal-emulator:generateDebugResources
+> Task :terminal-emulator:packageDebugResources
+> Task :terminal-view:generateDebugResValues FROM-CACHE
+> Task :terminal-view:generateDebugResources
+> Task :terminal-view:packageDebugResources
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:mergeDebugResources
+> Task :app:packageDebugResources
+> Task :app:parseDebugLocalResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :terminal-emulator:extractDeepLinksDebug
+> Task :terminal-emulator:processDebugManifest
+> Task :terminal-view:extractDeepLinksDebug FROM-CACHE
+> Task :terminal-view:processDebugManifest
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :terminal-emulator:compileDebugLibraryResources
+> Task :terminal-emulator:parseDebugLocalResources
+> Task :terminal-emulator:generateDebugRFile
+> Task :terminal-view:compileDebugLibraryResources
+> Task :terminal-view:parseDebugLocalResources
+> Task :terminal-view:generateDebugRFile
+> Task :app:processDebugResources
+> Task :terminal-emulator:javaPreCompileDebug
+
+> Task :terminal-emulator:compileDebugJavaWithJavac
+Note: /home/z/my-project/terminal-emulator/src/main/java/com/termux/terminal/TerminalSession.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :terminal-emulator:bundleLibCompileToJarDebug
+> Task :terminal-view:javaPreCompileDebug FROM-CACHE
+
+> Task :terminal-view:compileDebugJavaWithJavac
+Note: /home/z/my-project/terminal-view/src/main/java/com/termux/view/TerminalView.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :terminal-view:bundleLibCompileToJarDebug
+> Task :app:compileDebugKotlin
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/packages/PackageGateway.kt:124:28 'val allNetworks: Array<(out) Network!>' is deprecated. Deprecated in Java.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/packages/PackageOperationManager.kt:293:58 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt:218:37 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+
+> Task :app:javaPreCompileDebug FROM-CACHE
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+
+> Task :app:compileDebugUnitTestKotlin
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/AlpinePackageManagerTest.kt:290:33 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/AlpinePackageManagerTest.kt:316:33 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/AlpinePackageManagerTest.kt:357:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/AlpinePackageManagerTest.kt:413:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/GuestCommandRunnerTest.kt:24:32 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/GuestCommandRunnerTest.kt:54:32 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestApkCompatTest.kt:51:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:32:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:48:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:134:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:151:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:167:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:182:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/RuntimeCrashGuardTest.kt:146:28 Unnecessary safe call on a non-null receiver of type 'String'.
+
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugJavaRes
+> Task :app:processDebugUnitTestJavaRes
+> Task :terminal-emulator:bundleLibRuntimeToJarDebug
+> Task :terminal-emulator:processDebugJavaRes NO-SOURCE
+> Task :terminal-view:bundleLibRuntimeToJarDebug
+> Task :terminal-view:processDebugJavaRes NO-SOURCE
+> Task :app:testDebugUnitTest
+> Task :app:buildKotlinToolingMetadata
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :terminal-emulator:preReleaseBuild UP-TO-DATE
+> Task :terminal-emulator:writeReleaseAarMetadata
+> Task :terminal-view:preReleaseBuild UP-TO-DATE
+> Task :terminal-view:writeReleaseAarMetadata
+> Task :app:checkReleaseAarMetadata
+> Task :terminal-emulator:processReleaseNavigationResources FROM-CACHE
+> Task :terminal-view:processReleaseNavigationResources FROM-CACHE
+> Task :app:processReleaseNavigationResources FROM-CACHE
+> Task :app:compileReleaseNavigationResources FROM-CACHE
+> Task :app:generateReleaseResValues FROM-CACHE
+> Task :terminal-emulator:generateReleaseResValues FROM-CACHE
+> Task :terminal-emulator:generateReleaseResources FROM-CACHE
+> Task :terminal-emulator:packageReleaseResources
+> Task :terminal-view:generateReleaseResValues FROM-CACHE
+> Task :terminal-view:generateReleaseResources FROM-CACHE
+> Task :terminal-view:packageReleaseResources
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources FROM-CACHE
+> Task :app:mergeReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:parseReleaseLocalResources FROM-CACHE
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease FROM-CACHE
+> Task :terminal-emulator:extractDeepLinksRelease FROM-CACHE
+> Task :terminal-emulator:processReleaseManifest FROM-CACHE
+> Task :terminal-view:extractDeepLinksRelease FROM-CACHE
+> Task :terminal-view:processReleaseManifest FROM-CACHE
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processReleaseManifestForPackage
+> Task :terminal-emulator:compileReleaseLibraryResources
+> Task :terminal-emulator:parseReleaseLocalResources FROM-CACHE
+> Task :terminal-emulator:generateReleaseRFile FROM-CACHE
+> Task :terminal-view:compileReleaseLibraryResources
+> Task :terminal-view:parseReleaseLocalResources FROM-CACHE
+> Task :terminal-view:generateReleaseRFile FROM-CACHE
+> Task :app:processReleaseResources
+> Task :terminal-emulator:javaPreCompileRelease FROM-CACHE
+> Task :terminal-emulator:compileReleaseJavaWithJavac FROM-CACHE
+> Task :terminal-emulator:bundleLibCompileToJarRelease
+> Task :terminal-view:javaPreCompileRelease FROM-CACHE
+> Task :terminal-view:compileReleaseJavaWithJavac FROM-CACHE
+> Task :terminal-view:bundleLibCompileToJarRelease
+
+> Task :app:compileReleaseKotlin
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/packages/PackageGateway.kt:124:28 'val allNetworks: Array<(out) Network!>' is deprecated. Deprecated in Java.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/packages/PackageOperationManager.kt:293:58 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt:218:37 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+
+> Task :app:javaPreCompileRelease FROM-CACHE
+> Task :app:compileReleaseJavaWithJavac NO-SOURCE
+> Task :app:bundleReleaseClassesToRuntimeJar
+> Task :app:bundleReleaseClassesToCompileJar
+
+> Task :app:compileReleaseUnitTestKotlin
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/AlpinePackageManagerTest.kt:290:33 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/AlpinePackageManagerTest.kt:316:33 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/AlpinePackageManagerTest.kt:357:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/AlpinePackageManagerTest.kt:413:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/GuestCommandRunnerTest.kt:24:32 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/packages/GuestCommandRunnerTest.kt:54:32 Unnecessary non-null assertion (!!) on a non-null receiver of type 'String'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestApkCompatTest.kt:51:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:32:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:48:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:134:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:151:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:167:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/GuestEnvironmentTest.kt:182:9 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'File?'.
+w: file:///home/z/my-project/app/src/test/java/app/pocketshell/runtime/RuntimeCrashGuardTest.kt:146:28 Unnecessary safe call on a non-null receiver of type 'String'.
+
+> Task :app:preReleaseUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileReleaseUnitTest FROM-CACHE
+> Task :app:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processReleaseJavaRes
+> Task :app:processReleaseUnitTestJavaRes
+> Task :terminal-emulator:bundleLibRuntimeToJarRelease
+> Task :terminal-emulator:processReleaseJavaRes NO-SOURCE
+> Task :terminal-view:bundleLibRuntimeToJarRelease
+> Task :terminal-view:processReleaseJavaRes NO-SOURCE
+> Task :app:testReleaseUnitTest
+> Task :app:test
+> Task :terminal-emulator:preDebugUnitTestBuild UP-TO-DATE
+> Task :terminal-emulator:generateDebugUnitTestStubRFile
+> Task :terminal-emulator:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :terminal-emulator:compileDebugUnitTestJavaWithJavac
+> Task :terminal-emulator:processDebugUnitTestJavaRes NO-SOURCE
+
+> Task :terminal-emulator:testDebugUnitTest
+
+ApcTest > testApcConsumed STARTED
+
+ApcTest > testApcConsumed PASSED
+
+ByteQueueTest > testCompleteWrites STARTED
+
+ByteQueueTest > testCompleteWrites PASSED
+
+ByteQueueTest > testWriteNotesClosing STARTED
+
+ByteQueueTest > testWriteNotesClosing PASSED
+
+ByteQueueTest > testReadNonBlocking STARTED
+
+ByteQueueTest > testReadNonBlocking PASSED
+
+ByteQueueTest > testQueueWraparound STARTED
+
+ByteQueueTest > testQueueWraparound PASSED
+
+ControlSequenceIntroducerTest > testManyParameters STARTED
+
+ControlSequenceIntroducerTest > testManyParameters PASSED
+
+ControlSequenceIntroducerTest > testCsi3J STARTED
+
+ControlSequenceIntroducerTest > testCsi3J PASSED
+
+ControlSequenceIntroducerTest > testCsiSGRParameters STARTED
+
+ControlSequenceIntroducerTest > testCsiSGRParameters PASSED
+
+ControlSequenceIntroducerTest > testCsiS STARTED
+
+ControlSequenceIntroducerTest > testCsiS PASSED
+
+ControlSequenceIntroducerTest > testCsiT STARTED
+
+ControlSequenceIntroducerTest > testCsiT PASSED
+
+ControlSequenceIntroducerTest > testCsiX STARTED
+
+ControlSequenceIntroducerTest > testCsiX PASSED
+
+ControlSequenceIntroducerTest > testUnderlineVariants STARTED
+
+ControlSequenceIntroducerTest > testUnderlineVariants PASSED
+
+ControlSequenceIntroducerTest > testReportPixelSize STARTED
+
+ControlSequenceIntroducerTest > testReportPixelSize PASSED
+
+ControlSequenceIntroducerTest > testRepeat STARTED
+
+ControlSequenceIntroducerTest > testRepeat PASSED
+
+CursorAndScreenTest > testReportCursorPosition STARTED
+
+CursorAndScreenTest > testReportCursorPosition PASSED
+
+CursorAndScreenTest > testDeleteCharacters STARTED
+
+CursorAndScreenTest > testDeleteCharacters PASSED
+
+CursorAndScreenTest > testCursorBack STARTED
+
+CursorAndScreenTest > testCursorBack PASSED
+
+CursorAndScreenTest > testCursorDown STARTED
+
+CursorAndScreenTest > testCursorDown PASSED
+
+CursorAndScreenTest > testDeleteLinesKeepsStyles STARTED
+
+CursorAndScreenTest > testDeleteLinesKeepsStyles PASSED
+
+CursorAndScreenTest > testCursorForward STARTED
+
+CursorAndScreenTest > testCursorForward PASSED
+
+CursorAndScreenTest > testInsertMode STARTED
+
+CursorAndScreenTest > testInsertMode PASSED
+
+CursorAndScreenTest > testCursorSaveRestoreTextStyle STARTED
+
+CursorAndScreenTest > testCursorSaveRestoreTextStyle PASSED
+
+CursorAndScreenTest > testClearingOfAutowrap STARTED
+
+CursorAndScreenTest > testClearingOfAutowrap PASSED
+
+CursorAndScreenTest > testCursorUp STARTED
+
+CursorAndScreenTest > testCursorUp PASSED
+
+CursorAndScreenTest > testCursorSaveRestoreLocation STARTED
+
+CursorAndScreenTest > testCursorSaveRestoreLocation PASSED
+
+CursorAndScreenTest > testCursorHorizontalPositionAbsolute STARTED
+
+CursorAndScreenTest > testCursorHorizontalPositionAbsolute PASSED
+
+CursorAndScreenTest > testBackspaceAcrossWrappedLines STARTED
+
+CursorAndScreenTest > testBackspaceAcrossWrappedLines PASSED
+
+DecSetTest > testWrapAroundMode STARTED
+
+DecSetTest > testWrapAroundMode PASSED
+
+DecSetTest > testEnableDisableCursor STARTED
+
+DecSetTest > testEnableDisableCursor PASSED
+
+DecSetTest > testBracketedPasteMode STARTED
+
+DecSetTest > testBracketedPasteMode PASSED
+
+DeviceControlStringTest > testReportColorsAndName STARTED
+
+DeviceControlStringTest > testReportColorsAndName PASSED
+
+DeviceControlStringTest > testReallyLongDeviceControlString STARTED
+
+DeviceControlStringTest > testReallyLongDeviceControlString PASSED
+
+DeviceControlStringTest > testReportKeys STARTED
+
+DeviceControlStringTest > testReportKeys PASSED
+
+HistoryTest > testHistory STARTED
+
+HistoryTest > testHistory PASSED
+
+HistoryTest > testHistoryWithScrollRegion STARTED
+
+HistoryTest > testHistoryWithScrollRegion PASSED
+
+KeyHandlerTest > testTermCaps STARTED
+
+KeyHandlerTest > testTermCaps PASSED
+
+KeyHandlerTest > testKeyCodes STARTED
+
+KeyHandlerTest > testKeyCodes PASSED
+
+OperatingSystemControlTest > testSettingDynamicColors STARTED
+
+OperatingSystemControlTest > testSettingDynamicColors PASSED
+
+OperatingSystemControlTest > testReportSpecialColors STARTED
+
+OperatingSystemControlTest > testReportSpecialColors PASSED
+
+OperatingSystemControlTest > testResettingTerminalResetsColor STARTED
+
+OperatingSystemControlTest > testResettingTerminalResetsColor PASSED
+
+OperatingSystemControlTest > testTitleStack STARTED
+
+OperatingSystemControlTest > testTitleStack PASSED
+
+OperatingSystemControlTest > testResetColor STARTED
+
+OperatingSystemControlTest > testResetColor PASSED
+
+OperatingSystemControlTest > testSetColor STARTED
+
+OperatingSystemControlTest > testSetColor PASSED
+
+OperatingSystemControlTest > testSetTitle STARTED
+
+OperatingSystemControlTest > testSetTitle PASSED
+
+RectangularAreasTest > testSelectiveEraseInDisplay STARTED
+
+RectangularAreasTest > testSelectiveEraseInDisplay PASSED
+
+RectangularAreasTest > testSelectiveEraseInLine STARTED
+
+RectangularAreasTest > testSelectiveEraseInLine PASSED
+
+RectangularAreasTest > testRectangularCopy STARTED
+
+RectangularAreasTest > testRectangularCopy PASSED
+
+RectangularAreasTest > testSelectiveEraseInRectangle STARTED
+
+RectangularAreasTest > testSelectiveEraseInRectangle PASSED
+
+RectangularAreasTest > testChangeAttributesInRectangularArea STARTED
+
+RectangularAreasTest > testChangeAttributesInRectangularArea PASSED
+
+RectangularAreasTest > testReverseAttributesInRectangularArea STARTED
+
+RectangularAreasTest > testReverseAttributesInRectangularArea PASSED
+
+RectangularAreasTest > testEraseRectangularArea STARTED
+
+RectangularAreasTest > testEraseRectangularArea PASSED
+
+RectangularAreasTest > testFillRectangularArea STARTED
+
+RectangularAreasTest > testFillRectangularArea PASSED
+
+ResizeTest > testResizeWhenInAltBuffer STARTED
+
+ResizeTest > testResizeWhenInAltBuffer PASSED
+
+ResizeTest > testVerticalResize STARTED
+
+ResizeTest > testVerticalResize PASSED
+
+ResizeTest > testResizeWithWideChars STARTED
+
+ResizeTest > testResizeWithWideChars PASSED
+
+ResizeTest > testResizeWithMoreWideChars STARTED
+
+ResizeTest > testResizeWithMoreWideChars PASSED
+
+ResizeTest > testShrinkingInAltBuffer STARTED
+
+ResizeTest > testShrinkingInAltBuffer PASSED
+
+ResizeTest > testResizeWithLineWrappingContinuing STARTED
+
+ResizeTest > testResizeWithLineWrappingContinuing PASSED
+
+ResizeTest > testResizeWhenHasHistory STARTED
+
+ResizeTest > testResizeWhenHasHistory PASSED
+
+ResizeTest > testResizeAfterHistoryWraparound STARTED
+
+ResizeTest > testResizeAfterHistoryWraparound PASSED
+
+ResizeTest > testCursorPositionWhenShrinking STARTED
+
+ResizeTest > testCursorPositionWhenShrinking PASSED
+
+ResizeTest > testHorizontalResize STARTED
+
+ResizeTest > testHorizontalResize PASSED
+
+ResizeTest > testResizeWithCombiningCharInLastColumn STARTED
+
+ResizeTest > testResizeWithCombiningCharInLastColumn PASSED
+
+ResizeTest > testResizeAfterNewlineWhenInAltBuffer STARTED
+
+ResizeTest > testResizeAfterNewlineWhenInAltBuffer PASSED
+
+ResizeTest > testLineWrap STARTED
+
+ResizeTest > testLineWrap PASSED
+
+ScreenBufferTest > testGetSelectedText STARTED
+
+ScreenBufferTest > testGetSelectedText PASSED
+
+ScreenBufferTest > testGetSelectedTextJoinFullLines STARTED
+
+ScreenBufferTest > testGetSelectedTextJoinFullLines PASSED
+
+ScreenBufferTest > testBlockSet STARTED
+
+ScreenBufferTest > testBlockSet PASSED
+
+ScreenBufferTest > testGetWordAtLocation STARTED
+
+ScreenBufferTest > testGetWordAtLocation PASSED
+
+ScreenBufferTest > testBasics STARTED
+
+ScreenBufferTest > testBasics PASSED
+
+ScrollRegionTest > testScrollRegionResetWithOriginMode STARTED
+
+ScrollRegionTest > testScrollRegionResetWithOriginMode PASSED
+
+ScrollRegionTest > testScrollRegionTop STARTED
+
+ScrollRegionTest > testScrollRegionTop PASSED
+
+ScrollRegionTest > testScrollRegionRight STARTED
+
+ScrollRegionTest > testScrollRegionRight PASSED
+
+ScrollRegionTest > testScrollRegionOnAllSides STARTED
+
+ScrollRegionTest > testScrollRegionOnAllSides PASSED
+
+ScrollRegionTest > testBackwardIndex STARTED
+
+ScrollRegionTest > testBackwardIndex PASSED
+
+ScrollRegionTest > testScrollRegionLeft STARTED
+
+ScrollRegionTest > testScrollRegionLeft PASSED
+
+ScrollRegionTest > testScrollRegionBottom STARTED
+
+ScrollRegionTest > testScrollRegionBottom PASSED
+
+ScrollRegionTest > testNELRespectsLeftMargin STARTED
+
+ScrollRegionTest > testNELRespectsLeftMargin PASSED
+
+ScrollRegionTest > testSdRespectsLeftMargin STARTED
+
+ScrollRegionTest > testSdRespectsLeftMargin PASSED
+
+ScrollRegionTest > testScrollDownBelowScrollRegion STARTED
+
+ScrollRegionTest > testScrollDownBelowScrollRegion PASSED
+
+ScrollRegionTest > testForwardIndex STARTED
+
+ScrollRegionTest > testForwardIndex PASSED
+
+ScrollRegionTest > testScrollRegionDoesNotLimitCursorMovement STARTED
+
+ScrollRegionTest > testScrollRegionDoesNotLimitCursorMovement PASSED
+
+ScrollRegionTest > testRiRespectsLeftMargin STARTED
+
+ScrollRegionTest > testRiRespectsLeftMargin PASSED
+
+ScrollRegionTest > testScrollDownWithScrollRegion STARTED
+
+ScrollRegionTest > testScrollDownWithScrollRegion PASSED
+
+ScrollRegionTest > testClearingWhenScrollingWithMargins STARTED
+
+ScrollRegionTest > testClearingWhenScrollingWithMargins PASSED
+
+ScrollRegionTest > testDECCOLMResetsScrollMargin STARTED
+
+ScrollRegionTest > testDECCOLMResetsScrollMargin PASSED
+
+ScrollRegionTest > testScrollOutsideVerticalRegion STARTED
+
+ScrollRegionTest > testScrollOutsideVerticalRegion PASSED
+
+TerminalRowTest > testAscii STARTED
+
+TerminalRowTest > testAscii PASSED
+
+TerminalRowTest > testSurrogateCharsWithNormalDisplayWidth STARTED
+
+TerminalRowTest > testSurrogateCharsWithNormalDisplayWidth PASSED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidthOverlapping STARTED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidthOverlapping PASSED
+
+TerminalRowTest > testDoubleWidthSurrogage STARTED
+
+TerminalRowTest > testDoubleWidthSurrogage PASSED
+
+TerminalRowTest > testUnicode STARTED
+
+TerminalRowTest > testUnicode PASSED
+
+TerminalRowTest > testReplacementChar STARTED
+
+TerminalRowTest > testReplacementChar PASSED
+
+TerminalRowTest > testSimpleDiaresis STARTED
+
+TerminalRowTest > testSimpleDiaresis PASSED
+
+TerminalRowTest > testInsertWideAtLastColumn STARTED
+
+TerminalRowTest > testInsertWideAtLastColumn PASSED
+
+TerminalRowTest > testCrashATE145 STARTED
+
+TerminalRowTest > testCrashATE145 PASSED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithSelf STARTED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithSelf PASSED
+
+TerminalRowTest > testNormalization STARTED
+
+TerminalRowTest > testNormalization PASSED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidth STARTED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidth PASSED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithNormalDisplayWidth STARTED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithNormalDisplayWidth PASSED
+
+TerminalRowTest > testOneColumn STARTED
+
+TerminalRowTest > testOneColumn PASSED
+
+TerminalRowTest > testStaticConstants STARTED
+
+TerminalRowTest > testStaticConstants PASSED
+
+TerminalRowTest > testDoubleWidth STARTED
+
+TerminalRowTest > testDoubleWidth PASSED
+
+TerminalTest > testSoftTerminalReset STARTED
+
+TerminalTest > testSoftTerminalReset PASSED
+
+TerminalTest > testScrollDownInAltBuffer STARTED
+
+TerminalTest > testScrollDownInAltBuffer PASSED
+
+TerminalTest > testParseColor STARTED
+
+TerminalTest > testParseColor PASSED
+
+TerminalTest > testBel STARTED
+
+TerminalTest > testBel PASSED
+
+TerminalTest > testTab STARTED
+
+TerminalTest > testTab PASSED
+
+TerminalTest > testPaste STARTED
+
+TerminalTest > testPaste PASSED
+
+TerminalTest > testSetCursorStyle STARTED
+
+TerminalTest > testSetCursorStyle PASSED
+
+TerminalTest > testBackgroundColorErase STARTED
+
+TerminalTest > testBackgroundColorErase PASSED
+
+TerminalTest > testSelectGraphics STARTED
+
+TerminalTest > testSelectGraphics PASSED
+
+TerminalTest > testDeviceStatusReport STARTED
+
+TerminalTest > testDeviceStatusReport PASSED
+
+TerminalTest > testMouseClick STARTED
+
+TerminalTest > testMouseClick PASSED
+
+TerminalTest > testNormalization STARTED
+
+TerminalTest > testNormalization PASSED
+
+TerminalTest > testAutomargins STARTED
+
+TerminalTest > testAutomargins PASSED
+
+TerminalTest > testLineDrawing STARTED
+
+TerminalTest > testLineDrawing PASSED
+
+TerminalTest > testScreen STARTED
+
+TerminalTest > testScreen PASSED
+
+TerminalTest > testCursorPositioning STARTED
+
+TerminalTest > testCursorPositioning PASSED
+
+TerminalTest > testReportTerminalSize STARTED
+
+TerminalTest > testReportTerminalSize PASSED
+
+TextStyleTest > testEncodingSingle STARTED
+
+TextStyleTest > testEncodingSingle PASSED
+
+TextStyleTest > testEncodingCombinations STARTED
+
+TextStyleTest > testEncodingCombinations PASSED
+
+TextStyleTest > testEncodingProtected STARTED
+
+TextStyleTest > testEncodingProtected PASSED
+
+TextStyleTest > testEncodingStrikeThrough STARTED
+
+TextStyleTest > testEncodingStrikeThrough PASSED
+
+TextStyleTest > testEncoding24Bit STARTED
+
+TextStyleTest > testEncoding24Bit PASSED
+
+UnicodeInputTest > testWideCharacterDeletion STARTED
+
+UnicodeInputTest > testWideCharacterDeletion PASSED
+
+UnicodeInputTest > testUnassignedCodePoint STARTED
+
+UnicodeInputTest > testUnassignedCodePoint PASSED
+
+UnicodeInputTest > testOverlongUtf8Encoding STARTED
+
+UnicodeInputTest > testOverlongUtf8Encoding PASSED
+
+UnicodeInputTest > testStuff STARTED
+
+UnicodeInputTest > testStuff PASSED
+
+UnicodeInputTest > testIllFormedUtf8SuccessorByteNotConsumed STARTED
+
+UnicodeInputTest > testIllFormedUtf8SuccessorByteNotConsumed PASSED
+
+UnicodeInputTest > testWideCharacterWithoutWrapping STARTED
+
+UnicodeInputTest > testWideCharacterWithoutWrapping PASSED
+
+UnicodeInputTest > testWideCharOverwriting STARTED
+
+UnicodeInputTest > testWideCharOverwriting PASSED
+
+UnicodeInputTest > testCombiningCharacterInFirstColumn STARTED
+
+UnicodeInputTest > testCombiningCharacterInFirstColumn PASSED
+
+UnicodeInputTest > testSimpleCombining STARTED
+
+UnicodeInputTest > testSimpleCombining PASSED
+
+UnicodeInputTest > testCombiningCharacterInLastColumn STARTED
+
+UnicodeInputTest > testCombiningCharacterInLastColumn PASSED
+
+UnicodeInputTest > testWideCharacterInLastColumn STARTED
+
+UnicodeInputTest > testWideCharacterInLastColumn PASSED
+
+WcWidthTest > testPrintableAscii STARTED
+
+WcWidthTest > testPrintableAscii PASSED
+
+WcWidthTest > testSomeWide STARTED
+
+WcWidthTest > testSomeWide PASSED
+
+WcWidthTest > testSomeNonWide STARTED
+
+WcWidthTest > testSomeNonWide PASSED
+
+WcWidthTest > testCombining STARTED
+
+WcWidthTest > testCombining PASSED
+
+WcWidthTest > testSofthyphen STARTED
+
+WcWidthTest > testSofthyphen PASSED
+
+WcWidthTest > testWordJoiner STARTED
+
+WcWidthTest > testWordJoiner PASSED
+
+WcWidthTest > testEmojis STARTED
+
+WcWidthTest > testEmojis PASSED
+
+WcWidthTest > testHangul STARTED
+
+WcWidthTest > testHangul PASSED
+
+WcWidthTest > testSomeWidthOne STARTED
+
+WcWidthTest > testSomeWidthOne PASSED
+
+> Task :terminal-emulator:preReleaseUnitTestBuild UP-TO-DATE
+> Task :terminal-emulator:generateReleaseUnitTestStubRFile FROM-CACHE
+> Task :terminal-emulator:javaPreCompileReleaseUnitTest FROM-CACHE
+> Task :terminal-emulator:compileReleaseUnitTestJavaWithJavac FROM-CACHE
+> Task :terminal-emulator:processReleaseUnitTestJavaRes NO-SOURCE
+
+> Task :terminal-emulator:testReleaseUnitTest
+
+ApcTest > testApcConsumed STARTED
+
+ApcTest > testApcConsumed PASSED
+
+ByteQueueTest > testCompleteWrites STARTED
+
+ByteQueueTest > testCompleteWrites PASSED
+
+ByteQueueTest > testWriteNotesClosing STARTED
+
+ByteQueueTest > testWriteNotesClosing PASSED
+
+ByteQueueTest > testReadNonBlocking STARTED
+
+ByteQueueTest > testReadNonBlocking PASSED
+
+ByteQueueTest > testQueueWraparound STARTED
+
+ByteQueueTest > testQueueWraparound PASSED
+
+ControlSequenceIntroducerTest > testManyParameters STARTED
+
+ControlSequenceIntroducerTest > testManyParameters PASSED
+
+ControlSequenceIntroducerTest > testCsi3J STARTED
+
+ControlSequenceIntroducerTest > testCsi3J PASSED
+
+ControlSequenceIntroducerTest > testCsiSGRParameters STARTED
+
+ControlSequenceIntroducerTest > testCsiSGRParameters PASSED
+
+ControlSequenceIntroducerTest > testCsiS STARTED
+
+ControlSequenceIntroducerTest > testCsiS PASSED
+
+ControlSequenceIntroducerTest > testCsiT STARTED
+
+ControlSequenceIntroducerTest > testCsiT PASSED
+
+ControlSequenceIntroducerTest > testCsiX STARTED
+
+ControlSequenceIntroducerTest > testCsiX PASSED
+
+ControlSequenceIntroducerTest > testUnderlineVariants STARTED
+
+ControlSequenceIntroducerTest > testUnderlineVariants PASSED
+
+ControlSequenceIntroducerTest > testReportPixelSize STARTED
+
+ControlSequenceIntroducerTest > testReportPixelSize PASSED
+
+ControlSequenceIntroducerTest > testRepeat STARTED
+
+ControlSequenceIntroducerTest > testRepeat PASSED
+
+CursorAndScreenTest > testReportCursorPosition STARTED
+
+CursorAndScreenTest > testReportCursorPosition PASSED
+
+CursorAndScreenTest > testDeleteCharacters STARTED
+
+CursorAndScreenTest > testDeleteCharacters PASSED
+
+CursorAndScreenTest > testCursorBack STARTED
+
+CursorAndScreenTest > testCursorBack PASSED
+
+CursorAndScreenTest > testCursorDown STARTED
+
+CursorAndScreenTest > testCursorDown PASSED
+
+CursorAndScreenTest > testDeleteLinesKeepsStyles STARTED
+
+CursorAndScreenTest > testDeleteLinesKeepsStyles PASSED
+
+CursorAndScreenTest > testCursorForward STARTED
+
+CursorAndScreenTest > testCursorForward PASSED
+
+CursorAndScreenTest > testInsertMode STARTED
+
+CursorAndScreenTest > testInsertMode PASSED
+
+CursorAndScreenTest > testCursorSaveRestoreTextStyle STARTED
+
+CursorAndScreenTest > testCursorSaveRestoreTextStyle PASSED
+
+CursorAndScreenTest > testClearingOfAutowrap STARTED
+
+CursorAndScreenTest > testClearingOfAutowrap PASSED
+
+CursorAndScreenTest > testCursorUp STARTED
+
+CursorAndScreenTest > testCursorUp PASSED
+
+CursorAndScreenTest > testCursorSaveRestoreLocation STARTED
+
+CursorAndScreenTest > testCursorSaveRestoreLocation PASSED
+
+CursorAndScreenTest > testCursorHorizontalPositionAbsolute STARTED
+
+CursorAndScreenTest > testCursorHorizontalPositionAbsolute PASSED
+
+CursorAndScreenTest > testBackspaceAcrossWrappedLines STARTED
+
+CursorAndScreenTest > testBackspaceAcrossWrappedLines PASSED
+
+DecSetTest > testWrapAroundMode STARTED
+
+DecSetTest > testWrapAroundMode PASSED
+
+DecSetTest > testEnableDisableCursor STARTED
+
+DecSetTest > testEnableDisableCursor PASSED
+
+DecSetTest > testBracketedPasteMode STARTED
+
+DecSetTest > testBracketedPasteMode PASSED
+
+DeviceControlStringTest > testReportColorsAndName STARTED
+
+DeviceControlStringTest > testReportColorsAndName PASSED
+
+DeviceControlStringTest > testReallyLongDeviceControlString STARTED
+
+DeviceControlStringTest > testReallyLongDeviceControlString PASSED
+
+DeviceControlStringTest > testReportKeys STARTED
+
+DeviceControlStringTest > testReportKeys PASSED
+
+HistoryTest > testHistory STARTED
+
+HistoryTest > testHistory PASSED
+
+HistoryTest > testHistoryWithScrollRegion STARTED
+
+HistoryTest > testHistoryWithScrollRegion PASSED
+
+KeyHandlerTest > testTermCaps STARTED
+
+KeyHandlerTest > testTermCaps PASSED
+
+KeyHandlerTest > testKeyCodes STARTED
+
+KeyHandlerTest > testKeyCodes PASSED
+
+OperatingSystemControlTest > testSettingDynamicColors STARTED
+
+OperatingSystemControlTest > testSettingDynamicColors PASSED
+
+OperatingSystemControlTest > testReportSpecialColors STARTED
+
+OperatingSystemControlTest > testReportSpecialColors PASSED
+
+OperatingSystemControlTest > testResettingTerminalResetsColor STARTED
+
+OperatingSystemControlTest > testResettingTerminalResetsColor PASSED
+
+OperatingSystemControlTest > testTitleStack STARTED
+
+OperatingSystemControlTest > testTitleStack PASSED
+
+OperatingSystemControlTest > testResetColor STARTED
+
+OperatingSystemControlTest > testResetColor PASSED
+
+OperatingSystemControlTest > testSetColor STARTED
+
+OperatingSystemControlTest > testSetColor PASSED
+
+OperatingSystemControlTest > testSetTitle STARTED
+
+OperatingSystemControlTest > testSetTitle PASSED
+
+RectangularAreasTest > testSelectiveEraseInDisplay STARTED
+
+RectangularAreasTest > testSelectiveEraseInDisplay PASSED
+
+RectangularAreasTest > testSelectiveEraseInLine STARTED
+
+RectangularAreasTest > testSelectiveEraseInLine PASSED
+
+RectangularAreasTest > testRectangularCopy STARTED
+
+RectangularAreasTest > testRectangularCopy PASSED
+
+RectangularAreasTest > testSelectiveEraseInRectangle STARTED
+
+RectangularAreasTest > testSelectiveEraseInRectangle PASSED
+
+RectangularAreasTest > testChangeAttributesInRectangularArea STARTED
+
+RectangularAreasTest > testChangeAttributesInRectangularArea PASSED
+
+RectangularAreasTest > testReverseAttributesInRectangularArea STARTED
+
+RectangularAreasTest > testReverseAttributesInRectangularArea PASSED
+
+RectangularAreasTest > testEraseRectangularArea STARTED
+
+RectangularAreasTest > testEraseRectangularArea PASSED
+
+RectangularAreasTest > testFillRectangularArea STARTED
+
+RectangularAreasTest > testFillRectangularArea PASSED
+
+ResizeTest > testResizeWhenInAltBuffer STARTED
+
+ResizeTest > testResizeWhenInAltBuffer PASSED
+
+ResizeTest > testVerticalResize STARTED
+
+ResizeTest > testVerticalResize PASSED
+
+ResizeTest > testResizeWithWideChars STARTED
+
+ResizeTest > testResizeWithWideChars PASSED
+
+ResizeTest > testResizeWithMoreWideChars STARTED
+
+ResizeTest > testResizeWithMoreWideChars PASSED
+
+ResizeTest > testShrinkingInAltBuffer STARTED
+
+ResizeTest > testShrinkingInAltBuffer PASSED
+
+ResizeTest > testResizeWithLineWrappingContinuing STARTED
+
+ResizeTest > testResizeWithLineWrappingContinuing PASSED
+
+ResizeTest > testResizeWhenHasHistory STARTED
+
+ResizeTest > testResizeWhenHasHistory PASSED
+
+ResizeTest > testResizeAfterHistoryWraparound STARTED
+
+ResizeTest > testResizeAfterHistoryWraparound PASSED
+
+ResizeTest > testCursorPositionWhenShrinking STARTED
+
+ResizeTest > testCursorPositionWhenShrinking PASSED
+
+ResizeTest > testHorizontalResize STARTED
+
+ResizeTest > testHorizontalResize PASSED
+
+ResizeTest > testResizeWithCombiningCharInLastColumn STARTED
+
+ResizeTest > testResizeWithCombiningCharInLastColumn PASSED
+
+ResizeTest > testResizeAfterNewlineWhenInAltBuffer STARTED
+
+ResizeTest > testResizeAfterNewlineWhenInAltBuffer PASSED
+
+ResizeTest > testLineWrap STARTED
+
+ResizeTest > testLineWrap PASSED
+
+ScreenBufferTest > testGetSelectedText STARTED
+
+ScreenBufferTest > testGetSelectedText PASSED
+
+ScreenBufferTest > testGetSelectedTextJoinFullLines STARTED
+
+ScreenBufferTest > testGetSelectedTextJoinFullLines PASSED
+
+ScreenBufferTest > testBlockSet STARTED
+
+ScreenBufferTest > testBlockSet PASSED
+
+ScreenBufferTest > testGetWordAtLocation STARTED
+
+ScreenBufferTest > testGetWordAtLocation PASSED
+
+ScreenBufferTest > testBasics STARTED
+
+ScreenBufferTest > testBasics PASSED
+
+ScrollRegionTest > testScrollRegionResetWithOriginMode STARTED
+
+ScrollRegionTest > testScrollRegionResetWithOriginMode PASSED
+
+ScrollRegionTest > testScrollRegionTop STARTED
+
+ScrollRegionTest > testScrollRegionTop PASSED
+
+ScrollRegionTest > testScrollRegionRight STARTED
+
+ScrollRegionTest > testScrollRegionRight PASSED
+
+ScrollRegionTest > testScrollRegionOnAllSides STARTED
+
+ScrollRegionTest > testScrollRegionOnAllSides PASSED
+
+ScrollRegionTest > testBackwardIndex STARTED
+
+ScrollRegionTest > testBackwardIndex PASSED
+
+ScrollRegionTest > testScrollRegionLeft STARTED
+
+ScrollRegionTest > testScrollRegionLeft PASSED
+
+ScrollRegionTest > testScrollRegionBottom STARTED
+
+ScrollRegionTest > testScrollRegionBottom PASSED
+
+ScrollRegionTest > testNELRespectsLeftMargin STARTED
+
+ScrollRegionTest > testNELRespectsLeftMargin PASSED
+
+ScrollRegionTest > testSdRespectsLeftMargin STARTED
+
+ScrollRegionTest > testSdRespectsLeftMargin PASSED
+
+ScrollRegionTest > testScrollDownBelowScrollRegion STARTED
+
+ScrollRegionTest > testScrollDownBelowScrollRegion PASSED
+
+ScrollRegionTest > testForwardIndex STARTED
+
+ScrollRegionTest > testForwardIndex PASSED
+
+ScrollRegionTest > testScrollRegionDoesNotLimitCursorMovement STARTED
+
+ScrollRegionTest > testScrollRegionDoesNotLimitCursorMovement PASSED
+
+ScrollRegionTest > testRiRespectsLeftMargin STARTED
+
+ScrollRegionTest > testRiRespectsLeftMargin PASSED
+
+ScrollRegionTest > testScrollDownWithScrollRegion STARTED
+
+ScrollRegionTest > testScrollDownWithScrollRegion PASSED
+
+ScrollRegionTest > testClearingWhenScrollingWithMargins STARTED
+
+ScrollRegionTest > testClearingWhenScrollingWithMargins PASSED
+
+ScrollRegionTest > testDECCOLMResetsScrollMargin STARTED
+
+ScrollRegionTest > testDECCOLMResetsScrollMargin PASSED
+
+ScrollRegionTest > testScrollOutsideVerticalRegion STARTED
+
+ScrollRegionTest > testScrollOutsideVerticalRegion PASSED
+
+TerminalRowTest > testAscii STARTED
+
+TerminalRowTest > testAscii PASSED
+
+TerminalRowTest > testSurrogateCharsWithNormalDisplayWidth STARTED
+
+TerminalRowTest > testSurrogateCharsWithNormalDisplayWidth PASSED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidthOverlapping STARTED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidthOverlapping PASSED
+
+TerminalRowTest > testDoubleWidthSurrogage STARTED
+
+TerminalRowTest > testDoubleWidthSurrogage PASSED
+
+TerminalRowTest > testUnicode STARTED
+
+TerminalRowTest > testUnicode PASSED
+
+TerminalRowTest > testReplacementChar STARTED
+
+TerminalRowTest > testReplacementChar PASSED
+
+TerminalRowTest > testSimpleDiaresis STARTED
+
+TerminalRowTest > testSimpleDiaresis PASSED
+
+TerminalRowTest > testInsertWideAtLastColumn STARTED
+
+TerminalRowTest > testInsertWideAtLastColumn PASSED
+
+TerminalRowTest > testCrashATE145 STARTED
+
+TerminalRowTest > testCrashATE145 PASSED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithSelf STARTED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithSelf PASSED
+
+TerminalRowTest > testNormalization STARTED
+
+TerminalRowTest > testNormalization PASSED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidth STARTED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidth PASSED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithNormalDisplayWidth STARTED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithNormalDisplayWidth PASSED
+
+TerminalRowTest > testOneColumn STARTED
+
+TerminalRowTest > testOneColumn PASSED
+
+TerminalRowTest > testStaticConstants STARTED
+
+TerminalRowTest > testStaticConstants PASSED
+
+TerminalRowTest > testDoubleWidth STARTED
+
+TerminalRowTest > testDoubleWidth PASSED
+
+TerminalTest > testSoftTerminalReset STARTED
+
+TerminalTest > testSoftTerminalReset PASSED
+
+TerminalTest > testScrollDownInAltBuffer STARTED
+
+TerminalTest > testScrollDownInAltBuffer PASSED
+
+TerminalTest > testParseColor STARTED
+
+TerminalTest > testParseColor PASSED
+
+TerminalTest > testBel STARTED
+
+TerminalTest > testBel PASSED
+
+TerminalTest > testTab STARTED
+
+TerminalTest > testTab PASSED
+
+TerminalTest > testPaste STARTED
+
+TerminalTest > testPaste PASSED
+
+TerminalTest > testSetCursorStyle STARTED
+
+TerminalTest > testSetCursorStyle PASSED
+
+TerminalTest > testBackgroundColorErase STARTED
+
+TerminalTest > testBackgroundColorErase PASSED
+
+TerminalTest > testSelectGraphics STARTED
+
+TerminalTest > testSelectGraphics PASSED
+
+TerminalTest > testDeviceStatusReport STARTED
+
+TerminalTest > testDeviceStatusReport PASSED
+
+TerminalTest > testMouseClick STARTED
+
+TerminalTest > testMouseClick PASSED
+
+TerminalTest > testNormalization STARTED
+
+TerminalTest > testNormalization PASSED
+
+TerminalTest > testAutomargins STARTED
+
+TerminalTest > testAutomargins PASSED
+
+TerminalTest > testLineDrawing STARTED
+
+TerminalTest > testLineDrawing PASSED
+
+TerminalTest > testScreen STARTED
+
+TerminalTest > testScreen PASSED
+
+TerminalTest > testCursorPositioning STARTED
+
+TerminalTest > testCursorPositioning PASSED
+
+TerminalTest > testReportTerminalSize STARTED
+
+TerminalTest > testReportTerminalSize PASSED
+
+TextStyleTest > testEncodingSingle STARTED
+
+TextStyleTest > testEncodingSingle PASSED
+
+TextStyleTest > testEncodingCombinations STARTED
+
+TextStyleTest > testEncodingCombinations PASSED
+
+TextStyleTest > testEncodingProtected STARTED
+
+TextStyleTest > testEncodingProtected PASSED
+
+TextStyleTest > testEncodingStrikeThrough STARTED
+
+TextStyleTest > testEncodingStrikeThrough PASSED
+
+TextStyleTest > testEncoding24Bit STARTED
+
+TextStyleTest > testEncoding24Bit PASSED
+
+UnicodeInputTest > testWideCharacterDeletion STARTED
+
+UnicodeInputTest > testWideCharacterDeletion PASSED
+
+UnicodeInputTest > testUnassignedCodePoint STARTED
+
+UnicodeInputTest > testUnassignedCodePoint PASSED
+
+UnicodeInputTest > testOverlongUtf8Encoding STARTED
+
+UnicodeInputTest > testOverlongUtf8Encoding PASSED
+
+UnicodeInputTest > testStuff STARTED
+
+UnicodeInputTest > testStuff PASSED
+
+UnicodeInputTest > testIllFormedUtf8SuccessorByteNotConsumed STARTED
+
+UnicodeInputTest > testIllFormedUtf8SuccessorByteNotConsumed PASSED
+
+UnicodeInputTest > testWideCharacterWithoutWrapping STARTED
+
+UnicodeInputTest > testWideCharacterWithoutWrapping PASSED
+
+UnicodeInputTest > testWideCharOverwriting STARTED
+
+UnicodeInputTest > testWideCharOverwriting PASSED
+
+UnicodeInputTest > testCombiningCharacterInFirstColumn STARTED
+
+UnicodeInputTest > testCombiningCharacterInFirstColumn PASSED
+
+UnicodeInputTest > testSimpleCombining STARTED
+
+UnicodeInputTest > testSimpleCombining PASSED
+
+UnicodeInputTest > testCombiningCharacterInLastColumn STARTED
+
+UnicodeInputTest > testCombiningCharacterInLastColumn PASSED
+
+UnicodeInputTest > testWideCharacterInLastColumn STARTED
+
+UnicodeInputTest > testWideCharacterInLastColumn PASSED
+
+WcWidthTest > testPrintableAscii STARTED
+
+WcWidthTest > testPrintableAscii PASSED
+
+WcWidthTest > testSomeWide STARTED
+
+WcWidthTest > testSomeWide PASSED
+
+WcWidthTest > testSomeNonWide STARTED
+
+WcWidthTest > testSomeNonWide PASSED
+
+WcWidthTest > testCombining STARTED
+
+WcWidthTest > testCombining PASSED
+
+WcWidthTest > testSofthyphen STARTED
+
+WcWidthTest > testSofthyphen PASSED
+
+WcWidthTest > testWordJoiner STARTED
+
+WcWidthTest > testWordJoiner PASSED
+
+WcWidthTest > testEmojis STARTED
+
+WcWidthTest > testEmojis PASSED
+
+WcWidthTest > testHangul STARTED
+
+WcWidthTest > testHangul PASSED
+
+WcWidthTest > testSomeWidthOne STARTED
+
+WcWidthTest > testSomeWidthOne PASSED
+
+> Task :terminal-emulator:test
+> Task :terminal-view:preDebugUnitTestBuild UP-TO-DATE
+> Task :terminal-view:generateDebugUnitTestStubRFile
+> Task :terminal-view:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :terminal-view:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :terminal-view:processDebugUnitTestJavaRes NO-SOURCE
+> Task :terminal-view:testDebugUnitTest NO-SOURCE
+> Task :terminal-view:preReleaseUnitTestBuild UP-TO-DATE
+> Task :terminal-view:generateReleaseUnitTestStubRFile FROM-CACHE
+> Task :terminal-view:javaPreCompileReleaseUnitTest FROM-CACHE
+> Task :terminal-view:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :terminal-view:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :terminal-view:testReleaseUnitTest NO-SOURCE
+> Task :terminal-view:test UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :terminal-emulator:mergeDebugShaders
+> Task :terminal-emulator:compileDebugShaders NO-SOURCE
+> Task :terminal-emulator:generateDebugAssets UP-TO-DATE
+> Task :terminal-emulator:mergeDebugAssets
+> Task :terminal-view:mergeDebugShaders
+> Task :terminal-view:compileDebugShaders NO-SOURCE
+> Task :terminal-view:generateDebugAssets UP-TO-DATE
+> Task :terminal-view:mergeDebugAssets
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets
+> Task :app:desugarDebugFileDependencies
+> Task :app:dexBuilderDebug
+> Task :app:mergeDebugGlobalSynthetics
+> Task :app:mergeDebugJavaResource
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeExtDexDebug
+> Task :terminal-view:bundleLibRuntimeToDirDebug
+> Task :terminal-emulator:bundleLibRuntimeToDirDebug
+> Task :app:mergeLibDexDebug
+The message received from the daemon indicates that the daemon has disappeared.
+Build request sent: Build{id=5fa46dbe-5002-4e2a-9be9-3a1441f20443, currentDir=/home/z/my-project}
+Attempting to read last messages from the daemon log...
+Daemon pid: 1287
+  log file: /home/z/.gradle/daemon/8.14.5/daemon-1287.out.log
+----- Last 20 lines from daemon log file - daemon-1287.out.log -----
+
+WcWidthTest > testSofthyphen STARTED
+
+WcWidthTest > testSofthyphen PASSED
+
+WcWidthTest > testWordJoiner STARTED
+
+WcWidthTest > testWordJoiner PASSED
+
+WcWidthTest > testEmojis STARTED
+
+WcWidthTest > testEmojis PASSED
+
+WcWidthTest > testHangul STARTED
+
+WcWidthTest > testHangul PASSED
+
+WcWidthTest > testSomeWidthOne STARTED
+
+WcWidthTest > testSomeWidthOne PASSED----- End of the daemon log -----
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Gradle build daemon disappeared unexpectedly (it may have been killed or may have crashed)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+> Task :app:mergeProjectDexDebug
