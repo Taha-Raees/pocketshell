@@ -235,6 +235,22 @@ superseded again by the Phase 3.2 package/app separation
   operations; probe failure keeps the last real list and surfaces the error
   (v0.4.4 honesty rule applied to command apps).
 
+### Phase 3.3 update (2026-09-04): presentation-only restructure
+
+The Phase 3.2 architecture above is unchanged — Phase 3.3 changed only how
+Home PRESENTS it (docs/PHASE-3.3-DESIGN.md):
+
+- The same `CommandAppsState` now drives TWO launcher presentations: the
+  "Your tools" icon+label grid and the header `CLI Apps ▾` menu (rendered
+  only when `apps` is non-empty). Both funnel into the same
+  `openCommandApp` pipeline; no new discovery/launch code exists.
+- The floating control no longer carries app launches: `QuickAction` is
+  `id/label/enabled/onRun` and only ever contains session-creation actions.
+- Surface rule for the UI layer: surfaces only for real objects
+  (environments / menus / floating control / actionable banner / pressed
+  states); everything else separates via spacing, section labels, hairline
+  dividers and Midnight tone steps.
+
 ---
 
 ## 7. Rendering & performance notes (§23)

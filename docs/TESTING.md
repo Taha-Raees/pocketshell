@@ -651,3 +651,66 @@ phase and any regression there is a 3.2 defect.
 - [ ] Explore/Packages screen behavior unchanged (install/uninstall/open
       still work — Home no longer shows their results, but the screen is
       byte-identical in behavior).
+
+## 14. Manual acceptance — Phase 3.3 (Home & System UI Redesign, v0.7.0-m3.3) — DEVICE GATE PENDING
+
+The redesign is visual architecture + Home interaction cleanup. Backend
+(command discovery, probing, verify-then-launch, PTY) is untouched — §13's
+functional checks re-run as a regression; this gate adds the STRUCTURE checks.
+Design contract: `docs/PHASE-3.3-DESIGN.md`.
+
+### 14.1 The "no boxes" sweep (the core gate)
+- [ ] No bordered rounded container around: the tools section, the empty
+      state, session rows, section headers, or the footer link. These regions
+      sit directly on the canvas, separated by hairline dividers.
+- [ ] Surfaces exist ONLY for: Terminal tile, Linux tile, CLI Apps menu,
+      launch-error banner, FAB + chips, a pressed row/tile. Anything else
+      drawing a box is a defect.
+- [ ] No card inside a card anywhere on Home; nothing exceeds 16dp radius.
+- [ ] No ghost/placeholder icons anywhere.
+
+### 14.2 Foundations
+- [ ] Terminal and Linux tiles are borderless tone-step surfaces (Terminal
+      darker/canvas, Linux lighter/chrome), 14dp radius; no accent border.
+- [ ] Terminal descriptor reads "Native shell" with NO truncation; the
+      running count is plain mono text (no chip box), correct count.
+- [ ] Linux READY: `Alpine · ready` in Sapphire + tiny ready dot; tap enters
+      the guest. NOT_READY: honest state + `Diagnostics`; tap routes to
+      Diagnostics.
+
+### 14.3 CLI Apps menu (the ONE CLI control)
+- [ ] `CLI Apps ▾` appears in the header area ONLY when at least one command
+      app is available; with none installed there is NO dead trigger.
+- [ ] Menu opens under the trigger: chrome surface, compact rows — monogram
+      plate + app name + dim command (`hermes` etc.). No logos, no dialog.
+- [ ] Only actually-available apps are listed (matches §13 honesty checks:
+      nano/git/python can never appear here).
+- [ ] Row tap launches the app into a dedicated guest session (same pipeline
+      as the grid tile); scrim/outside tap/Back dismiss without navigation.
+
+### 14.4 Tools grid + empty state
+- [ ] "Your tools" label; apps render as icon (52dp borderless monogram
+      plate) + label — NOT cards; surface only while pressed.
+- [ ] Empty: `No CLI apps yet.` + one sentence + `Explore packages` link —
+      three quiet lines, NO container. Exactly ONE "Explore packages" visible
+      in this state (the footer link is absent).
+- [ ] With apps present: footer shows a single quiet `Packages` link and the
+      empty-state link is gone — still exactly ONE packages affordance.
+- [ ] Checking state: one quiet spinner line. Probe failure: one dim honest
+      line (never a fake "none"); with apps present the failure footnote stays.
+
+### 14.5 FAB
+- [ ] Exactly TWO creation actions: New Terminal, New Linux session (READY
+      only). NO command apps, NO icon circles, NO logos in the chips.
+- [ ] Tap → chips; tap again → runs; scrim/×/Back dismiss; disabled during
+      spawn; 150–220ms motion, no bounce.
+
+### 14.6 Sessions, responsive, regression
+- [ ] Session rows are flat (dot + label + `#id`, hairline dividers); pressed
+      row is the only surface; green dot ONLY for live processes; tap returns.
+- [ ] Phone: 3-column grid; tablet/foldable: 4/6 columns, 720dp cap, CLI menu
+      and launchers stay proportioned (nothing stretches).
+- [ ] Phase 3.1 regression: terminal chrome/tabs/keyboard identical to §12
+      state; §12.6 Linux set still passes.
+- [ ] Phase 3.2 regression: §13.1–13.3 honesty checks (packages never on
+      Home, Hermes iff available, tap-launch), §13.5 sessions behavior.

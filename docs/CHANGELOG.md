@@ -3,6 +3,72 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m3.3] — 2026-09-04 — Phase 3.3: Home & System UI Redesign
+
+Scope: **visual architecture + Home interaction cleanup ONLY**. No backend
+changes — command-app discovery, login-shell probing, verify-before-launch,
+dedicated guest sessions, the forbidden package list, the Phase 3.1
+terminal/keyboard and every runtime behavior are byte-identical. Design
+contract: `docs/PHASE-3.3-DESIGN.md` (committed before implementation,
+plan-first).
+
+### The structural problem, fixed
+- Phase 3.2's Home was a stack of rounded rectangles: an empty-state card,
+  bordered session rows, a chip inside the Terminal tile, an "Explore
+  packages" action twice, fake ghost-tile placeholders, and a FAB whose menu
+  duplicated the tools grid with decorative icon circles. Surfaces were used
+  for GROUPING; Phase 3.3 uses them only for OBJECTS.
+- New surface philosophy (contract §3): content lives directly on the canvas;
+  separation = spacing → section labels → hairline dividers → tone steps. A
+  surface is drawn ONLY for a real object: the two environments, the CLI Apps
+  menu, the floating create control, an actionable banner, a pressed row/tile.
+
+### Home (§2 hierarchy: identity → foundations → tools → sessions → float)
+- **Foundations, flatter**: Terminal and Linux are borderless tone-step
+  surfaces (canvas / chrome), radius 14dp (was 20dp), no borders, no chip
+  boxes. Terminal shows `N running` as plain mono text; Linux shows an honest
+  state line (`Alpine · ready` accent when READY, else the true state +
+  `Diagnostics`). Truncating copy ("Native PocketShell envir…", "Enter the
+  guest s…") replaced with short always-fitting lines.
+- **ONE CLI control**: a quiet `CLI Apps ▾` trigger in the header area (only
+  when the guest confirmed apps — never a dead button) opening a compact
+  Midnight launcher menu (chrome surface, 14dp, zero tonal elevation,
+  hairline): monogram plate + name + dim secondary command. Row taps run the
+  exact Phase 3.2 verify-then-launch pipeline. Replaces every floating CLI
+  affordance; no logos, no dialog.
+- **"Your tools"**: command apps as icon + label launcher entries on the
+  canvas (52dp borderless monogram plates, no per-app cards; surfaces only on
+  press). Column breakpoints unchanged (3/4/6, 720dp cap).
+- **Empty state, lightweight** (§9): `No CLI apps yet.` + one sentence + the
+  page's only `Explore packages` link — three text lines directly on the
+  canvas. No container, no ghost placeholders. When apps DO exist the footer
+  carries a single quiet `Packages` link instead — exactly ONE packages
+  affordance in every state, by construction.
+- **Sessions flat** (§2a): dot + label + mono id rows between hairline
+  dividers; a pressed row is the only surface the section ever draws. Green
+  still means ONLY a live process.
+- **FAB single-purpose** (§7): the floating control now means "create a new
+  session" — `New Terminal` / `New Linux session` ONLY, as text-only chips
+  (no icon circles, no logo marks). Command apps left the FAB (they live in
+  the grid + menu); the `QuickAction` model is now `id/label/enabled/onRun`.
+- Removed (contract §12): the giant empty-state card, `GhostTiles`, the
+  duplicate "Explore packages", FAB app actions, `RunningChip`, bordered
+  session cards, tile borders, 20dp hero radius, dead `PromptHint`, and
+  "Command apps" naming on the page (→ "Your tools"; the term stays in code).
+
+### Other pages (§10, review-level)
+- Settings / Diagnostics reviewed: already divider-based, full-width, no
+  card groupings — no changes needed (rule recorded for future screens).
+- Packages screen: per-entry surfaces represent real interactive objects
+  (installable packages with actions) — allowed under the card rules.
+
+### Verification
+- 644 test executions green (177 app × 2 variants + 145 terminal-emulator ×
+  2), 0 failures — Phase 3.1/3.2 baselines intact, `CommandAppsTest`
+  untouched and green.
+- assembleDebug OK; versionCode 20 / 0.7.0-m3.3; cert
+  d96a6f66…8bf659 → in-place update chain 16→17→18→19→20 unbroken.
+
 ## [0.7.0-m3.2] — 2026-09-04 — Phase 3.2: Home / OS Launcher + Command Apps
 
 Scope: the **HOME screen ONLY** + the command-launchable app architecture.

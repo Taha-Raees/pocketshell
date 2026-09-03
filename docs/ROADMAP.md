@@ -206,3 +206,28 @@ remote development.
 - [ ] Device gate §13 (no packages on Home; Hermes tile appears iff
       available and launches by tap; Terminal/Linux/sessions unchanged;
       FAB actions; phone + tablet layout).
+
+### Phase 3.3 (2026-09-04, v0.7.0-m3.3) — Home & System UI Redesign
+- [x] Design contract committed before implementation
+      (docs/PHASE-3.3-DESIGN.md, plan-first discipline).
+- [x] Surface philosophy enforced: content on the canvas; separation by
+      spacing / section labels / hairline dividers / tone steps; surfaces
+      ONLY for real objects (environments, menus, floating control, banner,
+      pressed states). No cards for text groupings, no cards in cards,
+      radius ≤ 16dp, no decorative borders.
+- [x] Home restructured: borderless Terminal/Linux foundation tiles (fixed
+      truncation), "Your tools" icon+label launcher grid (52dp borderless
+      plates), lightweight inline empty state (exactly ONE packages
+      affordance in every state), flat divider-separated session rows.
+- [x] ONE CLI control: header `CLI Apps ▾` trigger (only when apps exist)
+      opening a compact Midnight launcher menu over the unchanged Phase 3.2
+      discovery/launch pipeline; floating CLI affordances removed.
+- [x] FAB single-purpose: create sessions only (New Terminal / New Linux
+      session), text-only chips; QuickAction model simplified to
+      id/label/enabled/onRun.
+- [x] Other pages reviewed (Settings/Diagnostics already flat; Packages
+      cards = real objects — allowed); no code changes needed.
+- [x] 644 test executions green (baselines + CommandAppsTest untouched);
+      assembleDebug OK; versionCode 20 / 0.7.0-m3.3; cert chain unbroken.
+- [ ] Device gate §14 (no-boxes sweep, CLI menu honesty, empty-state
+      lightness, FAB purpose, §12/§13 regressions).
