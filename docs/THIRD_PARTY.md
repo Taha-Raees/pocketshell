@@ -45,6 +45,18 @@ records upstream source, pinned version, license, and exact modifications.
 | Integration strategy | Vendored Gradle library module `:terminal-view`; depends on `:terminal-emulator` |
 | Modifications required | Build script ported to Kotlin DSL; resources kept as-is. **No changes** to any `.java`/`.xml` file |
 
+## Bundled: JetBrains Mono NL (terminal typeface, Phase 3.1)
+
+| Field | Value |
+|---|---|
+| Upstream project | JetBrains Mono |
+| Source | https://github.com/JetBrains/JetBrainsMono — **release v2.304** |
+| Files bundled | `app/src/main/res/font/jetbrains_mono_nl_{regular,bold,italic}.ttf` |
+| Variant | **NL** ("No Ligatures") build — deliberate: a terminal must render the shell's actual bytes; glyph-merging ligatures would misrepresent output width/content |
+| License | **SIL Open Font License 1.1** (https://github.com/JetBrains/JetBrainsMono/blob/master/OFL.txt) — redistribution in source or binary form permitted; reserved font name "JetBrains Mono" applies to modified derivatives only. Unmodified files are redistributed. |
+| Used by | `TerminalPalette.typeface()` → vendored `TerminalView#setTypeface`; family exposed as `TerminalTheme.mono` |
+| Size | 3 × ~210 KB |
+
 ## License consequence for PocketShell
 
 Because GPLv3-only code is vendored, **PocketShell as a whole is distributed

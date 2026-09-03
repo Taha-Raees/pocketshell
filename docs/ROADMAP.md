@@ -166,3 +166,21 @@ remote development.
       end-to-end, app-side install, interactive CLI, session isolation).
 - [ ] Post-M2.6 candidates (per user direction): M2.7 session management +
       CLI app profiles, or curated CLI app catalog.
+
+### Phase 3.1 (2026-09-03, v0.7.0-m3.1) — Terminal Experience Redesign ("Midnight Sapphire")
+- [x] Design contract committed before implementation
+      (docs/PHASE-3.1-DESIGN.md, plan-first discipline).
+- [x] Terminal screen only: chrome + editor-style session tabs (active tab
+      merges into the canvas) + blue-dark surface stack; zero pure black;
+      rest of the app untouched.
+- [x] Terminal identity: JetBrains Mono NL (OFL, no-ligature build) + real
+      16-color ANSI palette override (OSC still wins) + Sapphire accent
+      block cursor.
+- [x] Keyboard rebuilt from scratch per the final spec: `Esc Tab ←↑↓→` ·
+      collapsible QWERTY (pages incl. terminal punctuation row) ·
+      `[⌨] Ctrl Alt Space Shift Enter`; dedicated Fn key REMOVED — F1–F12
+      via number-row long-press; no system IME anywhere.
+- [x] 628 test executions green (keyboard contract tests rewritten to the
+      new layout); assembleDebug OK.
+- [ ] Device gate §12 (visual sweep, exact keyboard layout, Ctrl/Alt/Shift
+      combos, Fn long-press, toggle, Linux regression set).

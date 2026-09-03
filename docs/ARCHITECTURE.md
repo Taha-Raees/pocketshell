@@ -96,9 +96,10 @@ content providers, no background sync, no network layer, no DI framework
 ## 4. Input flow (single pipeline, §9 of brief)
 
 ```
-PocketShell keyboard (Compose)
+PocketShell keyboard deck (Compose, custom from scratch — no system IME)
   │  letter/symbol keys  → KeyCharacterMap.VIRTUAL_KEYBOARD.getEvents()
   │  special keys        → synthetic KeyEvent(KEYCODE_*)
+  │  long-press actions  → dispatched as ordinary actions (digits → F1–F10)
   │  modifier taps       → KeyboardState (one-shot / LOCKED / off, observable)
   ▼
 TerminalView.dispatchKeyEvent()          [vendored, unmodified]
@@ -128,14 +129,29 @@ is reserved for clipboard paste and explicit text injection.)
 
 Modifier semantics (§10):
 - **Tap** → one-shot: consumed by next key event, then auto-cleared.
-- **Double-tap** → LOCKED: persists; visually distinct (filled + lock badge).
+- **Second tap** → LOCKED: persists; visually distinct (accent fill + lock dot).
 - **Tap while locked** → unlocked.
-- CTRL, ALT, SHIFT, FN all support both states and freely combine
-  (e.g. CTRL then SHIFT then C). State is always visible on the key itself.
+- **CTRL, ALT, SHIFT** all support both states and freely combine
+  (e.g. CTRL then SHIFT then C). State is always visible on the key itself
+  (fill + outline + dot + text — never color alone).
 
-FN layer (phone): FN+1…0/-/= → F1–F12; FN+←/→ → HOME/END; FN+↑/↓ → PGUP/PGDN;
-FN+Backspace → DEL. Tablet layout exposes all of these as dedicated keys plus an
-F-row (§11).
+Deck layout (Phase 3.1 — docs/PHASE-3.1-DESIGN.md §5), top to bottom:
+
+```
+Esc  Tab                   ←  ↑  ↓  →     top accessory row (always visible)
+1..0  q..p  a..l  ?123 z..m ⌫  - / : ; , . $ ' " @     QWERTY body (collapsible)
+[⌨]  Ctrl  Alt  Space  Shift  Enter       bottom accessory row (always visible)
+```
+
+- **No dedicated FN key and no FN modifier** (Phase 3.1, brief §18): F1–F10 are
+  the long-press actions of the number-row keys (hold ≥350ms → "F#" bubble →
+  release commits); F11/F12 ride on the tablet rows' -/= long-press.
+  `readFnKey()` honestly returns `false` (upstream interface method retained).
+- HOME/END/PGUP/PGDN/INS/DEL live on the SYMBOL page.
+- The `⌨` toggle collapses only the QWERTY body; both accessory rows and the
+  toggle's far-left position are permanent. No system IME is used anywhere —
+  PocketShell's keyboard is the only typing surface (hardware keyboards keep
+  flowing through the same dispatch pipeline).
 
 ---
 

@@ -478,3 +478,100 @@ v0.6.2 adds two layers on top of the v0.6.1 wording fixes, both from the same
   errors honestly) and Diagnostics' sysdata row lists it as FAILED;
   the other overlays are unaffected. The session itself never fails
   because of an overlay.
+
+## 12. Manual acceptance — Phase 3.1 (Terminal Experience Redesign, v0.7.0-m3.1) — DEVICE GATE PENDING
+
+Scope reminder: this gate covers the TERMINAL SCREEN ONLY (chrome, tabs,
+workspace, keyboard). Everything else must look/behave exactly as v0.6.2 —
+if anything outside the terminal changed on device, that is a defect.
+Install note: versionCode 18 updates in place over 16 (v0.6.2) and 17
+(discarded v0.7.0-ui); same cert — app data survives.
+
+### 12.1 Visual (Midnight Sapphire)
+- [ ] Terminal page is blue-dark everywhere: chrome `#101B30`, strip `#0D1730`,
+      canvas `#080F1D`, deck `#131F38` — NO pure-black flat rectangle anywhere
+      on the page (AMOLED theme included: terminal page keeps its navy look).
+- [ ] Terminal text renders in a JetBrains Mono look (distinct 0/O, 1/l/I);
+      no ligature merging (`->` stays two characters).
+- [ ] Cursor is a Sapphire block, blinking; text on it is readable (inverted).
+- [ ] Prompt/paths from `ls --color` / programs show the new ANSI palette;
+      nothing unreadable, no neon.
+- [ ] Chrome header shows the live session title; back arrow returns Home.
+- [ ] Status bar area is covered by the chrome surface (edge-to-edge top);
+      no content collides with the status bar or camera cutout.
+- [ ] Rest of the app (Home/Explore/Settings/Diagnostics) unchanged vs 0.6.2.
+
+### 12.2 Session tabs
+- [ ] Tabs are editor-style (rounded TOP corners, flat bottom): NO pill boxes.
+- [ ] Active tab: taller, canvas-colored, 2.5dp Sapphire top hairline; the
+      strip's bottom hairline is visibly interrupted (cut) beneath it.
+- [ ] Inactive tabs: recessed, dim text, quiet right separator; tapping
+      switches sessions; output keeps flowing in the background session.
+- [ ] Close ×: closes that session (real process killed — expected honesty);
+      `+` creates a new session; tabs scroll when many; "(exited)" shows on
+      finished sessions.
+
+### 12.3 Keyboard layout (verify EXACTLY)
+- [ ] TOP accessory row, left→right: `Esc` `Tab` … grouped arrow panel
+      `← ↑ ↓ →` on the right; NO Ctrl/Alt/Shift/Fn on the top row.
+- [ ] QWERTY body: `1..0` / `q..p` / `a..l` / `?123 z..m ⌫` /
+      `- / : ; , . $ ' " @` (portrait); holding a digit shows an "F#"-style
+      bubble above the key.
+- [ ] BOTTOM accessory row, left→right: `[⌨ icon]` `Ctrl` `Alt` `Space(wide)`
+      `Shift` `Enter(⏎, accent-filled)`; the ⌨ toggle is icon-only — no
+      ON/OFF text, no label — and stays far-left at all times.
+- [ ] `?123` → symbol page (`!@#$%^&*()` / `` ~ ` { } [ ] \ | = + `` /
+      `< > ? _ INS DEL` / `ABC HOME END PGUP PGDN ⌫`); `ABC` returns.
+
+### 12.4 Keyboard behavior
+- [ ] Typing letters/digits/symbols reaches the shell (echo, paths, flags).
+- [ ] `⌨` toggle: collapses only the QWERTY body; top+bottom accessory rows
+      remain; terminal gains the space; toggle position never moves; tapping
+      the terminal expands the body again.
+- [ ] Modifiers: tap Ctrl → one-shot (accent-tinted + outline); next key
+      consumes it; second tap locks (accent fill + dot); third tap unlocks.
+      Same machine for Alt and Shift.
+- [ ] Shift: one-shot uppercases the next letter; locked = caps; Shift+digit
+      yields the shifted symbol.
+- [ ] Fn long-press: hold `1`…`0` → F1…F10 bubble, release sends F-key
+      (e.g. `tput clear`-style apps, `clear`, or `vim` help keys); a quick
+      tap still types the digit; sliding off the key cancels the F-key.
+- [ ] ⌫ repeats with acceleration; arrows repeat (held ↑ recalls shell
+      history); Esc/Tab/Space/Enter all act immediately.
+- [ ] Haptic tick on every key press.
+
+### 12.5 Modifier combinations (real terminal semantics)
+- [ ] Ctrl+C interrupts a running command.
+- [ ] Ctrl+D ends a session / closes the shell.
+- [ ] Ctrl+L clears the screen.
+- [ ] Ctrl+A / Ctrl+E jump to line start / end (readline).
+- [ ] Ctrl+W deletes the previous word.
+- [ ] Alt+key reaches the shell (e.g. Alt+. in bash inserts last arg —
+      if the guest shell supports it; at minimum ESC-prefixed byte verified
+      via `cat -v` then Alt+key showing `^[key`).
+- [ ] Shift+Tab emits reverse-tab (`cat -v` shows `^[[Z`).
+
+### 12.6 Linux regression set (redesign must not have broken the runtime)
+- [ ] `apk update` succeeds (repository fetch OK).
+- [ ] `node --version` prints the installed Node version.
+- [ ] `hermes --version` prints the Hermes version (M2.6 Gates A–H
+      environment still valid; UV_LINK_MODE=copy workaround unchanged).
+- [ ] Tab completion works (`ls /usr/bin/lo` + Tab → locals...); terminal
+      resize on rotate/keyboard-toggle keeps the prompt visible and correct
+      (PTY TIOCSWINSZ path).
+- [ ] Copy/paste + text selection still work (long-press selection upstream).
+- [ ] Pinch changes font size; new size survives tab switches.
+
+### 12.7 Responsive / performance
+- [ ] Landscape: body compresses to 4 rows; no overlap; terminal still
+      visible above the deck.
+- [ ] Tablet width (≥600dp): 14/15-column rows; same identity.
+- [ ] No dropped frames while typing fast; no janky animations; cursor
+      blink smooth.
+
+### Known, documented limitation (honesty note)
+- Keys are gesture-driven (press/hold/repeat engine); TalkBack announces
+  every key (role + description + modifier state), but TalkBack double-tap
+  activation does not type characters — the same tradeoff Termux makes.
+  Modifier buttons, tabs, +, close, and the ⌨ toggle ARE standard
+  accessibility-activatable controls.

@@ -3,6 +3,67 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m3.1] — 2026-09-03 — Phase 3.1: Terminal Experience Redesign ("Midnight Sapphire")
+
+Scope: the **Terminal screen ONLY** (chrome, session tabs, terminal workspace,
+terminal keyboard). Home / Explore / Packages / Settings / Diagnostics /
+navigation and the entire M2.6 runtime layer are untouched. Design contract:
+`docs/PHASE-3.1-DESIGN.md` (committed before implementation, plan-first).
+
+### Visual identity
+- Deep blue-toned dark theme for the terminal page in every app theme — the
+  darkest surface is blue-black `#080F1D`, never pure black. Exactly one
+  accent (Sapphire `#7FA3EF`) for cursor, active tab, modifier states, Enter.
+- Real 16-color ANSI palette override installed at process start
+  (`TerminalPalette` → `TerminalColors.COLOR_SCHEME`): blue-tinted, muted but
+  legible. Programs that set their own OSC colors still win — the terminal
+  stays a real terminal, never a painted mockup.
+- Terminal typeface: **JetBrains Mono NL** (no-ligature build, OFL 1.1,
+  Regular/Bold/Italic in `res/font`; docs/THIRD_PARTY.md) — character-exact
+  output (no `->` merging), distinct 0/O and 1/l/I, applied via the vendored
+  `TerminalView#setTypeface`. Cursor stays the upstream block cursor, now
+  Sapphire, blinker behavior unchanged; DECSCUSR bar/underline still honored.
+
+### Session tabs (editor-style, not pills)
+- Rounded-TOP tabs; inactive tabs recessed (36dp) and quiet with a single
+  right hairline separator; the active tab (40dp, filled in the exact canvas
+  color, 2.5dp Sapphire top hairline) covers the strip's bottom hairline and
+  visually opens into the terminal workspace — the asymmetric-border
+  direction from the brief, no fully-outlined rounded boxes.
+- `+` is a stable circular key at the strip end; closing still kills the real
+  session; `(exited)` marking preserved; live OSC titles preserved.
+
+### Keyboard — custom from scratch (no system IME anywhere)
+- Final layout exactly per brief: TOP `Esc Tab ←↑↓→` (arrows grouped in an
+  inset panel, auto-repeat kept — held ↑ cycles shell history) · MIDDLE
+  PocketShell QWERTY (pages: digits with shifted symbols, letters, terminal
+  punctuation row `- / : ; , . $ ' " @`, symbols with INS/DEL/HOME/END/
+  PGUP/PGDN — the v0.6.2 symbol coverage is fully preserved, test-pinned) ·
+  BOTTOM `[⌨] Ctrl Alt Space Shift Enter` (the exact order; `⌨` icon-only,
+  far-left, permanent, no ON/OFF text; Enter is the one accent-filled key).
+- The dedicated FN key is **GONE** (brief §18): F1–F10 are the number-row
+  keys' long-press actions (hold ≥350ms → bubble → release commits), F11/F12
+  on the tablet rows' `-`/`=` long-press — fully reliable because PocketShell
+  owns the keyboard; `readFnKey()` honestly returns false (upstream interface
+  method retained).
+- The `⌨` toggle collapses only the QWERTY body (180ms vertical motion);
+  both accessory rows always remain available; the terminal reclaims the
+  space. Landscape compresses to 4 rows; tablets get 14/15-column rows of the
+  same identity. Dispatch pipeline unchanged (synthetic KeyEvents → vendored
+  KeyHandler → PTY); one-shot/lock modifier machine unchanged (Ctrl/Alt/Shift).
+- A11y: every key carries role + contentDescription, modifier state has a
+  non-color cue (outline + dot + stateDescription), touch targets ≥36dp.
+
+### Housekeeping
+- versionCode 18 / versionName `0.7.0-m3.1` (in-place update over 16/17; same
+  pinned debug cert `d96a6f66…8bf659`).
+- Tests: 628 executions (169 app + 145 terminal-emulator × 2 variants),
+  0 failures — keyboard contract tests rewritten for the new layout.
+- Docs: PHASE-3.1-DESIGN.md (contract), ARCHITECTURE §4 (deck layout, Fn
+  removal), THIRD_PARTY (JetBrains Mono), TESTING §12 (Phase 3.1 device
+  gate), ROADMAP Phase 3.1.
+- NOT yet device-proven: TESTING §12 is the gate (human with a device).
+
 ## [0.6.2-m2.6] — 2026-09-02 — M2.6.12+M2.6.13: selective /proc sysdata overlay + hardlink extraction fix
 
 ### Why this release exists (both layers device-reported 2026-09-02, SM-F711B)
