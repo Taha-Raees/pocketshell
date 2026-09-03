@@ -1,0 +1,440 @@
+    45→    45→    device-reported and rehearsal-proven:
+    46→    46→  - M2.6.13, HARDLINK EXTRACTION FIXED: "apk add build-base" failed with
+    47→    47→    19 "failed to extract ... Permission denied" errors - exactly the
+    48→    48→    hardlink entries of binutils (11), gcc (5) and g++ (3), verified by
+    49→    49→    listing the tar entry types of the exact Alpine packages. Root cause:
+    50→    50→    apk materializes tar hardlinks with link(), and Android SELinux
+    51→    51→    neverallows link() to untrusted apps (the SAME neverallow M2.6
+    52→    52→    bypassed for download commits; extraction is a different call site).
+    53→    53→    FIX: guest sessions now run with proot's link2symlink extension
+    54→    54→    (--link2symlink), the SAME Termux-proot extension PRoot-Distro
+    55→    55→    enables by default - it intercepts link()/linkat() and emulates hard
+    56→    56→    links as symlink chains, so the kernel never evaluates the denied
+    57→    57→    operation. No binary patch, pure reuse of the proot we already ship.
+    58→    58→    Honest difference (documented): emulated links appear as symlinks and
+    59→    59→    each costs the file's disk space; binaries are byte-identical
+    60→    60→    (rehearsal-proven). The broken binutils/gcc/g++ state self-heals on
+    61→    61→    the first "apk fix" under v0.6.2.
+    62→    62→  - M2.6.12, SELECTIVE /proc SYSDATA OVERLAY (Termux PRoot-Distro's
+    63→    63→    architecture, adapted): Android SELinux denies untrusted apps read
+    64→    64→    access to the STANDARD procfs files (stat, uptime, loadavg, version,
+    65→    65→    vmstat). At every interactive spawn the app now probes each real
+    66→    66→    file with a one-byte read; kernel-READABLE files are never overlaid
+    67→    67→    (real wins), and only genuinely-denied files get a verified
+    68→    68→    compatibility file bound file-over-file ON TOP of the real /proc
+    69→    69→    bind. Content is derived from real host sources - uname(2) for
+    70→    70→    /proc/version (with an explicit "PocketShell sysdata overlay" attri-
+    71→    71→    bution marker in the file itself, superseding v0.6.1's synthesis
+    72→    72→    refusal per the owner's direction), elapsedRealtime for /proc/uptime
+    73→    73→    field 1, real core count + real btime for /proc/stat, the real
+    74→    74→    hidepid-filtered pid set for /proc/loadavg's tail - with documented
+    75→    75→    placeholders where no allowed source exists. Write hardening
+    76→    76→    (regular-file + nlink==1 validation, drop-and-remake, NOFOLLOW,
+    77→    77→    content round-trip verify) is a proportionate port of upstream's
+    78→    78→    descriptor discipline. Kernel-internal entries (kmsg, kcore, ...)
+    79→    79→    stay untouched - the ls /proc EACCES wall remains expected.
+    80→    80→  - DIAGNOSTICS: new read-only "sysdata overlays" row (probe-only; the
+    81→    81→    button never writes).
+    82→    82→  - TESTS: +20 net - 312 per variant (167 app + 145 terminal-emulator),
+    83→    83→    624 executions, 0 failures. Host rehearsal scripts/rehearse_m262.sh:
+    84→    84→    FULL PASS 19/19 (binutils install + working toolchain through the
+    85→    85→    emulated links, byte-identical binaries, sysdata overlays ride the
+    86→    86→    real /proc bind, unoverlaid meminfo stays real, top/ps render).
+    87→    87→  - DEVICE GATE: docs/TESTING.md §10 - Gate A (the five standard files
+    88→    88→    + meminfo/cpuinfo + top as the PRIMARY gate), Gate B (ps/top under
+    89→    89→    the overlay), Gate H (apk fix re-extract + gcc/g++/ld --version).
+    90→    90→    Installs IN PLACE over v0.6.1/v0.6.0/v0.5.0 (same signing key;
+    91→    91→    runtime and packages untouched).
+    92→    92→
+    93→    93→WHAT WAS NEW IN v0.6.1-m2.6 (vs v0.6.0-m2.6):
+    94→    94→  - DEVICE TEST RESULT (2026-09-02, SM-F711B): the M2.6 architecture is
+    95→    95→    CONFIRMED on hardware - Diagnostics shows "apk fd-link patch: applied"
+    96→    96→    and the interactive session binds a REAL /proc (cat /proc/meminfo
+    97→    97→    returns the host's real values; numeric pid dirs are visible). The
+    98→    98→    same test surfaced two behaviors the wording had not prepared anyone
+    99→    99→    for - both are real Android policy, neither is a bug:
+   100→   100→  - EXPECTED, NOT A BUG (1): \`ls /proc\` prints a wall of "Permission
+   101→   101→    denied" lines (kmsg, kcore, vmcore, kpage*, sched_debug, ...) before
+   102→   102→    the readable tail. The guest /proc IS the Android host procfs (the
+   103→   103→    design - no re-export, no simulation) and SELinux genuinely denies
+   104→   104→    this app getattr on kernel-internal nodes; busybox ls reports each
+   105→   105→    denial. ps/top/htop skip unreadable entries silently - only
+   106→   106→    directory listings are noisy.
+   107→   107→  - EXPECTED, NOT A BUG (2): \`cat /proc/version\` is denied on this
+   108→   108→    Samsung/One UI kernel (proc_version is not granted to apps targeting
+   109→   109→    SDK 28). Informational only: \`uname -a\` shows the kernel banner.
+   110→   110→    Synthesizing /proc/version from uname() was considered and REJECTED -
+   111→   111→    fabricated content violates the no-fake rule.
+   112→   112→  - CHANGED: the Diagnostics "Interactive /proc" row now says it up front
+   113→   113→    ("... Host procfs: kernel-internal entries show 'Permission denied' -
+   114→   114→    Android SELinux policy, expected"); docs/TESTING.md §10 Gate A is
+   115→   115→    re-anchored to the readable tail + meminfo/cpuinfo with a new
+   116→   116→    "Expected on-device (NOT bugs)" subsection; docs/M2.6-RESEARCH.md §6
+   117→   117→    records the device result. NO runtime/launcher/profile/patch/rootfs
+   118→   118→    changes - behaviorally identical to v0.6.0. 292 tests/variant, 584
+   119→   119→    executions, 0 failures. Installs IN PLACE over v0.6.0/v0.5.0 (same
+   120→   120→    signing key; runtime and packages untouched).
+   121→   121→
+   122→   122→WHAT WAS NEW IN v0.6.0-m2.6 (vs v0.5.0-m2.5):
+   123→   123→  - M2.6, LINUX COMPATIBILITY RECOVERY: interactive sessions bind a REAL
+   124→   124→    /proc again — \`ps\`, \`top\`, \`htop\` work inside the Alpine guest —
+   125→   125→    while \`apk\` keeps working EVERYWHERE (shell and app UI). No Linux
+   126→   126→    feature was traded away; v0.5.0's no-/proc compromise is reversed.
+   127→   127→  - ROOT CAUSE (source-verified, docs/M2.6-RESEARCH.md): apk-tools 3.0.x
+   128→   128→    picks its download-commit strategy with is_proc_fd_ok() =
+   129→   129→    access("/proc/self/fd", F_OK) (src/io.c; byte-identical in 3.0.6,
+   130→   130→    3.0.8 and upstream master). With /proc visible it commits every
+   131→   131→    download through linkat("/proc/self/fd/N", ..., AT_SYMLINK_FOLLOW);
+   132→   132→    AOSP app_neverallows.te (neverallow all_untrusted_apps file_type:file
+   133→   133→    link) makes the kernel return EACCES and apk cancels the whole
+   134→   134→    download — no fallback for that errno. Without /proc it uses the
+   135→   135→    named-tmpfile + renameat path (allowed; device-proven since v0.4.2).
+   136→   136→  - THE FIX — GuestApkCompat: a ONE-BYTE, checksum-pinned patch to
+   137→   137→    Alpine's OWN usr/lib/libapk.so.3.0.0 (3.0.6-r0 from the pinned
+   138→   138→    minirootfs) turns the gate literal "/proc/self/fd" into
+   139→   139→    "/proc/self/fX", so is_proc_fd_ok() is permanently false and apk
+   140→   140→    always commits via renameat. Same binary version, same real
+   141→   141→    downloads/output/exit codes, same database. The "/proc/self/fd/%d"
+   142→   142→    script-execution literal is untouched. Reproducible via
+   143→   143→    scripts/patch_apk_fdlink.py (two literals, exactly one code reference
+   144→   144→    per binary — disassembly-verified per arch; hashes pinned in code).
+   145→   145→  - ARCHITECTURE — GuestExecutionProfile (M2.6.3): the two launch
+   146→   146→    policies are explicit on the SAME builder/proot/launcher (no
+   147→   147→    duplicated runtime): INTERACTIVE_TERMINAL (sessions: /dev, /sys,
+   148→   148→    shared apk cache, and /proc WHEN the patched library is verified;
+   149→   149→    honest no-/proc fallback otherwise) and PACKAGE_OPERATION
+   150→   150→    (app-side apk execs: minimal mounts, NEVER /proc — refuse-guarded in
+   151→   151→    the builder and pinned by tests). One rootfs, one shared cache, one
+   152→   152→    database. The patch installs itself on the first session spawn (and
+   153→   153→    verifies on every package operation); a user-modified rootfs is
+   154→   154→    NEVER touched (honest NotApplicable + Diagnostics explanation).
+   155→   155→  - PROCESS SEMANTICS (documented, not faked): with /proc bound the
+   156→   156→    guest sees the Android host procfs filtered by the kernel's
+   157→   157→    hidepid=2 app isolation — \`ps\`/\`top\` show the app's real process
+   158→   158→    tree with host pids; /proc/stat and /proc/meminfo are real. Nothing
+   159→   159→    is filtered or simulated by the app.
+   160→   160→  - DIAGNOSTICS (M2.6.11): new read-only rows "apk fd-link patch" and
+   161→   161→    "Interactive /proc" explain the exact state; the button never
+   162→   162→    installs anything.
+   163→   163→  - TESTS: +11 net — 292 per variant (147 app + 145 terminal-emulator),
+   164→   164→    584 executions, 0 failures. Host rehearsal
+   165→   165→    scripts/rehearse_m26_proc.sh: FULL PASS 18/18 (real /proc, ps, top,
+   166→   166→    full apk lifecycle with /proc bound + patched libapk, one shared
+   167→   167→    cache); the M2.4 no-/proc package rehearsal still passes.
+   168→   168→  - DEVICE GATE: docs/TESTING.md §10 (Gates A-G: /proc, ps/top/htop,
+   169→   169→    apk lifecycle, Node end-to-end, app-side install, interactive CLI,
+   170→   170→    session isolation). v0.6.0 installs OVER v0.5.0 in place (same
+   171→   171→    pinned signing key); the runtime/rootfs does NOT need reinstalling.
+   172→   172→
+   173→   173→WHAT WAS NEW IN v0.5.0-m2.5 (vs v0.4.4-m2.4):
+   174→   174→  - DEVICE-CONFIRMED (user screenshots 2026-09-02 10:04, SM-F711B,
+   175→   175→    v0.4.4): Home "Installed CLI Apps" lists Nano 9.2-r0 AND Git
+   176→   176→    2.54.0-r0 from the real apk database; Explore shows Nano
+   177→   177→    "Installed . 9.2-r0" with Open/Uninstall; clipboard paste works
+   178→   178→    ("I can copy paste"). M2.4 device gate: PASSED.
+   179→   179→  - M2.5, APK-CAPABLE GUEST SHELL: the user's MANUAL \`apk update\` /
+   180→   180→    \`apk add nodejs npm\` typed INSIDE the Linux Shell died with
+   181→   181→    "Permission denied" (the v0.4.2 SELinux shape) while app-side
+   182→   182→    installs worked - because v0.4.2 dropped the /proc bind from
+   183→   183→    APP-SIDE package commands only; interactive sessions kept it
+   184→   184→    (and read the stale rootfs-internal cache: "31 distinct packages").
+   185→   185→    Every interactive session now spawns with the SAME SELinux-driven
+   186→   186→    shape as package commands (RuntimeProcessLauncher.buildSessionSpec):
+   187→   187→    NO /proc (apk commits via renameat - allowed) + the SAME shared
+   188→   188→    apk cache binds as the UI's operations + a best-effort DNS/
+   189→   189→    workspace refresh at spawn. One cache, one index, one database:
+   190→   190→    install from the terminal or the UI - same result.
+   191→   191→    HONEST COST (documented): the guest cannot see /proc, so \`ps\`,
+   192→   192→    \`top\` and htop's process list have nothing to read inside the
+   193→   193→    guest. A working package manager wins; Android SELinux forces
+   194→   194→    the choice.
+   195→   195→  - M2.5, SEARCH THAT FINDS THE PACKAGE: \`apk search\` matches names
+   196→   196→    AND descriptions alphabetically, so "node" buried nodejs behind
+   197→   197→    abseil-cpp-dev/ceph18/certbot-dns-linode and an 8-hit cutoff.
+   198→   198→    Hits are now RANKED (exact name, then name prefix, then name
+   199→   199→    contains, then the rest) and 12 are shown with a "...and N more"
+   200→   200→    note.
+   201→   201→  - M2.5, INSTALL ANY SEARCHED PACKAGE: every search hit gets a real
+   202→   202→    Install button running the same honest pipeline (apk update ->
+   203→   203→    apk add -> apk info -e verify) by exact package name. NO
+   204→   204→    executable promise for non-catalog packages (nodejs ships \`node\`,
+   205→   205→    not \`nodejs\`); installed hits show "Installed . version - run
+   206→   206→    'name' from the shell". Search results join the installed-state
+   207→   207→    probe, so a fresh install flips the row without leaving the screen.
+   208→   208→  - v0.5.0 installs OVER v0.4.4 in place (same pinned signing key,
+   209→   209→    keystore/debug.keystore). 281 tests per variant (136 app + 145
+   210→   210→    terminal-emulator), 562 executions, 0 failures.
+   211→   211→
+   212→   212→WHAT WAS NEW IN v0.4.4-m2.4 (vs v0.4.3-m2.4):
+   213→   213→  - DEVICE GATE PASSED (user screenshots 2026-09-02 09:09-09:10, SM-F711B,
+   214→   214→    v0.4.3): GNU nano 9.2 running in the Alpine guest, apk-tools 3.0.6-r0,
+   215→   215→    combined Guest DNS, "Repository fetch: OK - OK: 28546 distinct packages
+   216→   216→    available". The SELinux + DNS chains are closed. The same screenshots
+   217→   217→    exposed three UI-layer bugs - all fixed here:
+   218→   218→  - FIXED "installed packages are invisible": the Explore installed-state
+   219→   219→    probe ran one shell loop over the catalog and let the loop's EXIT
+   220→   220→    STATUS stand for the whole probe. The catalog's LAST package (python3)
+   221→   221→    was not installed, so the last iteration exited 1, the loop exited 1,
+   222→   222→    and the caller treated the entire exec as failed - DISCARDING the good
+   223→   223→    stdout that contained "nano nano-9.2-r0". An installed nano rendered
+   224→   224→    "Not installed" on every visit, deterministically, whenever the answer
+   225→   225→    was mixed. The probe now calls absolute "/sbin/apk" (the PATH-free
+   226→   226→    form every other apk call already used) and ends with "exit 0" - a
+   227→   227→    completed loop is a successful probe; versions are parsed by the same
+   228→   228→    strict parser as the single-package path ("9.2-r0", not "nano-9.2-r0").
+   229→   229→  - HONESTY: a failed probe can no longer pose as "nothing installed" -
+   230→   230→    timeouts/killed execs now throw PackageProbeException; Explore keeps
+   231→   231→    the last real answer, shows "Installed state unavailable: ..." and
+   232→   232→    renders unknown cards as "Installed state unknown"; Home does the
+   233→   233→    same. "Not installed" is exclusively a real apk answer now.
+   234→   234→  - FIXED Home's "No apps installed yet" over an installed nano: the list
+   235→   235→    read an M1-era DataStore registry that NOTHING in the M2.4 flow ever
+   236→   236→    wrote. Home now renders the catalog subset the real apk database
+   237→   237→    confirms (fresh probe on every visit + after every package operation),
+   238→   238→    with the real version; tapping opens via the same verify-then-launch
+   239→   239→    flow as Explore. The orphaned registry chain is deleted outright - an
+   240→   240→    unused registry claiming installed state is a fake-state hazard.
+   241→   241→  - FIXED terminal Paste doing nothing: the vendored Termux selection
+   242→   242→    toolbar's Paste action ends in the session CLIENT callback, which was
+   243→   243→    an empty body (its comment claimed upstream performs the paste -
+   244→   244→    false). It now reads the real clipboard and pastes via
+   245→   245→    TerminalEmulator.paste (strips escape/C1 bytes, LF->CR, honours
+   246→   246→    bracketed paste mode - nano-aware). Empty clipboard = honest no-op.
+   247→   247→  - v0.4.4 installs OVER v0.4.3 in place (same pinned signing key,
+   248→   248→    keystore/debug.keystore). All fixes are Android-layer: the runtime,
+   249→   249→    its packages and the resolv.conf are untouched. 278 tests per
+   250→   250→    variant (133 app + 145 terminal-emulator), 556 executions, 0 failures.
+   251→   251→
+   252→   252→WHAT WAS NEW IN v0.4.3-m2.4 (vs v0.4.2-m2.4):
+   253→   253→  - FIXED the "DNS: transient error (try again later)" that hit every apk
+   254→   254→    fetch on the device (user screenshots 2026-09-02 08:13, SM-F711B,
+   255→   255→    v0.4.2 — where the SELinux fix itself was CONFIRMED WORKING: the old
+   256→   256→    "Permission denied" is gone and only the tapped card shows
+   257→   257→    "Working..."). Root cause: v0.4.1-v0.4.2 wrote a DEVICE-ONLY guest
+   258→   258→    resolv.conf — one usable resolver (the hotspot gateway 172.20.10.1;
+   259→   259→    the second entry was a LinkProperties link-local with %wlan0 scope
+   260→   260→    syntax that musl's inet_pton rejects) — so when that ONE resolver
+   261→   261→    timed out, every fetch died. v0.4.3 writes a COMBINED file (device
+   262→   262→    resolvers first, then public fallbacks 1.1.1.1/8.8.8.8, capped at
+   263→   263→    musl MAXNS=3): musl queries all nameservers in parallel and takes the
+   264→   264→    first answer, so one dead resolver can no longer block a fetch.
+   265→   265→  - SELF-HEALING: the file now carries a "# managed by PocketShell"
+   266→   266→    marker and is refreshed on EVERY package operation to the CURRENT
+   267→   267→    network's resolvers (the old never-overwrite rule kept yesterday's
+   268→   268→    hotspot gateway forever — a guaranteed failure after any network
+   269→   269→    change). Legacy shapes we wrote (v0.4.0 public-only constant,
+   270→   270→    v0.4.0-v0.4.2 bare nameserver lists incl. the %wlan0 form) upgrade in
+   271→   271→    place on the first package operation — no runtime reinstall needed.
+   272→   272→    User content (comments/options/search/hostnames) is never touched.
+   273→   273→  - v0.4.3 installs OVER v0.4.2 in place (same pinned signing key,
+   274→   274→    keystore/debug.keystore). 281 unit tests, 0 failures.
+   275→   275→
+   276→   276→WHAT WAS NEW IN v0.4.2-m2.4 (vs v0.4.1-m2.4):
+   277→   277→  - FIXED the remaining on-device M2.4 failure (user screenshots 2026-09-02,
+   278→   278→    SM-F711B, v0.4.1): every apk fetch still died with "updating and opening
+   279→   279→    ... APKINDEX.tar.gz: Permission denied" while bytes visibly downloaded.
+   280→   280→    Root cause (verified in apk-tools 3.0.6 source + AOSP sepolicy): apk
+   281→   281→    downloads each cached object (APKINDEX and packages) into an anonymous
+   282→   282→    O_TMPFILE file and commits it via linkat("/proc/self/fd/N", ...,
+   283→   283→    AT_SYMLINK_FOLLOW) — and AOSP SELinux app_neverallows.te forbids
+   284→   284→    hardlinks for ALL untrusted apps ("neverallow all_untrusted_apps
+   285→   285→    file_type:file link"), so the link fails with EACCES and apk cancels the
+   286→   286→    whole download. v0.4.1's cache binds could not help (the denial is on
+   287→   287→    the link operation, not the path) and host rehearsals never see it (no
+   288→   288→    SELinux). FIX: package commands no longer bind /proc into the guest;
+   289→   289→    without /proc apk uses its named-tmpfile + renameat commit path (plain
+   290→   290→    create/rename — allowed). Rehearsed with the same apk-tools 3.0.6:
+   291→   291→    update 28645 pkgs -> add nano -> runs -> del, cache commits land in the
+   292→   292→    bound host dir, zero temp leftovers.
+   293→   293→  - HONESTY: catalog cards no longer show "Working…" on every entry while
+   294→   294→    ONE install runs (v0.4.1 bug, same screenshot) — only the target card
+   295→   295→    does; the other cards keep their true Install/Open labels.
+   296→   296→  - HARDENED: a cancel racing the operation start can no longer wedge the
+   297→   297→    package manager (the single-flight lock and busy flag are now released
+   298→   298→    by construction; the operation lands FAILED("cancelled") honestly).
+   299→   299→  - v0.4.2 installs OVER v0.4.1 in place (same pinned signing key committed
+   300→   300→    at keystore/debug.keystore). 277 unit tests, 0 failures.
+   301→   301→
+   302→   302→WHAT WAS NEW IN v0.4.1-m2.4 (vs v0.4.0-m2.4):
+   303→   303→  - FIXED on-device M2.4 failures (user recording, Samsung SM-F711B): apk
+   304→   304→    update died with "Permission denied" / "DNS: transient error". Root
+   305→   305→    cause: the v0.4.0 DNS repair hardcoded public resolvers (1.1.1.1/8.8.8.8)
+   306→   306→    that are UNREACHABLE on the user's network; every apk fetch died in the
+   307→   307→    socket layer before ever reaching dl-cdn. v0.4.1 points the guest
+   308→   308→    /etc/resolv.conf at the DEVICE's own resolvers (ConnectivityManager /
+   309→   309→    LinkProperties, IPv4 first), falls back to the public pair only when the
+   310→   310→    OS reports none, and upgrades the v0.4.0 fallback file in place
+   311→   311→    (user-written resolv.conf is never touched). New normal permission:
+   312→   312→    ACCESS_NETWORK_STATE (read-only metadata, no traffic).
+   313→   313→  - HARDENED: the apk download cache now lives OUTSIDE the rootfs — the
+   314→   314→    package spec binds two app-owned host dirs over /etc/apk/cache and
+   315→   315→    /var/cache/apk (same proot --bind mechanism as /dev,/proc,/sys), plus a
+   316→   316→    pre-op workspace repair inside the rootfs. Rootfs permissions can no
+   317→   317→    longer block apk.
+   318→   318→  - HONESTY: the Explore FAILED banner shows apk's real stderr + a Retry
+   319→   319→    button; Diagnostics "Check package environment" runs ONE real bounded
+   320→   320→    apk update probe (explicit press) and reports the true outcome + which
+   321→   321→    DNS servers the guest received and their source.
+   322→   322→  - SIGNING CERT CHANGED (one-time uninstall required): sandbox reset #5
+   323→   323→    destroyed the old debug keystore; Android debug signatures are the
+   324→   324→    update identity, so v0.4.1 installs AFTER uninstalling v0.4.0 (runtime
+   325→   325→    comes back in one tap). The new debug keystore is COMMITTED at
+   326→   326→    keystore/debug.keystore and pinned in signingConfigs.debug - this is
+   327→   327→    the last cert break: every future build is an in-place update again.
+   328→   328→  - 12 new unit tests (271 total, 0 failures); x86_64 rehearsal re-run with
+   329→   329→    the cache binds (update 28645 pkgs -> add nano -> runs -> del).
+   330→   330→
+   331→   331→WHAT WAS NEW IN v0.4.0-m2.4:
+   332→   332→  - M2.4: REAL Alpine package management. Explore CLI Apps is now a working
+   333→   333→    frontend for the real apk inside the guest: search (real \`apk search\`),
+   334→   334→    install (\`apk add\`), verify (\`apk info -e -v\` exit codes + POSIX
+   335→   335→    `command -v`), open (new dedicated guest session running the real
+   336→   336→    program), uninstall (\`apk del\`). The same proot exec infrastructure as
+   337→   337→    the Linux Shell is reused; nothing is faked: no fake progress, no fake
+   338→   338→    installed state, no fake catalog claims. Package operations run in a
+   339→   339→    dedicated background guest process (never typed into a user session).
+   340→   340→  - Guest DNS repair: the Alpine minirootfs ships no /etc/resolv.conf, so
+   341→   341→    apk would fail every name lookup. Fresh installs get one at configure;
+   342→   342→    existing runtimes are repaired in place before the first package op.
+   343→   343→  - Curated catalog (metadata only): nano, htop, vim, git, python3. Normal
+   344→   344→    shell commands (sh/ls/cat/df/ping...) never become launcher cards.
+   345→   345→  - Diagnostics: explicit "Check package environment" button (apk version,
+   346→   346→    repositories, package database, DNS) - nothing runs automatically.
+   347→   347→  - 41 new unit tests (259 total, 0 failures).
+   348→   348→  - M2.3 device gate PASSED on the user's device (screenshot 2026-09-01:
+   349→   349→    guest prompt, uname/id/hello, alpine-release 3.24.1, exit clean).
+   350→   350→
+   351→   351→WHAT WAS NEW IN v0.3.1-m2.3:
+   352→   352→  - FIXED (device crash): tapping "Linux Shell" exited the app instantly.
+   353→   353→    Root cause 1: AGP 8 default extractNativeLibs=false left
+   354→   354→    nativeLibraryDir EMPTY, so a bare require() escaped the click handler
+   355→   355→    and killed the process. Now useLegacyPackaging=true (libs extracted;
+   356→   356→    verified extractNativeLibs=true in the built APK).
+   357→   357→  - Root cause 2: targetSdk 36 could never run the guest anyway — Android's
+   358→   358→    W^X policy (AOSP app_neverallows.te + seapp_contexts) blocks execve of
+   359→   359→    app-data files for targetSdk >= 29. Now targetSdk 28 (untrusted_app_27,
+   360→   360→    the Termux model) so proot can exec the Alpine guest shell.
+   361→   361→  - Crash-proof launch path: pure preflight (RuntimeProcessLauncher
+   362→   362→    .preconditionProblem), a single no-crash boundary for every session
+   363→   363→    spawn, and an honest dismissible error banner on Home with a
+   364→   364→    Diagnostics shortcut. A refused launch can never kill the process again.
+   365→   365→  - 4 new unit tests (215 total, 0 failures). Same signing cert — installs
+   366→   366→    as a direct update over v0.3.0, runtime data kept.
+   367→   367→
+   368→   368→WHAT WAS NEW IN v0.3.0-m2.3:
+   369→   369→  - M2.3 Linux shell: tap "Linux Shell" on Home to enter the installed
+   370→   370→    Alpine guest through proot — SAME PTY, SAME terminal, real Linux
+   371→   371→    userland (RuntimeProcessLauncher + TerminalSessionManager
+   372→   372→    .createLinuxSession; honest READY-only gate)
+   373→   373→  - proot v5.1.107.92 (termux fork, GPL-2.0) + libtalloc 2.4.2 compiled
+   374→   374→    from pinned source for all 4 ABIs (scripts/build_proot_m23.sh);
+   375→   375→    bundled as libproot.so / libproot-loader.so / libtalloc.so via jniLibs
+   376→   376→
+   377→   377→WHAT WAS NEW IN v0.2.x:
+   378→   378→  - M2.2 runtime installation layer: RuntimeState machine,
+   379→   379→    RuntimeInstaller (HTTPS download -> size + SHA-256 verify -> guarded
+   380→   380→    tar.gz extraction -> configure -> atomic promotion), RuntimeManager,
+   381→   381→    RuntimeChecksum, RuntimeStorage, RuntimeDiagnostics, RuntimePin
+   382→   382→    (Alpine 3.24.1 aarch64 minirootfs); Diagnostics install section
+   383→   383→  - v0.2.1 FIX: tapping "Install Linux environment" crashed the app
+   384→   384→    (missing INTERNET permission + uncontained coroutine failure).
+   385→   385→    Now declared honestly and RuntimeCrashGuard contains any pipeline
+   386→   386→    failure as a retryable FAILED/REPAIR_REQUIRED state
+   387→   387→
+   388→   388→NOTE: the on-device gate for M2.3 is `uname; id; echo hello` inside the
+   389→   389→guest (docs/TESTING.md §8) — the M2.4 package gate is TESTING.md §9 (install nano via the UI,
+   390→   390→open it, uninstall).
+   391→   391→
+   392→   392→HOW TO RESTORE THE FULL REPOSITORY (with history):
+   393→   393→
+   394→   394→  1. Extract this archive anywhere.
+   395→   395→  2. Run:
+   396→   396→        git clone pocketshell-m2.gitbundle pocketshell
+   397→   397→  3. Done. The cloned repo has the full commit history and a working
+   398→   398→     tree identical to the sources in this archive.
+   399→   399→
+   400→   400→HOW TO RESTORE .gitignore (excluded from this archive):
+   401→   401→
+   402→   402→  After cloning from the bundle:
+   403→   403→        cd pocketshell
+   404→   404→        git checkout .gitignore
+   405→   405→
+   406→   406→BUILDING THE APK:
+   407→   407→
+   408→   408→  Android Studio: File > Open > select the cloned folder.
+   409→   409→  Command line:   ./gradlew :app:assembleDebug
+   410→   410→  (Requires JDK 17+ and Android SDK; the gradle wrapper downloads Gradle.)
+   411→   411→
+   412→   412→Everything else in this archive is the plain, buildable working tree:
+   413→   413→  app/  terminal-emulator/  terminal-view/  docs/  scripts/  gradle/
+   414→   414→EOF
+   415→   415→
+   416→   416→# --- 3. source tree: zero dotfiles, zero web scaffold, zero build outputs ---
+   417→   417→TREE=$STAGE/$TOPDIR
+   418→   418→mkdir -p "$TREE"
+   419→   419→tar --exclude='./.git' --exclude='./.gitignore' --exclude='./.gitattributes' \
+   420→   420→    --exclude='./.gradle' --exclude='./.kotlin' --exclude='./.next' \
+   421→   421→    --exclude='./.zscripts' --exclude='./.idea' \
+   422→   422→    --exclude='.*/' --exclude='./_*' \
+   423→   423→    --exclude='./node_modules' --exclude='*/node_modules' \
+   424→   424→    --exclude='./*/build' --exclude='./build' \
+   425→   425→    --exclude='./src' --exclude='./public' --exclude='./prisma' --exclude='./db' \
+   426→   426→    --exclude='./package.json' --exclude='./bun.lock' --exclude='./bun.lockb' \
+   427→   427→    --exclude='./tsconfig.json' --exclude='./next.config.ts' \
+   428→   428→    --exclude='./postcss.config.mjs' --exclude='./components.json' \
+   429→   429→    --exclude='./eslint.config.mjs' --exclude='./next-env.d.ts' \
+   430→   430→    --exclude='./tailwind.config.ts' --exclude='./Caddyfile' \
+   431→   431→    --exclude='./dev.log' --exclude='./server.log' \
+   432→   432→    --exclude='./skills' --exclude='./upload' --exclude='./download' \
+   433→   433→    --exclude='./scratch' --exclude='./vframes' --exclude='./sheets' \
+   434→   434→    --exclude='./dist-master' --exclude='./examples' --exclude='./mini-services' \
+   435→   435→    --exclude='./tests' \
+   436→   436→    --exclude='./.env' --exclude='./local.properties' \
+   437→   437→    --exclude='./*.zip' --exclude='./*.tar.gz' --exclude='./*.bundle' \
+   438→   438→    --exclude='./app/page.tsx' --exclude='./app/layout.tsx' \
+   439→   439→    -cf - . | tar -xf - -C "$TREE"
+   440→   440→cp "$BUNDLE" "$TREE/pocketshell-m2.gitbundle"
+   441→   441→cp "$STAGE/RESTORE.txt" "$TREE/RESTORE.txt"
+   442→   442→
+   443→   443→# --- 4. publish zip + tar.gz twin + bundle + apk ---
+   444→   444→ZIP=$PUBLIC/PocketShell-$VERSION-source.zip
+   445→   445→TGZ=$PUBLIC/PocketShell-$VERSION-source.tar.gz
+   446→   446→rm -f "$ZIP" "$TGZ"
+   447→   447→(cd "$STAGE" && zip -rq "$ZIP" "$TOPDIR")
+   448→   448→tar -czf "$TGZ" -C "$STAGE" "$TOPDIR"
+   449→   449→cp "$BUNDLE" "$PUBLIC/pocketshell-m2.gitbundle"
+   450→   450→cp "$PROJECT/download/PocketShell-$VERSION-debug.apk" "$PUBLIC/"
+   451→   451→
+   452→   452→# backup masters (survive download/ drains and public/ churn)
+   453→   453→cp "$ZIP" "$TGZ" "$BUNDLE" "$DIST/"
+   454→   454→
+   455→   455→# --- 5. sanity checks ---
+   456→   456→echo "== sanity =="
+   457→   457→unzip -t "$ZIP" > /dev/null && echo "zip integrity: OK"
+   458→   458→LIST=$(unzip -l "$ZIP")
+   459→   459→DOTS=$(echo "$LIST" | rg -c '/\.' || true); DOTS=${DOTS:-0}
+   460→   460→echo "dot-path entries       : $DOTS  (want 0)"
+   461→   461→echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
+   462→   462→echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
+   463→   463→for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
+   464→   464→           app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
+   465→   465→           app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
+   466→   466→           app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \
+   467→   467→           scripts/rehearse_m262.sh \
+   468→   468→           app/src/main/assets/guest/libapk.so.3.0.0.fdlinkoff.aarch64 \
+   469→   469→           app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt \
+   470→   470→           app/src/main/java/app/pocketshell/runtime/RuntimeManager.kt \
+   471→   471→           pocketshell-m2.gitbundle RESTORE.txt gradlew \
+   472→   472→           gradle/libs.versions.toml docs/THIRD_PARTY.md; do
+   473→   473→  echo "$LIST" | rg -q "$key\$" && echo "present: $key" || { echo "MISSING: $key"; exit 1; }
+   474→   474→done
+   475→   475→FILES=$(echo "$LIST" | awk '/files$/ { print $1 }')
+   476→   476→echo "uncompressed bytes     : $FILES  (files: $(echo "$LIST" | awk '/files$/ { print $2 }'))"
+   477→   477→
+   478→   478→# --- 6. delivery summary ---
+   479→   479→echo "== sha256 (paste into download page) =="
+   480→   480→sha256sum "$ZIP" "$TGZ" "$PUBLIC/pocketshell-m2.gitbundle" \
+   481→   481→          "$PUBLIC/PocketShell-$VERSION-debug.apk" | while read -r h f; do
+   482→   482→  printf '%s  %s  (%s)\n' "$h" "$(basename "$f")" "$(du -h "$f" | cut -f1)"
+   483→   483→done
+   484→   484→
