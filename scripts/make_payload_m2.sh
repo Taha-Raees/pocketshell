@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m3.2
+VERSION=v0.7.0-m3.3
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,60 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m3.1) — PHASE 3.2, HOME / OS LAUNCHER:
+WHAT IS NEW IN $VERSION (vs v0.7.0-m3.2) — PHASE 3.3, HOME & SYSTEM UI:
+  - SCOPE: visual architecture + Home interaction cleanup ONLY. ZERO
+    backend changes — command-app discovery, login-shell probing,
+    verify-before-launch, dedicated guest sessions, the forbidden package
+    list, the Phase 3.1 terminal/keyboard and every runtime behavior are
+    untouched. Design contract committed BEFORE implementation:
+    docs/PHASE-3.3-DESIGN.md (all 12 required sections).
+  - THE STRUCTURAL FIX: Phase 3.2's Home used surfaces for GROUPING (a
+    stack of rounded rectangles: giant empty-state card, bordered session
+    rows, a chip inside the Terminal tile, "Explore packages" twice, fake
+    ghost tiles, a FAB duplicating the tools grid with icon circles).
+    Phase 3.3 draws a surface ONLY for a real object: the two
+    environments, the CLI Apps menu, the floating create control, an
+    actionable banner, a pressed row/tile. Everything else sits directly
+    on the canvas, separated by spacing, section labels, hairline
+    dividers and Midnight tone steps. No cards in cards; radius <= 16dp;
+    no decorative borders.
+  - ONE CLI CONTROL: a quiet "CLI Apps " trigger in the header area —
+    rendered ONLY when the guest actually confirmed apps (never a dead
+    button) — opening a compact Midnight launcher menu (chrome surface,
+    14dp, zero tonal elevation, hairline): monogram plate + name + the
+    launch command dim and secondary. Row taps run the EXACT Phase 3.2
+    pipeline (fresh verify -> dedicated guest session -> focus). No
+    logos, no dialog — the app itself is the identity.
+  - FOUNDATIONS, FLATTER: Terminal and Linux are borderless tone-step
+    surfaces (canvas / chrome), radius 14dp. Terminal descriptor is the
+    always-fitting "Native shell" (the truncating "Native PocketShell
+    envir..." is gone); running count is plain mono text (chip box
+    removed). Linux: honest state line ("Alpine · ready" in Sapphire;
+    other states route to Diagnostics — distro-agnostic by construction).
+  - YOUR TOOLS: command apps as icon + label launcher entries (52dp
+    borderless monogram plates — NOT cards; surface only on press).
+    Section renamed from "Command apps". Empty state is THREE QUIET LINES
+    directly on the canvas ("No CLI apps yet." + one sentence + the
+    page's only "Explore packages" link) — no container, no ghost
+    placeholders, nothing dominating. When apps exist, a single quiet
+    "Packages" footer link replaces it — exactly ONE packages affordance
+    in every state, by construction.
+  - SESSIONS FLAT: dot + label + mono id rows between hairline dividers;
+    a pressed row is the only surface the section ever draws; green
+    still means ONLY a live process; tap returns; cap 4 + "+N more".
+  - FAB SINGLE-PURPOSE: the floating control now means exactly "create a
+    new session" — New Terminal / New Linux session ONLY, as TEXT-ONLY
+    chips (icon circles, logo marks and command-app actions are removed;
+    apps live in the grid + the CLI menu). QuickAction model simplified
+    to id/label/enabled/onRun; the list stays data for future actions.
+  - OTHER PAGES reviewed (contract §10): Settings/Diagnostics are already
+    divider-based and flat — unchanged; Packages cards represent real
+    objects (installable packages with actions) — allowed, unchanged.
+  - versionCode 20 / 0.7.0-m3.3 — in-place update over 16/17/18/19; same
+    pinned cert. 644 test executions, 0 failures (baselines +
+    CommandAppsTest untouched and green). Device gate: TESTING.md §14.
+
+WHAT WAS NEW IN v0.7.0-m3.2 (vs v0.7.0-m3.1) — PHASE 3.2, HOME / OS LAUNCHER:
   - SCOPE: the HOME screen ONLY + the command-launchable app architecture.
     The Phase 3.1 terminal redesign (chrome, tabs, keyboard, palette, PTY
     pipeline), runtime, Linux environment, package manager, installed
@@ -77,7 +130,8 @@ WHAT IS NEW IN $VERSION (vs v0.7.0-m3.1) — PHASE 3.2, HOME / OS LAUNCHER:
   - LAUNCHER GRID: 64dp monogram tiles, 3 columns phone / 4 at >=600dp /
     6 at >=840dp, content capped 720dp centered on tablets. Empty state:
     drawn ghost tiles + "Your tools will appear here" + Explore packages
-    (real screen; no fake marketplace).
+    (real screen; no fake marketplace). [Superseded by Phase 3.3's
+    presentation-only restructure — same architecture, new layout.]
   - SESSIONS: compact continuation area (max 4 rows + "+N more"), tap
     returns to the session; FAB quick actions: New Terminal (fresh), New
     Linux session (READY only), each available command app — real actions
@@ -546,7 +600,7 @@ echo "dot-path entries       : $DOTS  (want 0)"
 echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
-           docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md \
+           docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md docs/PHASE-3.3-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
            app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
            app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \

@@ -1,47 +1,49 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m3.2 (git tip 0efd645 + delivery page commit; Phase 3.2 — Home / OS Launcher + Command Apps, versionCode 19)
-- PocketShell-v0.7.0-m3.2-debug.apk  sha256 1138ba4df9e702d2a8b650547e583dd4e1524a6b5bb8d186533328b3372b5f16
-  Installs IN PLACE over v0.7.0-m3.1 (versionCode 18), the discarded v0.7.0-ui (17)
-  and v0.6.2 (16) — same pinned cert d96a6f66…8bf659. App data (Alpine runtime,
-  Hermes, packages) survives.
-  SCOPE: the HOME screen ONLY + the command-launchable app architecture — the
-  Phase 3.1 terminal (chrome, tabs, keyboard, palette, PTY pipeline), the
-  runtime, the Linux environment, the package manager and installed packages
-  are untouched. Design contract: docs/PHASE-3.2-DESIGN.md (committed before
+Current: v0.7.0-m3.3 (git tip 9803940 + delivery page commit; Phase 3.3 — Home & System UI Redesign, versionCode 20)
+- PocketShell-v0.7.0-m3.3-debug.apk  sha256 a7acd843ff85d691ad50c548d566663f3919a3de2e963e17087a81828aa0dca0
+  Installs IN PLACE over v0.7.0-m3.2 (versionCode 19), v0.7.0-m3.1 (18), the
+  discarded v0.7.0-ui (17) and v0.6.2 (16) — same pinned cert d96a6f66…8bf659.
+  App data (Alpine runtime, Hermes, packages) survives.
+  SCOPE: visual architecture + Home interaction cleanup ONLY — ZERO backend
+  changes. Command-app discovery, login-shell probing, verify-before-launch,
+  dedicated guest sessions, the forbidden package list, the Phase 3.1
+  terminal (chrome, tabs, keyboard, palette, PTY pipeline), the runtime, the
+  Linux environment, the package manager and installed packages are
+  untouched. Design contract: docs/PHASE-3.3-DESIGN.md (committed before
   implementation).
-  Phase 3.2 highlights:
-  · Home = the launcher of a Linux-centric environment (identity → the two
-    foundations → command apps → sessions → one floating quick-action control);
-    no bottom navigation bar, not a card dashboard.
-  · PACKAGES ≠ APPS: the "Installed CLI Apps" section is GONE — git, nano,
-    python, node, npm, gcc, g++, htop, vim can never become launcher tiles
-    (test-pinned). New extensible command-app registry: Hermes Agent,
-    OpenCode, Claude Code, ZCode.
-  · Guest-confirmed availability: ONE batched login-shell probe (`sh -lc`)
-    asking exactly "would a fresh guest login shell find this command?" —
-    the same PATH semantics the user's typing sees (uv launchers reachable).
-    Probe failure = "could not be checked" + last real list, never a fake
-    "no apps" (v0.4.4 honesty rule).
-  · Tap-to-launch: verify-then-launch into a NEW dedicated guest session
-    whose PTY receives the command — what the launcher does is exactly what
-    typing would do; exiting the app returns to the guest prompt.
-  · Midnight Sapphire launcher: Terminal tile in the exact canvas color
-    #080F1D, Linux tile #101B30 with an honest state line (READY enters the
-    guest; other states route to Diagnostics), drawn brand/terminal/mountain
-    marks, ONE Sapphire accent; no pure black, no gradients on this page.
-  · Launcher grid (3/4/6 responsive columns, 720dp cap on tablets), honest
-    empty state ("Your tools will appear here" + Explore packages), compact
-    session continuation area, custom floating quick-action system (real
-    actions only; extensible action list), edge-to-edge + status-bar icon
-    coordination.
-  · 644 test executions green (628 baseline + 8 new CommandApps invariants).
-  Device gate: docs/TESTING.md §13 (no packages on Home; Hermes iff available;
-  tap-launch flow; FAB actions; phone + tablet; Phase 3.1 §12 must still pass).
-- PocketShell-v0.7.0-m3.2-source.zip sha256 6a10fd5e47f2ac9b94340e2fcb3dacf32b251ca581c0123ebb37765fdd050903  (28 MB, 287 files)
-- PocketShell-v0.7.0-m3.2-source.tar.gz sha256 993046439838069be54551d72b1ed557e4b0b6f748f276ba3afb21c98355fce2  (28 MB)
-- pocketshell-m2.gitbundle           sha256 1eaebb7e34dc99a687d7db8efd4df3cc4637f6972e4a77ec3f628d614f6f10ee  (full history @ 0efd645; ~26 MB — includes the complete milestone history, the discarded UI attempt + rollback records, and both Phase 3 design contracts — honest, no rewrites)
+  Phase 3.3 highlights:
+  · Surfaces only for OBJECTS: content sits directly on the Midnight canvas,
+    separated by spacing, section labels, hairline dividers and tone steps.
+    No cards for text groupings, no cards in cards, radius ≤ 16dp, no
+    decorative borders, no ghost placeholders.
+  · ONE CLI control: quiet "CLI Apps ▾" in the header area (only when apps
+    exist) opening a compact Midnight launcher menu — monogram plate + name +
+    the command dim and secondary; row taps run the exact Phase 3.2
+    verify-then-launch pipeline. Replaces every floating CLI affordance.
+  · Foundations, flatter: Terminal and Linux are borderless tone-step
+    surfaces, 14dp radius; truncating copy replaced ("Native shell",
+    "Alpine · ready"); running count is plain mono text.
+  · "Your tools": command apps as icon + label launcher entries (52dp
+    borderless monogram plates, NOT cards). Empty state = three quiet lines
+    ("No CLI apps yet." + one sentence + the page's only Explore packages
+    link); with apps present a single quiet "Packages" footer link replaces
+    it — exactly ONE packages affordance in every state.
+  · Sessions flat: dot + label + mono id between hairline dividers; pressed
+    row is the only surface; green only for live processes.
+  · FAB single-purpose: "create a new session" ONLY (New Terminal / New
+    Linux session), text-only chips — no icon circles, no logos, no command
+    apps in the menu.
+  · Other pages reviewed: Settings/Diagnostics already flat (unchanged);
+    Packages cards = real objects (allowed, unchanged).
+  · 644 test executions green (baselines + CommandAppsTest untouched).
+  Device gate: docs/TESTING.md §14 (no-boxes sweep; CLI menu honesty — only
+  guest-confirmed apps; empty-state lightness; FAB purpose; §12/§13
+  regressions).
+- PocketShell-v0.7.0-m3.3-source.zip sha256 cd554f97e300f3d859c2242919760e1750fe22c935a39e81118a17a312be4de7  (28 MB, 291 files)
+- PocketShell-v0.7.0-m3.3-source.tar.gz sha256 d5e11ae7b905622cea1ab4cafe78cd0233f75e024fd9b7a73aff78125b651e9d  (28 MB)
+- pocketshell-m2.gitbundle           sha256 108a986d24e13f0b23a810d75a57028be7a6d256b878407458bd244d4ea81611  (full history @ 9803940; ~26 MB — includes the complete milestone history, the discarded UI attempt + rollback records, and all three Phase 3 design contracts — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m3.1 superseded by Phase 3.2; its records live
-in the bundle history — see docs/CHANGELOG for each confirmed fix).
+Older builds: withdrawn (v0.7.0-m3.2 superseded by Phase 3.3; its records
+live in the bundle history — see docs/CHANGELOG for each confirmed fix).

@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m3.2";
+const VERSION = "v0.7.0-m3.3";
 
 const HASHES = {
-  apk: "1138ba4df9e702d2a8b650547e583dd4e1524a6b5bb8d186533328b3372b5f16",
-  zip: "6a10fd5e47f2ac9b94340e2fcb3dacf32b251ca581c0123ebb37765fdd050903",
-  tgz: "993046439838069be54551d72b1ed557e4b0b6f748f276ba3afb21c98355fce2",
-  bundle: "1eaebb7e34dc99a687d7db8efd4df3cc4637f6972e4a77ec3f628d614f6f10ee",
+  apk: "a7acd843ff85d691ad50c548d566663f3919a3de2e963e17087a81828aa0dca0",
+  zip: "cd554f97e300f3d859c2242919760e1750fe22c935a39e81118a17a312be4de7",
+  tgz: "d5e11ae7b905622cea1ab4cafe78cd0233f75e024fd9b7a73aff78125b651e9d",
+  bundle: "108a986d24e13f0b23a810d75a57028be7a6d256b878407458bd244d4ea81611",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,85 +25,85 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Phase 3.2 — Home / OS Launcher + Command Apps{" "}
-          <span className="badge">versionCode 19</span>
+          Phase 3.3 — Home &amp; System UI Redesign{" "}
+          <span className="badge">versionCode 20</span>
         </h2>
         <p>
-          PocketShell Home is no longer a terminal dashboard — it is the{" "}
-          <b>launcher of a Linux-centric environment</b>. The Phase 3.1
-          terminal redesign (chrome, tabs, keyboard, palette, PTY pipeline),
-          the runtime, the Linux environment, the package manager, installed
-          packages and Hermes are <b>untouched</b>. Design contract committed
-          before implementation (<code>docs/PHASE-3.2-DESIGN.md</code>),
-          plan-first.
+          Phase 3.2 fixed the command-app architecture; Phase 3.3 fixes the{" "}
+          <b>layout structure itself</b>. The Home screen stops being a stack
+          of rounded rectangles and becomes a workspace drawn on a canvas: a
+          surface exists ONLY for a real object — the two environments, the
+          CLI Apps menu, the floating create control, an actionable banner, a
+          pressed row. Everything else is spacing, typography, hairline
+          dividers and Midnight tone steps. ZERO backend changes: discovery,
+          probing, verify-then-launch, the Phase 3.1 terminal/keyboard and
+          every runtime behavior are byte-identical. Design contract committed
+          before implementation (<code>docs/PHASE-3.3-DESIGN.md</code>).
         </p>
         <ul className="steps">
           <li>
-            <b>Packages ≠ Apps:</b> packages are infrastructure, apps are
-            experiences. The old "Installed CLI Apps" section is GONE — git,
-            nano, python, node, npm, gcc, g++, htop and vim can never become
-            launcher tiles (test-pinned). Only interactive command apps the
-            guest confirms appear: <b>Hermes Agent</b>, OpenCode, Claude Code,
-            ZCode (extensible registry).
+            <b>One CLI control:</b> a quiet <code>CLI Apps ▾</code> trigger in
+            the header area — shown only when the guest actually confirmed
+            apps, never a dead button — opens a compact Midnight launcher
+            menu: monogram plate + app name + the command dim and secondary
+            (<code>hermes</code>). A row tap runs the exact Phase 3.2
+            verify-then-launch pipeline. No logos, no dialog — the app itself
+            is the identity. Every floating CLI affordance is gone.
           </li>
           <li>
-            <b>Guest-confirmed availability:</b> one batched{" "}
-            <code>sh -lc</code> probe asks exactly "would a fresh guest login
-            shell find this command?" — the same environment your typing sees,
-            where uv-installed launchers (<code>hermes</code>) are reachable.
-            A failed probe renders "could not be checked" and keeps the last
-            real list — never a fake "no apps".
-          </li>
-          <li>
-            <b>Launch by tap, not by typing:</b> tapping Hermes runs a fresh
-            single probe, then opens a NEW dedicated guest session whose PTY
-            receives <code>hermes</code> — the typed command stays visible in
-            its scrollback and exiting the app returns to the guest prompt.
-            What the launcher does is exactly what typing would do.
-          </li>
-          <li>
-            <b>Midnight Sapphire launcher:</b> the same system the Phase 3.1
-            terminal uses — page <code>#0B1424</code>, the Terminal tile in
-            the exact canvas color <code>#080F1D</code> (it IS the terminal),
-            Linux tile <code>#101B30</code>, drawn brand mark + mono wordmark
-            + tagline, drawn prompt and mountain marks, ONE Sapphire accent{" "}
-            <code>#7FA3EF</code>. No pure black, no gradients on this page.
-          </li>
-          <li>
-            <b>The two foundations:</b> Terminal (live "N running" chip) and
-            Linux (honest state line: "Alpine Linux · ready" → enters the
-            guest; every other state routes to Diagnostics exactly as before —
+            <b>Foundations, flatter:</b> Terminal and Linux are borderless
+            tone-step surfaces (canvas / chrome), 14dp radius, no borders, no
+            chip boxes. The truncating copy is gone — "Native shell" always
+            fits; the running count is plain mono text; Linux states honestly
+            ("Alpine · ready" in Sapphire; other states route to Diagnostics,
             distro-agnostic by construction).
           </li>
           <li>
-            <b>Launcher composition, not a card stack:</b> 64dp monogram app
-            tiles in a responsive grid (3 columns phone / 4 tablet / 6 large),
-            content capped 720dp centered on tablets; a beautiful honest
-            empty state ("Your tools will appear here" + Explore packages); a
-            compact session continuation area (green dot only for live
-            processes, tap returns); ONE custom floating quick-action control
-            (no bottom navigation bar): New Terminal (fresh), New Linux
-            session, each available command app — real actions only, the list
-            is data so future capabilities join without a redesign.
+            <b>Your tools:</b> command apps as icon + label launcher entries —
+            52dp borderless monogram plates, NOT cards; a surface appears only
+            while pressed. The empty state is three quiet lines directly on
+            the canvas ("No CLI apps yet." + one sentence + the page's only
+            Explore packages link) — no container, no ghost placeholders. With
+            apps present, a single quiet "Packages" footer link replaces it:
+            exactly ONE packages affordance in every state.
+          </li>
+          <li>
+            <b>Sessions, flat:</b> dot + label + mono id between hairline
+            dividers — the pressed row is the only surface the section ever
+            draws. Green still means ONLY a live process; tap returns.
+          </li>
+          <li>
+            <b>FAB, single-purpose:</b> the floating control now means exactly
+            one thing — create a new session. New Terminal / New Linux
+            session, as text-only chips. No icon circles, no logo marks, no
+            command apps in the menu (apps live in the grid + the CLI menu).
+          </li>
+          <li>
+            <b>Removed</b> (contract §12): the giant empty-state card, the
+            ghost-tile placeholders, the duplicated "Explore packages", the
+            FAB's app actions, the bordered chip on the Terminal tile, the
+            bordered session cards, every decorative tile border, the 20dp
+            hero radius, and "Command apps" naming on the page.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m3.2-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m3.3-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m3.2)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m3.3)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 19 installs <b>in place over v0.7.0-m3.1 (18), the
-          discarded v0.7.0-ui (17) and v0.6.2 (16)</b> — same pinned signing
-          key. Your Alpine runtime, installed packages, Hermes installation
-          and cache are untouched: Phase 3.2 changed no runtime code — the
-          M2.6 Gates A–H environment and the Phase 3.1 §12 gate remain valid.
+          versionCode 20 installs <b>in place over v0.7.0-m3.2 (19),
+          v0.7.0-m3.1 (18), the discarded v0.7.0-ui (17) and v0.6.2 (16)</b> —
+          same pinned signing key. Your Alpine runtime, installed packages,
+          Hermes installation and cache are untouched: Phase 3.3 changed
+          presentation code only — the M2.6 Gates A–H environment, the Phase
+          3.1 §12 gate and the Phase 3.2 §13 gate remain valid.
         </p>
       </div>
 
@@ -124,61 +124,67 @@ export default function Home() {
           </li>
           <li>
             Package management (M2.4/M2.5, device-gate PASSED): the Explore
-            packages screen — search, install, uninstall, open; Home no longer
-            lists packages (they are infrastructure, not launcher apps).
+            packages screen — search, install, uninstall, open; packages are
+            infrastructure and never launcher apps.
           </li>
           <li>
-            Phase 3.1: the Terminal screen redesigned — Midnight Sapphire
-            surfaces, JetBrains Mono NL, editor tabs, from-scratch keyboard
-            with the exact final layout (no system IME anywhere).
+            Phase 3.1: the Terminal screen — Midnight Sapphire surfaces,
+            JetBrains Mono NL, editor tabs, from-scratch keyboard (no system
+            IME anywhere).
           </li>
           <li>
-            <b>v0.7.0-m3.2 (this build):</b> the Home screen redesigned into
-            the PocketShell OS launcher, with the command-launchable app
-            architecture (Hermes appears when available and launches by tap).
-            Everything else is deliberately byte-identical behavior.
+            Phase 3.2: the command-launchable app architecture — Hermes Agent,
+            OpenCode, Claude Code, ZCode appear when the guest confirms them
+            and launch by tap into dedicated guest sessions.
+          </li>
+          <li>
+            <b>v0.7.0-m3.3 (this build):</b> Home &amp; system UI redesigned
+            as a flat workspace — surfaces only for objects, one CLI Apps
+            menu, single-purpose FAB, lightweight honest states. Everything
+            else is deliberately byte-identical behavior.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §13 — Phase 3.2 device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §14 — Phase 3.3 device gate)</h2>
         <ol className="steps">
           <li>
-            Install {VERSION} over v0.7.0-m3.1 (no uninstall) → Home opens on
-            the Midnight launcher.
+            Install {VERSION} over v0.7.0-m3.2 (no uninstall) → Home opens as
+            the flat Midnight workspace.
           </li>
           <li>
-            <b>Honesty:</b> whatever packages the device has (nano, git,
-            python, node, htop…), NONE appear on Home. If{" "}
-            <code>hermes</code> is available in the guest, a Hermes Agent tile
-            appears automatically; if not, no tile and no fake entry.
+            <b>The no-boxes sweep:</b> no bordered container around the tools
+            section, the empty state, session rows or section headers — they
+            sit on the canvas between hairline dividers. Surfaces exist only
+            for the two environment tiles, the CLI Apps menu, the launch-error
+            banner, the FAB + chips, and pressed states.
           </li>
           <li>
-            <b>Launch:</b> tap Hermes → spinner on the tile → a NEW terminal
-            session where <code>hermes</code> is running (you never typed it);
-            exiting returns to the guest prompt.
+            <b>CLI Apps menu:</b> appears only when apps exist; lists ONLY
+            guest-confirmed apps (nano/git/python can never appear); rows are
+            plate + name + dim command; a tap launches into a dedicated guest
+            session.
           </li>
           <li>
-            <b>Floating quick actions:</b> the Sapphire control bottom-right
-            rotates + → ×, the page dims, labeled chips emerge (New Terminal
-            creates a FRESH session; New Linux session only when READY;
-            command apps launch). Dismiss via scrim, ×, or Back.
+            <b>Empty state:</b> with no apps — "No CLI apps yet." + one
+            sentence + Explore packages, three quiet lines, exactly ONE
+            packages affordance. With apps — a single quiet "Packages" footer
+            link instead.
           </li>
           <li>
-            <b>Sessions:</b> compact rows with green dots only for live
-            processes; "(exited)" dimmed; tap returns to the session.
+            <b>FAB:</b> exactly two creation actions (New Terminal fresh; New
+            Linux session when READY), text-only chips; scrim/×/Back dismiss.
           </li>
           <li>
-            <b>Responsive:</b> phone 3-column grid; tablet ≥600dp gets more
-            columns with content capped ~720dp centered; status-bar icons are
-            light on Home in both system themes.
+            <b>Sessions + responsive:</b> flat divider rows, green only for
+            live processes; phone 3-column grid, tablet 4/6 columns capped
+            ~720dp; nothing truncated on the foundation tiles.
           </li>
           <li>
-            <b>Phase 3.1 regression:</b> terminal chrome/tabs/keyboard
-            identical to the §12-accepted state; <code>apk update</code>,{" "}
-            <code>node --version</code>, <code>hermes --version</code> still
-            pass (§12.6).
+            <b>Regressions:</b> Phase 3.1 terminal chrome/tabs/keyboard
+            identical to §12; Phase 3.2 §13 honesty checks (no packages on
+            Home, Hermes iff available, tap-launch) all still pass.
           </li>
         </ol>
       </div>
@@ -187,14 +193,15 @@ export default function Home() {
         <h2>Source (version control)</h2>
         <p>
           Complete buildable source. The zip intentionally contains no
-          dotfiles; full history rides in the git bundle (tip 0efd645 —
+          dotfiles; full history rides in the git bundle (tip 9803940 —
           includes the complete milestone history, the honest record of the
-          discarded UI attempt + rollback, and both Phase 3 design contracts).
+          discarded UI attempt + rollback, and all three Phase 3 design
+          contracts).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m3.2-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m3.3-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m3.2-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m3.3-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -214,11 +221,10 @@ export default function Home() {
         Milestones: M0–M1.3 terminal · M2.2 runtime install · M2.3 Linux shell
         (device-verified) · M2.4 package layer (device gate PASSED) · M2.5
         search-install · M2.6 real /proc + real apk (device-CONFIRMED
-        2026-09-02) · v0.6.2 hardlink + sysdata repairs · v0.7.0-m3.1 Phase 3.1
-        terminal redesign · <b>v0.7.0-m3.2 (this build): Phase 3.2 — Home / OS
-        launcher + command-launchable apps, home-only scope</b>. Next: Phase
-        3.3 candidates per your direction. Your device keeps doing the QA that
-        matters.
+        2026-09-02) · v0.6.2 hardlink + sysdata repairs · v0.7.0-m3.1 terminal
+        redesign · v0.7.0-m3.2 OS launcher + command apps · <b>v0.7.0-m3.3
+        (this build): Phase 3.3 — Home &amp; system UI redesign, flat workspace,
+        presentation-only</b>. Your device keeps doing the QA that matters.
       </footer>
     </main>
   );
