@@ -79,6 +79,45 @@ object CommandAppCatalog {
             description = "Interactive command app",
             monogram = "Z",
         ),
+        // Phase 3.4 expansion (docs/PHASE-3.4-DESIGN.md §2): the widely used
+        // terminal AI agents, seeded the same way — each one still only
+        // SURFACES when the guest's login shell finds its command. kilo is
+        // the Kilo Code CLI (`npm install -g @kilocode/cli`).
+        CommandApp(
+            id = "kilo",
+            displayName = "Kilo Code",
+            launchCommand = listOf("kilo"),
+            description = "Open-source AI coding agent for the terminal",
+            monogram = "K",
+        ),
+        CommandApp(
+            id = "gemini",
+            displayName = "Gemini CLI",
+            launchCommand = listOf("gemini"),
+            description = "Google's AI agent for the terminal",
+            monogram = "G",
+        ),
+        CommandApp(
+            id = "codex",
+            displayName = "Codex",
+            launchCommand = listOf("codex"),
+            description = "OpenAI's terminal coding agent",
+            monogram = "C",
+        ),
+        CommandApp(
+            id = "aider",
+            displayName = "Aider",
+            launchCommand = listOf("aider"),
+            description = "AI pair programming in your terminal",
+            monogram = "A",
+        ),
+        CommandApp(
+            id = "qwen",
+            displayName = "Qwen Code",
+            launchCommand = listOf("qwen"),
+            description = "Qwen coding agent for the terminal",
+            monogram = "Q",
+        ),
     )
 
     fun byId(id: String): CommandApp? = registry.firstOrNull { it.id == id }

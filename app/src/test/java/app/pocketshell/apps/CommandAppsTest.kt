@@ -40,6 +40,40 @@ class CommandAppsTest {
     }
 
     @Test
+    fun `phase 3_4 expansion pins the terminal agent CLIs`() {
+        // The user-reported gap: an installed Kilo Code CLI (command `kilo`)
+        // must be a known app so the guest probe can surface it.
+        assertEquals("kilo", CommandAppCatalog.byId("kilo")?.id)
+        assertEquals("Kilo Code", CommandAppCatalog.byId("kilo")?.displayName)
+        assertEquals(listOf("kilo"), CommandAppCatalog.byId("kilo")?.launchCommand)
+        assertEquals("K", CommandAppCatalog.byId("kilo")?.monogram)
+        // The peer terminal agents seeded alongside it.
+        assertEquals("Gemini CLI", CommandAppCatalog.byId("gemini")?.displayName)
+        assertEquals("Codex", CommandAppCatalog.byId("codex")?.displayName)
+        assertEquals("Aider", CommandAppCatalog.byId("aider")?.displayName)
+        assertEquals("Qwen Code", CommandAppCatalog.byId("qwen")?.displayName)
+        // Expansion appends AFTER the brief's four — device launcher order
+        // for already-known apps never shuffles.
+        assertEquals(
+            listOf("hermes", "opencode", "claude", "zcode"),
+            CommandAppCatalog.registry.take(4).map { it.id },
+        )
+    }
+
+    @Test
+    fun `expansion entries stay probe-gated like every other app`() {
+        // An installed-but-unregistered binary never appeared before, and an
+        // installed REGISTERED app appears only when the guest names it.
+        val paths = mapOf("kilo" to "/usr/local/bin/kilo")
+        val apps = availableCommandApps(paths)
+        assertEquals(listOf("kilo"), apps.map { it.id })
+        // Absent binary can never render — the honesty contract holds for
+        // every expansion entry.
+        val none = availableCommandApps(mapOf("git" to "/usr/bin/git"))
+        assertTrue(none.isEmpty())
+    }
+
+    @Test
     fun `packages are infrastructure - never launcher apps`() {
         // The exact Phase 3.2 brief list, pinned forever.
         val forbidden = setOf(
@@ -55,6 +89,13 @@ class CommandAppsTest {
             )
         }
         assertFalse("no catalog id may collide with a package name", forbidden.contains("hermes"))
+        // Phase 3.4 expansion ids are applications, not toolchains.
+        for (id in listOf("kilo", "gemini", "codex", "aider", "qwen")) {
+            assertFalse(
+                "$id must stay out of the forbidden package namespace",
+                id in forbidden,
+            )
+        }
     }
 
     @Test
