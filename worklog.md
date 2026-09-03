@@ -561,3 +561,19 @@ Stage Summary:
 - v0.7.0-ui delivered end-to-end: plan-first discipline held (design contract committed before code), design system + all 6 screens + final keyboard implemented, 636 tests green, artifacts consistent and HTTP-verified.
 - NOT YET device-proven (needs the human): keyboard sandwich + IME toggle feel, drawer ergonomics, Apps detection on-device, visual sweep — TESTING §11 is the gate; M2.6 Gates A–H re-run after update.
 - v0.6.2 delivery discipline intact: milestone history preserved, no rewrites; cert chain unbroken.
+
+---
+Task ID: 29
+Agent: main (Super Z)
+Task: "Run server for delivery" — restore the v0.7.0-ui delivery chain after environment reset #8, restart the web server.
+
+Work Log:
+- Reset #8 detected (new container): JDK/SDK wiped, download/ drained to README only, public/ + dist-master/ gone. Source intact at auto-snapshot d662ed7 (on top of 474715c; it also captured the page.tsx + download/README.md edits that postdated the Task 28 commit — verified: versionName 0.7.0-ui, all UI sources, keystore, worklog).
+- Toolchain rebuilt via install_toolchain.sh (foreground). Full test suite re-run: 636/0. assembleDebug hit the known transient dex-merge OOM once (UI.0 lesson) and passed on retry.
+- REPRODUCIBLE BUILD CONFIRMED: rebuilt APK sha256 f8db8394…799d719 == the originally delivered APK byte-for-byte (same source tip + committed keystore).
+- Payload re-cut at tip d662ed7 (bundle now carries the Task 28/29 records): sanity clean (293 files, 0 dot-paths, 0 shims, 0 node_modules, all key pins). New hashes: zip 05aab694…8bf26, tgz 08ef0a80…63360, bundle 3edd2bbd…d8198; APK hash UNCHANGED. download/ == public/ == dist-master/ restored.
+- app/page.tsx + download/README.md updated with the new source-artifact hashes (APK hash line unchanged); committed.
+- Server: bun run dev on :3000 — page 200 (v0.7.0-ui, versionCode 17); ALL 4 artifacts HTTP byte-identical.
+
+Stage Summary:
+- Delivery chain fully live again: preview page + 4 byte-verified artifacts. Lesson re-confirmed: toolchain foreground install, dex-merge OOM = single retry, artifacts must be re-cut from git (nothing user-visible was lost).
