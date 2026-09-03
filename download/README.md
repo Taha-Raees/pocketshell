@@ -1,33 +1,47 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m3.1 (git tip 006e5df + payload commit; Phase 3.1 "Midnight Sapphire" — Terminal Experience Redesign, versionCode 18)
-- PocketShell-v0.7.0-m3.1-debug.apk  sha256 76a241ca3ca88a1331ea00e16a0cf898cfe730b471e5796c0076154f5ab0d584
-  Installs IN PLACE over v0.6.2 (versionCode 16) AND the discarded v0.7.0-ui (17)
-  — same pinned cert d96a6f66…8bf659. App data (Alpine runtime, Hermes) survives.
-  SCOPE: Terminal screen ONLY — Home/Explore/Packages/Settings/Diagnostics and
-  the whole M2.6 runtime are untouched.
-  Phase 3.1 highlights (design contract: docs/PHASE-3.1-DESIGN.md):
-  · Midnight Sapphire blue-dark identity — canvas #080F1D, never pure black;
-    ONE accent (Sapphire #7FA3EF); real 16-color ANSI palette (OSC still wins).
-  · JetBrains Mono NL terminal typeface (OFL 1.1, no-ligature build —
-    character-exact output); Sapphire block cursor.
-  · Editor-style session tabs: rounded-TOP tabs, recessed inactive tabs, the
-    active tab is canvas-colored with a Sapphire top hairline and cuts the
-    strip's bottom hairline — it opens into the terminal workspace.
-  · Keyboard rebuilt from scratch (NO system IME): TOP Esc Tab + grouped
-    arrows · MIDDLE PocketShell QWERTY (terminal punctuation row, symbols
-    with INS/DEL/HOME/END/PGUP/PGDN) · BOTTOM [⌨] Ctrl Alt Space Shift Enter.
-  · Dedicated FN key REMOVED: F1–F10 = number-row long-press (hold → bubble →
-    release), F11/F12 on the tablet -/= long-press.
-  · Keyboard toggle collapses only the QWERTY body; both accessory rows stay;
-    landscape 4 rows; tablet wide rows. Dispatch pipeline unchanged —
-    Ctrl+C/D/L/A/E/W, Alt, Shift all remain real terminal input.
-  Device gate: docs/TESTING.md §12 (visual sweep, exact keyboard layout,
-  modifier combos, Fn long-press, apk update / node --version / hermes --version).
-- PocketShell-v0.7.0-m3.1-source.zip sha256 733602ee66156a54795377ca04dc9ff8123cd1c3dcc2c494be4f92ed5e3d3570  (28 MB, 279 files)
-- PocketShell-v0.7.0-m3.1-source.tar.gz sha256 310612cfd540445a7dd57a6d2a1d4646bb50172a5fcda7695e5eae5e4c2ee0e3  (28 MB)
-- pocketshell-m2.gitbundle           sha256 2ca125b9580e7396b16850f97a93f2ee5f4dd57ef56369904039311bef2c2850  (full history @ 006e5df; ~26 MB — includes the complete milestone history AND the discarded UI attempt + rollback records, honest, no rewrites)
+Current: v0.7.0-m3.2 (git tip 0efd645 + delivery page commit; Phase 3.2 — Home / OS Launcher + Command Apps, versionCode 19)
+- PocketShell-v0.7.0-m3.2-debug.apk  sha256 1138ba4df9e702d2a8b650547e583dd4e1524a6b5bb8d186533328b3372b5f16
+  Installs IN PLACE over v0.7.0-m3.1 (versionCode 18), the discarded v0.7.0-ui (17)
+  and v0.6.2 (16) — same pinned cert d96a6f66…8bf659. App data (Alpine runtime,
+  Hermes, packages) survives.
+  SCOPE: the HOME screen ONLY + the command-launchable app architecture — the
+  Phase 3.1 terminal (chrome, tabs, keyboard, palette, PTY pipeline), the
+  runtime, the Linux environment, the package manager and installed packages
+  are untouched. Design contract: docs/PHASE-3.2-DESIGN.md (committed before
+  implementation).
+  Phase 3.2 highlights:
+  · Home = the launcher of a Linux-centric environment (identity → the two
+    foundations → command apps → sessions → one floating quick-action control);
+    no bottom navigation bar, not a card dashboard.
+  · PACKAGES ≠ APPS: the "Installed CLI Apps" section is GONE — git, nano,
+    python, node, npm, gcc, g++, htop, vim can never become launcher tiles
+    (test-pinned). New extensible command-app registry: Hermes Agent,
+    OpenCode, Claude Code, ZCode.
+  · Guest-confirmed availability: ONE batched login-shell probe (`sh -lc`)
+    asking exactly "would a fresh guest login shell find this command?" —
+    the same PATH semantics the user's typing sees (uv launchers reachable).
+    Probe failure = "could not be checked" + last real list, never a fake
+    "no apps" (v0.4.4 honesty rule).
+  · Tap-to-launch: verify-then-launch into a NEW dedicated guest session
+    whose PTY receives the command — what the launcher does is exactly what
+    typing would do; exiting the app returns to the guest prompt.
+  · Midnight Sapphire launcher: Terminal tile in the exact canvas color
+    #080F1D, Linux tile #101B30 with an honest state line (READY enters the
+    guest; other states route to Diagnostics), drawn brand/terminal/mountain
+    marks, ONE Sapphire accent; no pure black, no gradients on this page.
+  · Launcher grid (3/4/6 responsive columns, 720dp cap on tablets), honest
+    empty state ("Your tools will appear here" + Explore packages), compact
+    session continuation area, custom floating quick-action system (real
+    actions only; extensible action list), edge-to-edge + status-bar icon
+    coordination.
+  · 644 test executions green (628 baseline + 8 new CommandApps invariants).
+  Device gate: docs/TESTING.md §13 (no packages on Home; Hermes iff available;
+  tap-launch flow; FAB actions; phone + tablet; Phase 3.1 §12 must still pass).
+- PocketShell-v0.7.0-m3.2-source.zip sha256 6a10fd5e47f2ac9b94340e2fcb3dacf32b251ca581c0123ebb37765fdd050903  (28 MB, 287 files)
+- PocketShell-v0.7.0-m3.2-source.tar.gz sha256 993046439838069be54551d72b1ed557e4b0b6f748f276ba3afb21c98355fce2  (28 MB)
+- pocketshell-m2.gitbundle           sha256 1eaebb7e34dc99a687d7db8efd4df3cc4637f6972e4a77ec3f628d614f6f10ee  (full history @ 0efd645; ~26 MB — includes the complete milestone history, the discarded UI attempt + rollback records, and both Phase 3 design contracts — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.6.2 superseded by Phase 3.1; its records live in
-the bundle history — see docs/CHANGELOG for each confirmed fix).
+Older builds: withdrawn (v0.7.0-m3.1 superseded by Phase 3.2; its records live
+in the bundle history — see docs/CHANGELOG for each confirmed fix).
