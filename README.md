@@ -51,8 +51,11 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M0–M1.3 implemented and building** (see `docs/ROADMAP.md`).
-All automated tests pass and `assembleDebug` produces a working APK; the
-**manual on-device acceptance checklists** in `docs/TESTING.md` are the
-remaining gate before M2 (Linux userspace + real package management) — a green
-build alone never completes a milestone.
+Current state: **M0–M2.6 + UI redesign phase implemented and building**
+(see `docs/ROADMAP.md`). The app runs a real Alpine Linux guest (proot) with
+real package management, a battle-tested terminal, the "Quiet Aurora" design
+system (docs/UI-REDESIGN.md) and the final keyboard specification. All
+automated tests pass (636 per variant) and `assembleDebug` produces a working
+APK (v0.7.0-ui, versionCode 17); the **manual on-device acceptance
+checklists** in `docs/TESTING.md` (§10 Gates A–H + §11 UI gate) are the
+remaining gate — a green build alone never completes a milestone.

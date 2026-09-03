@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.6.2-m2.6
+VERSION=v0.7.0-ui
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,63 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.6.1-m2.6):
+WHAT IS NEW IN $VERSION (vs v0.6.2-m2.6):
+  - THE UI/UX REDESIGN PHASE (docs/UI-REDESIGN.md is the design contract,
+    written and committed BEFORE implementation). PocketShell is now dressed
+    as what it is: a polished personal Linux environment on Android. The
+    Linux runtime stack (M2.6) is UNTOUCHED; every honesty rule from
+    v0.3.1-v0.6.2 is preserved 1:1.
+  - DESIGN SYSTEM "QUIET AURORA": cool graphite surfaces + one soft
+    periwinkle accent (Light/Dark/AMOLED + optional Material You), 4dp
+    spacing scale, 12/16/20dp radius system, tonal elevation, restrained
+    motion. Reusable component kit in ui/components/ (PSLogo, PSBanner,
+    PSEmptyState, PSActionTile, PSListCard, PSNavDrawer, ...). Exactly ONE
+    gradient in the app (the Home Terminal hero card). Terminal canvas
+    stays framed ink in every theme.
+  - NAVIGATION: no permanent tab bar - a compact hamburger (two unequal
+    lines) opens a dismissible drawer on every screen; screens are a typed
+    enum (Home, Terminal, Apps, Packages, Diagnostics, Settings + the
+    Linux Shell spawn row). Future destinations are enum entries.
+  - HOME REDESIGN: brand block + clean launcher grid (Terminal / Linux
+    Shell / Apps / Packages). CLI-utility launcher cards (git/python/nano/
+    htop) are GONE from Home - they are packages, reachable via Packages
+    search and Featured. No project cards, no IDE concepts, no placeholders.
+  - LAUNCHABLE APPS (new, documented rules in packages/LaunchableApps.kt):
+    an app row exists ONLY while the guest confirms "command -v" RIGHT NOW
+    (re-probed on every visit; probe failures hide the row). Seed entries:
+    hermes, opencode. Launch = the same verify-then-launch flow as catalog
+    apps (dedicated guest session). CLI tools are categorically excluded
+    (test-pinned).
+  - TERMINAL: session tab pills + overflow menu (close confirms - it kills
+    a real process), framed-ink canvas, same real TerminalView, same
+    repaint/blinker/pinch contracts.
+  - KEYBOARD - FINAL SPEC (binding): top row Esc / Tab / arrows (arrow
+    long-press = HOME/END/PGUP/PGDN); bottom row icon-only Android-keyboard
+    toggle (permanent first position, no ON/OFF text) + Ctrl / Alt / Space /
+    Shift / Enter. The toggle shows/hides the ANDROID IME; both accessory
+    rows stay visible above it. Dedicated FN key REMOVED: F1-F12 live
+    behind Esc long-press (strip); digits/symbols come from the Android
+    keyboard. Modifiers keep OFF-ONESHOT-LOCKED with visual state only.
+  - PACKAGES (formerly Explore CLI Apps): same honest apk logic verbatim
+    (ranked search, real versions, per-card Working..., real stderr in the
+    banner, Cancel/Retry) - new skin only. The curated five stay HERE.
+  - SETTINGS: grouped cards (Appearance / AI Assistant / About). AI
+    Assistant = OpenRouter configuration foundation: free-text model id,
+    API key masked after entry (last 4 chars), never logged, never in
+    Diagnostics; storage is the app's private DataStore and the screen
+    says so honestly; assistant chat does not exist yet and the screen
+    says that too. Home's FAB opens this section - no fake chat.
+  - DIAGNOSTICS: every fact row and button preserved, grouped into
+    Device / Linux runtime / Package environment cards.
+  - TESTS: 636 per variant (173 app + 145 terminal-emulator), 0 failures.
+    M1 keyboard layout pins replaced with final-spec pins; launchable-app
+    rule pins added. versionCode 17, 0.7.0-ui; same signing key - installs
+    IN PLACE over v0.6.2/v0.6.1/v0.6.0/v0.5.0.
+  - DEVICE GATE: docs/TESTING.md section 11 (keyboard sandwich + IME
+    toggle, drawer, Apps honesty, Packages regression, Settings/AI, visual
+    sweep) plus the M2.6 Gates A-H re-run after the update.
+
+WHAT WAS NEW IN v0.6.2-m2.6 (vs v0.6.1-m2.6):
   - TWO fixes from the same 2026-09-02 device session (SM-F711B), both
     device-reported and rehearsal-proven:
   - M2.6.13, HARDLINK EXTRACTION FIXED: "apk add build-base" failed with
@@ -460,7 +516,7 @@ DOTS=$(echo "$LIST" | rg -c '/\.' || true); DOTS=${DOTS:-0}
 echo "dot-path entries       : $DOTS  (want 0)"
 echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
-for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
+for key in docs/UI-REDESIGN.md docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
            app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
            app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \
@@ -468,6 +524,14 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/assets/guest/libapk.so.3.0.0.fdlinkoff.aarch64 \
            app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt \
            app/src/main/java/app/pocketshell/runtime/RuntimeManager.kt \
+           app/src/main/java/app/pocketshell/ui/theme/Color.kt \
+           app/src/main/java/app/pocketshell/ui/components/PSCore.kt \
+           app/src/main/java/app/pocketshell/ui/components/PSNavigation.kt \
+           app/src/main/java/app/pocketshell/ui/navigation/Screen.kt \
+           app/src/main/java/app/pocketshell/keyboard/TerminalKeyboard.kt \
+           app/src/main/java/app/pocketshell/packages/LaunchableApps.kt \
+           app/src/test/java/app/pocketshell/packages/LaunchableAppsTest.kt \
+           app/src/main/java/app/pocketshell/ui/apps/LaunchableAppsScreen.kt \
            pocketshell-m2.gitbundle RESTORE.txt gradlew \
            gradle/libs.versions.toml docs/THIRD_PARTY.md; do
   echo "$LIST" | rg -q "$key\$" && echo "present: $key" || { echo "MISSING: $key"; exit 1; }

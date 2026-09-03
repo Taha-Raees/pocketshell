@@ -166,3 +166,35 @@ remote development.
       end-to-end, app-side install, interactive CLI, session isolation).
 - [ ] Post-M2.6 candidates (per user direction): M2.7 session management +
       CLI app profiles, or curated CLI app catalog.
+
+### UI — UI/UX redesign & design system (2026-09-03, v0.7.0-ui)
+- [x] Written design contract BEFORE implementation: docs/UI-REDESIGN.md
+      (direction, tokens, navigation, per-screen specs, launcher-detection
+      rules, keyboard final spec, checkpoint plan).
+- [x] UI.1 Design system "Quiet Aurora": tokens (color/typography/spacing/
+      shape/motion) + reusable component kit (ui/components/).
+- [x] UI.2 Navigation: typed Screen enum + dismissible drawer, hamburger on
+      every screen, NO permanent tab bar; future destinations plug in as
+      enum entries.
+- [x] UI.3 Home: brand block + 2×2 launcher grid (Terminal/Linux Shell/
+      Apps/Packages); CLI-utility launcher cards removed (they are
+      packages); no project cards; honest launch-error banner + sessions.
+- [x] UI.4 Terminal: session-pill chrome + overflow (confirm on close),
+      framed-ink canvas; engine/repaint/blinker contracts untouched.
+- [x] UI.5 Keyboard FINAL spec: top row Esc·Tab·arrows, bottom row
+      icon-toggle·Ctrl·Alt·Space·Shift·Enter, Android IME toggled by the
+      icon, Fn removed (arrows long-press = nav keys, Esc long-press =
+      F1–F12 strip), modifiers visual-state-only.
+- [x] UI.6 Packages restyle (logic verbatim) + launchable-app detection
+      (hermes/opencode; live `command -v` probe; CLI tools excluded —
+      test-pinned rules).
+- [x] UI.7 Settings (Appearance / AI Assistant OpenRouter config — masked
+      key, free-text model, honest storage note / About) + Diagnostics
+      grouped cards (all facts and buttons preserved).
+- [x] UI.8 Polish + accessibility pass (a11y labels on icon-only controls,
+      44–48dp targets, touch/press states, consistent tokens).
+- [x] Full suite 636 tests green; APK v0.7.0-ui (versionCode 17) built and
+      verified (cert unchanged → in-place update).
+- [ ] DEVICE GATE: TESTING.md §11 (navigation, keyboard sandwich + IME
+      toggle, Apps detection honesty, Packages regression, Settings/AI,
+      visual sweep) + §10 Gates A–H re-run after update.

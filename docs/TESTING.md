@@ -478,3 +478,97 @@ v0.6.2 adds two layers on top of the v0.6.1 wording fixes, both from the same
   errors honestly) and Diagnostics' sysdata row lists it as FAILED;
   the other overlays are unaffected. The session itself never fails
   because of an overlay.
+
+---
+
+## 11. Manual acceptance — UI redesign (v0.7.0-ui) — DEVICE GATE PENDING
+
+Everything below rides on top of an already-gated runtime: M2.6 Gates A–H
+(§10) must still pass after the update — the UI phase did not touch the
+runtime stack, but the update-in-place is exactly where regressions hide.
+
+### 11.1 Install
+- [ ] Install v0.7.0-ui OVER v0.6.2 (no uninstall) — update succeeds
+      (same signing cert), runtime stays installed (Home shows "Linux ready").
+
+### 11.2 Navigation & Home
+- [ ] Home: brand block + 2×2 grid (Terminal hero, Linux Shell, Apps,
+      Packages) — NO CLI-utility cards (git/python/nano must NOT appear).
+- [ ] Hamburger (top-left, two unequal lines) opens the drawer on every
+      screen; destinations: Home, Terminal, Apps, Packages, Diagnostics,
+      Settings, Linux Shell; footer shows the runtime state.
+- [ ] Back button: closes the drawer if open; otherwise returns Home.
+- [ ] Drawer "Linux Shell" spawns the guest (or refuses to Home with the
+      honest banner when not READY — with runtime READY it enters Alpine).
+
+### 11.3 Terminal & keyboard (FINAL keyboard spec)
+- [ ] Top accessory row reads exactly: Esc · Tab · (gap) · ← ↑ ↓ →.
+- [ ] Bottom accessory row reads exactly: [⌨ icon] · Ctrl · Alt · Space ·
+      Shift · ↵. The toggle is an ICON only — no "Keyboard"/"ON/OFF" text.
+- [ ] Tapping the ⌨ icon hides the Android keyboard; tapping it again (or
+      tapping the terminal) brings it back. Both accessory rows stay visible
+      above the Android keyboard while it is open.
+- [ ] Esc, Tab, arrows, Space, Enter dispatch into the shell (verify in the
+      guest: `ls` + Tab completion + arrow history + Enter).
+- [ ] Ctrl works (Ctrl+C interrupts a running command; Ctrl+D ends a
+      session); Alt works (Alt+b word-left in the shell); Shift works
+      (Shift+letter types uppercase; the Android keyboard also has Shift).
+- [ ] Long-press ← / → inserts Home / End (cursor jumps to prompt / line
+      end); long-press ↑ / ↓ inserts PgUp / PgDn (scrolls alt buffers e.g.
+      in `less`).
+- [ ] Long-press Esc opens the F1–F12 strip above the bottom row; F-keys
+      work (e.g. htop: F1 help, F10 quit — or digits 1–0 from the Android
+      keyboard); the strip dismisses after a tap.
+- [ ] Ctrl/Alt/Shift tap cycles: tap = one-shot (tinted cap), tap-tap =
+      locked (filled cap + lock dot), tap again = off. NO textual ON/OFF.
+- [ ] Session tabs: open 2 sessions + switch; close via the × on the
+      selected tab (confirm dialog appears — it kills a real process).
+- [ ] Pinch resizes the terminal font; scrollback still holds (existing
+      behavior, regression check).
+
+### 11.4 Apps (launchable detection — honesty rules)
+- [ ] If hermes is installed in the guest (it is, from the M2.6 episode):
+      Apps lists "Hermes"; tapping it spawns a dedicated guest session
+      running hermes; exiting returns to the guest shell prompt.
+- [ ] If opencode is NOT installed: it must NOT appear (no dead tiles).
+- [ ] After installing/removing an app in the guest, returning to Apps
+      re-detects (probe runs on screen visibility).
+- [ ] With the runtime NOT READY, Apps shows the honest "not ready" banner —
+      never an empty pretense.
+
+### 11.5 Packages (regression — same behavior, new skin)
+- [ ] Search "node" → nodejs ranks first (M2.5 rule); Install works;
+      the row flips to "Installed · version".
+- [ ] Featured cards: Nano install/uninstall/Open still verify against the
+      real apk database; "Working…" appears ONLY on the targeted card.
+- [ ] A failed fetch (airplane mode) shows the real apk stderr in the
+      banner + Retry (honest failure surface preserved).
+
+### 11.6 Settings & AI configuration
+- [ ] Appearance: theme switches apply immediately (Light/Dark/AMOLED/
+      System); dynamic color toggle on Android 12+; font-size slider persists.
+- [ ] AI Assistant: enter an OpenRouter key → Save → field clears, a masked
+      reminder shows ("••••••••abcd"); "Show" reveals ONLY the draft being
+      typed, never the stored key; "Remove key" clears it. Model id is
+      free-text (no fixed list). The section states the assistant chat is
+      not in the app yet.
+- [ ] Diagnostics must NOT show the key (it never renders secrets).
+- [ ] Home FAB (bottom-right) opens this same Settings section.
+
+### 11.7 Visual/quality sweep
+- [ ] One product feel: Home, Terminal, Apps, Packages, Settings,
+      Diagnostics share the same surfaces/typography/radii.
+- [ ] Terminal canvas is dark ink in BOTH light and dark app themes.
+- [ ] Dark/light/AMOLED all render legibly (contrast, no dark-on-dark).
+- [ ] Icon-only controls announce themselves (TalkBack: "Open menu",
+      "New session", "More options", "Show/Hide Android keyboard",
+      "AI Assistant settings").
+- [ ] Foldable/tablet width: grid spreads, keyboard caps scale, nothing
+      stretches into absurdity.
+
+### Regression guards (MUST stay green — brief §18)
+- [ ] Gates A–H of §10 still pass on this build (uname banner, overlays,
+      apk lifecycle, gcc/g++/ld --version after apk fix).
+- [ ] hermes still runs from the Linux Shell (`hermes --help`).
+- [ ] Android shell + Linux shell + package operations + Diagnostics
+      behave exactly as v0.6.2.
