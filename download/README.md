@@ -1,46 +1,33 @@
 # download/ — delivery masters
 
-Current: v0.6.2-m2.6 (git tip 5592173 — rollback commit; full history incl. the discarded UI attempt rides in the bundle, versionCode 16)
-- PocketShell-v0.6.2-m2.6-debug.apk  sha256 35c4cd698010cb8039369059df5c60042cc06232630848acb556fc8136249226
-  Installs IN PLACE over v0.6.1/v0.6.0/v0.5.0 (same pinned cert d96a6f66…8bf659).
-  The runtime/rootfs does NOT need reinstalling.
-  M2.6.13 — HARDLINK EXTRACTION FIXED (your 2026-09-02 report):
-  · apk add binutils/gcc/g++ failed with 19 "failed to extract …
-    Permission denied" errors — EXACTLY the hardlink entries of those
-    packages (verified against the tar entry types: 11 + 5 + 3).
-  · root cause: apk materializes tar hardlinks with link(), and Android
-    SELinux neverallows link() to untrusted apps (the same neverallow
-    M2.6 bypassed for download commits — extraction is a different call
-    site).
-  · fix: guest sessions now run proot's link2symlink extension
-    (--link2symlink) — the SAME Termux-proot extension PRoot-Distro
-    enables by default; link() is intercepted and emulated as a symlink
-    chain, so the kernel never evaluates the denied operation. Pure
-    reuse of the proot we already ship; no binary patch.
-  · your broken binutils/gcc/g++ state self-heals on the first
-    `apk fix` under v0.6.2; then gcc/g++/ld --version are real.
-  · honest difference: emulated links appear as symlinks
-    (ls -l /usr/bin/ld) and each costs the file's disk space;
-    binaries are byte-identical (rehearsal-proven).
-  M2.6.12 — SELECTIVE /proc SYSDATA OVERLAY (Termux PRoot-Distro's
-  architecture, adapted; see docs/M2.6-RESEARCH.md §7):
-  · at every interactive spawn the app probes the five standard procfs
-    files (stat, uptime, loadavg, version, vmstat) with a one-byte read;
-    kernel-READABLE files are NEVER overlaid (real wins);
-  · kernel-DENIED files get a verified compatibility overlay bound
-    file-over-file on top of the real /proc bind, content from real host
-    sources: uname(2) identity for /proc/version with an explicit
-    "PocketShell sysdata overlay" attribution marker in the file itself,
-    elapsedRealtime for uptime field 1, real core count + real btime for
-    stat, the real hidepid-filtered pid set for loadavg's tail —
-    documented placeholders where no allowed source exists;
-  · kernel-internal entries (kmsg, kcore, …) stay untouched — the
-    ls /proc EACCES wall remains expected and is not overlaid;
-  · Diagnostics gains a read-only "sysdata overlays" row (probe-only).
-- PocketShell-v0.6.2-m2.6-source.zip sha256 c32feb43c6426d3e0500004af3f7da1aeec5a1009c373d48725721b2a370a27d  (27 MB, 261 files)
-- PocketShell-v0.6.2-m2.6-source.tar.gz sha256 004ae63559499d5343c24d8d9679257e69436c955a42a93cc07bc0b4786cfc87  (27 MB)
-- pocketshell-m2.gitbundle           sha256 c97956e8695704ddd84bd3a9d3a74607cd3d1ffd3574e07cf85777a7074e0e6f  (full history @ 615f467; ~25 MB — includes one-time scratch/ objects from the accidental 0380901 snapshot; future bundles stay clean)
+Current: v0.7.0-m3.1 (git tip 006e5df + payload commit; Phase 3.1 "Midnight Sapphire" — Terminal Experience Redesign, versionCode 18)
+- PocketShell-v0.7.0-m3.1-debug.apk  sha256 76a241ca3ca88a1331ea00e16a0cf898cfe730b471e5796c0076154f5ab0d584
+  Installs IN PLACE over v0.6.2 (versionCode 16) AND the discarded v0.7.0-ui (17)
+  — same pinned cert d96a6f66…8bf659. App data (Alpine runtime, Hermes) survives.
+  SCOPE: Terminal screen ONLY — Home/Explore/Packages/Settings/Diagnostics and
+  the whole M2.6 runtime are untouched.
+  Phase 3.1 highlights (design contract: docs/PHASE-3.1-DESIGN.md):
+  · Midnight Sapphire blue-dark identity — canvas #080F1D, never pure black;
+    ONE accent (Sapphire #7FA3EF); real 16-color ANSI palette (OSC still wins).
+  · JetBrains Mono NL terminal typeface (OFL 1.1, no-ligature build —
+    character-exact output); Sapphire block cursor.
+  · Editor-style session tabs: rounded-TOP tabs, recessed inactive tabs, the
+    active tab is canvas-colored with a Sapphire top hairline and cuts the
+    strip's bottom hairline — it opens into the terminal workspace.
+  · Keyboard rebuilt from scratch (NO system IME): TOP Esc Tab + grouped
+    arrows · MIDDLE PocketShell QWERTY (terminal punctuation row, symbols
+    with INS/DEL/HOME/END/PGUP/PGDN) · BOTTOM [⌨] Ctrl Alt Space Shift Enter.
+  · Dedicated FN key REMOVED: F1–F10 = number-row long-press (hold → bubble →
+    release), F11/F12 on the tablet -/= long-press.
+  · Keyboard toggle collapses only the QWERTY body; both accessory rows stay;
+    landscape 4 rows; tablet wide rows. Dispatch pipeline unchanged —
+    Ctrl+C/D/L/A/E/W, Alt, Shift all remain real terminal input.
+  Device gate: docs/TESTING.md §12 (visual sweep, exact keyboard layout,
+  modifier combos, Fn long-press, apk update / node --version / hermes --version).
+- PocketShell-v0.7.0-m3.1-source.zip sha256 733602ee66156a54795377ca04dc9ff8123cd1c3dcc2c494be4f92ed5e3d3570  (28 MB, 279 files)
+- PocketShell-v0.7.0-m3.1-source.tar.gz sha256 310612cfd540445a7dd57a6d2a1d4646bb50172a5fcda7695e5eae5e4c2ee0e3  (28 MB)
+- pocketshell-m2.gitbundle           sha256 2ca125b9580e7396b16850f97a93f2ee5f4dd57ef56369904039311bef2c2850  (full history @ 006e5df; ~26 MB — includes the complete milestone history AND the discarded UI attempt + rollback records, honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.6.1 superseded by the v0.6.2 hardlink +
-sysdata fixes — see docs/CHANGELOG for each confirmed fix).
+Older builds: withdrawn (v0.6.2 superseded by Phase 3.1; its records live in
+the bundle history — see docs/CHANGELOG for each confirmed fix).
