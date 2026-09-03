@@ -120,27 +120,15 @@ fun HomeScreen(
         }
     }
 
-    val quickActions = remember(
-        commandApps.apps, runtimeState, creating, onNewTerminal, onOpenLinuxShell, onOpenCommandApp,
-    ) {
+    // The floating control creates sessions — nothing else (§7). Command apps
+    // launch from the tools grid and the CLI Apps menu, never from here.
+    val quickActions = remember(runtimeState, creating, onNewTerminal, onOpenLinuxShell) {
         buildList {
-            commandApps.apps.take(4).forEach { app ->
-                add(
-                    QuickAction(
-                        id = "app-${app.id}",
-                        label = app.displayName,
-                        glyph = QuickActionGlyph.APP,
-                        monogram = app.monogram,
-                        enabled = !creating,
-                    ) { onOpenCommandApp(app) },
-                )
-            }
             if (runtimeState == RuntimeState.READY) {
                 add(
                     QuickAction(
                         id = "new-linux",
                         label = "New Linux session",
-                        glyph = QuickActionGlyph.LINUX,
                         enabled = !creating,
                     ) { onOpenLinuxShell() },
                 )
@@ -149,7 +137,6 @@ fun HomeScreen(
                 QuickAction(
                     id = "new-terminal",
                     label = "New Terminal",
-                    glyph = QuickActionGlyph.TERMINAL,
                     enabled = !creating,
                 ) { onNewTerminal() },
             )

@@ -48,28 +48,25 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.pocketshell.ui.theme.TerminalTheme
 
 /**
- * Phase 3.2 — the floating quick-action system (docs/PHASE-3.2-DESIGN.md §8).
+ * Phase 3.3 — the floating create control (docs/PHASE-3.3-DESIGN.md §7).
  *
  * ONE custom control near the bottom-right (NOT a Material FAB, NOT a bottom
- * navigation bar): tapping rotates + → ×, dims the page behind a scrim, and
- * an upward stack of labeled chips emerges from the control — soft, layered,
- * tactile, 150–220ms, nothing bouncy, nothing looping.
+ * navigation bar), representing exactly one idea: CREATE A NEW SESSION.
+ * Tapping rotates + → ×, dims the page behind a scrim, and text-only chips
+ * emerge from the control — soft, layered, tactile, 150–220ms, nothing
+ * bouncy, nothing looping. No icon circles, no logo marks, no command apps —
+ * apps launch from the launcher grid and the CLI Apps menu, never from here.
  *
- * The action list is DATA: future capabilities (Files, SSH, Containers, …)
- * become new [QuickAction] entries — no redesign. Fake actions are never
+ * The action list is DATA: a future creation action (e.g. a second runtime)
+ * becomes a new [QuickAction] entry — no redesign. Fake actions are never
  * rendered; callers only pass features that really exist.
  */
-enum class QuickActionGlyph { TERMINAL, LINUX, APP }
 
 data class QuickAction(
     val id: String,
     val label: String,
-    val glyph: QuickActionGlyph,
-    /** Command-app monogram (glyph == APP). */
-    val monogram: String? = null,
     val enabled: Boolean = true,
     val onRun: () -> Unit,
 )
@@ -177,7 +174,10 @@ private fun QuickActionButton(expanded: Boolean, onToggle: () -> Unit) {
     }
 }
 
-/** A labeled chip: icon circle (deck tone, hairline) + label pill. */
+/**
+ * A text-only chip: deck tone + hairline + restrained shadow — a floating
+ * label, nothing else (no icon circle, no logo, no monogram).
+ */
 @Composable
 private fun QuickActionChip(action: QuickAction, onRun: () -> Unit) {
     val shape = RoundedCornerShape(HomeTokens.chipRadius)
@@ -194,39 +194,14 @@ private fun QuickActionChip(action: QuickAction, onRun: () -> Unit) {
                     Modifier
                 },
             )
-            .padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuickActionIconCircle(action)
-        Spacer(Modifier.width(10.dp))
         Text(
             text = action.label,
             style = MaterialTheme.typography.labelLarge,
             fontSize = 13.sp,
             color = HomeTokens.textPrimary,
         )
-        Spacer(Modifier.width(2.dp))
-    }
-}
-
-@Composable
-private fun QuickActionIconCircle(action: QuickAction) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .background(HomeTokens.surfaceApp, CircleShape)
-            .border(1.dp, HomeTokens.hairline, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        when (action.glyph) {
-            QuickActionGlyph.TERMINAL -> TerminalMark(size = 16.dp)
-            QuickActionGlyph.LINUX -> MountainMark(size = 17.dp)
-            QuickActionGlyph.APP -> Text(
-                text = action.monogram ?: "?",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 13.sp,
-                color = HomeTokens.accentBright,
-            )
-        }
     }
 }
