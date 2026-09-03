@@ -206,6 +206,35 @@ data class CliApp(
   state; nothing pretends to run (§34).
 - No `Hermes` hard-coding anywhere; Hermes is just one future registry entry.
 
+### Phase 3.2 update (2026-09-04): command-launchable apps (the shipped shape)
+
+The M0 sketch above was superseded by M2.4 (real apk catalog) and is now
+superseded again by the Phase 3.2 package/app separation
+(docs/PHASE-3.2-DESIGN.md §4). The shipped architecture:
+
+- `apps/CommandApps.kt` — `CommandApp(id, displayName, launchCommand,
+  description, monogram)` + `CommandAppCatalog.registry` (seeds: hermes,
+  opencode, claude, zcode) + `availableCommandApps(paths)` classification
+  (pure; registry order; only guest-confirmed names). Packages are
+  infrastructure and NEVER launcher apps — the forbidden list
+  (git/nano/python/node/npm/gcc/g++/htop/vim) is test-pinned.
+- Availability: `AlpinePackageManager.guestCommandPaths` — ONE batched
+  LOGIN-shell probe (`sh -lc`, positional args, terminal `exit 0`,
+  `PackageProbeException` on real failure). Login semantics are deliberate:
+  the question is "would a fresh guest login shell find this command?" —
+  uv-installed launchers (~/.local/bin, e.g. Hermes from M2.6) are on PATH
+  only after profile sourcing; the spec's static PATH would answer a false
+  absence. Exposed via `PackageGateway.commandPaths/commandPath`.
+- Launch: `TerminalViewModel.openCommandApp` (runtime gate → fresh probe →
+  `TerminalSessionManager.createLinuxCommandSession` = new dedicated guest
+  login-shell session whose PTY receives the launch command → select →
+  navigate). `createLinuxAppSession` (M2.4 Explore path) delegates to the
+  same method — one launch machinery, two entry points.
+- Home state: `TerminalViewModel.CommandAppsState` (apps / probeError /
+  checked) refreshed on Home visibility (READY) and after package
+  operations; probe failure keeps the last real list and surfaces the error
+  (v0.4.4 honesty rule applied to command apps).
+
 ---
 
 ## 7. Rendering & performance notes (§23)

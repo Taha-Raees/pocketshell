@@ -12,6 +12,7 @@ completes a milestone by itself.
 | Upstream emulator suite (19 classes) | `:terminal-emulator` | Vendored unchanged | VT/ANSI, UTF-8, resize, scroll regions, styles, history, key encoding |
 | PocketShell keyboard tests | `:app` | new | Modifier state machine (one-shot/lock), key→KeyEvent synthesis, symbol coverage table |
 | PocketShell CLI app tests | `:app` | new | Registry empty-by-default, launcher verification gates, model serialization |
+| PocketShell command-app tests | `:app` | new | Phase 3.2: package/app separation (forbidden list), registry invariants, guest-driven classification |
 | Session manager tests | `:app` | new | Multi-session isolation of env/cwd/title, finished-session handling |
 
 Run: `./gradlew testDebugUnitTest` (all modules).
@@ -575,3 +576,78 @@ Install note: versionCode 18 updates in place over 16 (v0.6.2) and 17
   activation does not type characters — the same tradeoff Termux makes.
   Modifier buttons, tabs, +, close, and the ⌨ toggle ARE standard
   accessibility-activatable controls.
+
+---
+
+## 13. Manual acceptance — Phase 3.2 (Home / OS Launcher + Command Apps, v0.7.0-m3.2) — DEVICE GATE PENDING
+
+Prep: install the versionCode 19 APK in place over 18 (same cert). Phase 3.1
+gate (§12) must still pass afterwards — the terminal is untouched by this
+phase and any regression there is a 3.2 defect.
+
+### 13.1 Launcher identity & honesty (the core 3.2 assertions)
+- [ ] Home opens on the Midnight Sapphire launcher: blue-dark page (NO pure
+      black), drawn brand mark + mono "PocketShell" wordmark + tagline, no
+      app bar, no bottom navigation bar.
+- [ ] With packages installed (nano, git, python, node, htop — whatever the
+      device already has): NONE of them appear on Home. No "Installed CLI
+      Apps" section exists anymore.
+- [ ] If `hermes` is available in the guest (M2.6 install + UV_LINK_MODE=copy
+      environment): a "Hermes Agent" launcher tile appears on Home
+      automatically. If it is NOT available: no tile and no fake entry.
+- [ ] Fresh runtime (or before any command app exists): the empty state reads
+      "Your tools will appear here" with the "Explore packages" quiet action —
+      never "No CLI apps installed".
+- [ ] Airplane mode (or stopped runtime): Home does NOT claim "no apps" —
+      either the last real grid stays with "availability could not be checked
+      right now", or the honest checking/empty state shows after a real probe.
+
+### 13.2 Environment launchers
+- [ ] Terminal tile: wears the terminal canvas color, shows the drawn prompt
+      mark and a live "N running" chip matching the real session count; tap
+      opens/reuses a real session (existing behavior).
+- [ ] Linux tile: shows "Alpine Linux · ready" when READY and enters the
+      guest on tap; with no/failed runtime it shows the honest state line and
+      routes to Diagnostics on tap (never a fake launch).
+
+### 13.3 Command app launch flow
+- [ ] Tap the Hermes tile → the spinner state shows on the tile → the app
+      lands in a NEW terminal session where `hermes` is running (the typed
+      command visible in scrollback; the user never typed it).
+- [ ] Exiting the app returns to the guest shell prompt (same session).
+- [ ] After uninstalling/breaking the binary, the tile disappears at the next
+      Home visit; tapping a stale tile is impossible or fails with an honest
+      banner (verify-then-launch).
+
+### 13.4 Floating quick actions
+- [ ] One custom Sapphire control bottom-right; position never moves; + → ×
+      rotation; scrim dims the page; labeled chips emerge upward (New
+      Terminal, New Linux session [only when READY], available command apps).
+- [ ] New Terminal always creates a FRESH session; New Linux session opens a
+      guest login shell; command-app chips launch the right command.
+- [ ] Dismiss via scrim tap, × tap, and system Back (no navigation change).
+- [ ] During a session spawn the session chips disable (no double-spawn).
+
+### 13.5 Sessions continuation area
+- [ ] Compact rows (≤4 + "+N more in Terminal"); green dot only for live
+      processes; exited sessions dimmed with "(exited)"; tap returns.
+
+### 13.6 Responsive / polish
+- [ ] Phone portrait: 3-column app grid; comfortable spacing; nothing
+      stretches edge-to-edge except full-bleed background.
+- [ ] Tablet/foldable (Galaxy Tab S7 ≥600dp): 4+ columns, content capped
+      ~720dp and centered — phone cards are NOT stretched across the screen.
+- [ ] Status bar: light icons on Home in BOTH light and dark system themes;
+      Settings/Packages screens keep readable icons in their own theme.
+- [ ] No blur, no continuous animation; the launcher feels instant; scrolling
+      is smooth; FAB cluster motion 150–220ms with no bounce.
+
+### 13.7 Phase 3.1 regression (must be completely unaffected)
+- [ ] Terminal chrome/tabs/canvas/keyboard identical to the §12-accepted
+      state; keyboard final layout unchanged; Ctrl+C/D/L/A/E/W, Alt+key,
+      Shift+Tab all still correct.
+- [ ] Linux regression set from §12.6 still passes (apk update, node
+      --version, hermes --version).
+- [ ] Explore/Packages screen behavior unchanged (install/uninstall/open
+      still work — Home no longer shows their results, but the screen is
+      byte-identical in behavior).

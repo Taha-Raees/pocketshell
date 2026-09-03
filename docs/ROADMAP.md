@@ -184,3 +184,25 @@ remote development.
       new layout); assembleDebug OK.
 - [ ] Device gate §12 (visual sweep, exact keyboard layout, Ctrl/Alt/Shift
       combos, Fn long-press, toggle, Linux regression set).
+
+### Phase 3.2 (2026-09-04, v0.7.0-m3.2) — Home / OS Launcher + Command Apps
+- [x] Design contract committed before implementation
+      (docs/PHASE-3.2-DESIGN.md, plan-first discipline).
+- [x] Home screen ONLY: an OS launcher (identity → foundations → apps →
+      sessions → floating actions), not a dashboard; Midnight Sapphire
+      identity continues (no pure black, no gradients on this page, one
+      Sapphire accent); Phase 3.1 terminal + keyboard untouched.
+- [x] Packages ≠ Apps architecture: Home no longer renders installed
+      packages (forbidden list test-pinned); new command-launchable app
+      registry + guest-driven classification; login-shell availability probe
+      (matches what the user's typing sees; uv launchers reachable);
+      verify-then-launch into a dedicated guest session (typed-command
+      fidelity); honest empty/checking/probe-failure states (v0.4.4 rule).
+- [x] Floating quick-action system (custom, extensible, real actions only) +
+      edge-to-edge launcher + per-screen status-bar icon coordination +
+      responsive grid (3/4/6 columns, 720dp cap on tablets).
+- [x] 644 test executions green (628 baseline + 8 new CommandApps
+      invariants); assembleDebug OK; versionCode 19 / 0.7.0-m3.2.
+- [ ] Device gate §13 (no packages on Home; Hermes tile appears iff
+      available and launches by tap; Terminal/Linux/sessions unchanged;
+      FAB actions; phone + tablet layout).

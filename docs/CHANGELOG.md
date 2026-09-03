@@ -3,6 +3,97 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m3.2] — 2026-09-04 — Phase 3.2: Home / OS Launcher + Command Apps
+
+Scope: the **HOME screen ONLY** + the command-launchable app architecture.
+The Phase 3.1 terminal redesign (chrome, tabs, keyboard, canvas, palette, PTY
+pipeline), the runtime, the Linux environment, the package manager, installed
+packages, Hermes' installation and user data are untouched. Design contract:
+`docs/PHASE-3.2-DESIGN.md` (committed before implementation, plan-first).
+
+### Concept
+- PocketShell Home is the launcher / workspace of a Linux-centric environment
+  — not a terminal dashboard: identity on top, the two foundations (Terminal,
+  Linux) in the center, command apps below, sessions quiet, one floating
+  quick-action control. No permanent bottom navigation bar.
+
+### Packages ≠ Apps (the architecture change)
+- **Packages are infrastructure; apps are experiences.** The Home screen NO
+  LONGER renders installed packages: the "Installed CLI Apps" section (apk
+  probes over the M2.4 catalog — nano/htop/vim/git/python3) is removed from
+  Home. git, nano, python, node, npm, gcc, g++, htop, vim and every normal
+  shell utility can never become launcher tiles (test-pinned forbidden list).
+- New command-launchable app layer (`apps/CommandApps.kt`): extensible
+  registry (unique id, display name, launch command, description, monogram;
+  seeds: Hermes Agent `hermes`, OpenCode `opencode`, Claude Code `claude`,
+  ZCode `zcode`) + pure guest-driven classification — a tile exists ONLY when
+  the guest confirms the command.
+- Availability probe with LOGIN-shell semantics
+  (`AlpinePackageManager.guestCommandPaths`, one batched exec, terminal
+  `exit 0`, PackageProbeException on real failure): the question asked is
+  exactly "would a fresh guest login shell find this command?" — the same
+  environment the user's typing sees, where uv-installed launchers
+  (`hermes`, M2.6) are reachable (the spec's static PATH lacks
+  `/root/.local/bin`; a non-login `sh -c` probe would answer a false
+  absence). New `PackageGateway.commandPaths/commandPath` wrappers; every
+  pre-existing package-manager method is untouched.
+- Launch flow (`TerminalViewModel.openCommandApp`, verify-then-launch):
+  runtime gate → fresh single login-shell probe → NEW dedicated guest session
+  (`TerminalSessionManager.createLinuxCommandSession`) whose PTY receives the
+  launch command — what the launcher does is exactly what typing would do.
+  The existing `createLinuxAppSession` delegates to it (Explore behavior
+  byte-identical). Refusals land in the honest non-fatal banner.
+- Honesty discipline carried over (v0.4.4 rule): a failed probe renders
+  "availability could not be checked right now" and KEEPS the last real app
+  list — a dead probe never renders as "no apps"; an in-flight probe renders
+  "Checking the Linux environment…", never a fake empty answer.
+
+### The launcher (Midnight Sapphire, same system as Phase 3.1)
+- Fixed blue-dark identity in every app theme: page `#0B1424`, Terminal tile
+  in the exact canvas color `#080F1D` (it IS the terminal), Linux tile
+  `#101B30`, app tiles `#16233F`, chips `#131F38`. No pure black, NO
+  gradients on this page — depth from surface steps, hairlines, restrained
+  shadows. ONE accent (Sapphire `#7FA3EF`); green `#5FB572` appears only on a
+  dot that really means "process running".
+- Brand header: drawn PocketShell mark (pocket tile + prompt chevron) +
+  mono wordmark + tagline "Your Linux workspace on Android" + two quiet
+  icon actions (Diagnostics, Settings). Not an app bar; scrolls with content.
+- Environment launchers: asymmetric duo (weights 1.25/1, 168dp) — Terminal
+  (drawn prompt mark, "Native PocketShell environment", live "N running"
+  chip) and Linux (original twin-peak mountain mark, honest runtime state
+  line: "Alpine Linux · ready" / not installed / in progress / failed /
+  repair needed / unsupported ABI; READY enters the guest, every other state
+  routes to Diagnostics exactly as before). Distro-agnostic by construction.
+- Command app grid: launcher-style tiles (64dp monogram square + name), 3
+  columns on phones / 4 on ≥600dp / 6 on ≥840dp, content capped at 720dp and
+  centered on tablets. Verifying tile shows a real progress state.
+- Empty state: drawn ghost tiles + "Your tools will appear here" + honest
+  body + "Explore packages" quiet action (real screen; no fake marketplace).
+- Sessions: compact continuation area (max 4 rows + "+N more in Terminal"),
+  green dot only for live processes, "(exited)" dimmed, mono session id,
+  tap returns to the session.
+- Floating quick actions: ONE custom 56dp Sapphire control (bottom-right,
+  position stable, + rotates to ×), scrim dim (42%, 150ms), labeled chips
+  emerge upward with 30ms stagger (160–180ms, no bounce) — real actions only
+  (New Terminal = fresh session; New Linux session when READY; each available
+  command app, capped at 4). The action list is data: future capabilities
+  become new entries; nothing fake is ever rendered. Back/scrim dismiss.
+- Edge-to-edge: Home consumes the status-bar inset itself (like the Terminal
+  branch); status-bar icon appearance now coordinated per screen (light icons
+  on the Midnight home/terminal surfaces, theme-following elsewhere).
+- Motion: 80ms tile press scale; nothing looping, nothing bouncy, no blur.
+
+### Tests
+- 644 executions green (628 baseline + 8 new `CommandAppsTest` invariants:
+  registry completeness/uniqueness, the brief's forbidden package list,
+  argv-safe launch commands, registry-order classification from real probe
+  answers, absent-binary-never-renders).
+- Phase 3.1 keyboard/tab/palette contracts untouched and still green.
+
+Version: versionCode 19, `0.7.0-m3.2` (in-place update chain 16→17→18→19,
+cert d96a6f66…8bf659 unchanged). Device gate: docs/TESTING.md §13.
+
+
 ## [0.7.0-m3.1] — 2026-09-03 — Phase 3.1: Terminal Experience Redesign ("Midnight Sapphire")
 
 Scope: the **Terminal screen ONLY** (chrome, session tabs, terminal workspace,
