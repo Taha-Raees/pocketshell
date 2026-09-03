@@ -594,3 +594,18 @@ Work Log:
 
 Stage Summary:
 - Project is back at the v0.6.2-m2.6 baseline with a clean, verified delivery chain; ready to run phase 3 (UI/UX redesign) again completely from this base. The prior attempt's history remains available as reference.
+
+---
+Task ID: 31
+Agent: main (Super Z)
+Task: "run delivery server" — recover the v0.6.2 delivery chain after environment reset #9 and restart the web server.
+
+Work Log:
+- Reset #9 detected (new container, untracked artifacts + toolchain wiped, auto-snapshot 5592173 on top). Source intact; v0.6.2 rollback state verified.
+- Toolchain rebuilt (install_toolchain.sh, foreground). Full suite: 624/0. assembleDebug hit the known cold-cache dex-merge OOM once, passed on retry.
+- APK reproduced BYTE-IDENTICAL for the third time: 35c4cd69…9226 (rollback proven again at artifact level).
+- Payload re-cut at tip 5592173: sanity clean (267 files, 0 dot-paths). New hashes: zip c32feb43…a27d, tgz 004ae635…cfc87, bundle c97956e8…0e6f; APK unchanged. download/ == public/ == dist-master/ (three-way verified).
+- app/page.tsx + download/README.md hashes/tip updated; server on :3000 — page renders v0.6.2-m2.6/versionCode 16, all 4 artifacts HTTP byte-identical.
+
+Stage Summary:
+- v0.6.2 delivery chain live again; standing by for the phase 3 prompt.
