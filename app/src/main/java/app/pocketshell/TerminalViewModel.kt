@@ -6,8 +6,6 @@ import androidx.lifecycle.viewModelScope
 import app.pocketshell.packages.CliAppCatalog
 import app.pocketshell.packages.CliAppCatalogEntry
 import app.pocketshell.packages.InstalledCatalogApp
-import app.pocketshell.packages.LaunchableApp
-import app.pocketshell.packages.LaunchableApps
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.packages.PackageProbeException
 import app.pocketshell.packages.installedCatalogApps
@@ -246,91 +244,6 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
      */
     fun installSearchResult(packageName: String) {
         PackageGateway.operations.installPackage(packageName)
-    }
-
-    // --------------------------------------------------- launchable apps (UI)
-
-    /**
-     * Home/Apps "launchable apps" — the guest-confirmed subset of
-     * [LaunchableApps.entries] (docs/UI-REDESIGN.md §9). Detection is a real
-     * `command -v` probe against the running guest; probe failures are
-     * surfaced, never turned into an empty-looking-but-actually-unknown list.
-     */
-    private val _launchableApps = MutableStateFlow<List<LaunchableApp>>(emptyList())
-    val launchableApps: StateFlow<List<LaunchableApp>> = _launchableApps.asStateFlow()
-
-    private val _launchableProbeError = MutableStateFlow<String?>(null)
-    val launchableProbeError: StateFlow<String?> = _launchableProbeError.asStateFlow()
-
-    /** Probe the guest for launchable apps. Safe to call repeatedly. */
-    fun refreshLaunchableApps() {
-        if (!PackageGateway.isRuntimeReady()) {
-            _launchableApps.value = emptyList()
-            _launchableProbeError.value = null
-            return
-        }
-        viewModelScope.launch {
-            try {
-                _launchableApps.value = withContext(Dispatchers.IO) {
-                    LaunchableApps.detectInstalled()
-                }
-                _launchableProbeError.value = null
-            } catch (t: Throwable) {
-                // Keep the last real answer; say what happened (honesty rule).
-                _launchableProbeError.value =
-                    t.message ?: t.javaClass.simpleName
-            }
-        }
-    }
-
-    /** True while a launchable-app Open preflight is running. */
-    private val _launchingApp = MutableStateFlow<String?>(null)
-    val launchingApp = _launchingApp.asStateFlow()
-
-    /**
-     * Open a launchable app: verify it live (`command -v`) once more, then
-     * spawn a dedicated guest session running its launch command. Refusals
-     * land in [launchError]; the app never dies and never fakes.
-     */
-    fun openLaunchableApp(app: LaunchableApp, onReady: () -> Unit) {
-        val application = getApplication<Application>()
-        if (!PackageGateway.isRuntimeReady()) {
-            safeFailure("${app.name} needs the Linux runtime — install or repair it from Diagnostics")
-            return
-        }
-        _launchError.value = null
-        _launchingApp.value = app.name
-        viewModelScope.launch {
-            try {
-                val execPath = withContext(Dispatchers.IO) {
-                    PackageGateway.executablePath(app.executable)
-                }
-                if (execPath == null) {
-                    safeFailure(
-                        "${app.name} was not found via command -v just now — " +
-                            "it may have been removed. It disappears from the Apps list on the next refresh.",
-                    )
-                    return@launch
-                }
-                var newId: Long? = null
-                val ok = withContext(Dispatchers.Main) {
-                    try {
-                        newId = TerminalSessionManager.createLaunchableAppSession(application, app).id
-                        _selectedId.value = newId
-                        true
-                    } catch (t: Throwable) {
-                        _launchError.value =
-                            "${app.name} could not start: ${t.message ?: t.javaClass.simpleName}"
-                        false
-                    }
-                }
-                if (ok && newId != null) onReady()
-            } catch (t: Throwable) {
-                safeFailure("${app.name} could not start: ${t.message ?: t.javaClass.simpleName}")
-            } finally {
-                _launchingApp.value = null
-            }
-        }
     }
 
     /** Re-run the failed repository update (honest Retry on the FAILED banner). */

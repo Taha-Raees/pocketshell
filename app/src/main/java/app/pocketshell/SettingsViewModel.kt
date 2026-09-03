@@ -25,17 +25,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsRepository.DEFAULT_FONT_SIZE,
     )
 
-    /** OpenRouter config for the future assistant — see SettingsScreen §AI. */
-    val openRouterApiKey: StateFlow<String?> = repo.openRouterApiKey.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), null,
-    )
-    val openRouterModel: StateFlow<String?> = repo.openRouterModel.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), null,
-    )
-
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { repo.setThemeMode(mode) }
     fun setDynamicColor(enabled: Boolean) = viewModelScope.launch { repo.setDynamicColor(enabled) }
     fun setDefaultFontSize(size: Int) = viewModelScope.launch { repo.setDefaultFontSize(size) }
-    fun setOpenRouterApiKey(key: String?) = viewModelScope.launch { repo.setOpenRouterApiKey(key) }
-    fun setOpenRouterModel(model: String?) = viewModelScope.launch { repo.setOpenRouterModel(model) }
 }

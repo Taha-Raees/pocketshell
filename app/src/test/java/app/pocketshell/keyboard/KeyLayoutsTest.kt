@@ -2,106 +2,110 @@ package app.pocketshell.keyboard
 
 import android.view.KeyEvent
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Accessory-row layout tests — the FINAL keyboard specification
- * (docs/UI-REDESIGN.md §7):
- *   top row:    Esc · Tab · (spring) · ← ↑ ↓ →
- *   bottom row: [⌨] · Ctrl · Alt · Space · Shift · ↵
- * Fn key removed; arrows long-press to nav keys; F1–F12 via the Esc
- * long-press strip. Digits/symbols come from the Android keyboard.
- */
+/** Layout coverage tests — the full §8 symbol set must be reachable. */
 class KeyLayoutsTest {
 
     @Test
-    fun `top row leading is exactly Esc then Tab`() {
-        val codes = KeyLayouts.topRowLeading.map {
-            (it.action as KeyAction.Code).keyCode
+    fun `all required symbols exist on phone symbol page`() {
+        val required = "~`!@#\$%^&*()-_+={}[]\\|;:'\",.<>/?".toSet()
+        val available = buildSet {
+            (KeyLayouts.phoneSymbolRow1 + KeyLayouts.phoneSymbolRow2 + KeyLayouts.phoneSymbolRow3)
+                .forEach { key -> (key.action as KeyAction.Text).let { add(it.c) } }
+            add(',') // bottom row
+            add('.') // bottom row
+            // shifted digit row variants
+            KeyLayouts.phoneDigitRow.forEach { key ->
+                (key.action as KeyAction.Text).shifted?.let { add(it) }
+            }
         }
-        assertEquals(listOf(KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_TAB), codes)
+        val missing = required - available
+        assertTrue("Missing symbols: $missing", missing.isEmpty())
     }
 
     @Test
-    fun `top row arrows are the four arrow keys, repeatable, right-cluster order`() {
-        val codes = KeyLayouts.topRowArrows.map {
-            (it.action as KeyAction.Code).keyCode
+    fun `letters cover a-z`() {
+        val letters = (KeyLayouts.phoneRowQ + KeyLayouts.phoneRowA + KeyLayouts.phoneRowZ)
+            .mapNotNull { (it.action as? KeyAction.Text)?.c }
+            .filter { it in 'a'..'z' }
+            .toSet()
+        assertEquals(('a'..'z').toSet(), letters)
+    }
+
+    @Test
+    fun `letter shifted variants are uppercase`() {
+        KeyLayouts.phoneRowQ.forEach { key ->
+            val action = key.action as KeyAction.Text
+            assertEquals(action.c.uppercaseChar(), action.shifted)
         }
+    }
+
+    @Test
+    fun `fn remap digits to F-keys`() {
         assertEquals(
-            listOf(
-                KeyEvent.KEYCODE_DPAD_LEFT,
-                KeyEvent.KEYCODE_DPAD_UP,
-                KeyEvent.KEYCODE_DPAD_DOWN,
-                KeyEvent.KEYCODE_DPAD_RIGHT,
-            ),
-            codes,
+            KeyEvent.KEYCODE_F1,
+            (KeyLayouts.fnRemap(KeyAction.Text('1')) as KeyAction.Code).keyCode,
         )
-        KeyLayouts.topRowArrows.forEach {
-            assertTrue((it.action as KeyAction.Code).repeatable)
-        }
-    }
-
-    @Test
-    fun `arrow long-press remaps to HOME PGUP PGDN END`() {
-        val remaps = KeyLayouts.topRowArrows.map { key ->
-            (key.longPress as KeyAction.Code).keyCode
-        }
         assertEquals(
-            listOf(
-                KeyEvent.KEYCODE_MOVE_HOME,
-                KeyEvent.KEYCODE_PAGE_UP,
-                KeyEvent.KEYCODE_PAGE_DOWN,
-                KeyEvent.KEYCODE_MOVE_END,
-            ),
-            remaps,
+            KeyEvent.KEYCODE_F10,
+            (KeyLayouts.fnRemap(KeyAction.Text('0')) as KeyAction.Code).keyCode,
         )
-    }
-
-    @Test
-    fun `bottom row keys are Space then Enter only`() {
-        val space = KeyLayouts.bottomRowKeys[0].action as KeyAction.Text
-        val enter = KeyLayouts.bottomRowKeys[1].action as KeyAction.Code
-        assertEquals(' ', space.c)
-        assertEquals(KeyEvent.KEYCODE_ENTER, enter.keyCode)
-        assertEquals(2, KeyLayouts.bottomRowKeys.size)
-    }
-
-    @Test
-    fun `modifier slots are exactly Ctrl Alt Shift - no Fn`() {
         assertEquals(
-            listOf(ModifierKey.CTRL, ModifierKey.ALT, ModifierKey.SHIFT),
-            KeyLayouts.modifierSlots.map { it.key },
+            KeyEvent.KEYCODE_F11,
+            (KeyLayouts.fnRemap(KeyAction.Text('-')) as KeyAction.Code).keyCode,
+        )
+        assertEquals(
+            KeyEvent.KEYCODE_F12,
+            (KeyLayouts.fnRemap(KeyAction.Text('=')) as KeyAction.Code).keyCode,
         )
     }
 
     @Test
-    fun `F-key strip covers F1 to F12`() {
-        val codes = KeyLayouts.functionKeys.map { (it.action as KeyAction.Code).keyCode }
+    fun `fn remap navigation keys`() {
+        assertEquals(
+            KeyEvent.KEYCODE_MOVE_HOME,
+            (KeyLayouts.fnRemap(KeyAction.Code(KeyEvent.KEYCODE_DPAD_LEFT)) as KeyAction.Code).keyCode,
+        )
+        assertEquals(
+            KeyEvent.KEYCODE_MOVE_END,
+            (KeyLayouts.fnRemap(KeyAction.Code(KeyEvent.KEYCODE_DPAD_RIGHT)) as KeyAction.Code).keyCode,
+        )
+        assertEquals(
+            KeyEvent.KEYCODE_PAGE_UP,
+            (KeyLayouts.fnRemap(KeyAction.Code(KeyEvent.KEYCODE_DPAD_UP)) as KeyAction.Code).keyCode,
+        )
+        assertEquals(
+            KeyEvent.KEYCODE_PAGE_DOWN,
+            (KeyLayouts.fnRemap(KeyAction.Code(KeyEvent.KEYCODE_DPAD_DOWN)) as KeyAction.Code).keyCode,
+        )
+        assertEquals(
+            KeyEvent.KEYCODE_FORWARD_DEL,
+            (KeyLayouts.fnRemap(KeyAction.Code(KeyEvent.KEYCODE_DEL)) as KeyAction.Code).keyCode,
+        )
+    }
+
+    @Test
+    fun `tablet exposes F1 to F12 directly`() {
+        val codes = KeyLayouts.tabletFunctionRow
+            .map { (it.action as KeyAction.Code).keyCode }
         assertEquals((KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F12).toList(), codes)
     }
 
     @Test
-    fun `longPressFor resolves arrows and returns null for plain keys`() {
-        val left = KeyLayouts.topRowArrows[0].action
+    fun `extended row covers INS DEL HOME END PGUP PGDN`() {
+        val codes = KeyLayouts.phoneExtendedRow.map { (it.action as KeyAction.Code).keyCode }
         assertEquals(
-            KeyEvent.KEYCODE_MOVE_HOME,
-            (KeyLayouts.longPressFor(left) as KeyAction.Code).keyCode,
+            listOf(
+                KeyEvent.KEYCODE_INSERT,
+                KeyEvent.KEYCODE_FORWARD_DEL,
+                KeyEvent.KEYCODE_MOVE_HOME,
+                KeyEvent.KEYCODE_MOVE_END,
+                KeyEvent.KEYCODE_PAGE_UP,
+                KeyEvent.KEYCODE_PAGE_DOWN,
+            ),
+            codes,
         )
-        assertNull(KeyLayouts.longPressFor(KeyAction.Code(KeyEvent.KEYCODE_ESCAPE)))
-        assertNull(KeyLayouts.longPressFor(KeyAction.Text(' ')))
-    }
-
-    @Test
-    fun `accessory bar carries no printable digit or letter keys`() {
-        val allKeys = KeyLayouts.topRowLeading +
-            KeyLayouts.topRowArrows +
-            KeyLayouts.bottomRowKeys +
-            KeyLayouts.functionKeys
-        val printable = allKeys
-            .mapNotNull { it.action as? KeyAction.Text }
-            .map { it.c }
-        assertEquals(listOf(' '), printable)
     }
 }

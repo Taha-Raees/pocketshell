@@ -6,10 +6,10 @@ import android.view.KeyCharacterMap
 import android.view.KeyEvent
 
 /**
- * Terminal Input Dispatcher (docs/UI-REDESIGN.md §7).
+ * Terminal Input Dispatcher (brief §9).
  *
- * Route: PocketShell accessory keyboard → this dispatcher → vendored
- * TerminalView dispatch pipeline (upstream KeyHandler encoding) → PTY → shell.
+ * Route: PocketShell keyboard → this dispatcher → vendored TerminalView
+ * dispatch pipeline (upstream KeyHandler encoding) → PTY → shell.
  *
  * One input pipeline for everything: character keys are converted to real
  * KeyEvents via the VIRTUAL_KEYBOARD KeyCharacterMap; special keys are
@@ -24,18 +24,28 @@ class TerminalKeyDispatcher(
 
     /** Dispatch one key press from the keyboard. */
     fun press(action: KeyAction) {
-        when (action) {
-            is KeyAction.Text -> dispatchChar(resolveChar(action))
-            is KeyAction.Code -> dispatchCode(action.keyCode, repeatCount = 0)
+        val effective = if (keyboardState.fnActive) KeyLayouts.fnRemap(action) else action
+
+        when (effective) {
+            is KeyAction.Text -> {
+                val c = resolveChar(effective)
+                dispatchChar(c)
+            }
+
+            is KeyAction.Code -> {
+                dispatchCode(effective.keyCode, repeatCount = 0)
+            }
         }
+
         keyboardState.clearOneShots()
     }
 
     /** Dispatch a held-key repeat (repeat count carried on the DOWN event). */
     fun repeat(action: KeyAction, repeatCount: Int) {
-        when (action) {
-            is KeyAction.Text -> dispatchChar(resolveChar(action))
-            is KeyAction.Code -> dispatchCode(action.keyCode, repeatCount)
+        val effective = if (keyboardState.fnActive) KeyLayouts.fnRemap(action) else action
+        when (effective) {
+            is KeyAction.Text -> dispatchChar(resolveChar(effective))
+            is KeyAction.Code -> dispatchCode(effective.keyCode, repeatCount)
         }
         keyboardState.clearOneShots()
     }
