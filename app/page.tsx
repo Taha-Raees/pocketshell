@@ -2,9 +2,9 @@ const VERSION = "v0.6.2-m2.6";
 
 const HASHES = {
   apk: "35c4cd698010cb8039369059df5c60042cc06232630848acb556fc8136249226",
-  zip: "7236ad1c2d2db31389c173ea06fbaf1a09ecbad41dab02468aebf6f5ad98e836",
-  tgz: "0545fae70d96b52f1dc61df8b9ce75f91b8531a98cf165aac1409a7e1db655cc",
-  bundle: "4391b064cc6013930c9c1b587afb29234df1c1e4888eb004be1b4aa836d495bb",
+  zip: "c32feb43c6426d3e0500004af3f7da1aeec5a1009c373d48725721b2a370a27d",
+  tgz: "004ae63559499d5343c24d8d9679257e69436c955a42a93cc07bc0b4786cfc87",
+  bundle: "c97956e8695704ddd84bd3a9d3a74607cd3d1ffd3574e07cf85777a7074e0e6f",
 };
 
 function Sha({ text }: { text: string }) {
@@ -243,7 +243,7 @@ export default function Home() {
         <h2>Source (version control)</h2>
         <p>
           Complete buildable source. The zip intentionally contains no
-          dotfiles; full history rides in the git bundle (tip 4a4ab0d).
+          dotfiles; full history rides in the git bundle (tip 5592173).
         </p>
         <a className="btn secondary" href="/PocketShell-v0.6.2-m2.6-source.zip">
           source.zip
