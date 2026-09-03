@@ -86,7 +86,11 @@ fun PocketShellRoot(
                 onClose = terminalViewModel::closeSession,
                 onNewSession = terminalViewModel::newSession,
                 onBack = { screen = "home" },
-                modifier = Modifier.padding(padding),
+                // Phase 3.1: the Terminal screen consumes the system-bar insets
+                // itself so its Midnight chrome extends edge-to-edge (the deck
+                // pads for the gesture bar). Every other screen keeps the
+                // Scaffold padding.
+                modifier = Modifier,
             )
 
             "explore" -> ExploreAppsScreen(

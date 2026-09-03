@@ -29,7 +29,14 @@ class PocketShellTerminalViewClient(
     override fun readControlKey(): Boolean = keyboardState.readControlKey()
     override fun readAltKey(): Boolean = keyboardState.readAltKey()
     override fun readShiftKey(): Boolean = keyboardState.readShiftKey()
-    override fun readFnKey(): Boolean = keyboardState.readFnKey()
+
+    /**
+     * Phase 3.1 removed the dedicated FN modifier (brief §18): F-keys live on
+     * the number-row long-press layer, which dispatches plain F-key keycodes.
+     * The upstream client interface still requires this hook, so it reports
+     * honestly false — no hidden Fn state exists anywhere.
+     */
+    override fun readFnKey(): Boolean = false
 
     /**
      * Unicode input arriving via the IME/InputConnection path. Our keyboard

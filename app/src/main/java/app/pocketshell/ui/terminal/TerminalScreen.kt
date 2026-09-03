@@ -1,28 +1,38 @@
 package app.pocketshell.ui.terminal
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Keyboard
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,16 +46,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
-import app.pocketshell.keyboard.TerminalKeyboard
+import app.pocketshell.keyboard.TerminalKeyboardDeck
 import app.pocketshell.terminal.PocketShellTerminalViewClient
+import app.pocketshell.terminal.TerminalPalette
 import app.pocketshell.terminal.TerminalSessionManager
+import app.pocketshell.ui.theme.TerminalTheme
 import com.termux.view.TerminalView
 
 private const val DEFAULT_FONT_SIZE = 28
@@ -53,8 +72,17 @@ private const val MIN_FONT_SIZE = 12
 private const val MAX_FONT_SIZE = 40
 
 /**
- * Terminal screen (brief §13): session tabs on top, the real TerminalView
- * dominating the screen, the PocketShell keyboard at the bottom.
+ * Terminal screen — Phase 3.1 "Midnight Sapphire" (docs/PHASE-3.1-DESIGN.md).
+ *
+ * One intentional composition, top to bottom:
+ *   chrome (back + live session title, under the status bar)
+ *   → session tabs (editor-style; the active tab merges into the canvas)
+ *   → terminal canvas (deepest blue-black, full-bleed, real TerminalView)
+ *   → keyboard deck (Esc/Tab/arrows · collapsible QWERTY · toggle+modifiers)
+ *
+ * The screen consumes the status-bar inset itself (MainActivity passes the
+ * raw modifier for this branch) so the chrome surface extends edge-to-edge;
+ * every other screen keeps its Scaffold padding.
  */
 @Composable
 fun TerminalScreen(
@@ -69,19 +97,18 @@ fun TerminalScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var keyboardVisible by remember { mutableStateOf(true) }
+    var keyboardExpanded by remember { mutableStateOf(true) }
     var textSize by rememberSaveable { mutableIntStateOf(initialFontSize) }
     val selected = sessions.firstOrNull { it.id == selectedId }
     val terminalViewRef = remember { mutableStateOf<TerminalView?>(null) }
 
-    // Modifier state must never leak across sessions (brief §14).
+    // Modifier state must never leak across sessions.
     LaunchedEffect(selectedId) { keyboardState.clearAll() }
 
     // Upstream contract: TerminalView does not observe session data — the host
     // must call TerminalView#onScreenUpdated() whenever the session screen
     // changes, otherwise output stays invisible until a layout pass forces a
-    // repaint (observed on device: typed echo only appeared after toggling
-    // the keyboard). The listener is invoked on the main thread.
+    // repaint. The listener is invoked on the main thread.
     DisposableEffect(Unit) {
         TerminalSessionManager.onScreenUpdateListener = { _ ->
             terminalViewRef.value?.onScreenUpdated()
@@ -107,22 +134,30 @@ fun TerminalScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxSize().background(TerminalTheme.screenBg)) {
+        ChromeHeader(title = selected?.displayLabel ?: "Terminal", onBack = onBack)
+
         TabStrip(
             sessions = sessions,
             selectedId = selectedId,
-            keyboardVisible = keyboardVisible,
             onSelect = onSelect,
             onClose = onClose,
             onNewSession = onNewSession,
-            onToggleKeyboard = { keyboardVisible = !keyboardVisible },
-            onBack = onBack,
         )
 
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 0.dp,
+                        topEnd = 0.dp,
+                        bottomStart = TerminalTheme.canvasBottomRadius,
+                        bottomEnd = TerminalTheme.canvasBottomRadius,
+                    ),
+                )
+                .background(TerminalTheme.canvas),
         ) {
             if (selected != null) {
                 TerminalViewHost(
@@ -130,7 +165,7 @@ fun TerminalScreen(
                     keyboardState = keyboardState,
                     textSize = textSize,
                     onTextSizeChange = { textSize = it },
-                    onSingleTap = { if (!keyboardVisible) keyboardVisible = true },
+                    onSingleTap = { if (!keyboardExpanded) keyboardExpanded = true },
                     onViewCreated = { terminalViewRef.value = it },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -142,94 +177,229 @@ fun TerminalScreen(
             }
         }
 
-        if (keyboardVisible) {
-            // Captures the holder, not the view — always dispatches to the live view.
-            val dispatcher = remember {
-                TerminalKeyDispatcher(keyboardState) { event ->
-                    terminalViewRef.value?.dispatchKeyEvent(event)
+        // Captures the holder, not the view — always dispatches to the live view.
+        val dispatcher = remember {
+            TerminalKeyDispatcher(keyboardState) { event ->
+                terminalViewRef.value?.dispatchKeyEvent(event)
+            }
+        }
+        TerminalKeyboardDeck(
+            keyboardState = keyboardState,
+            dispatcher = dispatcher,
+            expanded = keyboardExpanded,
+            onToggleExpanded = { keyboardExpanded = !keyboardExpanded },
+        )
+    }
+}
+
+/** Top chrome: back + the live session title, under a barely-there depth gradient. */
+@Composable
+private fun ChromeHeader(title: String, onBack: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    listOf(TerminalTheme.chromeGradientTop, TerminalTheme.chromeGradientBottom),
+                ),
+            ),
+    ) {
+        Row(
+            modifier = Modifier
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back to Home",
+                    tint = TerminalTheme.textPrimary,
+                )
+            }
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = TerminalTheme.textPrimary,
+                modifier = Modifier
+                    .padding(start = 2.dp)
+                    .weight(1f),
+            )
+            // Honest expansion slot — deliberately empty, never a fake control.
+            Spacer(Modifier.width(12.dp))
+        }
+    }
+}
+
+/**
+ * Session tabs — editor-style, NOT pills (brief §5): rounded TOP corners,
+ * inactive tabs recessed and quiet, active tab in the exact canvas color
+ * covering the strip's bottom hairline so it opens into the workspace.
+ */
+@Composable
+private fun TabStrip(
+    sessions: List<TerminalSessionManager.SessionEntry>,
+    selectedId: Long?,
+    onSelect: (Long) -> Unit,
+    onClose: (Long) -> Unit,
+    onNewSession: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(TerminalTheme.tabStrip),
+    ) {
+        // Hairline under the whole strip; the active tab paints over (cuts) it.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(TerminalTheme.divider),
+        )
+        Row(modifier = Modifier.fillMaxSize().padding(start = 8.dp)) {
+            LazyRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.Bottom,
+                contentPadding = PaddingValues(top = 6.dp),
+            ) {
+                items(sessions, key = { it.id }) { entry ->
+                    SessionTab(
+                        entry = entry,
+                        isSelected = entry.id == selectedId,
+                        onSelect = onSelect,
+                        onClose = onClose,
+                    )
                 }
             }
-            TerminalKeyboard(
-                keyboardState = keyboardState,
-                dispatcher = dispatcher,
-                modifier = Modifier.fillMaxWidth(),
+            NewSessionButton(
+                onNewSession = onNewSession,
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+                    .padding(start = 6.dp, end = 4.dp),
             )
         }
     }
 }
 
 @Composable
-private fun TabStrip(
-    sessions: List<TerminalSessionManager.SessionEntry>,
-    selectedId: Long?,
-    keyboardVisible: Boolean,
+private fun SessionTab(
+    entry: TerminalSessionManager.SessionEntry,
+    isSelected: Boolean,
     onSelect: (Long) -> Unit,
     onClose: (Long) -> Unit,
-    onNewSession: () -> Unit,
-    onToggleKeyboard: () -> Unit,
-    onBack: () -> Unit,
 ) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 1.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = "Back to Home")
-            }
+    val height by animateDpAsState(
+        targetValue = if (isSelected) 44.dp else 36.dp,
+        animationSpec = tween(140),
+        label = "tabHeight",
+    )
+    val container by animateColorAsState(
+        targetValue = if (isSelected) TerminalTheme.canvas else androidx.compose.ui.graphics.Color.Transparent,
+        animationSpec = tween(140),
+        label = "tabContainer",
+    )
+    val shape = RoundedCornerShape(topStart = TerminalTheme.tabTopRadius, topEnd = TerminalTheme.tabTopRadius)
 
-            LazyRow(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                items(sessions, key = { it.id }) { entry ->
-                    val isSelected = entry.id == selectedId
-                    AssistChip(
-                        onClick = { onSelect(entry.id) },
-                        label = {
-                            Text(
-                                text = entry.displayLabel + if (entry.isFinished) " (exited)" else "",
-                                maxLines = 1,
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ),
-                        trailingIcon = {
-                            Icon(
-                                Icons.Outlined.Close,
-                                contentDescription = "Close session",
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { onClose(entry.id) },
-                            )
-                        },
-                    )
-                }
-            }
-
-            IconButton(onClick = onToggleKeyboard) {
-                Icon(
-                    Icons.Outlined.Keyboard,
-                    contentDescription = if (keyboardVisible) "Hide keyboard" else "Show keyboard",
-                )
-            }
-            FilledIconButton(onClick = onNewSession) {
-                Icon(Icons.Outlined.Add, contentDescription = "New session")
-            }
+    Box(
+        modifier = Modifier
+            .height(height)
+            .widthIn(min = 96.dp, max = 168.dp)
+            .clip(shape)
+            .background(container)
+            .clickable { onSelect(entry.id) }
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = entry.displayLabel + if (entry.isFinished) " (exited)" else "",
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (isSelected) TerminalTheme.textPrimary else TerminalTheme.textDim,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            CloseTabButton(
+                selected = isSelected,
+                onClose = { onClose(entry.id) },
+                modifier = Modifier.padding(start = 6.dp),
+            )
         }
+        if (!isSelected) {
+            // Asymmetric border language: a quiet right separator instead of
+            // an outline on every side.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(1.dp)
+                    .height(18.dp)
+                    .background(TerminalTheme.divider),
+            )
+        }
+        if (isSelected) {
+            // The structured top edge: one 2.5dp Sapphire hairline.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 8.dp)
+                    .fillMaxWidth()
+                    .height(2.5.dp)
+                    .background(TerminalTheme.accent, RoundedCornerShape(2.dp)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CloseTabButton(selected: Boolean, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .clickable { onClose() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Outlined.Close,
+            contentDescription = "Close session",
+            modifier = Modifier.size(14.dp),
+            tint = if (selected) TerminalTheme.textDim else TerminalTheme.textDim.copy(alpha = 0.6f),
+        )
+    }
+}
+
+@Composable
+private fun NewSessionButton(onNewSession: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(TerminalTheme.keyAlt)
+            .border(1.dp, TerminalTheme.divider, CircleShape)
+            .clickable { onNewSession() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Outlined.Add,
+            contentDescription = "New session",
+            modifier = Modifier.size(18.dp),
+            tint = TerminalTheme.textDim,
+        )
     }
 }
 
 /**
  * Hosts the vendored TerminalView. The view is created once per selected
  * entry; switching tabs re-attaches the existing TerminalSession — sessions
- * are never destroyed by UI navigation (brief §14/§24).
+ * are never destroyed by UI navigation.
  */
 @Composable
 private fun TerminalViewHost(
@@ -241,8 +411,8 @@ private fun TerminalViewHost(
     onViewCreated: (TerminalView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Pinch font size (brief §15/§30-friendly): accumulate scale until a step
-    // threshold is crossed, then change one size step and reset the recognizer.
+    // Pinch font size: accumulate scale until a step threshold is crossed, then
+    // change one size step and reset the recognizer.
     val scaleAccum = remember { floatArrayOf(1f) }
     val onScale: (Float) -> Float = { scale ->
         scaleAccum[0] *= scale
@@ -276,6 +446,11 @@ private fun TerminalViewHost(
             view.attachSession(entry.session)
             view.setTextSize(textSize)
             appliedSize.value = textSize
+            // Phase 3.1 visual identity: JetBrains Mono NL + the Midnight
+            // canvas color as the View background (isOpaque view; the renderer
+            // only paints cells whose background differs from the default).
+            TerminalPalette.typeface(context)?.let { view.setTypeface(it) }
+            view.setBackgroundColor(TerminalTheme.canvas.toArgb())
             view.isFocusable = true
             view.isFocusableInTouchMode = true
             // Focus is required for hardware (e.g. Bluetooth) keyboard input
@@ -305,15 +480,19 @@ private fun EmptyTerminalState(creating: Boolean, onNewSession: () -> Unit) {
             Text(
                 text = if (creating) "Starting shell…" else "No open sessions",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                color = TerminalTheme.textDim,
             )
             Text(
                 text = "Each session is a real shell with its own PTY.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = TerminalTheme.textDim,
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
             )
-            TextButton(onClick = onNewSession) {
+            TextButton(
+                onClick = onNewSession,
+                colors = ButtonDefaults.textButtonColors(contentColor = TerminalTheme.accent),
+            ) {
                 Text("New session")
             }
         }

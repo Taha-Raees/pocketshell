@@ -7,9 +7,10 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * Modifier state machine tests (brief §10):
+ * Modifier state machine tests (Phase 3.1):
  * tap = one-shot, second tap = lock, third tap = unlock; one-shots are
  * consumable exactly once; locked state persists; clearAll resets everything.
+ * The dedicated FN modifier was removed in Phase 3.1 — only CTRL/ALT/SHIFT exist.
  */
 class KeyboardStateTest {
 
@@ -66,11 +67,12 @@ class KeyboardStateTest {
 
     @Test
     fun `clearAll resets locked too`() {
-        state.tap(ModifierKey.FN)
-        state.tap(ModifierKey.FN)
+        state.tap(ModifierKey.SHIFT)
+        state.tap(ModifierKey.SHIFT)
+        assertTrue(state.anySticky())
         state.clearAll()
         assertFalse(state.anySticky())
-        assertFalse(state.fnActive)
+        assertFalse(state.shiftActive)
     }
 
     @Test
@@ -80,7 +82,6 @@ class KeyboardStateTest {
         assertTrue(state.readControlKey())
         assertTrue(state.readShiftKey())
         assertFalse(state.readAltKey())
-        assertFalse(state.readFnKey())
     }
 
     @Test

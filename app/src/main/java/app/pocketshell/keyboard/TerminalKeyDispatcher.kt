@@ -6,7 +6,7 @@ import android.view.KeyCharacterMap
 import android.view.KeyEvent
 
 /**
- * Terminal Input Dispatcher (brief §9).
+ * Terminal Input Dispatcher (docs/ARCHITECTURE.md §4).
  *
  * Route: PocketShell keyboard → this dispatcher → vendored TerminalView
  * dispatch pipeline (upstream KeyHandler encoding) → PTY → shell.
@@ -15,6 +15,10 @@ import android.view.KeyEvent
  * KeyEvents via the VIRTUAL_KEYBOARD KeyCharacterMap; special keys are
  * synthesized as keycode events. Modifier state is consumed exactly once per
  * press, after the event has been handed downstream (see KeyboardState kdoc).
+ *
+ * Phase 3.1: the Fn modifier layer was removed — long-press actions from
+ * [KeyboardKey.longPress] arrive here as ordinary [KeyAction]s (F-keys are
+ * plain [KeyAction.Code]s), so no remapping happens in this layer anymore.
  */
 class TerminalKeyDispatcher(
     private val keyboardState: KeyboardState,
@@ -24,28 +28,18 @@ class TerminalKeyDispatcher(
 
     /** Dispatch one key press from the keyboard. */
     fun press(action: KeyAction) {
-        val effective = if (keyboardState.fnActive) KeyLayouts.fnRemap(action) else action
-
-        when (effective) {
-            is KeyAction.Text -> {
-                val c = resolveChar(effective)
-                dispatchChar(c)
-            }
-
-            is KeyAction.Code -> {
-                dispatchCode(effective.keyCode, repeatCount = 0)
-            }
+        when (action) {
+            is KeyAction.Text -> dispatchChar(resolveChar(action))
+            is KeyAction.Code -> dispatchCode(action.keyCode, repeatCount = 0)
         }
-
         keyboardState.clearOneShots()
     }
 
     /** Dispatch a held-key repeat (repeat count carried on the DOWN event). */
     fun repeat(action: KeyAction, repeatCount: Int) {
-        val effective = if (keyboardState.fnActive) KeyLayouts.fnRemap(action) else action
-        when (effective) {
-            is KeyAction.Text -> dispatchChar(resolveChar(effective))
-            is KeyAction.Code -> dispatchCode(effective.keyCode, repeatCount)
+        when (action) {
+            is KeyAction.Text -> dispatchChar(resolveChar(action))
+            is KeyAction.Code -> dispatchCode(action.keyCode, repeatCount)
         }
         keyboardState.clearOneShots()
     }

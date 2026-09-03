@@ -2,7 +2,7 @@ package app.pocketshell.keyboard
 
 import android.view.KeyEvent
 
-/** What a key does when pressed (brief §8 key model). */
+/** What a key does when pressed (Phase 3.1 key model — docs/PHASE-3.1-DESIGN.md §5). */
 sealed interface KeyAction {
 
     /**
@@ -24,142 +24,181 @@ data class KeyboardKey(
     val label: String,
     val shiftedLabel: String? = null,
     val weight: Float = 1f,
+    /**
+     * Held-key action (Phase 3.1: the Fn layer). Long-pressing a key with a
+     * [longPress] shows its [popupLabel] bubble after the hold threshold and
+     * commits the action on release — this replaces the dedicated Fn key
+     * (brief §18) and, because PocketShell owns the keyboard, works
+     * reliably with no IME limitations.
+     */
+    val longPress: KeyAction? = null,
+    /** Bubble text shown above the key while its [longPress] is armed ("F1"). */
+    val popupLabel: String? = null,
 )
 
-/** Modifier keys are state keys rendered by the keyboard; never dispatched as keycodes. */
+/**
+ * Modifier keys are state keys rendered by the keyboard; never dispatched as
+ * keycodes. Phase 3.1 removed the dedicated FN modifier (brief §18): F-keys
+ * live on the number-row long-press layer instead.
+ */
 data class ModifierSlot(val key: ModifierKey, val label: String, val weight: Float = 1f)
 
 enum class KeyboardPage { ALPHA, SYMBOL }
 
 /**
- * Keyboard layout definitions (brief §8/§11).
+ * Keyboard layout definitions (Phase 3.1 — docs/PHASE-3.1-DESIGN.md §5.2).
  *
- * Modifiers (CTRL/ALT/FN/SHIFT) are NOT part of the row data — the composable
- * inserts [ModifierSlot]s into the control row so their visual state comes from
- * [KeyboardState]. FN-layer remapping ([fnRemap]) is applied by the dispatcher.
+ * The deck is composed in three layers around the QWERTY body:
+ *   top accessory row   Esc · Tab · arrow cluster (see [topRowSpec])
+ *   QWERTY body         the pages below
+ *   bottom accessory    toggle · CTRL · ALT · Space · SHIFT · Enter
+ *
+ * Modifiers (CTRL/ALT/SHIFT) are NOT part of the row data — the composable
+ * inserts [ModifierSlot]s into the bottom row so their visual state comes
+ * from [KeyboardState].
  */
 object KeyLayouts {
 
-    // ---- shared: control rows (non-modifier keys only) -----------------------
+    // ---- shared: page toggle sentinel ----------------------------------------
 
     /** Sentinel keycode for the ALPHA/SYMBOL page toggle (handled by the UI, never dispatched). */
     const val KEYCODE_PAGE_TOGGLE = Int.MIN_VALUE
 
-    // ---- Phone: ALPHA page ---------------------------------------------------
+    // ---- Phone: ALPHA page (portrait, 5 rows) ---------------------------------
 
-    val phoneDigitRow: List<KeyboardKey> = "1234567890".map { ch ->
+    /**
+     * Number row. Long-press arms the Fn layer: hold "3" → "F3" bubble, release
+     * sends F3. Digits deliberately do NOT auto-repeat (their hold gesture is
+     * the Fn layer); F11/F12 ride on -/= of the TABLET rows (see [tabletR1]).
+     */
+    val phoneDigitRow: List<KeyboardKey> = "1234567890".mapIndexed { index, ch ->
         val shifted = digitShift(ch)
-        KeyboardKey(KeyAction.Text(ch, shifted), ch.toString(), shifted?.toString())
+        KeyboardKey(
+            action = KeyAction.Text(ch, shifted),
+            label = ch.toString(),
+            shiftedLabel = shifted?.toString(),
+            longPress = KeyAction.Code(KeyEvent.KEYCODE_F1 + index),
+            popupLabel = "F${index + 1}",
+        )
     }
 
     val phoneRowQ: List<KeyboardKey> = "qwertyuiop".map { letterKey(it) }
     val phoneRowA: List<KeyboardKey> = "asdfghjkl".map { letterKey(it) }
+
+    /** Z row with page toggle (left) and backspace (right); Shift lives in the bottom row. */
     val phoneRowZ: List<KeyboardKey> = listOf(
-        *("zxcvbnm".map { letterKey(it) }).toTypedArray(),
-        KeyboardKey(KeyAction.Text('-', '_'), "-", "_"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DEL, repeatable = true), "⌫", weight = 1.4f),
-    )
-
-    /** Phone bottom row: page toggle, punctuation, arrow cluster, space, enter. */
-    val phoneBottomRow: List<KeyboardKey> = listOf(
         KeyboardKey(KeyAction.Code(KEYCODE_PAGE_TOGGLE), "?123", weight = 1.3f),
-        KeyboardKey(KeyAction.Text(','), ",", weight = 0.8f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_LEFT, repeatable = true), "←", weight = 1f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_UP, repeatable = true), "↑", weight = 1f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_DOWN, repeatable = true), "↓", weight = 1f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_RIGHT, repeatable = true), "→", weight = 1f),
-        KeyboardKey(KeyAction.Text(' '), "space", weight = 3f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_ENTER), "↵", weight = 1.3f),
+        *"zxcvbnm".map { letterKey(it) }.toTypedArray(),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DEL, repeatable = true), "⌫", weight = 1.3f),
     )
 
-    // ---- Phone: SYMBOL page (full §8 symbol coverage in 3 rows) --------------
+    /**
+     * Terminal punctuation row — flags (-/), paths (/ .), redirections and
+     * quoting (' "), variables ($) in one terminal-first row.
+     */
+    val phonePunctRow: List<KeyboardKey> = listOf(
+        KeyboardKey(KeyAction.Text('-', '_'), "-", "_", longPress = KeyAction.Text('_'), popupLabel = "_"),
+        KeyboardKey(KeyAction.Text('/'), "/"),
+        KeyboardKey(KeyAction.Text(':'), ":"),
+        KeyboardKey(KeyAction.Text(';'), ";"),
+        KeyboardKey(KeyAction.Text(','), ","),
+        KeyboardKey(KeyAction.Text('.'), "."),
+        KeyboardKey(KeyAction.Text('$'), "$"),
+        KeyboardKey(KeyAction.Text('\''), "'"),
+        KeyboardKey(KeyAction.Text('"'), "\""),
+        KeyboardKey(KeyAction.Text('@'), "@"),
+    )
+
+    // ---- Phone: SYMBOL page (everything the punct row does not carry) ---------
 
     val phoneSymbolRow1: List<KeyboardKey> = "!@#$%^&*()".map { ch ->
         KeyboardKey(KeyAction.Text(ch), ch.toString())
     }
-    val phoneSymbolRow2: List<KeyboardKey> = "~`[]{}\\|-_".map { ch ->
-        KeyboardKey(KeyAction.Text(ch), ch.toString())
-    }
-    val phoneSymbolRow3: List<KeyboardKey> = ";:'\"<>=+/?".map { ch ->
-        KeyboardKey(KeyAction.Text(ch), ch.toString())
-    }
 
-    /** Extended terminal keys reachable from the SYMBOL page (phone §8 coverage). */
-    val phoneExtendedRow: List<KeyboardKey> = listOf(
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_INSERT), "INS"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_FORWARD_DEL), "DEL"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_MOVE_HOME), "HOME"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_MOVE_END), "END"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_PAGE_UP, repeatable = true), "PGUP"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_PAGE_DOWN, repeatable = true), "PGDN"),
+    val phoneSymbolRow2: List<KeyboardKey> = listOf('~', '`', '{', '}', '[', ']', '\\', '|', '=', '+')
+        .map { ch -> KeyboardKey(KeyAction.Text(ch), ch.toString()) }
+
+    /** Wide keys + the extended terminal keys (no regression from v0.6.2). */
+    val phoneSymbolRow3: List<KeyboardKey> = listOf(
+        KeyboardKey(KeyAction.Text('<'), "<", weight = 1.4f),
+        KeyboardKey(KeyAction.Text('>'), ">", weight = 1.4f),
+        KeyboardKey(KeyAction.Text('?'), "?", weight = 1.4f),
+        KeyboardKey(KeyAction.Text('_'), "_", weight = 1.4f),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_INSERT), "INS", weight = 1.4f),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_FORWARD_DEL), "DEL", weight = 1.4f),
     )
 
     val phoneSymbolBottomRow: List<KeyboardKey> = listOf(
-        KeyboardKey(KeyAction.Code(KEYCODE_PAGE_TOGGLE), "ABC", weight = 1.3f),
-        KeyboardKey(KeyAction.Text(','), ",", weight = 0.8f),
-        KeyboardKey(KeyAction.Text(' '), "space", weight = 4.2f),
-        KeyboardKey(KeyAction.Text('.'), ".", weight = 0.8f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_ENTER), "↵", weight = 1.3f),
+        KeyboardKey(KeyAction.Code(KEYCODE_PAGE_TOGGLE), "ABC", weight = 1.4f),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_MOVE_HOME), "HOME", weight = 1f),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_MOVE_END), "END", weight = 1f),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_PAGE_UP, repeatable = true), "PGUP", weight = 1f),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_PAGE_DOWN, repeatable = true), "PGDN", weight = 1f),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DEL, repeatable = true), "⌫", weight = 1.1f),
     )
 
-    // ---- Tablet: full key set exposed directly (brief §11) -------------------
+    // ---- Tablet (≥600dp width): 14/15-column rows, same identity --------------
 
-    val tabletTerminalRow: List<KeyboardKey> = listOf(
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_MOVE_HOME), "HOME"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_MOVE_END), "END"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_PAGE_UP, repeatable = true), "PGUP"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_PAGE_DOWN, repeatable = true), "PGDN"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_INSERT), "INS"),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_FORWARD_DEL), "DEL"),
+    val tabletR1: List<KeyboardKey> = listOf(
+        KeyboardKey(KeyAction.Text('`', '~'), "`", "~"),
+        *("1234567890".mapIndexed { index, ch ->
+            val shifted = digitShift(ch)
+            KeyboardKey(
+                action = KeyAction.Text(ch, shifted),
+                label = ch.toString(),
+                shiftedLabel = shifted?.toString(),
+                longPress = KeyAction.Code(KeyEvent.KEYCODE_F1 + index),
+                popupLabel = "F${index + 1}",
+            )
+        }).toTypedArray(),
+        KeyboardKey(KeyAction.Text('-', '_'), "-", "_", longPress = KeyAction.Code(KeyEvent.KEYCODE_F11), popupLabel = "F11"),
+        KeyboardKey(KeyAction.Text('=', '+'), "=", "+", longPress = KeyAction.Code(KeyEvent.KEYCODE_F12), popupLabel = "F12"),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DEL, repeatable = true), "⌫", weight = 1.2f),
     )
 
-    val tabletFunctionRow: List<KeyboardKey> = (KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F12).map { code ->
-        val n = code - KeyEvent.KEYCODE_F1 + 1
-        KeyboardKey(KeyAction.Code(code), "F$n")
-    }
-
-    val tabletDigitRow: List<KeyboardKey> = listOf(
-        *("1234567890".map { ch -> KeyboardKey(KeyAction.Text(ch, digitShift(ch)), ch.toString(), digitShift(ch)?.toString()) }).toTypedArray(),
-        KeyboardKey(KeyAction.Text('-', '_'), "-", "_"),
-        KeyboardKey(KeyAction.Text('=', '+'), "=", "+"),
-    )
-
-    val tabletRowQ: List<KeyboardKey> = "qwertyuiop".map { letterKey(it) } + listOf(
+    val tabletR2: List<KeyboardKey> = "qwertyuiop".map { letterKey(it) } + listOf(
         KeyboardKey(KeyAction.Text('[', '{'), "[", "{"),
         KeyboardKey(KeyAction.Text(']', '}'), "]", "}"),
         KeyboardKey(KeyAction.Text('\\', '|'), "\\", "|"),
     )
 
-    val tabletRowA: List<KeyboardKey> = "asdfghjkl".map { letterKey(it) } + listOf(
+    val tabletR3: List<KeyboardKey> = "asdfghjkl".map { letterKey(it) } + listOf(
         KeyboardKey(KeyAction.Text(';', ':'), ";", ":"),
         KeyboardKey(KeyAction.Text('\'', '"'), "'", "\""),
     )
 
-    val tabletRowZ: List<KeyboardKey> = "zxcvbnm".map { letterKey(it) } + listOf(
+    val tabletR4: List<KeyboardKey> = listOf(
+        KeyboardKey(KeyAction.Code(KEYCODE_PAGE_TOGGLE), "?123", weight = 1.3f),
+        *"zxcvbnm".map { letterKey(it) }.toTypedArray(),
         KeyboardKey(KeyAction.Text(',', '<'), ",", "<"),
         KeyboardKey(KeyAction.Text('.', '>'), ".", ">"),
         KeyboardKey(KeyAction.Text('/', '?'), "/", "?"),
     )
 
-    val tabletBottomRow: List<KeyboardKey> = listOf(
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_LEFT, repeatable = true), "←", weight = 1f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_UP, repeatable = true), "↑", weight = 1f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_DOWN, repeatable = true), "↓", weight = 1f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_RIGHT, repeatable = true), "→", weight = 1f),
-        KeyboardKey(KeyAction.Text(' '), "space", weight = 5f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DEL, repeatable = true), "⌫", weight = 1.3f),
-        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_ENTER), "↵", weight = 1.5f),
+    // ---- Top accessory row spec (deck layer, brief §11) ------------------------
+
+    /**
+     * Esc + Tab on the left; the arrow cluster is rendered as a grouped panel
+     * on the right. Kept as data so tests pin the exact top-row contract.
+     */
+    val topRowSpec: List<KeyboardKey> = listOf(
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_ESCAPE), "Esc"),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_TAB), "Tab"),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_LEFT, repeatable = true), "←"),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_UP, repeatable = true), "↑"),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_DOWN, repeatable = true), "↓"),
+        KeyboardKey(KeyAction.Code(KeyEvent.KEYCODE_DPAD_RIGHT, repeatable = true), "→"),
+    )
+
+    // ---- Modifiers (bottom accessory row, brief §13 order after Space/Shift) ---
+
+    val modifierSlots: List<ModifierSlot> = listOf(
+        ModifierSlot(ModifierKey.CTRL, "Ctrl"),
+        ModifierSlot(ModifierKey.ALT, "Alt"),
+        ModifierSlot(ModifierKey.SHIFT, "Shift"),
     )
 
     // ---- helpers ------------------------------------------------------------
-
-    /** Modifier strip layout for both device classes. */
-    val modifierSlots: List<ModifierSlot> = listOf(
-        ModifierSlot(ModifierKey.CTRL, "CTRL"),
-        ModifierSlot(ModifierKey.ALT, "ALT"),
-        ModifierSlot(ModifierKey.FN, "FN"),
-        ModifierSlot(ModifierKey.SHIFT, "SHIFT", weight = 1.2f),
-    )
 
     fun letterKey(c: Char): KeyboardKey =
         KeyboardKey(KeyAction.Text(c, c.uppercaseChar()), c.toString(), c.uppercaseChar().toString())
@@ -176,36 +215,5 @@ object KeyLayouts {
         '9' -> '('
         '0' -> ')'
         else -> null
-    }
-
-    /**
-     * FN-layer remapping applied by the dispatcher *before* dispatching
-     * (brief §8/§11): FN+1..0 → F1..F10, FN+- → F11, FN+= → F12,
-     * FN+←/→/↑/↓ → HOME/END/PGUP/PGDN, FN+⌫ → DEL.
-     */
-    fun fnRemap(action: KeyAction): KeyAction = when (action) {
-        is KeyAction.Text -> when (action.c) {
-            '1' -> KeyAction.Code(KeyEvent.KEYCODE_F1)
-            '2' -> KeyAction.Code(KeyEvent.KEYCODE_F2)
-            '3' -> KeyAction.Code(KeyEvent.KEYCODE_F3)
-            '4' -> KeyAction.Code(KeyEvent.KEYCODE_F4)
-            '5' -> KeyAction.Code(KeyEvent.KEYCODE_F5)
-            '6' -> KeyAction.Code(KeyEvent.KEYCODE_F6)
-            '7' -> KeyAction.Code(KeyEvent.KEYCODE_F7)
-            '8' -> KeyAction.Code(KeyEvent.KEYCODE_F8)
-            '9' -> KeyAction.Code(KeyEvent.KEYCODE_F9)
-            '0' -> KeyAction.Code(KeyEvent.KEYCODE_F10)
-            '-' -> KeyAction.Code(KeyEvent.KEYCODE_F11)
-            '=' -> KeyAction.Code(KeyEvent.KEYCODE_F12)
-            else -> action
-        }
-        is KeyAction.Code -> when (action.keyCode) {
-            KeyEvent.KEYCODE_DPAD_LEFT -> KeyAction.Code(KeyEvent.KEYCODE_MOVE_HOME, action.repeatable)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> KeyAction.Code(KeyEvent.KEYCODE_MOVE_END, action.repeatable)
-            KeyEvent.KEYCODE_DPAD_UP -> KeyAction.Code(KeyEvent.KEYCODE_PAGE_UP, action.repeatable)
-            KeyEvent.KEYCODE_DPAD_DOWN -> KeyAction.Code(KeyEvent.KEYCODE_PAGE_DOWN, action.repeatable)
-            KeyEvent.KEYCODE_DEL -> KeyAction.Code(KeyEvent.KEYCODE_FORWARD_DEL, action.repeatable)
-            else -> action
-        }
     }
 }
