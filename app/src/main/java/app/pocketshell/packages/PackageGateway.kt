@@ -65,6 +65,25 @@ object PackageGateway {
         return manager.getInstalledVersions(packageNames)
     }
 
+    /**
+     * Phase 3.2 — command-launchable app probes (docs/PHASE-3.2-DESIGN.md §4.2).
+     * LOGIN-shell semantics: the question is "would a fresh guest login shell
+     * find this command?" — the same environment the user's own typing sees,
+     * where uv-installed launchers (Hermes) are reachable. Batched to ONE exec;
+     * a real failure throws [PackageProbeException] (honest "could not check").
+     */
+    suspend fun commandPaths(names: List<String>): Map<String, String> {
+        val manager = newPackageManager(readyGuard = { if (isRuntimeReady()) null else "runtime not READY" })
+            ?: throw PackageProbeException("gateway not initialized")
+        return manager.guestCommandPaths(names)
+    }
+
+    /** Single-command variant of [commandPaths] — the verify-then-launch preflight. */
+    suspend fun commandPath(name: String): String? {
+        val paths = commandPaths(listOf(name))
+        return paths[name]
+    }
+
     fun init(context: Context) {
         if (this::operations.isInitialized) return
         val appContext = context.applicationContext

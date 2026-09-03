@@ -160,6 +160,54 @@ class AlpinePackageManager(
         result.stdout.lineSequence().firstOrNull { it.isNotBlank() }
     }
 
+    /**
+     * Phase 3.2 — batch command-path probe for the command-launchable app
+     * launcher (docs/PHASE-3.2-DESIGN.md §4.2). New method; every pre-existing
+     * package-manager method is untouched.
+     *
+     * Why a LOGIN shell (`-l`): interactive sessions spawn `/bin/sh -l`, which
+     * sources /etc/profile + ~/.profile — that is where uv-installed launchers
+     * (Hermes, M2.6) become reachable, because /root/.local/bin is NOT in the
+     * spec's static PATH. The probe asks exactly the question the user's own
+     * typing would answer: "would a fresh guest login shell find this command?"
+     * Non-login `sh -c` (the [guestExecutablePath] shape, right for apk-owned
+     * binaries in /usr/bin) would answer NO for uv tools — a false absence.
+     *
+     * Same honesty machinery as [getInstalledVersions]: ONE guest exec for the
+     * whole list, positional args (nothing string-built), terminal `exit 0`
+     * (a mixed answer is still a completed probe — the v0.4.4 lesson), and a
+     * REAL exec failure throws [PackageProbeException] so the UI can never
+     * dress a dead probe up as "no apps installed".
+     */
+    suspend fun guestCommandPaths(names: List<String>): Map<String, String> =
+        withContext(ioDispatcher) {
+            val clean = names.map { it.trim() }.filter { it.isNotEmpty() }
+                .filter { it.matches(Regex("[a-zA-Z0-9._/+%-]+")) }
+            if (clean.isEmpty()) return@withContext emptyMap()
+            readyGuard()?.let { throw PackageProbeException(it) }
+            val script = "for n in \"\$@\"; do p=\$(command -v \"\$n\" 2>/dev/null) && " +
+                "echo \"\$n \$p\"; done; exit 0"
+            val result = runApk(
+                listOf("/bin/sh", "-lc", script, "sh") + clean,
+                timeoutMs = QUICK_TIMEOUT_MS,
+            )
+            if (!result.success) {
+                throw PackageProbeException(
+                    message = result.error
+                        ?: result.stderr.lineSequence().lastOrNull { it.isNotBlank() }
+                        ?: "guest probe exited with code ${result.exitCode}",
+                    exitCode = result.exitCode,
+                )
+            }
+            result.stdout.lineSequence().mapNotNull { line ->
+                val parts = line.trim().split(' ', limit = 2)
+                // "name /path/to/bin" — the path is REAL output, echoed once
+                if (parts.size != 2 || parts[1].isBlank()) return@mapNotNull null
+                if (!parts[0].matches(Regex("[a-zA-Z0-9._/+%-]+"))) return@mapNotNull null
+                parts[0] to parts[1]
+            }.toMap()
+        }
+
     // ------------------------------------------------------------------ core
 
     /**

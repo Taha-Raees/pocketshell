@@ -3,6 +3,8 @@ package app.pocketshell
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.pocketshell.apps.CommandApp
+import app.pocketshell.apps.availableCommandApps
 import app.pocketshell.packages.CliAppCatalog
 import app.pocketshell.packages.CliAppCatalogEntry
 import app.pocketshell.packages.InstalledCatalogApp
@@ -106,6 +108,113 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
             _selectedId.value = sessions.value
                 .filter { it.id != id && !it.isFinished }
                 .lastOrNull()?.id
+        }
+    }
+
+    // ------------------------------------------------- Phase 3.2 command apps
+
+    /**
+     * Home launcher state for command-launchable apps (docs/PHASE-3.2-DESIGN.md
+     * §4.4). [apps] is only ever what the guest's login-shell probe confirmed;
+     * [probeError] renders as "could not be checked" — on failure the LAST REAL
+     * app list stays on screen (a dead probe never renders as "no apps", the
+     * v0.4.4 honesty rule applied to command apps). [checked] distinguishes a
+     * real empty answer from "not asked yet".
+     */
+    data class CommandAppsState(
+        val apps: List<CommandApp> = emptyList(),
+        val probeError: String? = null,
+        val checked: Boolean = false,
+    )
+
+    private val _commandApps = MutableStateFlow(CommandAppsState())
+    val commandApps = _commandApps.asStateFlow()
+
+    /**
+     * ONE batched login-shell probe for the whole registry — never a loop of
+     * proot startups. Called when Home becomes visible (runtime READY) and
+     * after package operations reach a terminal state.
+     */
+    fun refreshCommandApps() {
+        if (!PackageGateway.isRuntimeReady()) return
+        viewModelScope.launch {
+            try {
+                val names = app.pocketshell.apps.CommandAppCatalog.registry
+                    .map { it.launchCommand.first() }
+                val paths = withContext(Dispatchers.IO) {
+                    PackageGateway.commandPaths(names)
+                }
+                _commandApps.value = CommandAppsState(
+                    apps = availableCommandApps(paths),
+                    probeError = null,
+                    checked = true,
+                )
+            } catch (e: PackageProbeException) {
+                // Keep the last real answer; surface the failure next to it.
+                _commandApps.value = _commandApps.value.copy(
+                    probeError = e.message,
+                    checked = true,
+                )
+            }
+        }
+    }
+
+    /**
+     * Launch a command app from the Home launcher — verify-then-launch, the
+     * same discipline as [openCatalogApp]: runtime gate, a FRESH single
+     * command probe (login-shell semantics), then a NEW dedicated guest
+     * session whose PTY receives the app's launch command. Refusals land in
+     * [launchError]; the app never dies and never fakes.
+     */
+    fun openCommandApp(app: CommandApp, onReady: () -> Unit) {
+        val application = getApplication<Application>()
+        if (!PackageGateway.isRuntimeReady()) {
+            safeFailure(
+                "${app.displayName} needs the Linux runtime — install or repair it from Diagnostics",
+            )
+            return
+        }
+        _launchError.value = null
+        _verifyingApp.value = app.displayName
+        viewModelScope.launch {
+            try {
+                val execPath = withContext(Dispatchers.IO) {
+                    PackageGateway.commandPath(app.launchCommand.first())
+                }
+                if (execPath == null) {
+                    safeFailure(
+                        "${app.displayName} is not available in the Linux environment right now — " +
+                            "the '${app.launchCommand.first()}' command was not found " +
+                            "(verified with the real guest shell)",
+                    )
+                    return@launch
+                }
+                var newId: Long? = null
+                val ok = withContext(Dispatchers.Main) {
+                    // TerminalSession construction belongs on the main thread
+                    // (upstream MainThreadHandler contract, same as M2.3 flow)
+                    try {
+                        newId = TerminalSessionManager.createLinuxCommandSession(
+                            application,
+                            label = app.displayName,
+                            launchCommand = app.launchCommand,
+                        ).id
+                        _selectedId.value = newId
+                        true
+                    } catch (t: Throwable) {
+                        _launchError.value =
+                            "${app.displayName} could not start: ${t.message ?: t.javaClass.simpleName}"
+                        false
+                    }
+                }
+                if (ok && newId != null) {
+                    onReady()
+                }
+            } catch (t: Throwable) {
+                safeFailure("${app.displayName} could not start: ${t.message ?: t.javaClass.simpleName}")
+            } finally {
+                _verifyingApp.value = null
+            }
         }
     }
 

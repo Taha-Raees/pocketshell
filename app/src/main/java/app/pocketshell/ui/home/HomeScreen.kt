@@ -1,62 +1,74 @@
 package app.pocketshell.ui.home
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Computer
-import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.pocketshell.R
 import app.pocketshell.TerminalViewModel
-import app.pocketshell.packages.InstalledCatalogApp
+import app.pocketshell.apps.CommandApp
 import app.pocketshell.packages.PackageOperationState
 import app.pocketshell.runtime.RuntimeState
 import app.pocketshell.terminal.TerminalSessionManager
+import app.pocketshell.ui.theme.TerminalTheme
 
 /**
- * Home screen (brief §12) — strict, honest hierarchy:
- *   1. Terminal (primary, always)
- *   2. Installed CLI Apps (only what the REAL apk database confirms; empty
- *      until a real install; never pre-populated — v0.4.4: the list comes
- *      from `apk info -e -v` probes, not the M1-era DataStore registry that
- *      nothing wrote and which kept claiming "No apps installed yet" over a
- *      genuinely installed nano)
- *   3. Explore CLI Apps
- *   4. Active sessions (only when they actually exist)
+ * PocketShell Home — the launcher of the PocketShell environment
+ * (docs/PHASE-3.2-DESIGN.md). An OS home screen, not a dashboard:
  *
- * System commands are NEVER shown as installed apps (brief §2/§35).
+ *   TOP      PocketShell identity · minimal system actions
+ *   CENTER   the two foundations — Terminal and Linux
+ *   BELOW    command-launchable apps (launcher grid) or the honest empty state
+ *   QUIET    compact running-session continuation area
+ *   FLOATING custom quick-action control (no bottom navigation bar)
+ *
+ * Packages are infrastructure and stay on the Packages screen; only apps the
+ * guest's login shell confirms appear here. Fixed Midnight Sapphire identity
+ * in every app theme — Home belongs beside the Phase 3.1 terminal.
  */
 @Composable
 fun HomeScreen(
@@ -66,385 +78,701 @@ fun HomeScreen(
     launchError: String?,
     onDismissLaunchError: () -> Unit,
     onOpenTerminal: () -> Unit,
+    onNewTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
     onOpenSession: (Long) -> Unit,
-    onOpenedSession: () -> Unit,
-    onExploreApps: () -> Unit,
+    onOpenCommandApp: (CommandApp) -> Unit,
+    onExplorePackages: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val installedApps by terminalViewModel.installedCatalogApps.collectAsStateWithLifecycle()
-    val probeError by terminalViewModel.installedProbeError.collectAsStateWithLifecycle()
+    val commandApps by terminalViewModel.commandApps.collectAsStateWithLifecycle()
+    val verifyingApp by terminalViewModel.verifyingApp.collectAsStateWithLifecycle()
     val operation by terminalViewModel.packageOperation.collectAsStateWithLifecycle()
+    val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
 
-    // Real state whenever Home becomes visible with a READY runtime …
+    // Probe availability whenever Home is visible with a READY runtime …
     LaunchedEffect(runtimeState) {
-        if (runtimeState == RuntimeState.READY) terminalViewModel.refreshInstalledCatalogApps()
+        if (runtimeState == RuntimeState.READY) terminalViewModel.refreshCommandApps()
     }
-    // … and after every package operation lands (install/uninstall from
-    // Explore must light this list up without leaving the process).
+    // … and after any package operation lands (a fresh install may add apps).
     LaunchedEffect(operation?.id, operation?.state) {
         val state = operation?.state
         if (state == PackageOperationState.SUCCESS || state == PackageOperationState.FAILED) {
-            if (runtimeState == RuntimeState.READY) terminalViewModel.refreshInstalledCatalogApps()
+            if (runtimeState == RuntimeState.READY) terminalViewModel.refreshCommandApps()
         }
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    val quickActions = remember(
+        commandApps.apps, runtimeState, creating, onNewTerminal, onOpenLinuxShell, onOpenCommandApp,
     ) {
-        item { Header(onOpenSettings, onOpenDiagnostics) }
-        item { TerminalCard(onOpenTerminal) }
-        item { LinuxShellCard(runtimeState, onOpenLinuxShell, onOpenDiagnostics) }
-        if (launchError != null) {
-            item {
-                LaunchErrorCard(
-                    message = launchError,
-                    onDismiss = onDismissLaunchError,
-                    onOpenDiagnostics = {
-                        onDismissLaunchError()
-                        onOpenDiagnostics()
-                    },
+        buildList {
+            commandApps.apps.take(4).forEach { app ->
+                add(
+                    QuickAction(
+                        id = "app-${app.id}",
+                        label = app.displayName,
+                        glyph = QuickActionGlyph.APP,
+                        monogram = app.monogram,
+                        enabled = !creating,
+                    ) { onOpenCommandApp(app) },
                 )
             }
+            if (runtimeState == RuntimeState.READY) {
+                add(
+                    QuickAction(
+                        id = "new-linux",
+                        label = "New Linux session",
+                        glyph = QuickActionGlyph.LINUX,
+                        enabled = !creating,
+                    ) { onOpenLinuxShell() },
+                )
+            }
+            add(
+                QuickAction(
+                    id = "new-terminal",
+                    label = "New Terminal",
+                    glyph = QuickActionGlyph.TERMINAL,
+                    enabled = !creating,
+                ) { onNewTerminal() },
+            )
         }
-        item { InstalledAppsSection(
-            installedApps = installedApps,
-            probeError = probeError,
-            runtimeReady = runtimeState == RuntimeState.READY,
-            onOpenApp = { entry ->
-                terminalViewModel.openCatalogApp(entry) { onOpenedSession() }
-            },
-        ) }
-        item { ExploreRow(onExploreApps) }
-        if (activeSessions.isNotEmpty()) {
-            item { ActiveSessionsSection(activeSessions, onOpenSession) }
+    }
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .background(TerminalTheme.screenBg),
+    ) {
+        val columns = when {
+            maxWidth >= 840.dp -> 6
+            maxWidth >= 600.dp -> 4
+            else -> 3
         }
-        item { Spacer(modifier = Modifier.height(24.dp)) }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = HomeTokens.contentMaxWidth)
+                    .align(Alignment.CenterHorizontally),
+            ) {
+                Spacer(Modifier.height(12.dp))
+                BrandHeader(onOpenDiagnostics, onOpenSettings)
+                Spacer(Modifier.height(28.dp))
+
+                if (launchError != null) {
+                    LaunchErrorBanner(
+                        message = launchError,
+                        onDismiss = onDismissLaunchError,
+                        onOpenDiagnostics = { onDismissLaunchError(); onOpenDiagnostics() },
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
+
+                EnvironmentLaunchers(
+                    runtimeState = runtimeState,
+                    runningSessions = activeSessions.count { !it.isFinished },
+                    onOpenTerminal = onOpenTerminal,
+                    onOpenLinuxShell = onOpenLinuxShell,
+                    onOpenDiagnostics = onOpenDiagnostics,
+                )
+                Spacer(Modifier.height(32.dp))
+
+                CommandAppsArea(
+                    state = commandApps,
+                    verifyingApp = verifyingApp,
+                    runtimeReady = runtimeState == RuntimeState.READY,
+                    columns = columns,
+                    onOpenCommandApp = onOpenCommandApp,
+                    onExplorePackages = onExplorePackages,
+                )
+
+                if (activeSessions.isNotEmpty()) {
+                    Spacer(Modifier.height(28.dp))
+                    SessionsContinuationArea(activeSessions, onOpenSession)
+                }
+
+                Spacer(Modifier.height(16.dp))
+                PackagesFooterLink(onExplorePackages)
+                // clearance for the floating quick-action control
+                Spacer(Modifier.height(140.dp))
+            }
+        }
+
+        QuickActionsOverlay(actions = quickActions)
     }
 }
 
-/**
- * Honest, non-fatal launch failure banner (v0.3.1): a refused session spawn
- * is described here — in the app, on the screen the user tapped — instead of
- * killing the process. Dismiss or jump straight to Diagnostics.
- */
+// ----------------------------------------------------------------- brand header
+
 @Composable
-private fun LaunchErrorCard(
+private fun BrandHeader(onOpenDiagnostics: () -> Unit, onOpenSettings: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BrandMark(size = 46.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = "PocketShell",
+                fontFamily = TerminalTheme.mono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 21.sp,
+                letterSpacing = 0.3.sp,
+                color = HomeTokens.textPrimary,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Your Linux workspace on Android",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+            )
+        }
+        HeaderIconButton(Icons.Outlined.Info, "Diagnostics", onOpenDiagnostics)
+        Spacer(Modifier.width(4.dp))
+        HeaderIconButton(Icons.Outlined.Settings, "Settings", onOpenSettings)
+    }
+}
+
+@Composable
+private fun HeaderIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button) { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = HomeTokens.textDim,
+            modifier = Modifier.size(21.dp),
+        )
+    }
+}
+
+// ------------------------------------------------------------- honest banners
+
+/** Non-fatal launch failure (v0.3.1 contract) — Midnight restyle, same behavior. */
+@Composable
+private fun LaunchErrorBanner(
     message: String,
     onDismiss: () -> Unit,
     onOpenDiagnostics: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.errorContainer,
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TextButton(onClick = onDismiss) { Text("Dismiss") }
-                TextButton(onClick = onOpenDiagnostics) { Text("Diagnostics") }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Header(onOpenSettings: () -> Unit, onOpenDiagnostics: () -> Unit) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 20.dp)
+            .clip(RoundedCornerShape(HomeTokens.chipRadius))
+            .background(HomeTokens.surfaceBanner)
+            .border(1.dp, HomeTokens.danger.copy(alpha = 0.35f), RoundedCornerShape(HomeTokens.chipRadius))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = "PocketShell",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "A real Linux terminal & your CLI apps",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onOpenDiagnostics) {
-            Icon(Icons.Outlined.Info, contentDescription = "Diagnostics")
-        }
-        IconButton(onClick = onOpenSettings) {
-            Icon(Icons.Outlined.Settings, contentDescription = "Settings")
-        }
-    }
-}
-
-@Composable
-private fun TerminalCard(onOpenTerminal: () -> Unit) {
-    ElevatedCard(
-        onClick = onOpenTerminal,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
-    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = HomeTokens.textPrimary,
+        )
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Terminal,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(36.dp),
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Terminal",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    text = "Open a real Linux shell",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                )
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss", color = HomeTokens.textDim)
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+            TextButton(onClick = onOpenDiagnostics) {
+                Text("Diagnostics", color = HomeTokens.accent)
+            }
         }
     }
 }
 
+// ------------------------------------------------------ environment launchers
+
+/**
+ * The two foundations — asymmetric but balanced. Terminal wears the exact
+ * canvas color (it IS the terminal); Linux carries the honest runtime state.
+ */
 @Composable
-private fun LinuxShellCard(
-    state: RuntimeState,
+private fun EnvironmentLaunchers(
+    runtimeState: RuntimeState,
+    runningSessions: Int,
+    onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
     onOpenDiagnostics: () -> Unit,
 ) {
-    // Honest gate (docs/M2-ARCHITECTURE §7): the card shows the real runtime
-    // state; only READY enters the guest, everything else routes to the
-    // Diagnostics screen where install/retry/repair actually live.
-    val ready = state == RuntimeState.READY
-    val subtitle = when (state) {
-        RuntimeState.READY -> "Enter the installed Alpine guest (proot)"
-        RuntimeState.NOT_INSTALLED -> "Not installed yet — install from Diagnostics"
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        TerminalTile(
+            runningSessions = runningSessions,
+            onClick = onOpenTerminal,
+            modifier = Modifier.weight(1.25f),
+        )
+        LinuxTile(
+            runtimeState = runtimeState,
+            onClick = { if (runtimeState == RuntimeState.READY) onOpenLinuxShell() else onOpenDiagnostics() },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun TerminalTile(runningSessions: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    PressableScale(onClick = onClick, onClickLabel = "Open the Terminal", modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(168.dp)
+                .clip(RoundedCornerShape(HomeTokens.heroRadius))
+                .background(HomeTokens.surfaceHero)
+                .border(1.dp, HomeTokens.accentDeep.copy(alpha = 0.55f), RoundedCornerShape(HomeTokens.heroRadius))
+                .padding(18.dp),
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                TerminalMark(size = 36.dp)
+                Spacer(Modifier.weight(1f))
+                if (runningSessions > 0) {
+                    RunningChip(count = runningSessions)
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "Terminal",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = HomeTokens.textPrimary,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Native PocketShell environment",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LinuxTile(runtimeState: RuntimeState, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    // Honest gate (M2 architecture): READY enters the guest, everything else
+    // routes to Diagnostics where install/retry/repair actually live.
+    val stateLine = when (runtimeState) {
+        RuntimeState.READY -> "Alpine Linux · ready"
+        RuntimeState.NOT_INSTALLED -> "Not installed yet"
         RuntimeState.DOWNLOADING,
         RuntimeState.VERIFYING,
         RuntimeState.EXTRACTING,
-        RuntimeState.CONFIGURING -> "Install in progress — see Diagnostics"
-        RuntimeState.FAILED -> "Install failed — retry from Diagnostics"
-        RuntimeState.REPAIR_REQUIRED -> "Repair needed — open Diagnostics"
-        RuntimeState.UNSUPPORTED_ABI -> "This device has no arm64 CPU — runtime unavailable"
+        RuntimeState.CONFIGURING,
+        -> "Install in progress"
+        RuntimeState.FAILED -> "Install failed"
+        RuntimeState.REPAIR_REQUIRED -> "Repair needed"
+        RuntimeState.UNSUPPORTED_ABI -> "No arm64 CPU"
     }
-    ElevatedCard(
-        onClick = { if (ready) onOpenLinuxShell() else onOpenDiagnostics() },
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        ),
+    val supportLine = when (runtimeState) {
+        RuntimeState.READY -> "Enter the guest shell"
+        RuntimeState.UNSUPPORTED_ABI -> "Runtime unavailable on this device"
+        else -> "Set up or repair from Diagnostics"
+    }
+    PressableScale(
+        onClick = onClick,
+        onClickLabel = if (runtimeState == RuntimeState.READY) "Open the Linux environment" else "Open Diagnostics",
+        modifier = modifier,
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .height(168.dp)
+                .clip(RoundedCornerShape(HomeTokens.heroRadius))
+                .background(HomeTokens.surfaceEnv)
+                .border(1.dp, HomeTokens.hairline, RoundedCornerShape(HomeTokens.heroRadius))
+                .padding(18.dp),
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Computer,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(36.dp),
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Linux Shell",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                MountainMark(size = 36.dp)
+                Spacer(Modifier.weight(1f))
+                if (runtimeState == RuntimeState.READY) {
+                    ReadyDot()
+                }
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "Linux",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = HomeTokens.textPrimary,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stateLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (runtimeState == RuntimeState.READY) HomeTokens.accent else HomeTokens.textDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = supportLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
 
+/** "N running" mono chip on the Terminal tile — real session counts only. */
 @Composable
-private fun InstalledAppsSection(
-    installedApps: List<InstalledCatalogApp>,
-    probeError: String?,
-    runtimeReady: Boolean,
-    onOpenApp: (app.pocketshell.packages.CliAppCatalogEntry) -> Unit,
-) {
-    Column {
+private fun RunningChip(count: Int) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(HomeTokens.surfaceEnv)
+            .border(1.dp, HomeTokens.hairline, RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
         Text(
-            text = "Installed CLI Apps",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            text = "$count running",
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.textDim,
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        if (probeError != null) {
-            // Honest probe failure: never render "No apps installed yet" when
-            // the truth is "we could not ask right now" (v0.4.4).
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+    }
+}
+
+/** The Linux tile's quiet readiness cue (state text carries the meaning). */
+@Composable
+private fun ReadyDot() {
+    Box(
+        modifier = Modifier
+            .size(8.dp)
+            .background(HomeTokens.accent, androidx.compose.foundation.shape.CircleShape),
+    )
+}
+
+// ------------------------------------------------------------ command app area
+
+@Composable
+private fun CommandAppsArea(
+    state: TerminalViewModel.CommandAppsState,
+    verifyingApp: String?,
+    runtimeReady: Boolean,
+    columns: Int,
+    onOpenCommandApp: (CommandApp) -> Unit,
+    onExplorePackages: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        if (state.apps.isEmpty() && !state.probeError.isNullOrEmpty()) {
+            // Probe failed: the honest "could not check" — never a fake "none".
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(HomeTokens.chipRadius))
+                    .background(HomeTokens.surfaceBanner)
+                    .border(1.dp, HomeTokens.hairline, RoundedCornerShape(HomeTokens.chipRadius))
+                    .padding(18.dp),
             ) {
+                HomeSectionLabel("Command apps")
+                Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "Installed state unavailable: $probeError\n" +
-                        "The list below may be out of date — check the package environment from Diagnostics.",
+                    text = "App availability could not be checked right now — ${state.probeError}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp),
+                    color = HomeTokens.textDim,
                 )
             }
-        } else if (installedApps.isEmpty()) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+        } else if (state.apps.isEmpty() && runtimeReady && !state.checked) {
+            // Probe in flight: a quiet honest placeholder — the launcher never
+            // flashes a fake "none installed" while the guest is being asked.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(HomeTokens.chipRadius))
+                    .background(HomeTokens.surfaceBanner)
+                    .border(1.dp, HomeTokens.hairline, RoundedCornerShape(HomeTokens.chipRadius))
+                    .padding(18.dp),
             ) {
-                Text(
-                    text = if (runtimeReady) {
-                        "No apps installed yet"
-                    } else {
-                        "Install the Linux runtime to add CLI apps"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp),
-                )
+                HomeSectionLabel("Command apps")
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = HomeTokens.accent,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = "Checking the Linux environment…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.textDim,
+                    )
+                }
             }
+        } else if (state.apps.isEmpty()) {
+            // Real empty answer (or runtime not ready yet): the launcher's
+            // beautiful empty state — the body text states which truth applies.
+            EmptyAppsState(runtimeReady = runtimeReady, onExplorePackages = onExplorePackages)
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                installedApps.forEach { app ->
-                    Card(
-                        onClick = { onOpenApp(app.entry) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    text = app.entry.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    // description + the REAL version apk reported
-                                    text = app.entry.description +
-                                        "  \u00b7 Installed \u00b7 " + app.version,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+            HomeSectionLabel("Command apps")
+            Spacer(Modifier.height(14.dp))
+            state.apps.chunked(columns).forEach { rowApps ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                ) {
+                    rowApps.forEach { app ->
+                        CommandAppTile(
+                            app = app,
+                            verifying = verifyingApp == app.displayName,
+                            onClick = { onOpenCommandApp(app) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    repeat(columns - rowApps.size) {
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
+            if (state.probeError != null) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "Availability last checked before an error: ${state.probeError}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim.copy(alpha = 0.8f),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ExploreRow(onExploreApps: () -> Unit) {
-    OutlinedButton(
-        onClick = onExploreApps,
-        modifier = Modifier.fillMaxWidth(),
+private fun CommandAppTile(
+    app: CommandApp,
+    verifying: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(HomeTokens.appTileRadius))
+            .clickable(
+                role = Role.Button,
+                onClickLabel = "Open ${app.displayName}",
+            ) { onClick() }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(imageVector = Icons.Outlined.Explore, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("Explore CLI Apps")
+        if (verifying) {
+            Box(
+                modifier = Modifier.size(64.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = HomeTokens.accent,
+                )
+            }
+        } else {
+            MonogramTile(monogram = app.monogram, size = 64.dp)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = app.displayName,
+            style = MaterialTheme.typography.labelMedium,
+            color = HomeTokens.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
 @Composable
-private fun ActiveSessionsSection(
+private fun EmptyAppsState(runtimeReady: Boolean, onExplorePackages: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(HomeTokens.chipRadius))
+            .background(HomeTokens.surfaceBanner)
+            .border(1.dp, HomeTokens.hairline, RoundedCornerShape(HomeTokens.chipRadius))
+            .padding(vertical = 30.dp, horizontal = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        GhostTiles(size = 44.dp)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "Your tools will appear here",
+            style = MaterialTheme.typography.titleMedium,
+            color = HomeTokens.textPrimary,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = if (runtimeReady) {
+                "Interactive command apps installed in your Linux environment — " +
+                    "like Hermes Agent — launch directly from this home screen."
+            } else {
+                "Install the Linux runtime first — interactive command apps live " +
+                    "inside your Linux environment and launch from here."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = HomeTokens.textDim,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(14.dp))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, HomeTokens.hairline, RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button) { onExplorePackages() }
+                .padding(horizontal = 16.dp, vertical = 9.dp),
+        ) {
+            Text(
+                text = "Explore packages",
+                style = MaterialTheme.typography.labelLarge,
+                color = HomeTokens.accent,
+            )
+        }
+    }
+}
+
+// ------------------------------------------------------------- sessions area
+
+/**
+ * Compact continuation area — running sessions stay visible without
+ * dominating the launcher (capped; the rest remain in the Terminal's tabs).
+ */
+@Composable
+private fun SessionsContinuationArea(
     sessions: List<TerminalSessionManager.SessionEntry>,
     onOpenSession: (Long) -> Unit,
 ) {
-    Column {
-        Text(
-            text = "Active Sessions",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        sessions.forEach { entry ->
-            Surface(
-                onClick = { onOpenSession(entry.id) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        HomeSectionLabel("Sessions")
+        Spacer(Modifier.height(10.dp))
+        sessions.take(4).forEach { entry ->
+            val finished = entry.isFinished
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 3.dp)
+                    .clip(RoundedCornerShape(HomeTokens.chipRadius))
+                    .background(HomeTokens.surfaceBanner)
+                    .border(1.dp, HomeTokens.hairline, RoundedCornerShape(HomeTokens.chipRadius))
+                    .clickable(role = Role.Button, onClickLabel = "Return to session") {
+                        onOpenSession(entry.id)
+                    }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(8.dp),
-                    ) {
-                        Surface(
-                            color = if (entry.isFinished) MaterialTheme.colorScheme.outline
-                            else MaterialTheme.colorScheme.primary,
-                            shape = androidx.compose.foundation.shape.CircleShape,
-                            modifier = Modifier.fillMaxSize(),
-                        ) {}
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
+                            .size(8.dp)
+                            .background(
+                                if (finished) HomeTokens.hairline else HomeTokens.runningGreen,
+                                androidx.compose.foundation.shape.CircleShape,
+                            ),
+                    )
+                    Spacer(Modifier.width(12.dp))
                     Text(
-                        text = entry.displayLabel + if (entry.isFinished) " (exited)" else "",
+                        text = entry.displayLabel + if (finished) " (exited)" else "",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = if (finished) HomeTokens.textDim else HomeTokens.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
+                    Text(
+                        text = "#${entry.id}",
+                        fontFamily = TerminalTheme.mono,
+                        fontSize = 11.sp,
+                        color = HomeTokens.textDim.copy(alpha = 0.7f),
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
         }
+        if (sessions.size > 4) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "+${sessions.size - 4} more in Terminal",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim.copy(alpha = 0.8f),
+                modifier = Modifier.padding(start = 4.dp),
+            )
+        }
+    }
+}
+
+// ------------------------------------------------------------------ footer
+
+/** Quiet packages affordance — packages are infrastructure; this is their only Home presence. */
+@Composable
+private fun PackagesFooterLink(onExplorePackages: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = "Explore packages",
+            style = MaterialTheme.typography.bodySmall,
+            color = HomeTokens.textDim.copy(alpha = 0.85f),
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(role = Role.Button) { onExplorePackages() }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+    }
+}
+
+// ------------------------------------------------------------------- helpers
+
+/** Soft press feedback (80ms scale) shared by the launch surfaces. */
+@Composable
+private fun PressableScale(
+    onClick: () -> Unit,
+    onClickLabel: String?,
+    modifier: Modifier = Modifier,
+    pressedScale: Float = 0.98f,
+    content: @Composable () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) pressedScale else 1f,
+        animationSpec = tween(80, easing = FastOutSlowInEasing),
+        label = "homePressScale",
+    )
+    Box(
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Button,
+                onClickLabel = onClickLabel,
+            ) { onClick() },
+    ) {
+        content()
     }
 }
