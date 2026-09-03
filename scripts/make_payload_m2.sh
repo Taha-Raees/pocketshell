@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.6.2-m2.6
+VERSION=v0.7.0-m3.1
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,44 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.6.1-m2.6):
+WHAT IS NEW IN $VERSION (vs v0.6.2-m2.6) — PHASE 3.1, TERMINAL SCREEN ONLY:
+  - SCOPE: the Terminal screen ONLY (chrome, session tabs, terminal
+    workspace, keyboard). Home/Explore/Packages/Settings/Diagnostics and the
+    whole M2.6 runtime layer are untouched. Design contract committed
+    BEFORE implementation: docs/PHASE-3.1-DESIGN.md ("Midnight Sapphire").
+  - BLUE-DARK, NEVER BLACK: the terminal page gets its own fixed Midnight
+    identity in every app theme - chrome #101B30, strip #0D1730, canvas
+    #080F1D (deepest blue-black), deck #131F38; exactly ONE accent
+    (Sapphire #7FA3EF) for cursor/active tab/modifiers/Enter. Real
+    16-color ANSI palette override at process start (OSC still wins - the
+    terminal stays real).
+  - TERMINAL TYPEFACE: JetBrains Mono NL (no-ligature build, OFL 1.1,
+    Regular/Bold/Italic in res/font) via vendored setTypeface() -
+    character-exact output, distinct 0/O and 1/l/I. Sapphire block cursor
+    (upstream renderer, blinker unchanged, DECSCUSR still honored).
+  - EDITOR-STYLE SESSION TABS (not pills): rounded-TOP tabs; inactive
+    recessed with a right hairline; the ACTIVE tab is canvas-colored with a
+    2.5dp Sapphire top hairline and covers the strip's bottom hairline - it
+    visibly opens into the terminal workspace.
+  - KEYBOARD REBUILT FROM SCRATCH (no system IME anywhere): TOP row
+    Esc Tab + grouped arrow panel (auto-repeat) - MIDDLE PocketShell QWERTY
+    (digits, letters, terminal punctuation row, symbols with
+    INS/DEL/HOME/END/PGUP/PGDN - v0.6.2 coverage fully preserved) - BOTTOM
+    [keyboard-icon] Ctrl Alt Space Shift Enter (exact order, icon-only
+    toggle, far-left, permanent; Enter accent-filled). The dedicated FN key
+    is REMOVED: F1-F10 = number-row long-press (hold -> bubble -> release),
+    F11/F12 on tablet -/= long-press; readFnKey() honestly false.
+  - Keyboard toggle collapses ONLY the QWERTY body; both accessory rows stay;
+    landscape compresses to 4 rows; tablets get 14/15-column rows. Dispatch
+    pipeline unchanged (synthetic KeyEvents -> vendored KeyHandler -> PTY);
+    one-shot/lock modifier machine unchanged (Ctrl/Alt/Shift).
+  - versionCode 18 / 0.7.0-m3.1 - in-place update over v0.6.2 (16) and the
+    discarded v0.7.0-ui (17); same pinned cert. 628 test executions, 0
+    failures (keyboard contract tests rewritten). Device gate: TESTING.md
+    §12 (visual sweep, exact layout, Ctrl+C/D/L/A/E/W, Fn long-press,
+    apk update / node --version / hermes --version).
+
+WHAT WAS NEW IN v0.6.2-m2.6 (vs v0.6.1-m2.6):
   - TWO fixes from the same 2026-09-02 device session (SM-F711B), both
     device-reported and rehearsal-proven:
   - M2.6.13, HARDLINK EXTRACTION FIXED: "apk add build-base" failed with
@@ -461,9 +498,16 @@ echo "dot-path entries       : $DOTS  (want 0)"
 echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
+           docs/PHASE-3.1-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
            app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
            app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \
+           app/src/main/java/app/pocketshell/ui/theme/TerminalTheme.kt \
+           app/src/main/java/app/pocketshell/terminal/TerminalPalette.kt \
+           app/src/main/java/app/pocketshell/keyboard/TerminalKeyboard.kt \
+           app/src/main/res/font/jetbrains_mono_nl_regular.ttf \
+           app/src/main/res/font/jetbrains_mono_nl_bold.ttf \
+           app/src/main/res/font/jetbrains_mono_nl_italic.ttf \
            scripts/rehearse_m262.sh \
            app/src/main/assets/guest/libapk.so.3.0.0.fdlinkoff.aarch64 \
            app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt \
