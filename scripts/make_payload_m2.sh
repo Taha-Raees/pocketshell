@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m3.1
+VERSION=v0.7.0-m3.2
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,55 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.6.2-m2.6) — PHASE 3.1, TERMINAL SCREEN ONLY:
+WHAT IS NEW IN $VERSION (vs v0.7.0-m3.1) — PHASE 3.2, HOME / OS LAUNCHER:
+  - SCOPE: the HOME screen ONLY + the command-launchable app architecture.
+    The Phase 3.1 terminal redesign (chrome, tabs, keyboard, palette, PTY
+    pipeline), runtime, Linux environment, package manager, installed
+    packages and Hermes are untouched. Design contract committed BEFORE
+    implementation: docs/PHASE-3.2-DESIGN.md.
+  - CONCEPT: PocketShell Home is the launcher of a Linux-centric
+    environment — identity on top, the two foundations (Terminal, Linux)
+    in the center, command apps below, sessions quiet, ONE floating
+    quick-action control. No bottom navigation bar. Not a card dashboard.
+  - PACKAGES ≠ APPS: Home NO LONGER renders installed packages (the old
+    "Installed CLI Apps" apk-probe section is gone). git, nano, python,
+    node, npm, gcc, g++, htop, vim can never become launcher tiles
+    (test-pinned). New apps/CommandApps.kt registry (Hermes Agent,
+    OpenCode, Claude Code, ZCode) — a tile exists ONLY when the guest
+    confirms the command.
+  - LOGIN-SHELL AVAILABILITY PROBE: one batched `sh -lc` exec asking
+    exactly "would a fresh guest login shell find this command?" — the
+    same environment the user's typing sees, where uv-installed
+    launchers (hermes, M2.6) are reachable (the spec's static PATH lacks
+    /root/.local/bin; a non-login probe would answer a false absence).
+    Probe failure renders "could not be checked" and KEEPS the last real
+    list — never a fake "no apps" (v0.4.4 honesty rule).
+  - LAUNCH FLOW: tap Hermes → runtime gate → fresh probe → NEW dedicated
+    guest session whose PTY receives `hermes` — what the launcher does is
+    exactly what typing would do (typed command visible in scrollback;
+    exiting the app returns to the guest prompt).
+  - MIDNIGHT SAPPHIRE LAUNCHER: page #0B1424, Terminal tile in the exact
+    canvas color #080F1D, Linux tile #101B30, app tiles #16233F; NO pure
+    black, NO gradients on this page, ONE Sapphire accent #7FA3EF; green
+    #5FB572 only on a real running dot. Drawn brand mark + mono wordmark
+    + tagline "Your Linux workspace on Android"; drawn terminal/mountain
+    marks; honest Linux state line (READY enters the guest, every other
+    state routes to Diagnostics — distro-agnostic by construction).
+  - LAUNCHER GRID: 64dp monogram tiles, 3 columns phone / 4 at >=600dp /
+    6 at >=840dp, content capped 720dp centered on tablets. Empty state:
+    drawn ghost tiles + "Your tools will appear here" + Explore packages
+    (real screen; no fake marketplace).
+  - SESSIONS: compact continuation area (max 4 rows + "+N more"), tap
+    returns to the session; FAB quick actions: New Terminal (fresh), New
+    Linux session (READY only), each available command app — real actions
+    only, the list is data for future capabilities. Scrim + stagger chips,
+    150–220ms, no bounce. Edge-to-edge launcher + per-screen status-bar
+    icon coordination.
+  - versionCode 19 / 0.7.0-m3.2 — in-place update over 16/17/18; same
+    pinned cert. 644 test executions, 0 failures (628 baseline + 8 new
+    CommandApps invariants). Device gate: TESTING.md §13.
+
+WHAT WAS NEW IN v0.7.0-m3.1 (vs v0.6.2-m2.6) — PHASE 3.1, TERMINAL SCREEN ONLY:
   - SCOPE: the Terminal screen ONLY (chrome, session tabs, terminal
     workspace, keyboard). Home/Explore/Packages/Settings/Diagnostics and the
     whole M2.6 runtime layer are untouched. Design contract committed
@@ -498,13 +546,19 @@ echo "dot-path entries       : $DOTS  (want 0)"
 echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
-           docs/PHASE-3.1-DESIGN.md \
+           docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
            app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
            app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \
            app/src/main/java/app/pocketshell/ui/theme/TerminalTheme.kt \
            app/src/main/java/app/pocketshell/terminal/TerminalPalette.kt \
            app/src/main/java/app/pocketshell/keyboard/TerminalKeyboard.kt \
+           app/src/main/java/app/pocketshell/apps/CommandApps.kt \
+           app/src/test/java/app/pocketshell/apps/CommandAppsTest.kt \
+           app/src/main/java/app/pocketshell/ui/home/HomeScreen.kt \
+           app/src/main/java/app/pocketshell/ui/home/HomeTokens.kt \
+           app/src/main/java/app/pocketshell/ui/home/HomeMarks.kt \
+           app/src/main/java/app/pocketshell/ui/home/QuickActions.kt \
            app/src/main/res/font/jetbrains_mono_nl_regular.ttf \
            app/src/main/res/font/jetbrains_mono_nl_bold.ttf \
            app/src/main/res/font/jetbrains_mono_nl_italic.ttf \
