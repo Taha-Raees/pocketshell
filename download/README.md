@@ -1,49 +1,37 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m3.3 (git tip 9803940 + delivery page commit; Phase 3.3 — Home & System UI Redesign, versionCode 20)
-- PocketShell-v0.7.0-m3.3-debug.apk  sha256 a7acd843ff85d691ad50c548d566663f3919a3de2e963e17087a81828aa0dca0
-  Installs IN PLACE over v0.7.0-m3.2 (versionCode 19), v0.7.0-m3.1 (18), the
-  discarded v0.7.0-ui (17) and v0.6.2 (16) — same pinned cert d96a6f66…8bf659.
-  App data (Alpine runtime, Hermes, packages) survives.
-  SCOPE: visual architecture + Home interaction cleanup ONLY — ZERO backend
-  changes. Command-app discovery, login-shell probing, verify-before-launch,
-  dedicated guest sessions, the forbidden package list, the Phase 3.1
-  terminal (chrome, tabs, keyboard, palette, PTY pipeline), the runtime, the
-  Linux environment, the package manager and installed packages are
-  untouched. Design contract: docs/PHASE-3.3-DESIGN.md (committed before
-  implementation).
-  Phase 3.3 highlights:
-  · Surfaces only for OBJECTS: content sits directly on the Midnight canvas,
-    separated by spacing, section labels, hairline dividers and tone steps.
-    No cards for text groupings, no cards in cards, radius ≤ 16dp, no
-    decorative borders, no ghost placeholders.
-  · ONE CLI control: quiet "CLI Apps ▾" in the header area (only when apps
-    exist) opening a compact Midnight launcher menu — monogram plate + name +
-    the command dim and secondary; row taps run the exact Phase 3.2
-    verify-then-launch pipeline. Replaces every floating CLI affordance.
-  · Foundations, flatter: Terminal and Linux are borderless tone-step
-    surfaces, 14dp radius; truncating copy replaced ("Native shell",
-    "Alpine · ready"); running count is plain mono text.
-  · "Your tools": command apps as icon + label launcher entries (52dp
-    borderless monogram plates, NOT cards). Empty state = three quiet lines
-    ("No CLI apps yet." + one sentence + the page's only Explore packages
-    link); with apps present a single quiet "Packages" footer link replaces
-    it — exactly ONE packages affordance in every state.
-  · Sessions flat: dot + label + mono id between hairline dividers; pressed
-    row is the only surface; green only for live processes.
-  · FAB single-purpose: "create a new session" ONLY (New Terminal / New
-    Linux session), text-only chips — no icon circles, no logos, no command
-    apps in the menu.
-  · Other pages reviewed: Settings/Diagnostics already flat (unchanged);
-    Packages cards = real objects (allowed, unchanged).
-  · 644 test executions green (baselines + CommandAppsTest untouched).
-  Device gate: docs/TESTING.md §14 (no-boxes sweep; CLI menu honesty — only
-  guest-confirmed apps; empty-state lightness; FAB purpose; §12/§13
-  regressions).
-- PocketShell-v0.7.0-m3.3-source.zip sha256 cd554f97e300f3d859c2242919760e1750fe22c935a39e81118a17a312be4de7  (28 MB, 291 files)
-- PocketShell-v0.7.0-m3.3-source.tar.gz sha256 d5e11ae7b905622cea1ab4cafe78cd0233f75e024fd9b7a73aff78125b651e9d  (28 MB)
-- pocketshell-m2.gitbundle           sha256 108a986d24e13f0b23a810d75a57028be7a6d256b878407458bd244d4ea81611  (full history @ 9803940; ~26 MB — includes the complete milestone history, the discarded UI attempt + rollback records, and all three Phase 3 design contracts — honest, no rewrites)
+Current: v0.7.0-m3.4 (git tip fcbe2f2 + delivery page commit; Phase 3.4 — Registry Expansion + System Pages, versionCode 21)
+- PocketShell-v0.7.0-m3.4-debug.apk  sha256 2059d1965957e09a05d1bfa313f24c98030e3df23ed2893397b66d44f0d60dd5
+  Installs IN PLACE over v0.7.0-m3.3 (versionCode 20), m3.2 (19), m3.1 (18),
+  the discarded v0.7.0-ui (17) and v0.6.2 (16) — same pinned cert
+  d96a6f66…8bf659. App data (Alpine runtime, Hermes, packages) survives.
+  SCOPE: one registry data fix + system-page guideline adoption — ZERO
+  pipeline/terminal/runtime changes. Login-shell probing,
+  verify-before-launch, dedicated guest sessions, the forbidden package
+  list, the Phase 3.1 terminal and every runtime behavior are untouched.
+  Design contract: docs/PHASE-3.4-DESIGN.md (committed before implementation).
+  Phase 3.4 highlights:
+  · THE FIX: installed Kilo CLI now appears. Root cause: discovery =
+    registry ∩ guest PATH; `kilo` was unregistered so the probe never asked
+    about it (honesty contract — no guessing from unknown binaries).
+  · Registry expanded (data only): Kilo Code (`kilo`), Gemini CLI
+    (`gemini`), Codex (`codex`), Aider (`aider`), Qwen Code (`qwen`) —
+    appended after the brief's four (order stability); each still only
+    surfaces when the guest's login shell finds its command.
+  · Packages screen: not-ready state is inline text with a real
+    "Open Diagnostics" link (container deleted); title → "Packages".
+  · Settings: whole-row selection targets ≥48dp with correct a11y roles.
+  · Diagnostics: uniform sections — System / Linux runtime / Package
+    environment — header + plain fact rows, no internal dividers.
+  · Home unchanged: tools grid + CLI Apps ▾ render the new entries
+    automatically.
+  · 648 test executions green (644 baseline + 4 new registry pins).
+  Device gate: docs/TESTING.md §15 (kilo appears iff installed and launches;
+  Packages/Settings/Diagnostics checks; §12/§13/§14 regressions).
+- PocketShell-v0.7.0-m3.4-source.zip sha256 9b73fe8cfa915b476fde3debed1b413820a1447559aebe7f20c251ebd240c4d6  (28 MB, 294 files)
+- PocketShell-v0.7.0-m3.4-source.tar.gz sha256 37fd374080fdf74cb84b569434775a19f55acd3555822d0ade004a7c5f74f651  (28 MB)
+- pocketshell-m2.gitbundle           sha256 b9c53eef35652c553773860e04c3a7f4c365a6c4a8da1e18ecdda9fdcbaabd20  (full history @ fcbe2f2; ~26 MB — includes the complete milestone history, the discarded UI attempt + rollback records, and all four Phase 3 design contracts — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m3.2 superseded by Phase 3.3; its records
+Older builds: withdrawn (v0.7.0-m3.3 superseded by Phase 3.4; its records
 live in the bundle history — see docs/CHANGELOG for each confirmed fix).

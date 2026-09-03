@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m3.3
+VERSION=v0.7.0-m3.4
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,42 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m3.2) — PHASE 3.3, HOME & SYSTEM UI:
+WHAT IS NEW IN $VERSION (vs v0.7.0-m3.3) — PHASE 3.4, REGISTRY EXPANSION +
+SYSTEM PAGES:
+  - THE REPORTED FIX: "I have installed kilocli but it doesn't show up".
+    Root cause: command-app discovery = registry ∩ guest PATH — the probe
+    asks the login shell \`command -v <name>\` only for REGISTRY names, and
+    \`kilo\` (the Kilo Code CLI, \`npm install -g @kilocode/cli\`) had no
+    registry entry, so it was never probed and could never appear. That is
+    the honesty contract working (the launcher never guesses from unknown
+    PATH binaries); the registry is the designed extension point — so Kilo
+    is now registered, probe-gated like every app: the tile appears within
+    one Home revisit once \`kilo\` exists, and disappears when it does not.
+  - REGISTRY EXPANSION (data only — zero pipeline changes): five terminal
+    AI agents seeded — KILO CODE (\`kilo\`), GEMINI CLI (\`gemini\`), CODEX
+    (\`codex\`), AIDER (\`aider\`), QWEN CODE (\`qwen\`) — appended AFTER the
+    brief's four (Hermes/OpenCode/Claude/ZCode), so launcher order on
+    installed devices never shuffles. Installing any of them is still the
+    ONLY way its tile can ever render.
+  - SYSTEM PAGES ADOPT THE PHASE 3.3 GUIDELINES: Packages screen — the
+    "runtime not installed" state is now INLINE TEXT on the canvas (no
+    container card) with a real \`Open Diagnostics\` link; title renamed
+    "Explore CLI Apps" -> "Packages" (one name per object). Per-package
+    surfaces stay — real objects (installable package + actions) are
+    explicitly allowed by the card rules. Settings — whole-row selection:
+    theme radio rows and the dynamic-color row are >=48dp full-row touch
+    targets with correct a11y roles (visual language unchanged).
+    Diagnostics — one uniform section pattern: divider + header for
+    System / Linux runtime / Package environment, plain fact rows, no
+    internal per-row dividers.
+  - Home needs ZERO changes: the "Your tools" grid and the \`CLI Apps \`
+    menu render from the registry — new entries surface automatically.
+  - versionCode 21 / 0.7.0-m3.4 — in-place update over 16/17/18/19/20;
+    same pinned cert. 648 test executions, 0 failures (644 baseline + 4
+    new registry pins; CommandAppsTest invariants intact). Device gate:
+    TESTING.md §15.
+
+WHAT WAS NEW IN v0.7.0-m3.3 (vs v0.7.0-m3.2) — PHASE 3.3, HOME & SYSTEM UI:
   - SCOPE: visual architecture + Home interaction cleanup ONLY. ZERO
     backend changes — command-app discovery, login-shell probing,
     verify-before-launch, dedicated guest sessions, the forbidden package
@@ -89,6 +124,7 @@ WHAT IS NEW IN $VERSION (vs v0.7.0-m3.2) — PHASE 3.3, HOME & SYSTEM UI:
   - OTHER PAGES reviewed (contract §10): Settings/Diagnostics are already
     divider-based and flat — unchanged; Packages cards represent real
     objects (installable packages with actions) — allowed, unchanged.
+    [Superseded by Phase 3.4, which put those rules into code.]
   - versionCode 20 / 0.7.0-m3.3 — in-place update over 16/17/18/19; same
     pinned cert. 644 test executions, 0 failures (baselines +
     CommandAppsTest untouched and green). Device gate: TESTING.md §14.
@@ -601,6 +637,7 @@ echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md docs/PHASE-3.3-DESIGN.md \
+           docs/PHASE-3.4-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
            app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
            app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \
