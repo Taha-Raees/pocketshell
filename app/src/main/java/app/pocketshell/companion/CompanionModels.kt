@@ -83,6 +83,41 @@ object CompanionValidation {
 }
 
 /**
+ * m4.0.2 — honest in-canvas failure state (device-reported 2026-09-05: a
+ * broken/rolled-back WebView package rendered the canvas pure WHITE with
+ * no explanation). The Companion canvas must never be mysteriously blank:
+ * a failed main-frame load or a dead page renderer becomes a labeled
+ * Midnight card with the real detail + the installed WebView version and
+ * a Retry action. Pure state + text — unit-pinned, no WebView fakes.
+ */
+enum class CompanionFailureKind { LOAD_ERROR, RENDERER_GONE }
+
+data class CompanionFailure(
+    val kind: CompanionFailureKind,
+    val detail: String? = null,
+    val webViewVersion: String? = null,
+) {
+    val title: String
+        get() = when (kind) {
+            CompanionFailureKind.LOAD_ERROR -> "Page didn't load"
+            CompanionFailureKind.RENDERER_GONE -> "Page renderer crashed"
+        }
+
+    val body: String
+        get() = listOfNotNull(detail, webViewVersion?.let { "Android System WebView $it" })
+            .filter { it.isNotBlank() }
+            .joinToString(" · ")
+
+    val hint: String
+        get() = when (kind) {
+            CompanionFailureKind.LOAD_ERROR ->
+                "Check the network/VPN for this site — or update Android System WebView — then retry."
+            CompanionFailureKind.RENDERER_GONE ->
+                "This WebView build looks broken on this device. Update or roll it back, then retry."
+        }
+}
+
+/**
  * Back-navigation decision (§14) — pure, unit-pinned. The composable wires
  * PASS_THROUGH by disabling its BackHandler, so the runtime logic is exactly
  * this function plus the two actions.

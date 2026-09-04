@@ -12,8 +12,10 @@ import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -48,6 +50,14 @@ object CompanionWebPool {
         fun onVisitStarted(defId: String, url: String) {}
         fun onTitleReceived(defId: String, title: String) {}
         fun onExternalLinkUnhandled(uri: Uri) {}
+
+        /** m4.0.2: the MAIN frame failed to load — the canvas must say why. */
+        fun onMainFrameError(defId: String, description: String) {}
+
+        /** m4.0.2: the page renderer died (the classic white canvas on
+         *  broken WebView builds). The pool destroyed the view; the app
+         *  stays alive and the UI explains. */
+        fun onRendererGone(defId: String) {}
     }
 
     private class TabEntry(val webView: WebView) {
@@ -206,6 +216,17 @@ object CompanionWebPool {
 
     // ------------------------------------------------------------------ core
 
+    /**
+     * m4.0.2 — the installed WebView provider's version, honestly.
+     * Surfaced on every failure card so "white canvas" mysteries become a
+     * concrete fact the user can act on (update / roll back).
+     */
+    fun webViewVersion(): String = try {
+        WebView.getCurrentWebViewPackage()?.versionName?.takeIf { it.isNotBlank() } ?: "unknown"
+    } catch (_: Throwable) {
+        "unknown"
+    }
+
     /** R4: cookie acceptance is global and persistent; third-party cookies
      *  are required by real login flows (§7). Runs once, lazily, guarded —
      *  never during Application startup (m4.0.1 hotfix). */
@@ -269,6 +290,35 @@ object CompanionWebPool {
 
         override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
             if (url != null) listener?.onVisitStarted(defId, url)
+        }
+
+        override fun onReceivedError(
+            view: WebView,
+            request: WebResourceRequest,
+            error: WebResourceError,
+        ) {
+            // m4.0.2: subresource noise is ignored; a failed MAIN frame is
+            // surfaced in the canvas — never a silent white page.
+            if (!request.isForMainFrame) return
+            val description = error.description?.toString()?.takeIf { it.isNotBlank() }
+                ?: "error ${error.errorCode}"
+            listener?.onMainFrameError(defId, description)
+        }
+
+        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+            // m4.0.2: the renderer died — the default behavior KILLS THE APP;
+            // instead destroy ONLY this view, keep PocketShell alive, and
+            // let the canvas explain (broken WebView builds do this).
+            try {
+                pool.remove(defId)
+            } catch (_: Throwable) {
+            }
+            try {
+                view.destroy()
+            } catch (_: Throwable) {
+            }
+            listener?.onRendererGone(defId)
+            return true // consumed
         }
     }
 

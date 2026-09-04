@@ -189,4 +189,58 @@ class CompanionTest {
         assertTrue(CompanionHeights.isRaised(CompanionHeights.MIN_RAISED))
         assertTrue(CompanionHeights.isRaised(0.5f))
     }
+
+    // ---- failure surfaces (m4.0.2) ------------------------------------------
+
+    @Test
+    fun `failure titles map from kind`() {
+        assertEquals(
+            "Page didn't load",
+            CompanionFailure(CompanionFailureKind.LOAD_ERROR).title,
+        )
+        assertEquals(
+            "Page renderer crashed",
+            CompanionFailure(CompanionFailureKind.RENDERER_GONE).title,
+        )
+    }
+
+    @Test
+    fun `failure body joins detail and webview version`() {
+        val failure = CompanionFailure(
+            CompanionFailureKind.LOAD_ERROR,
+            detail = "net::ERR_NAME_NOT_RESOLVED",
+            webViewVersion = "109.0.5414.117",
+        )
+        assertEquals(
+            "net::ERR_NAME_NOT_RESOLVED · Android System WebView 109.0.5414.117",
+            failure.body,
+        )
+    }
+
+    @Test
+    fun `failure body skips missing parts`() {
+        assertEquals(
+            "Android System WebView 100.0.0.0",
+            CompanionFailure(CompanionFailureKind.RENDERER_GONE, webViewVersion = "100.0.0.0").body,
+        )
+        assertEquals(
+            "net::ERR_TIMED_OUT",
+            CompanionFailure(CompanionFailureKind.LOAD_ERROR, detail = "net::ERR_TIMED_OUT").body,
+        )
+        assertEquals("", CompanionFailure(CompanionFailureKind.LOAD_ERROR).body)
+        assertEquals(
+            "",
+            CompanionFailure(CompanionFailureKind.LOAD_ERROR, detail = "  ", webViewVersion = "").body,
+        )
+    }
+
+    @Test
+    fun `failure hints point at the real fix`() {
+        assertTrue(
+            CompanionFailure(CompanionFailureKind.LOAD_ERROR).hint.contains("network/VPN"),
+        )
+        assertTrue(
+            CompanionFailure(CompanionFailureKind.RENDERER_GONE).hint.contains("Update or roll it back"),
+        )
+    }
 }

@@ -49,6 +49,13 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
     /** Runtime page titles (defId → last title); never persisted. */
     val pageTitles = MutableStateFlow<Map<String, String>>(emptyMap())
 
+    /**
+     * m4.0.2 — in-canvas failure states (defId → failure); never persisted.
+     * A real navigation (visit-started) clears the tab's failure; Retry
+     * re-creates the tab's WebView from scratch.
+     */
+    val pageFailures = MutableStateFlow<Map<String, CompanionFailure>>(emptyMap())
+
     // ---- definitions -------------------------------------------------------
 
     fun addCompanion(name: String, url: String, onResult: (Boolean) -> Unit = {}) {
@@ -159,6 +166,8 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
 
     /** Update a tab's cold-restore anchor (called by the pool's listener). */
     fun recordLastUrl(defId: String, url: String?) {
+        // A committed navigation means the page works — clear any failure.
+        pageFailures.value = pageFailures.value - defId
         viewModelScope.launch {
             val tabs = repo.tabs.first()
             val index = tabs.indexOfFirst { it.defId == defId }
@@ -172,6 +181,29 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun collapse() {
         viewModelScope.launch { repo.setPanelHeight(0f) }
+    }
+
+    // ---- failure surfaces (m4.0.2) -----------------------------------------
+
+    fun recordMainFrameError(defId: String, description: String) {
+        pageFailures.value = pageFailures.value + (defId to CompanionFailure(
+            kind = CompanionFailureKind.LOAD_ERROR,
+            detail = description,
+            webViewVersion = CompanionWebPool.webViewVersion(),
+        ))
+    }
+
+    fun recordRendererGone(defId: String) {
+        pageFailures.value = pageFailures.value + (defId to CompanionFailure(
+            kind = CompanionFailureKind.RENDERER_GONE,
+            webViewVersion = CompanionWebPool.webViewVersion(),
+        ))
+    }
+
+    /** Retry: drop the failure, destroy the tab's WebView, reload fresh. */
+    fun retryTab(defId: String) {
+        pageFailures.value = pageFailures.value - defId
+        CompanionWebPool.forgetTab(defId)
     }
 
     /**

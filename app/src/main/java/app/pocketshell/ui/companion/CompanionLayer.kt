@@ -42,6 +42,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.companion.CompanionBackAction
+import app.pocketshell.companion.CompanionFailure
 import app.pocketshell.companion.CompanionHeights
 import app.pocketshell.companion.CompanionWebPool
 import app.pocketshell.companion.CompanionViewModel
@@ -79,6 +80,11 @@ fun CompanionLayer(
     val activeTabId by viewModel.activeTabId.collectAsStateWithLifecycle()
     val settledFraction by viewModel.panelHeight.collectAsStateWithLifecycle()
     val pageTitles by viewModel.pageTitles.collectAsStateWithLifecycle()
+    val pageFailures by viewModel.pageFailures.collectAsStateWithLifecycle()
+
+    // m4.0.2: bumped by Retry — re-keys the web host's remember so acquire()
+    // runs again on a freshly created WebView.
+    var webRetrySeed by remember { mutableStateOf(0) }
 
     // In-flight drag fraction; null when the pointer is up (settled state).
     var dragFraction by remember { mutableStateOf<Float?>(null) }
@@ -98,6 +104,14 @@ fun CompanionLayer(
 
             override fun onTitleReceived(defId: String, title: String) {
                 viewModel.pageTitles.value = viewModel.pageTitles.value + (defId to title)
+            }
+
+            override fun onMainFrameError(defId: String, description: String) {
+                viewModel.recordMainFrameError(defId, description)
+            }
+
+            override fun onRendererGone(defId: String) {
+                viewModel.recordRendererGone(defId)
             }
         })
         onDispose { CompanionWebPool.setListener(null) }
@@ -203,6 +217,12 @@ fun CompanionLayer(
                             url = activeTab?.lastUrl ?: activeDef.url,
                             // Frozen measured height during drag (§9).
                             webHeightPx = if (dragFraction != null) settledWebPx else webHeightPx,
+                            failure = pageFailures[activeDef.id],
+                            retrySeed = webRetrySeed,
+                            onRetry = {
+                                viewModel.retryTab(activeDef.id)
+                                webRetrySeed++
+                            },
                         )
                     }
                 }
@@ -266,9 +286,20 @@ private fun CompanionWebHost(
     defId: String,
     url: String,
     webHeightPx: Float,
+    failure: CompanionFailure?,
+    retrySeed: Int,
+    onRetry: () -> Unit,
 ) {
+    // m4.0.2: the failure card comes FIRST — a renderer-gone tab has NO
+    // WebView in the pool, and acquire() below would instantly re-create
+    // one behind the card.
+    if (failure != null) {
+        CompanionFailureCard(failure, onRetry)
+        return
+    }
     // One WebView per definition, owned by the pool; (re)attached here.
-    val webView = remember(defId) { CompanionWebPool.acquire(defId, url) }
+    // retrySeed re-keys on Retry so a destroyed WebView is re-created.
+    val webView = remember(defId, retrySeed) { CompanionWebPool.acquire(defId, url) }
     DisposableEffect(defId) {
         CompanionWebPool.setActive(defId)
         onDispose { }
@@ -330,6 +361,59 @@ private fun CompanionEmptyState(
 }
 
 /**
+ * m4.0.2 — an honest failure state: the canvas is NEVER mysteriously white.
+ * Mono title, the real detail (error + installed WebView version), one dim
+ * hint, one action. Same language as the empty state.
+ */
+@Composable
+private fun CompanionFailureCard(
+    failure: CompanionFailure,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(TerminalTheme.canvas),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+    ) {
+        Text(
+            text = failure.title,
+            fontFamily = TerminalTheme.mono,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.4.sp,
+            color = HomeTokens.textPrimary,
+        )
+        if (failure.body.isNotBlank()) {
+            Text(
+                text = failure.body,
+                fontSize = 13.sp,
+                color = HomeTokens.textDim,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .padding(horizontal = 32.dp),
+            )
+        }
+        Text(
+            text = failure.hint,
+            fontSize = 13.sp,
+            color = HomeTokens.textDim,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .padding(horizontal = 32.dp),
+        )
+        MidnightFilledButton(
+            text = "Retry",
+            onClick = onRetry,
+            modifier = Modifier.padding(top = 18.dp),
+        )
+    }
+}
+
+/**
  * m4.0.1 — the WebView provider itself is broken on this device. Same
  * minimal language as the empty state (mono title, one dim line); the
  * message names the actual system component and the way out. No cards,
@@ -353,9 +437,10 @@ private fun CompanionRuntimeUnavailable() {
             letterSpacing = 0.4.sp,
             color = HomeTokens.textPrimary,
         )
+        val webviewVersion = remember { CompanionWebPool.webViewVersion() }
         Text(
-            text = "Android System WebView is missing or crashing on this device. " +
-                "Update or reinstall it, then reopen PocketShell.",
+            text = "Android System WebView is missing or crashing on this device " +
+                "(installed: $webviewVersion). Update or reinstall it, then reopen PocketShell.",
             fontSize = 13.sp,
             color = HomeTokens.textDim,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
