@@ -1,49 +1,50 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m3.6 (payload cut at git tip 9539a03; Phase 3.6 — The
-Procfs Contract, versionCode 23)
-- PocketShell-v0.7.0-m3.6-debug.apk  sha256 195443f9eaf1ccaa1c686de88f318749427d4a53897a7d3308000b074e665e79
-  Installs IN PLACE over v0.7.0-m3.5 (versionCode 22), m3.4 (21), m3.3 (20),
-  m3.2 (19), m3.1 (18), the discarded v0.7.0-ui (17) and v0.6.2 (16) — same
-  pinned cert d96a6f66…8bf659. App data (Alpine runtime, Kilo, Hermes,
-  packages) survives.
-  SCOPE: procfs initialization + apk self-repair only — ZERO probing/
-  launch-transport/terminal/presentation changes. Tap-to-launch, the
-  registry, verify-before-launch, the Midnight pages and every runtime
-  behavior from Phase 3.5 are untouched.
-  Contract: docs/PROCFS-CONTRACT.md (launch architecture, per-session bind
-  audit, validation layers, device gate 16).
-  Phase 3.6 highlights:
-  · THE FIX: every interactive terminal session now binds a REAL /proc —
-    absolutely, derived from the session profile, never conditionally.
-    Root cause chain: an in-guest `apk upgrade` replaced the checksum-
-    pinned patched libapk → the M2.6 conditional /proc gate failed → new
-    sessions spawned without /proc → Bun-compiled CLIs (Kilo's embedded
-    runtime) resolve paths via /proc/self/fd on aarch64 (no realpath
-    syscall) → realpath() of existing directories returned ENOENT. The
-    manual `mount -t proc proc /proc` workaround is no longer needed.
-  · apk fd-gate SELF-REPAIR: GuestApkCompat now pattern-scans whatever
-    libapk.so.3* the guest carries for the standalone '/proc/self/fd'
-    gate literal (+ the '/proc/self/fd/%d' format literal as proof) and
-    re-applies the one-byte patch to any matching apk-tools build;
-    ambiguous/alien shapes are refused without writes. Byte equivalence
-    with the M2.6 asset re-proven on the pinned minirootfs.
-  · FAIL-LOUD spawn contract: procContractProblem() audits every
-    interactive spec for /proc+/dev+/sys at spawn — a stripped spec
-    refuses to start with an explicit diagnostic, never runs crippled.
-  · PACKAGE_OPERATION sessions stay /proc-free (require-guarded,
-    device-proven SELinux-safe apk commit environment).
-  · Guest smoke gate: scripts/diagnose_platform.sh (procfs + /dev + /dev/
-    pts + /sys + /tmp + libc identity + ELF interpreter probe) — verified
-    PASS=11/FAIL=0 with the fixed shape in the proot rehearsal.
-  · 664 test executions green (baseline + proc-contract/self-repair pins).
-  Device gate: docs/TESTING.md §16 (fresh session: ls /proc/self, cat
-  /proc/version without any manual mount; kilo starts clean; apk survives
-  an in-guest upgrade; §12–§15 regressions).
-- PocketShell-v0.7.0-m3.6-source.zip sha256 5e58c9302377e12027168024054e1c726b3293d3a58ebcf32d272ab83dd50385  (28 MB, 303 files)
-- PocketShell-v0.7.0-m3.6-source.tar.gz sha256 bb17d7262ed7ad759c7677ca2fa19b0aa93fa4f163553d81cd55a59d4a4a9391  (28 MB)
-- pocketshell-m2.gitbundle           sha256 122206cd69f56ce279bf02d66f336e101aa6f1656959c017d061b55c8054b689  (full history @ 9539a03; ~26 MB — includes the complete milestone history, the discarded UI attempt + rollback records, all six Phase 3 design contracts, and docs/PROCFS-CONTRACT.md — honest, no rewrites)
+Current: v0.7.0-m4.0 (payload cut at git tip 4ebf734; Phase 4 — Companion,
+the embedded web workspace, versionCode 24)
+- PocketShell-v0.7.0-m4.0-debug.apk  sha256 a9f1fb71949b558a3f6d89a8d92b615d3d6a4d0905f714853898d6d7b418a438
+  Installs IN PLACE over v0.7.0-m3.6 (versionCode 23), m3.5 (22), m3.4 (21),
+  m3.3 (20), m3.2 (19), m3.1 (18), the discarded v0.7.0-ui (17) and v0.6.2
+  (16) — same pinned cert d96a6f66…8bf659. App data (Alpine runtime, Kilo,
+  Hermes, packages) survives.
+  SCOPE: one NEW feature layer — Companion — plus its Settings section.
+  Terminal, Home, Packages, Diagnostics and the entire guest pipeline are
+  untouched. Contract: docs/PHASE-4-COMPANION-DESIGN.md (committed before
+  implementation).
+  Phase 4 highlights:
+  · THE WORKSPACE: a persistent web layer below every screen, pulled up
+    by a small bottom drag handle ONLY (no floating button, no labels,
+    no browser chrome). A Companion is exactly Name + URL — fully
+    generic; not an AI chatbot, no AI APIs; you use the real website
+    with your real account.
+  · SMOOTH AS SILK: 1:1 drag, page never reflows mid-drag (frozen web
+    height, one resize on release); gentle half/near-full anchors (6%
+    window) else stay-put; height persisted; handle reachable at every
+    height — never trapped. Only the handle zone resizes; page scrolling
+    is never stolen.
+  · REAL LOGINS PERSIST: cookies + DOM storage in the app's private web
+    profile (flush at pause); log in once, restart, still logged in.
+    Engine = Android System WebView (zero new dependencies), Safe
+    Browsing on, mixed content never, file/content access off, camera/
+    mic/geo denied, default UA (no spoofing).
+  · TABS: inverted Phase 3.1 editor language; switch WITHOUT reloads
+    (background tabs alive-but-paused, active + 4 LRU pool,
+    saveState-on-evict / restore-on-reactivate, onTrimMemory drops
+    background pages first).
+  · INTEGRATION: Back = web history → collapse → normal navigation;
+    uploads via the normal Android picker; downloads via DownloadManager
+    into app-private storage (no permission, no crash); mailto/tel/
+    intent resolved by the system with an honest toast on failure;
+    .imePadding() lifts the panel above the keyboard.
+  · SETTINGS > COMPANION: add/edit/delete, quick-add templates (editable
+    pre-fills only), Default Companion, Clear web data.
+  · 704 test executions green (baseline + 20 Companion pins).
+  Device gate: docs/TESTING.md §17 (login persistence, drag experience,
+  tabs, file upload, navigation, performance, §12–§16 regressions).
+- PocketShell-v0.7.0-m4.0-source.zip sha256 577b86f759f500286d91b2264aaa0f22fd2d440f1fab0b9aa5ca6a005332152a  (28 MB, 316 files)
+- PocketShell-v0.7.0-m4.0-source.tar.gz sha256 a0001fd68cce64fc57166c8842a569a1c454debff403c995065d053ac5c5b57e  (28 MB)
+- pocketshell-m2.gitbundle           sha256 6a90c25990ce255e94235767fb1e47a487678f196f4475e38a274f6522b1903d  (full history @ 4ebf734; ~26 MB — includes the complete milestone history, all six Phase 3 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m3.5 superseded by Phase 3.6; its records
+Older builds: withdrawn (v0.7.0-m3.6 superseded by Phase 4; its records
 live in the bundle history — see docs/CHANGELOG for each confirmed fix).
