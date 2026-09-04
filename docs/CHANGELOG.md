@@ -3,6 +3,69 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m3.6] — 2026-09-04 — Phase 3.6: Procfs Contract (the "kilo ENOENT" fix)
+
+Scope: the Linux environment initialization layer only. Terminal UI, session
+lifecycle, package-operation specs, and the guest pipeline are unchanged.
+Contract: `docs/PROCFS-CONTRACT.md`.
+
+### Root cause (device-reported 2026-09-04)
+- An in-guest `apk update && apk upgrade` replaced the checksum-pinned
+  patched `libapk.so.3.0.0`; the M2.6 conditional `/proc` gate
+  (bind procfs only when the patched library verifies) failed, and every
+  newly spawned session silently degraded to the v0.5.0 no-`/proc` shape.
+- Bun-compiled CLIs (Kilo Code's embedded runtime) resolve canonical paths
+  through `/proc/self/fd` on aarch64 — the kernel has no `realpath` syscall
+  there — so `realpath()` of EXISTING directories returned
+  `ENOENT: no such file or directory` while coreutils' userspace `realpath`
+  worked fine. `cat /proc/version`, `ls /proc/self`, `ps` were equally dead.
+
+### The fix
+- **`/proc` is unconditional for interactive sessions.** The `procEnabled`
+  parameter is gone from the launcher; the bind is derived from the profile
+  (interactive ⇒ always, package operation ⇒ never — still require-guarded).
+  There is no code path left that can express a no-`/proc` user session.
+- **apk fd-link gate self-heals.** `GuestApkCompat` now scans the guest's
+  `libapk.so.3*` libraries for the standalone `"/proc/self/fd"` gate literal
+  and the `"/proc/self/fd/%d"` format literal, and applies the same one-byte
+  patch (`d`→`X`) to whatever apk-tools build carries them — including
+  post-upgrade builds (the literal layout is identical in 3.0.6 and 3.0.8).
+  Ambiguous or alien binaries are refused without writes. Byte equivalence
+  with the M2.6 asset re-proven on the pinned minirootfs: repairing
+  `ef1c9d8d…db4` yields exactly `b8cd95e2…de9` (`PATCHED_LIBAPK_SHA256`).
+- **Spawn-time environment audit.** `procContractProblem()` verifies every
+  interactive spec carries `--bind=/proc`, `--bind=/dev`, `--bind=/sys`
+  before it can be returned — a future regression fails loud with a
+  diagnostic instead of silently starting a broken guest.
+
+### Mount audit (documented, unchanged where correct)
+- `/dev` (+ `/dev/ptmx`, `/dev/pts` via the host devpts) and `/sys`: real
+  binds in both profiles since v0.3 — functional, pinned by tests.
+- `/tmp`: intentionally rootfs-internal (mode 1777 guaranteed; `TMPDIR=/tmp`
+  in the spec env) — device-proven writable by the same session that
+  reported the bug.
+- `resolv.conf`, apk cache binds, sysdata overlays: unchanged.
+
+### Tests
+- Launcher pins rewritten for the absolute contract (interactive always
+  `/proc`; package never; overlays directly after the bind; audit catches
+  stripped specs). GuestApkCompat pins rewritten for the byte-scan decision
+  table (safe / repairable / ambiguous / alien / junk / sibling libraries /
+  read-only probe). Full suite: 664 executions, 0 failures.
+
+## [0.7.0-m3.5] — 2026-09-04 — Phase 3.5: Tap-to-Launch Fix + Midnight System Pages
+
+- Fixed the "Kilo tile opens a plain shell" bug for EVERY command app: the
+  launch command was PTY-written right after session construction, but
+  TerminalSession forks lazily on first view render and `write()` drops
+  bytes while no process exists. The launch chain now travels through ARGV
+  (`sh -l -c "<command>; exec sh -l"`, pure `guestLaunchChain`) —
+  deterministic, no PTY timing, exiting the app still returns to the guest
+  prompt.
+- Midnight design kit (`ui/system/MidnightPage.kt`); Diagnostics, Packages,
+  Settings rebuilt on it; light status-bar icons on all five screens.
+- 656/0 tests; versionCode 22. Contract: `docs/PHASE-3.5-DESIGN.md`.
+
 ## [0.7.0-m3.4] — 2026-09-04 — Phase 3.4: Registry Expansion + System Pages
 
 Scope: one registry data fix + applying the Phase 3.3 design guidelines to

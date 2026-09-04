@@ -382,14 +382,16 @@ class RuntimeProcessLauncherTest {
      * manual apk uses one index/cache with the app-side operations.
      *
      * v0.6.0 (M2.6, docs/M2.6-RESEARCH.md): the guest apk is fd-link-patched
-     * (GuestApkCompat), so interactive sessions bind a REAL /proc again when
-     * the patch is verified (procEnabled=true) and degrade honestly to the
-     * v0.5.0 shape when it is not (procEnabled=false). The PACKAGE_OPERATION
-     * profile never binds /proc in either state, and the builder REFUSES a
-     * /proc request for it — the profiles cannot drift.
+     * (GuestApkCompat), so interactive sessions bound a REAL /proc again when
+     * the patch was verified. v0.7.0-m3.6 (docs/PROCFS-CONTRACT.md): that
+     * conditional gate silently degraded sessions to no /proc once an
+     * in-guest `apk upgrade` replaced the patched library — so the bind is
+     * now ABSOLUTE (no parameter to get wrong) and the fd-link safety moved
+     * into the session-preparation self-repair. PACKAGE_OPERATION never
+     * binds /proc, still enforced by the builder.
      */
     @Test
-    fun `package specs never bind proc and sessions are proc-parameterised`() {
+    fun `package specs never bind proc and sessions always do`() {
         val rootfs = tmp.newFolder("rootfs")
         val native = makeNativeDir()
         val cache = tmp.newFolder("apk-cache")
@@ -407,7 +409,8 @@ class RuntimeProcessLauncherTest {
         assertTrue(packageSpec.arguments.any { it == "--bind=/sys" })
         assertEquals(GuestExecutionProfile.PACKAGE_OPERATION, packageSpec.profile)
 
-        // honest fallback (patch not verified): v0.5.0 shape — no /proc
+        // m3.6: sessions bind /proc UNCONDITIONALLY — no parameter, no gate,
+        // no silent degradation path exists any more.
         val sessionSpec = RuntimeProcessLauncher.buildSessionSpec(
             nativeLibraryDir = native.absolutePath,
             rootfsDir = rootfs,
@@ -415,9 +418,11 @@ class RuntimeProcessLauncherTest {
             prootTmpDir = tmp.root,
             guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
             apkCacheDir = cache,
-            procEnabled = false,
         )
-        assertTrue("sessions without a verified fd-link patch must drop /proc", sessionSpec.arguments.none { it == "--bind=/proc" })
+        assertTrue(
+            "interactive sessions ALWAYS bind /proc (Bun CLIs need /proc/self/fd on aarch64)",
+            sessionSpec.arguments.any { it == "--bind=/proc" },
+        )
         assertEquals(GuestExecutionProfile.INTERACTIVE_TERMINAL, sessionSpec.profile)
         assertTrue(
             "sessions share the app's apk index/package cache (etc)",
@@ -433,47 +438,62 @@ class RuntimeProcessLauncherTest {
         )
         assertEquals(listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"), sessionSpec.arguments.takeLast(2))
 
-        // M2.6 goal: with the patch verified, the SAME session shape binds a
-        // REAL /proc — ps/top/htop work — while everything else is unchanged.
-        val procSession = RuntimeProcessLauncher.buildSessionSpec(
-            nativeLibraryDir = native.absolutePath,
-            rootfsDir = rootfs,
-            hostCwd = tmp.root,
-            prootTmpDir = tmp.root,
-            guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
-            apkCacheDir = cache,
-            procEnabled = true,
-        )
-        assertTrue("interactive sessions with a verified fd-link patch bind /proc", procSession.arguments.any { it == "--bind=/proc" })
-        // no drift besides /proc: identical argv minus the /proc bind
-        assertEquals(
-            sessionSpec.arguments.dropWhile { it != "--bind=/sys" },
-            procSession.arguments.dropWhile { it != "--bind=/sys" },
-        )
-        assertEquals(sessionSpec.environment, procSession.environment)
-        assertEquals(sessionSpec.executable, procSession.executable)
+        // m3.6: the session shape is otherwise IDENTICAL to the v0.5.0
+        // no-proc shape — the only delta is the --bind=/proc flag itself
+        // (pinned by the argv-contract test above); cache binds, env and
+        // executable are shared with the package path by construction.
     }
 
     /**
-     * M2.6 drift guard: the PACKAGE_OPERATION environment exists precisely
-     * because apk must run WITHOUT /proc on Android (linkat neverallow).
-     * Requesting /proc for it is a caller bug — the builder refuses.
+     * m3.6 environment validation (docs/PROCFS-CONTRACT.md §4): every
+     * INTERACTIVE_TERMINAL spec carries the complete virtual-fs contract —
+     * real /proc, /dev (which brings /dev/ptmx and /dev/pts), /sys — and
+     * [RuntimeProcessLauncher.procContractProblem] is the audit: null for a
+     * valid spec, a human-readable diagnostic for anything else.
+     * [RuntimeProcessLauncher.buildSessionSpec] runs this audit on EVERY
+     * spawn, so a silent no-proc session can never exist again.
      */
     @Test
-    fun `package profile refuses a proc bind`() {
-        val rootfs = tmp.newFolder("rootfs")
-        val native = makeNativeDir()
-        assertThrows(IllegalArgumentException::class.java) {
-            RuntimeProcessLauncher.buildLaunchSpec(
-                nativeLibraryDir = native.absolutePath,
-                rootfsDir = rootfs,
-                hostCwd = tmp.root,
-                prootTmpDir = tmp.root,
-                guestCommand = listOf("/sbin/apk", "update"),
-                profile = GuestExecutionProfile.PACKAGE_OPERATION,
-                procEnabled = true,
-            )
-        }
+    fun `interactive spec passes the proc contract audit`() {
+        val session = RuntimeProcessLauncher.buildSessionSpec(
+            nativeLibraryDir = makeNativeDir().absolutePath,
+            rootfsDir = tmp.newFolder("rootfs"),
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
+            apkCacheDir = tmp.newFolder("apk-cache-a"),
+        )
+        assertEquals(null, RuntimeProcessLauncher.procContractProblem(session))
+    }
+
+    @Test
+    fun `proc contract audit catches a stripped spec`() {
+        val valid = RuntimeProcessLauncher.buildSessionSpec(
+            nativeLibraryDir = makeNativeDir().absolutePath,
+            rootfsDir = tmp.newFolder("rootfs"),
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
+            apkCacheDir = tmp.newFolder("apk-cache-b"),
+        )
+        // simulate a future builder regression: strip the /proc bind from an
+        // otherwise-valid interactive spec — the audit must name the missing
+        // bind with a useful diagnostic
+        val noProc = valid.copy(arguments = valid.arguments.filterNot { it == "--bind=/proc" })
+        assertTrue(
+            "audit must flag the missing /proc bind",
+            RuntimeProcessLauncher.procContractProblem(noProc).orEmpty().contains("--bind=/proc"),
+        )
+        val noDev = valid.copy(arguments = valid.arguments.filterNot { it == "--bind=/dev" })
+        assertTrue(
+            "audit must flag the missing /dev bind",
+            RuntimeProcessLauncher.procContractProblem(noDev).orEmpty().contains("--bind=/dev"),
+        )
+        val noSys = valid.copy(arguments = valid.arguments.filterNot { it == "--bind=/sys" })
+        assertTrue(
+            "audit must flag the missing /sys bind",
+            RuntimeProcessLauncher.procContractProblem(noSys).orEmpty().contains("--bind=/sys"),
+        )
     }
 
     /**
@@ -496,7 +516,6 @@ class RuntimeProcessLauncherTest {
             prootTmpDir = tmp.root,
             guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
             apkCacheDir = cache,
-            procEnabled = true,
         )
         val packageSpec = RuntimeProcessLauncher.buildLaunchSpec(
             nativeLibraryDir = native.absolutePath,
@@ -514,11 +533,11 @@ class RuntimeProcessLauncherTest {
     }
 
     /**
-     * M2.6.12 pins: verified sysdata binds ride DIRECTLY after the real
-     * /proc bind (file-over-file overlays), and every other placement is
-     * refused by construction — PACKAGE_OPERATION, or a no-/proc session
-     * (an overlay without the real /proc under it would fabricate a partial
-     * procfs).
+     * M2.6.12 pins (m3.6 revision): verified sysdata binds ride DIRECTLY
+     * after the real /proc bind (file-over-file overlays) on every
+     * interactive session — /proc is unconditional now, so the overlays ride
+     * unconditionally too. PACKAGE_OPERATION still refuses them (an overlay
+     * without the real /proc under it would fabricate a partial procfs).
      */
     @Test
     fun `sysdata binds ride directly after the proc bind`() {
@@ -536,7 +555,6 @@ class RuntimeProcessLauncherTest {
             prootTmpDir = tmp.root,
             guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
             apkCacheDir = cache,
-            procEnabled = true,
             sysDataBinds = binds,
         )
         val procIdx = s.arguments.indexOf("--bind=/proc")
@@ -547,24 +565,30 @@ class RuntimeProcessLauncherTest {
     }
 
     @Test
-    fun `sysdata binds without a real proc are refused`() {
-        val rootfs = tmp.newFolder("rootfs")
-        val native = makeNativeDir()
-        val cache = tmp.newFolder("apk-cache")
-        assertThrows(IllegalArgumentException::class.java) {
-            RuntimeProcessLauncher.buildSessionSpec(
-                nativeLibraryDir = native.absolutePath,
-                rootfsDir = rootfs,
-                hostCwd = tmp.root,
-                prootTmpDir = tmp.root,
-                guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
-                apkCacheDir = cache,
-                procEnabled = false,
-                sysDataBinds = listOf("--bind=/data/sysdata/stat:/proc/stat"),
-            )
-        }
+    fun `sysdata binds without a real proc are unconstructible now`() {
+        // m3.6: interactive sessions ALWAYS bind /proc (procEnabled was
+        // removed from the API — it is derived from the profile), so the old
+        // no-proc + sysdata combination can no longer even be expressed.
+        // buildSessionSpec succeeds and the audit confirms the bind:
+        val s = RuntimeProcessLauncher.buildSessionSpec(
+            nativeLibraryDir = makeNativeDir().absolutePath,
+            rootfsDir = tmp.newFolder("rootfs"),
+            hostCwd = tmp.root,
+            prootTmpDir = tmp.root,
+            guestCommand = listOf(RuntimeProcessLauncher.GUEST_SHELL, "-l"),
+            apkCacheDir = tmp.newFolder("apk-cache"),
+            sysDataBinds = listOf("--bind=/data/sysdata/stat:/proc/stat"),
+        )
+        assertTrue(s.arguments.any { it == "--bind=/proc" })
+        assertEquals(null, RuntimeProcessLauncher.procContractProblem(s))
     }
 
+    /**
+     * m3.6: there is no no-proc interactive session any more (the old
+     * `sysdata binds without a real proc are refused` case is unconstructible
+     * — procEnabled was derived, not passed). The PACKAGE_OPERATION refusal
+     * below remains the one reachable drift guard.
+     */
     @Test
     fun `package profile refuses sysdata binds`() {
         val rootfs = tmp.newFolder("rootfs")

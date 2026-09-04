@@ -253,3 +253,42 @@ remote development.
       versionCode 21 / 0.7.0-m3.4; cert chain unbroken.
 - [ ] Device gate §15 (kilo appears iff installed and launches; Packages/
       Settings/Diagnostics checks; §12/§13/§14 regressions).
+
+### Phase 3.5 (2026-09-04, v0.7.0-m3.5) — Tap-to-Launch Fix + Midnight System Pages
+- [x] Root-caused the "Kilo tile opens a plain shell" video report: the
+      command was PTY-written right after session CONSTRUCTION, but
+      TerminalSession forks lazily on first view render and write() drops
+      bytes while no process exists — silently, for every app. Fixed by
+      passing the launch chain (`sh -l -c "<cmd>; exec sh -l"`, pure
+      `guestLaunchChain`) through ARGV — deterministic, no PTY timing.
+- [x] Midnight design kit (ui/system/MidnightPage.kt) + Diagnostics /
+      Packages / Settings rewritten on it; light status-bar icons on all
+      five screens.
+- [x] 656/0 tests; versionCode 22 / 0.7.0-m3.5; payload + delivery chain
+      live (docs/PHASE-3.5-DESIGN.md).
+- [ ] Device gate §15 (kilo TUI opens on tap).
+
+### Phase 3.6 (2026-09-04, v0.7.0-m3.6) — Procfs Contract: /proc unconditional + apk fd-link self-repair
+- [x] Root-caused the "kilo dies with ENOENT on an existing directory"
+      device report: an in-guest `apk upgrade` replaced the checksum-pinned
+      patched libapk, the M2.6 conditional /proc gate failed, every new
+      session silently spawned WITHOUT /proc — and Bun CLIs (Kilo Code)
+      resolve paths via /proc/self/fd on aarch64 (no realpath syscall), so
+      realpath() of existing paths returned ENOENT.
+- [x] /proc bind made ABSOLUTE for every interactive session (policy
+      derived from the profile — the `procEnabled` parameter no longer
+      exists); PACKAGE_OPERATION stays /proc-free (require-guarded).
+- [x] GuestApkCompat rebuilt as a pattern-based SELF-REPAIR: scans the
+      guest's libapk.so.3* for the fd-link gate literal + the io.c format
+      literal, applies the same one-byte patch to ANY apk-tools build that
+      carries them (ambiguous/alien shapes refused without writes). Byte
+      equivalence with the M2.6 asset re-proven on the pinned minirootfs
+      (repair output sha256 == PATCHED_LIBAPK_SHA256).
+- [x] Spawn-time environment audit: procContractProblem() checks every
+      interactive spec for /proc + /dev + /sys before it can be returned —
+      fail-loud, never a silently broken guest.
+- [x] Contract documented in docs/PROCFS-CONTRACT.md (launch architecture,
+      per-session bind audit incl. /dev /dev/pts /sys /tmp, validation
+      layers, regression procedure).
+- [ ] Device gate §16 (fresh session: /proc/self, /proc/version, ps, kilo
+      end-to-end WITHOUT manual mount; §12–§15 regressions).

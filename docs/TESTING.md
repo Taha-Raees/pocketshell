@@ -766,3 +766,51 @@ changes — §12/§13/§14 re-run as regressions. Contract:
       existing tools grid/menu.
 - [ ] §12 Phase 3.1 keyboard/terminal set still passes; §13.1–13.5 command
       app + sessions behavior still passes.
+
+## 16. Manual acceptance — Phase 3.6 (Procfs Contract, v0.7.0-m3.6) — DEVICE GATE PENDING
+
+The environment-initialization fix for the 2026-09-04 "kilo ENOENT" report
+(`/proc` silently missing after an in-guest `apk upgrade`). Contract:
+`docs/PROCFS-CONTRACT.md`. Install the vc23+ APK, open a FRESH Linux
+session, and run the whole gate WITHOUT ever typing a manual mount command.
+
+### 16.1 Procfs is there, automatically
+- [ ] `ls -ld /proc` → real directory, populated (not empty).
+- [ ] `ls /proc/self` → lists the shell process's own procfs entries.
+- [ ] `cat /proc/version` → prints the kernel banner (no ENOENT).
+- [ ] `readlink /proc/self/root` → `/`.
+- [ ] `cat /proc/cpuinfo`, `cat /proc/meminfo` → real content.
+- [ ] `ps` → lists processes (the app's own tree — hidepid=2 isolation is
+      expected; kernel-internal entries like `/proc/kmsg` may show
+      "Permission denied" — that is Android SELinux, documented, not a bug).
+
+### 16.2 The regression flow (exactly the user's scenario)
+- [ ] In the guest: `apk update && apk upgrade` — let it replace libapk if
+      it wants to; then CLOSE the session and open a NEW one.
+- [ ] The new session still has the FULL `/proc` set from 16.1 (this is the
+      exact step that used to kill procfs — the self-repair must have
+      re-applied the fd-link patch to the upgraded library).
+- [ ] `apk add --no-cache libstdc++ libgcc` (or any package) inside the
+      SAME /proc-bound session → downloads commit fine (the fd-link gate is
+      patched; no "Permission denied" download failures).
+- [ ] Diagnostics → "Check package environment": the apk fd-link row reads
+      "fd-link gate disabled — … self-repair applied" (or asset-hash match
+      on un-upgraded rootfs); the Interactive /proc row reads
+      "every Linux session binds /proc unconditionally (v0.7.0-m3.6)".
+
+### 16.3 Kilo without any manual mount
+- [ ] `kilo --version` → version banner (no spawn ENOENT, no TUI worker
+      error). If the XDG dirs do not exist yet, create them once
+      (`mkdir -p /root/.local/state /root/.local/share /root/.config`) —
+      that is the CLI's own requirement, unrelated to procfs.
+- [ ] `kilo` → the TUI STARTS. No
+      `ENOENT: no such file or directory, realpath …` anywhere.
+- [ ] Tapping the Kilo Code tile on Home (m3.5 argv launch) → dedicated
+      session with the Kilo TUI running.
+
+### 16.4 Regressions
+- [ ] §12 (terminal/keyboard), §13 (command apps + sessions), §14 (Home),
+      §15 (system pages) still pass.
+- [ ] Package operations from the UI (Explore search / install / uninstall)
+      still pass §9 — they run the no-/proc PACKAGE_OPERATION profile by
+      design and must be untouched.

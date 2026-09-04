@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m3.5
+VERSION=v0.7.0-m3.6
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,43 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m3.4) — PHASE 3.5, COMMAND LAUNCH FIX +
+WHAT IS NEW IN $VERSION (vs v0.7.0-m3.5) — PHASE 3.6, THE PROCFS CONTRACT
+(/proc UNCONDITIONAL + apk fd-link SELF-REPAIR):
+  - THE REPORTED BUG: inside the Linux environment, Kilo Code died with
+    "TUI worker error ENOENT: no such file or directory, realpath ..." on
+    directories that EXISTED, and /proc/version, /proc/self/root, ps were
+    all missing — starting right after an in-guest apk update && upgrade.
+    Root cause (user-confirmed with a manual mount, fixed in code here):
+    an in-guest apk upgrade replaced the checksum-pinned patched libapk,
+    the old M2.6 rule "bind /proc only while the patched apk library
+    verifies" failed, and every NEW session silently started WITHOUT a
+    /proc. Bun-compiled CLIs (Kilo Code's runtime) resolve paths through
+    /proc/self/fd on aarch64 — the kernel has NO realpath syscall there —
+    so realpath() of existing paths returned ENOENT. Kilo was working
+    before the upgrade exactly because the old build still had /proc.
+  - THE FIX — /proc IS NOW UNCONDITIONAL: every Linux Shell and every
+    command-app session binds a REAL procfs (host procfs, hidepid=2 — the
+    app's own process tree, honestly) plus the verified sysdata overlays.
+    The parameter that could drop it no longer exists; package operations
+    keep their proven /proc-free commit environment (require-guarded).
+    A spawn-time audit (procContractProblem) additionally verifies every
+    interactive session spec carries /proc + /dev + /sys BEFORE any session
+    can start — a regression now fails loud instead of silently breaking
+    the guest.
+  - THE apk fd-link PATCH NOW SELF-HEALS: instead of pinning one apk-tools
+    build, PocketShell scans the guest's libapk libraries for the fd-link
+    gate literal and applies the same one-byte patch to whatever build
+    carries it — including the post-upgrade one (layout identical in
+    3.0.6/3.0.8). Byte-identical output to the previous asset was re-proven
+    on the pinned minirootfs. Ambiguous/unknown binaries are never touched.
+    In-guest apk update/upgrade no longer breaks ANYTHING: /proc stays,
+    apk keeps the SELinux-safe commit path.
+  - versionCode 23 / 0.7.0-m3.6 — in-place update over 16..22; same pinned
+    cert. 664 test executions, 0 failures. Full contract:
+    docs/PROCFS-CONTRACT.md (launch architecture, per-session bind audit
+    incl. /dev /dev/pts /sys /tmp, validation layers, device gate).
+
+WHAT WAS NEW IN v0.7.0-m3.5 (vs v0.7.0-m3.4) — PHASE 3.5, COMMAND LAUNCH FIX +
 SYSTEM PAGES JOIN MIDNIGHT:
   - THE REPORTED FIX: "when kilo is clicked it opens normal Linux terminal".
     Root cause: the launch command was written into the PTY right after
@@ -667,9 +703,11 @@ echo "dot-path entries       : $DOTS  (want 0)"
 echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
+           docs/PROCFS-CONTRACT.md \
            docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md docs/PHASE-3.3-DESIGN.md \
            docs/PHASE-3.4-DESIGN.md docs/PHASE-3.5-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
+           app/src/main/java/app/pocketshell/runtime/RuntimeProcessLauncher.kt \
            app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
            app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \
            app/src/main/java/app/pocketshell/ui/theme/TerminalTheme.kt \

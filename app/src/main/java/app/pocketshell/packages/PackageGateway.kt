@@ -172,27 +172,31 @@ object PackageGateway {
 
     /**
      * Best-effort guest environment repair before an interactive session
-     * spawns (v0.5.0; extended M2.6 + M2.6.12): refresh the managed
-     * resolv.conf to the CURRENT network's resolvers, make sure the apk
-     * cache/tmp dirs exist with sane modes, verify (or install) the guest
-     * apk fd-link patch, and prepare the /proc sysdata overlays
-     * (probe-first — only kernel-denied standard files get one; real files
-     * are never overlaid, docs/M2.6-RESEARCH.md §7).
+     * spawns (v0.5.0; extended M2.6 + M2.6.12; self-healing since m3.6):
+     * refresh the managed resolv.conf to the CURRENT network's resolvers,
+     * make sure the apk cache/tmp dirs exist with sane modes, verify (and
+     * when needed SELF-REPAIR) the guest apk fd-link gate — the same one-byte
+     * literal patch, re-applied by pattern to whatever apk-tools build the
+     * rootfs currently ships, so an in-guest `apk upgrade` no longer breaks
+     * anything (docs/PROCFS-CONTRACT.md) — and prepare the /proc sysdata
+     * overlays (probe-first — only kernel-denied standard files get one;
+     * real files are never overlaid, docs/M2.6-RESEARCH.md §7).
      *
-     * Best-effort by design — a failure here never blocks the session; the
-     * returned preparation tells the caller whether /proc may be bound
-     * ([GuestApkCompat.Result]) and which overlays were verified
-     * ([GuestSysDataCompat.Result]), and whatever is genuinely broken
-     * surfaces with its real error the moment apk runs. (Package
-     * operations run the DNS/workspace repairs strictly — see
-     * [AlpinePackageManager.runApk] — but never need the patch or overlays:
+     * Best-effort by design — a failure here never blocks the session. Since
+     * m3.6 the /proc bind does NOT depend on this result (RuntimeProcessLauncher
+     * binds it unconditionally); the returned preparation only describes the
+     * apk fd-link state ([GuestApkCompat.Result]) and which overlays were
+     * verified ([GuestSysDataCompat.Result]) for Diagnostics. Whatever is
+     * genuinely broken surfaces with its real error the moment apk runs.
+     * (Package operations run the DNS/workspace repairs strictly — see
+     * [AlpinePackageManager.runApk] — and never need the repair or overlays:
      * their [GuestExecutionProfile.PACKAGE_OPERATION] spec has no /proc.)
      */
     fun prepareGuestForSession(context: Context, rootfsDir: File): GuestSessionPreparation {
         val compat = runCatching {
-            GuestApkCompat.ensure(rootfsDir, readAsset = ::readGuestAsset)
+            GuestApkCompat.ensure(rootfsDir)
         }.getOrElse {
-            GuestApkCompat.Result.Failed("apk fd-link patch check failed: ${it.message ?: it.javaClass.simpleName}")
+            GuestApkCompat.Result.Failed("apk fd-link repair check failed: ${it.message ?: it.javaClass.simpleName}")
         }
         // M2.6.12: sysdata dir is the rootfs's SIBLING (upstream layout:
         // dirname(rootfs)/sysdata), inside the app's private storage.
@@ -209,13 +213,6 @@ object PackageGateway {
             GuestEnvironment.ensureApkWorkspace(rootfsDir)
         }
         return GuestSessionPreparation(compat, sysData)
-    }
-
-    /** Reads the embedded patched guest apk library (null = missing asset). */
-    private fun readGuestAsset(name: String): ByteArray? = try {
-        appContext?.assets?.open(name)?.use { it.readBytes() }
-    } catch (_: Exception) {
-        null
     }
 
     /**
@@ -323,12 +320,14 @@ object PackageGateway {
             apkError = "runtime not READY"
         }
 
-        // M2.6.11: read-only fd-link patch status (never installs from the
-        // diagnostics button — installation happens on session spawn).
+        // M2.6.11 (read-only since m3.6): fd-link SELF-REPAIR status. The
+        // diagnostics button NEVER mutates the rootfs — installation/
+        // self-healing happens on session spawn (installIfMissing = true
+        // there). The pattern scan means a post-upgrade apk-tools build
+        // reports "repairable" here and "repaired" after the next session.
         val compatStatus = if (ready) {
             GuestApkCompat.ensure(
                 storage.rootfsDir,
-                readAsset = { readGuestAsset(it) },
                 installIfMissing = false,
             )
         } else {
@@ -356,30 +355,27 @@ object PackageGateway {
             },
             updateProbeOk = updateProbeOk,
             updateProbeDetail = updateProbeDetail,
-            // M2.6.11 diagnostics: honest, read-only report of the fd-link
-            // patch state and the /proc policy it licenses. status() NEVER
-            // installs (no mutation from a diagnostics button beyond the
-            // already-explicit apk probe above).
+            // M2.6.11 / m3.6 diagnostics: honest, read-only report of the
+            // fd-link state. /proc is bound in every interactive session
+            // REGARDLESS (absolute policy) — this row only describes the
+            // manual in-guest apk's commit-path safety.
             apkFdLinkPatch = when (val status = compatStatus) {
                 is GuestApkCompat.Result.Ready ->
-                    "applied — fd-link commit disabled (patched libapk verified)"
+                    "fd-link gate disabled — manual in-guest apk uses the SELinux-safe " +
+                        "renameat commit (${status.detail})"
                 is GuestApkCompat.Result.NotApplicable -> status.reason
                 is GuestApkCompat.Result.Failed -> status.reason
             },
-            guestProcPolicy = if (GuestApkCompat.isProcSafe(compatStatus)) {
+            guestProcPolicy =
                 // Honest expectations (device-observed 2026-09-02, SM-F711B):
                 // the bound /proc is the ANDROID HOST procfs, so kernel-
                 // internal entries (kmsg, kcore, kpage*, …) genuinely deny
                 // access to this app — ls /proc prints Permission denied
                 // for them while the app-readable set (pid dirs, meminfo,
                 // cpuinfo, cmdline, uptime, loadavg, self, …) is real.
-                "interactive sessions bind /proc (real process tools). " +
-                    "Host procfs: kernel-internal entries show " +
-                    "'Permission denied' — Android SELinux policy, expected"
-            } else {
-                "interactive sessions run without /proc until the patch is applied " +
-                    "(open the Linux Shell once to install it)"
-            },
+                "every Linux session binds /proc unconditionally (v0.7.0-m3.6). " +
+                    "Host procfs: kernel-internal entries show 'Permission denied' " +
+                    "— Android SELinux policy, expected",
             // M2.6.12: read-only probe (no writes from the button) — which
             // standard /proc files this kernel denies the app; denied ones
             // get verified overlays at the next session spawn.

@@ -93,6 +93,29 @@ import java.io.File
  * session with /proc bound, never PACKAGE_OPERATION, never a no-/proc
  * session (an overlay without the real /proc under it would fabricate a
  * partial procfs — refused by construction).
+ *
+ * v0.7.0-m3.6 (device-reported 2026-09-04: Kilo Code died with
+ * `ENOENT … realpath '/root/.local/state'` on an EXISTING directory, and
+ * /proc/version, /proc/self/root were all missing): the M2.6 trade made the
+ * interactive /proc bind CONDITIONAL on [GuestApkCompat] verifying the
+ * patched guest apk library — an in-guest `apk upgrade` replaces that
+ * library, verification fails, and every new session silently degrades to
+ * the v0.5.0 no-/proc shape. That breaks more than ps/top/htop: Bun-compiled
+ * CLIs (Kilo Code's embedded runtime) resolve paths through /proc/self/fd on
+ * aarch64 — the kernel has NO realpath syscall there — so a missing procfs
+ * turns every realpath() of an existing path into ENOENT. The policy is now
+ * ABSOLUTE: every INTERACTIVE_TERMINAL session binds a REAL /proc
+ * (host procfs, hidepid=2-filtered — the only process tree visible is the
+ * app's own, honestly) plus the verified sysdata overlays; PACKAGE_OPERATION
+ * stays /proc-free (require-guarded, device-proven SELinux-safe apk commit
+ * environment). The apk fd-link safety that used to gate /proc is restored
+ * per-session by [GuestApkCompat] itself, which now SELF-REPAIRS the guest
+ * apk library (the same one-byte literal patch, found by pattern in whatever
+ * apk-tools build the rootfs currently ships — verified byte-identical to
+ * the shipped asset for the pinned 3.0.6 build, and the literal layout is
+ * identical in 3.0.8, scripts/patch_apk_fdlink.py). Every interactive spec
+ * additionally passes [procContractProblem] before it can be returned — a
+ * spec without the /proc bind cannot exist (fail-loud, never silent).
  */
 
 /**
@@ -104,13 +127,15 @@ import java.io.File
 enum class GuestExecutionProfile(val description: String) {
     /**
      * Linux Shell and catalog-app sessions: PTY, full guest devices, shared
-     * apk cache, and a real /proc bind when the guest apk is fd-link-safe
-     * ([GuestApkCompat] verified). /proc exposes the Android host procfs
-     * filtered by the kernel's hidepid=2 app isolation — real process tools
-     * see the app's own real process tree, honestly.
+     * apk cache binds and a REAL /proc — ALWAYS (v0.7.0-m3.6; the m3.4
+     * device report proved the old patch-conditional gate silently degraded
+     * sessions to no /proc and killed every Bun-compiled CLI's realpath).
+     * /proc exposes the Android host procfs filtered by the kernel's
+     * hidepid=2 app isolation — real process tools see the app's own real
+     * process tree, honestly.
      */
     INTERACTIVE_TERMINAL(
-        "interactive shell: full devices, PTY, /proc when the guest apk is fd-link-safe",
+        "interactive shell: full devices, PTY, real /proc always, sysdata overlays",
     ),
 
     /**
@@ -176,21 +201,26 @@ object RuntimeProcessLauncher {
     }
 
     /**
-     * v0.6.0 — THE interactive-session policy (M2.6). Every guest session the
-     * app spawns (Linux Shell and catalog-app sessions alike) uses this
-     * shape, parameterised on [procEnabled]:
+     * v0.6.0 — THE interactive-session policy; ABSOLUTE since v0.7.0-m3.6.
+     * Every guest session the app spawns (Linux Shell and catalog-app
+     * sessions alike) uses this shape:
      *
-     * - procEnabled=true: REAL /proc is bound — `ps`, `top`, `htop` work.
-     *   Callers may only pass true after [GuestApkCompat] reported the guest
-     *   apk library fd-link-safe; otherwise the session's own manual `apk`
-     *   would die at the SELinux linkat neverallow again.
-     * - procEnabled=false (the honest default): the v0.5.0 shape — no /proc;
-     *   apk works via its renameat commit, process tools fail with their own
-     *   errors, Diagnostics explains why.
+     * - REAL /proc is ALWAYS bound — `ps`, `top`, `htop`, and every
+     *   Bun-compiled CLI (Kilo Code) work. NOT conditional on the guest apk
+     *   patch any more: the m3.6 device report proved a silent no-/proc
+     *   degradation (an in-guest apk upgrade replaced the patched library,
+     *   the old gate failed, sessions lost /proc and with it every
+     *   realpath()-dependent runtime). apk's fd-link safety is the
+     *   session-preparation's job ([GuestApkCompat] self-repair), never a
+     *   reason to strip procfs from a user-facing session.
+     * - Verified sysdata overlays ride directly on the /proc bind.
      * - The SAME app-owned apk cache binds the package operations use, so
      *   the session's manual apk shares one index/package cache with the
      *   UI (the 2026-09-02 10:03 session also showed "31 distinct packages"
      *   from a rootfs-internal stale cache — now impossible: one cache).
+     *
+     * The returned spec has passed [procContractProblem] — a session spec
+     * without the /proc bind cannot be constructed.
      */
     fun buildSessionSpec(
         nativeLibraryDir: String,
@@ -199,19 +229,48 @@ object RuntimeProcessLauncher {
         prootTmpDir: File,
         guestCommand: List<String>,
         apkCacheDir: File,
-        procEnabled: Boolean = false,
         sysDataBinds: List<String> = emptyList(),
-    ): LaunchSpec = buildLaunchSpec(
-        nativeLibraryDir = nativeLibraryDir,
-        rootfsDir = rootfsDir,
-        hostCwd = hostCwd,
-        prootTmpDir = prootTmpDir,
-        guestCommand = guestCommand,
-        apkCacheDir = apkCacheDir,
-        profile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
-        procEnabled = procEnabled,
-        sysDataBinds = sysDataBinds,
-    )
+    ): LaunchSpec {
+        val spec = buildLaunchSpec(
+            nativeLibraryDir = nativeLibraryDir,
+            rootfsDir = rootfsDir,
+            hostCwd = hostCwd,
+            prootTmpDir = prootTmpDir,
+            guestCommand = guestCommand,
+            apkCacheDir = apkCacheDir,
+            profile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
+            sysDataBinds = sysDataBinds,
+        )
+        // Fail-loud environment validation (m3.6): the /proc contract is the
+        // builder's job by construction; this makes any future regression a
+        // LOAD-TIME diagnostic instead of a silently broken guest. Pure argv
+        // inspection — no I/O, no measurable spawn overhead.
+        procContractProblem(spec)?.let { problem -> throw IllegalStateException(problem) }
+        return spec
+    }
+
+    /**
+     * The environment smoke check (m3.6, docs/PROCFS-CONTRACT.md §4): a
+     * pure argv audit of an INTERACTIVE_TERMINAL spec. Returns null when the
+     * spec carries the complete virtual-fs contract — real /proc, /dev
+     * (which brings /dev/ptmx and /dev/pts), /sys — and non-null with a
+     * human-readable reason for anything else. Used by [buildSessionSpec]
+     * as a load-time gate and pinned by unit tests.
+     */
+    fun procContractProblem(spec: LaunchSpec): String? {
+        if (spec.profile != GuestExecutionProfile.INTERACTIVE_TERMINAL) return null
+        val missing = listOf("/proc", "/dev", "/sys").filter { bind ->
+            spec.arguments.none { it == "--bind=$bind" }
+        }
+        return when {
+            missing.isNotEmpty() ->
+                "interactive session spec is missing required bind(s): " +
+                    missing.joinToString(", ") { "--bind=$it" } +
+                    " — the guest would start without a working procfs/device tree; " +
+                    "this is a PocketShell bug, please report the APK version"
+            else -> null
+        }
+    }
 
     data class LaunchSpec(
         val executable: String,
@@ -231,9 +290,12 @@ object RuntimeProcessLauncher {
         guestCommand: List<String> = listOf(GUEST_SHELL, "-l"),
         apkCacheDir: File? = null,
         profile: GuestExecutionProfile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
-        procEnabled: Boolean = profile == GuestExecutionProfile.INTERACTIVE_TERMINAL,
         sysDataBinds: List<String> = emptyList(),
     ): LaunchSpec {
+        // The /proc policy is DERIVED, never caller-chosen (m3.6): interactive
+        // sessions always bind it, package operations never do. There is no
+        // parameter to get this wrong any more.
+        val procEnabled = profile == GuestExecutionProfile.INTERACTIVE_TERMINAL
         // Same contract as [preconditionProblem], thrown so programmatic
         // callers get a hard, honest failure (UI callers preflight instead).
         when (val problem = preconditionProblem(nativeLibraryDir, rootfsDir)) {
@@ -243,17 +305,17 @@ object RuntimeProcessLauncher {
         require(guestCommand.isNotEmpty()) {
             "guestCommand must not be empty — proot would have nothing to exec"
         }
-        // Profile-drift guard (M2.6): the package-operation environment exists
-        // precisely because apk must run WITHOUT /proc on Android. A caller
-        // asking for /proc here is a bug, not a preference.
+        // Profile-drift guard (M2.6, kept as an invariant even though the
+        // m3.6 policy derives procEnabled internally): the package-operation
+        // environment exists precisely because apk must run WITHOUT /proc on
+        // Android. If this ever fires, the derivation above was broken.
         require(!(profile == GuestExecutionProfile.PACKAGE_OPERATION && procEnabled)) {
             "PACKAGE_OPERATION must not bind /proc — the SELinux linkat neverallow " +
                 "makes every apk commit fail; use the patched-guest INTERACTIVE_TERMINAL profile"
         }
         // M2.6.12 guard: sysdata overlays repair files INSIDE a real /proc.
-        // A no-/proc session (package operation, or an interactive session
-        // whose patch never verified) would get a fabricated PARTIAL procfs
-        // — refused by construction, pinned by tests.
+        // A no-/proc session (package operation) would get a fabricated
+        // PARTIAL procfs — refused by construction, pinned by tests.
         require(sysDataBinds.isEmpty() || (procEnabled && profile == GuestExecutionProfile.INTERACTIVE_TERMINAL)) {
             "sysdata overlays require an INTERACTIVE_TERMINAL session with a real /proc bound — " +
                 "they exist only to repair kernel-denied files under it"
@@ -283,11 +345,11 @@ object RuntimeProcessLauncher {
             "--cwd=/root",
             "--bind=/dev",
         )
-        // /proc policy (see class KDoc + docs/M2.6-RESEARCH.md): interactive
-        // sessions bind a REAL /proc only when the guest apk is fd-link-safe
-        // (patched libapk verified — GuestApkCompat); package operations NEVER
-        // do (require-guarded above), so apk always keeps its allowed
-        // named-tmpfile + renameat commit path.
+        // /proc policy (m3.6 — see class KDoc + docs/PROCFS-CONTRACT.md):
+        // interactive sessions ALWAYS bind a REAL /proc (Bun CLIs resolve
+        // paths via /proc/self/fd on aarch64; ps/top/htop read it); package
+        // operations NEVER do (require-guarded above), so apk always keeps
+        // its allowed named-tmpfile + renameat commit path there.
         if (procEnabled) {
             arguments.add("--bind=/proc")
             // M2.6.12: verified sysdata overlays ride DIRECTLY on top of the

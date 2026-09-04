@@ -4,9 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import app.pocketshell.apps.guestLaunchChain
-import app.pocketshell.packages.GuestSessionPreparation
 import app.pocketshell.packages.PackageGateway
-import app.pocketshell.runtime.GuestApkCompat
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
@@ -171,20 +169,25 @@ object TerminalSessionManager {
         }
         ShellEnvironment.ensureDirs(appContext)
         val storage = RuntimeStorage(appContext.noBackupFilesDir)
-        // M2.6: prepare the guest (DNS/apk workspace best-effort + the apk
-        // fd-link patch — docs/M2.6-RESEARCH.md). When the patched guest apk
-        // library is verified, the session binds a REAL /proc again (ps/top/
-        // htop work) while apk keeps its SELinux-safe renameat commit. Any
-        // other outcome degrades honestly to the v0.5.0 shape (no /proc, apk
-        // still works) — never a fake process table, and Diagnostics reports
-        // the exact reason.
+        // M2.6 → m3.6: prepare the guest (DNS/apk workspace best-effort + the
+        // apk fd-link SELF-REPAIR — docs/PROCFS-CONTRACT.md). Since v0.7.0-m3.6
+        // the /proc bind is ABSOLUTE for interactive sessions: the previous
+        // gate (bind /proc only when the patched guest apk library verified)
+        // silently degraded every session to no /proc once an in-guest
+        // `apk upgrade` replaced the library — and Bun-compiled CLIs (Kilo
+        // Code) resolve paths via /proc/self/fd on aarch64, so realpath() of
+        // EXISTING paths failed with ENOENT. /proc is now always bound (real
+        // host procfs, hidepid=2-filtered); the apk fd-link safety that used
+        // to gate it is restored here by the self-repair instead, and any
+        // residual risk is reported honestly by Diagnostics — never by
+        // stripping procfs from the session.
         // M2.6.12: the same prepare phase writes the verified sysdata
         // overlays for kernel-denied standard /proc files (probe-first —
-        // real files are never overlaid). They ride only on /proc-bound
-        // sessions; the builder refuse-guards the rest.
+        // real files are never overlaid). They ride every interactive session
+        // directly on top of the real /proc bind; the builder refuse-guards
+        // the rest.
         val prep = PackageGateway.prepareGuestForSession(appContext, storage.rootfsDir)
-        val procEnabled = GuestApkCompat.isProcSafe(prep.apkCompat)
-        val sysDataBinds = if (procEnabled) prep.sysData.bindArgs() else emptyList()
+        val sysDataBinds = prep.sysData.bindArgs()
         val prootTmp = File(appContext.cacheDir, "proot-tmp").apply { mkdirs() }
         val spec = RuntimeProcessLauncher.buildSessionSpec(
             nativeLibraryDir = appContext.applicationInfo.nativeLibraryDir,
@@ -193,7 +196,6 @@ object TerminalSessionManager {
             prootTmpDir = prootTmp,
             guestCommand = guestCommand,
             apkCacheDir = PackageGateway.apkCacheDir(storage),
-            procEnabled = procEnabled,
             sysDataBinds = sysDataBinds,
         )
         return spawn(
