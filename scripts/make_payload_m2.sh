@@ -892,6 +892,7 @@ echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            docs/PROCFS-CONTRACT.md docs/PHASE-4-COMPANION-DESIGN.md \
            app/src/main/java/app/pocketshell/companion/CompanionModels.kt \
+           app/src/main/java/app/pocketshell/companion/RenderProbe.kt \
            app/src/main/java/app/pocketshell/companion/CompanionWebPool.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionLayer.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionTabStrip.kt \
@@ -921,7 +922,13 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/runtime/RuntimeManager.kt \
            pocketshell-m2.gitbundle RESTORE.txt gradlew \
            gradle/libs.versions.toml docs/THIRD_PARTY.md; do
-  echo "$LIST" | rg -q "$key\$" && echo "present: $key" || { echo "MISSING: $key"; exit 1; }
+  if [[ "$LIST" != *"$key"* ]]; then
+    # m4.0.4: one honest retry with a fresh listing — the old rg-on-echo
+    # pipe produced a false MISSING once under memory pressure (the file
+    # was in the zip all along); a pure substring test cannot flake.
+    LIST=$(unzip -l "$ZIP")
+  fi
+  [[ "$LIST" == *"$key"* ]] && echo "present: $key" || { echo "MISSING: $key"; exit 1; }
 done
 FILES=$(echo "$LIST" | awk '/files$/ { print $1 }')
 echo "uncompressed bytes     : $FILES  (files: $(echo "$LIST" | awk '/files$/ { print $2 }'))"

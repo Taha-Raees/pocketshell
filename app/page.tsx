@@ -2,9 +2,9 @@ const VERSION = "v0.7.0-m4.0.4";
 
 const HASHES = {
   apk: "adbdcfe30fa99db486a671c813a1b0bc22f952527767a278bc4e1baa5d52333e",
-  zip: "5facc45d377f0767db5f7afe8111638242a3df015f58d9d471ec2a58cbe6c54a",
-  tgz: "722695d7bdb3f85116b01b5488a3311452e20a769072c2160c6f72445cccb7e3",
-  bundle: "ff4b449e615e43738a4a273786e4b7bff2a794f7c121beb6b0ab287d8ed42246",
+  zip: "fa0decf9625cd7f6bd24a5fe00b7e09467299616444fede35d1d516a5ef4c1ca",
+  tgz: "cf30c3d8508a59e0a86f99fb40fecb8c5e2756d0ef21fb0681fe77bd3a2c8b24",
+  bundle: "81b2c89b26d979a6814130b9593f0eab84e712acde54e78b3485fa7b903bae76",
 };
 
 function Sha({ text }: { text: string }) {

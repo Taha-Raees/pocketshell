@@ -1,6 +1,6 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0.4 (payload cut at git tip d4b19d9; the cookie-banner
+Current: v0.7.0-m4.0.4 (payload cut at git tip f1efaec; the cookie-banner
 lesson — pixel-truth stall detection, silent software-retry, honest card
 with escape hatches, keyboard toggle in one spot/one shape — versionCode 28)
 - PocketShell-v0.7.0-m4.0.4-debug.apk  sha256 adbdcfe30fa99db486a671c813a1b0bc22f952527767a278bc4e1baa5d52333e
@@ -30,9 +30,9 @@ with escape hatches, keyboard toggle in one spot/one shape — versionCode 28)
   · Full suite green (0 failures; +2 new pins per variant).
   Device gate: docs/TESTING.md §21. Full record: docs/CHANGELOG
   [0.7.0-m4.0.4].
-- PocketShell-v0.7.0-m4.0.4-source.zip sha256 5facc45d377f0767db5f7afe8111638242a3df015f58d9d471ec2a58cbe6c54a  (28, 299 files)
-- PocketShell-v0.7.0-m4.0.4-source.tar.gz sha256 722695d7bdb3f85116b01b5488a3311452e20a769072c2160c6f72445cccb7e3  (28 MB)
-- pocketshell-m2.gitbundle           sha256 ff4b449e615e43738a4a273786e4b7bff2a794f7c121beb6b0ab287d8ed42246  (full history; ~26 — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
+- PocketShell-v0.7.0-m4.0.4-source.zip sha256 fa0decf9625cd7f6bd24a5fe00b7e09467299616444fede35d1d516a5ef4c1ca  (28, 299 files)
+- PocketShell-v0.7.0-m4.0.4-source.tar.gz sha256 cf30c3d8508a59e0a86f99fb40fecb8c5e2756d0ef21fb0681fe77bd3a2c8b24  (28 MB)
+- pocketshell-m2.gitbundle           sha256 81b2c89b26d979a6814130b9593f0eab84e712acde54e78b3485fa7b903bae76  (full history; ~26 — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.7.0-m4.0.3 superseded by m4.0.4; its records
