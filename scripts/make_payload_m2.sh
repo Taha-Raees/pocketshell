@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.3
+VERSION=v0.7.0-m4.0.4
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,55 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.2) — KEYBOARD EVERYWHERE + HONEST
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.3) — THE COOKIE-BANNER LESSON:
+PIXEL-TRUTH STALL DETECTION + ONE-SPOT KEYBOARD TOGGLE (device bug batch,
+screenshots analyzed 2026-09-05; build numbered "4.0.4" per the standing
+naming rule):
+  - THE BLACK PAGE, DIAGNOSED BY ITS OWN EVIDENCE: the Companion canvas
+    stayed black because the site's MAIN content never paints on this
+    device's WebView build — while the site's own cookie-consent banner
+    DID draw. m4.0.3's watchdog trusted load events, which kept firing
+    faithfully — so it never fired, and the canvas stayed a bare black
+    flash-guard with no explanation.
+  - PIXEL-TRUTH PROBE: the watchdog now reads actual canvas pixels
+    (software readback + an API 29+ glass readback of the frame as it
+    was PRESENTED) instead of load events. A canvas whose main region is
+    still the bare Midnight flash-guard after ~15s IS a stall, no matter
+    what the page pipeline claims.
+  - PARTIAL PAINT IS NOT CONTENT: the cookie-banner screenshot showed the
+    exact defeat case — the consent bar painted a few pixels at the
+    bottom of an otherwise dead canvas, and an "any differing pixel"
+    rule reads that as healthy. The probe now judges the MAIN region
+    only: everything above the bottom 25% of the canvas, where sites
+    dock consent bars and snackbars. A banner can never vouch for a
+    dead page again.
+  - SILENT FIRST RETRY, HONEST SECOND CARD: the first detected stall
+    re-creates the tab on the SOFTWARE renderer by itself (the classic
+    fix for GPU paths that rasterize nothing on broken WebView builds).
+    Only if that stalls too does the canvas explain itself: title, the
+    installed WebView version, and the way out — never a silent black
+    box.
+  - THREE WAYS OUT on the failure card: Retry (each press alternates
+    GPU → SOFTWARE rendering), "Open in browser" (the same address in
+    your real browser — settles whether it is the site or this device's
+    WebView build), and "Continue anyway" (the raw canvas as-is — you
+    can tap the site's own Accept button; the probe then stays quiet
+    and never fights you for the canvas; Retry re-opens the question).
+  - KEYBOARD TOGGLE IN ONE PLACE: the [⌨] key now lives in the deck row
+    BETWEEN Space and Enter (Ctrl · Alt · Space · Shift · [⌨] · Enter)
+    — and with the deck toggled off, the SAME rectangular key box parks
+    at that same right-hand spot (the round bottom-right bubble is
+    gone). One toggle, one shape, one place, in both states.
+  - THE COOKIE BANNER ITSELF: it belongs to the WEBSITE (that one is
+    ChatGPT/OpenAI's), not to PocketShell. Choose Accept/Reject once —
+    cookies are flushed to storage on every pause, so your choice (and
+    your logins) persist across launches.
+  - +2 unit pins (main-region arithmetic + degenerate samples). Full
+    suite green: 0 failures across app debug/release + terminal modules.
+  - versionCode 28 / 0.7.0-m4.0.4 — in-place update over 16..27; same
+    pinned cert. Device gate: docs/TESTING.md §21.
+
+WHAT WAS NEW IN v0.7.0-m4.0.3 (vs v0.7.0-m4.0.2) — KEYBOARD EVERYWHERE + HONEST
 RENDER-STALL + COMPANION PICKER (device bug batch, screenshot analyzed
 2026-09-05; build requested as "4.0.3"):
   - ONE KEYBOARD FOR BOTH SURFACES: the PocketShell deck now types into

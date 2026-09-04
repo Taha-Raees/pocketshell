@@ -51,7 +51,7 @@ enum class KeyboardPage { ALPHA, SYMBOL }
  * The deck is composed in three layers around the QWERTY body:
  *   top accessory row   Esc · Tab · arrow cluster (see [topRowSpec])
  *   QWERTY body         the pages below
- *   bottom accessory    toggle · CTRL · ALT · Space · SHIFT · Enter
+ *   bottom accessory    CTRL · ALT · Space · SHIFT · toggle · Enter
  *
  * Modifiers (CTRL/ALT/SHIFT) are NOT part of the row data — the composable
  * inserts [ModifierSlot]s into the bottom row so their visual state comes

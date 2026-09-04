@@ -395,3 +395,29 @@ remote development.
       marked) + "Add Companion" → management page; Back closes the sheet.
 - [x] +6 unit pins per variant. Full suite: 724/0.
 - [ ] Device gate §20 (§17–§19 regressions included).
+
+### Phase 4.0.4 (2026-09-05, v0.7.0-m4.0.4) — The cookie-banner lesson: pixel-truth stall detection + one-spot keyboard toggle
+- [x] Device evidence closed the black-canvas mystery: the site's OWN
+      cookie-consent banner painted at the bottom of an otherwise dead
+      canvas — load events fire faithfully on this device's WebView
+      build, so m4.0.3's event-based watchdog never fired (and the
+      "any differing pixel" rule would have read the banner as health).
+- [x] RenderProbe (pixel-truth watchdog rewrite): two readbacks per tab
+      (software draw into a tiny bitmap; API 29+ PixelCopy of the window
+      as PRESENTED), six probes ≈ 15s; only real page pixels stand it
+      down. The verdict samples the MAIN region only (above the bottom
+      25% — the consent-bar dock), so partial paint never vouches for a
+      dead page; arithmetic pure + unit-pinned (2 pins/variant).
+- [x] First stall self-heals silently on the SOFTWARE renderer; only a
+      second stall raises the honest card (title + WebView version).
+- [x] Failure card escape hatches: Retry (alternates GPU/SOFTWARE, lifts
+      dismissal), "Open in browser" (site-vs-device diagnosis in the
+      user's real browser), "Continue anyway" (raw canvas; the probe
+      stays quiet for that tab until a Retry).
+- [x] Keyboard toggle consistency: [⌨] moved into the deck row slot
+      between Space and Enter (Ctrl · Alt · Space · Shift · [⌨] · ⏎);
+      toggled off, the SAME rectangular key box parks at that right-hand
+      spot (the m4.0.3 round corner bubble is gone).
+- [x] versionCode 28. Full suite green: 0 failures (all modules ×
+      variants).
+- [ ] Device gate §21 (§17–§20 regressions included).

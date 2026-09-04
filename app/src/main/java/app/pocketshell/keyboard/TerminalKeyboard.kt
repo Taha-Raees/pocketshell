@@ -100,7 +100,7 @@ private fun keyboardDensity(): KeyboardDensity {
  *
  *   Esc  Tab                ←  ↑  ↓  →      top accessory row (always)
  *   … QWERTY body pages …                   collapsible (the [⌨] toggle)
- *   [⌨]  Ctrl  Alt  Space  Shift  ⏎        bottom accessory row (always)
+ *   Ctrl  Alt  Space  Shift  [⌨]  ⏎       bottom accessory row (always)
  *
  * Every layer is ours — no system IME is involved anywhere; presses flow
  * through [TerminalKeyDispatcher] into the vendored TerminalView pipeline.
@@ -223,7 +223,12 @@ private fun TopAccessoryRow(
     }
 }
 
-/** [⌨] · Ctrl · Alt · Space · Shift · Enter — the exact brief §13 order. */
+/**
+ * Ctrl · Alt · Space · Shift · [⌨] · Enter — m4.0.4 (device feedback): the
+ * [⌨] toggle moved from the far LEFT into the slot between Shift and Enter,
+ * so the toggle lives on the SAME side in both states — deck up: this row;
+ * deck down: the rebirth icon parks at the same spot (MainActivity).
+ */
 @Composable
 private fun BottomAccessoryRow(
     keyboardState: KeyboardState,
@@ -237,7 +242,6 @@ private fun BottomAccessoryRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        KeyboardToggleButton(expanded, onToggleExpanded, density.accessoryHeight)
         KeyLayouts.modifierSlots.forEachIndexed { index, slot ->
             ModifierButton(
                 slot = slot,
@@ -257,6 +261,7 @@ private fun BottomAccessoryRow(
                 )
             }
         }
+        KeyboardToggleButton(expanded, onToggleExpanded, density.accessoryHeight)
         EnterKey(keyboardState, dispatcher, density.accessoryHeight, Modifier.weight(1.3f))
     }
 }

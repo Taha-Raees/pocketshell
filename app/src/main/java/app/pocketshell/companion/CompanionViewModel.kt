@@ -216,6 +216,16 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
+     * m4.0.4: the user dismissed the failure card ("Continue anyway") — the
+     * canvas shows the page as-is so they can act on it directly (e.g. tap
+     * the site's own consent banner). The layer keeps the probe quiet for
+     * that tab until they Retry or navigate.
+     */
+    fun dismissFailure(defId: String) {
+        pageFailures.value = pageFailures.value - defId
+    }
+
+    /**
      * Settings → Companions → Clear web data (contract §7): cookies, DOM
      * storage and form data are wiped; live WebViews are destroyed so the
      * next open starts truly clean. Definitions/tabs are untouched.

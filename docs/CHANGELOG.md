@@ -3,6 +3,77 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.4] — 2026-09-05 — The cookie-banner lesson: pixel-truth stall detection + one-spot keyboard toggle (device bug batch)
+
+Scope: two device-reported bugs on the m4.0.3 build, plus the failure
+model they rewrote. No data-model or storage change; logins/tabs/height
+survive the in-place update. Follow-up to m4.0.3 on the same device.
+
+### Device findings (2026-09-05, screenshots analyzed)
+1. The Companion canvas is now BLACK (was white in m4.0.2) — and the new
+   screenshot finally caught the culprit mid-crime: the SITE'S OWN
+   cookie-consent banner (ChatGPT/OpenAI) had painted at the bottom of
+   an otherwise dead canvas. The page pipeline fires faithfully; the
+   compositor rasterizes almost nothing; m4.0.3's event-based watchdog
+   trusted those events and never fired.
+2. The keyboard toggle is inconsistent: in the deck it sits at the far
+   LEFT, but toggled off it becomes a ROUND bubble at the bottom-RIGHT.
+   The user asked for one spot (between Enter and Space) and one shape
+   (the rectangular key box) in both states.
+3. (Informational) first open of a Companion showed the site's cookie
+   banner — that banner belongs to the website, not PocketShell; the
+   correct behavior is a one-time Accept/Reject that persists.
+
+### Fix 1 — the watchdog reads pixels, not promises
+- New `RenderProbe` (m4.0.4 rewrite of the m4.0.3 timer): every ~2.5s a
+  tab is probed by TWO readbacks — the WebView drawn into a tiny bitmap
+  (software truth), then on API 29+ a `PixelCopy` of the window cropped
+  to the view (the frame as PRESENTED on the glass). Six probes ≈ the
+  same generous 15s budget. Only actual page pixels stand the probe
+  down; load events no longer count for anything.
+- PARTIAL PAINT IS NOT CONTENT: the whole-canvas "any differing pixel"
+  rule would have been defeated by exactly the cookie-banner state.
+  The verdict now samples the MAIN region only — everything above the
+  bottom 25% of the canvas, where sites dock consent bars and
+  snackbars. A banner can never vouch for a dead page. The arithmetic
+  is pure and unit-pinned.
+- First stall self-heals SILENTLY: the tab re-creates itself on the
+  SOFTWARE renderer (the classic fix for GPU paths that rasterize
+  nothing). Only a second stall — compatibility mode already tried —
+  becomes the honest "Page never rendered" card.
+
+### Fix 2 — the failure card gets escape hatches
+- The card now offers three ways out: Retry (each press alternates
+  GPU → SOFTWARE rendering, and lifts any dismissal), "Open in browser"
+  (the same address in the device's real browser — settles whether the
+  site or the device's WebView build is at fault), and "Continue
+  anyway" (the raw canvas as-is: the site's own consent banner lives
+  there and may work). Dismissal silences the probe for that tab until
+  the user Retries — the app never fights the user for the canvas.
+
+### Fix 3 — one toggle, one shape, one place, both states
+- The [⌨] key moved from the far left into the deck row slot between
+  Space and Enter (Ctrl · Alt · Space · Shift · [⌨] · Enter).
+- Toggled off, the deck's rebirth icon is no longer a round bottom-right
+  bubble: it is the SAME rectangular key box (44×36dp, same fill,
+  border, radius and icon) parked at that same right-hand spot.
+- (m4.0.3's tap-anywhere-on-canvas re-expansion remains.)
+
+### The cookie banner, answered
+- It is the website's own consent UI, rendered by the site inside the
+  WebView — PocketShell neither adds nor can remove it. Choose
+  Accept/Reject once: cookies are flushed to storage on every Activity
+  pause (m4.0.1 mechanism), so the choice — and logins — persist across
+  launches. If it ever reappears every launch on YOUR device, that is a
+  cookie-persistence bug to report.
+
+### Tests + delivery
+- +2 unit pins per variant (main-region arithmetic incl. degenerate
+  samples). Full suite green: 0 failures across app debug/release and
+  terminal modules — no WebView fakes (spec §32).
+- versionCode 28 / 0.7.0-m4.0.4 — in-place update over 16..27, same
+  pinned cert (d96a6f66…8bf659). Device gate: docs/TESTING.md §21.
+
 ## [0.7.0-m4.0.3] — 2026-09-05 — Keyboard everywhere + honest render-stall + Companion picker (device bug batch)
 
 Scope: the m4.0.2 device session's bug list, fixed one by one. No

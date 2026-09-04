@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material3.Icon
@@ -35,7 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -268,28 +270,34 @@ fun PocketShellRoot(
             keyboardBottomInset = keyboardInset,
         )
 
-        // m4.0.3 — the deck's rebirth affordance: with the keyboard toggled
-        // OFF, a small Midnight icon floats at the bottom-right corner —
-        // above the Companion layer — to bring it back at any time.
+        // m4.0.4 (device feedback) — the deck's rebirth affordance: with the
+        // keyboard toggled OFF the [⌨] key parks as the SAME rectangular key
+        // box it wears in the deck row (no more round bubble), at the SAME
+        // slot — just left of where Enter sits — so the toggle lives in ONE
+        // place in both states instead of jumping right/left corners.
         if (screen == "terminal" && !keyboardExpanded) {
             Box(modifier = Modifier.fillMaxSize()) {
+                val haptics = LocalHapticFeedback.current
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .navigationBarsPadding()
-                        .padding(14.dp)
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(TerminalTheme.deck.copy(alpha = 0.94f))
-                        .border(1.dp, TerminalTheme.divider, CircleShape)
-                        .clickable { keyboardExpanded = true },
+                        .padding(end = 64.dp, bottom = 10.dp)
+                        .size(width = 44.dp, height = 36.dp)
+                        .clip(RoundedCornerShape(TerminalTheme.keyRadius))
+                        .background(TerminalTheme.keyAlt)
+                        .border(1.dp, TerminalTheme.divider, RoundedCornerShape(TerminalTheme.keyRadius))
+                        .clickable {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            keyboardExpanded = true
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Keyboard,
                         contentDescription = "Show keyboard",
-                        tint = TerminalTheme.accentBright,
-                        modifier = Modifier.size(20.dp),
+                        tint = TerminalTheme.textDim,
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }

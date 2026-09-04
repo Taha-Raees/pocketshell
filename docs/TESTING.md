@@ -1012,3 +1012,49 @@ All prior Companion behavior (§17/§18/§19) must keep working.
       across app restart, file upload, Back = history → collapse).
 - [ ] §19 spot-check: a real load error still shows "Page didn't load".
 - [ ] Terminal: §4/§8 spot-check (echo while typing, tabs, font pinch).
+
+## 21. Manual acceptance — m4.0.4 (pixel-truth stall detection + one-spot keyboard toggle, v0.7.0-m4.0.4) — DEVICE GATE PENDING
+
+Prereq: install vc28 IN PLACE over vc27 (data survives; do not uninstall).
+All prior Companion behavior (§17–§20) must keep working.
+
+### 21.1 The black page — honest outcome, one way or another
+- [ ] Open the previously-black Companion tab (ChatGPT). Within ~15s ONE
+      of these must happen — a bare black canvas that sits there silently
+      is a FAILURE of this gate:
+      a) the page renders (device WebView builds it), or
+      b) the canvas swaps to the "Page never rendered" card: title +
+         "Android System WebView <version>" + hint (the tab silently
+         retried on the software renderer first — that part is invisible).
+- [ ] On the card: "Open in browser" opens the SAME address in the
+      device's real browser (settles site vs device WebView).
+- [ ] On the card: "Continue anyway" reveals the raw canvas — if the
+      site's cookie banner is there, it must be tappable; the card must
+      NOT pop back over it (the probe stays quiet after a dismissal).
+- [ ] On the card: Retry reloads the tab (render mode alternates);
+      after a Retry the honesty contract is re-armed (the card may
+      return if the canvas is still dead).
+
+### 21.2 Cookie banner is a one-time site prompt
+- [ ] First open: the site's own banner may appear (it belongs to the
+      site). Tap Accept or Reject ONCE.
+- [ ] Fully close PocketShell (swipe away), reopen, open the Companion:
+      the banner must NOT reappear (cookies flushed on pause persist).
+
+### 21.3 Keyboard toggle — one spot, one shape, both states
+- [ ] Deck up: the [⌨] key sits BETWEEN Space and Enter (row reads
+      Ctrl · Alt · Space · Shift · [⌨] · Enter) — rectangular key box.
+- [ ] Tap it: the whole deck collapses; a RECTANGULAR key-styled box
+      (NOT a round bubble) appears near the bottom-RIGHT, roughly where
+      the [⌨] key was — same fill/border/icon as the deck key.
+- [ ] Tap the parked box: the deck returns; the parked box disappears.
+- [ ] Tap the collapsed terminal canvas: the deck also returns (m4.0.3
+      behavior kept).
+
+### 21.4 Regression
+- [ ] §20 spot-checks: deck types into Companion AND terminal; the deck
+      pushes everything up; "-" and digits quick-tap fine.
+- [ ] §18 startup check: app still starts with a broken/updated WebView
+      provider (no startup crash).
+- [ ] §17 spot-check: drag 1:1, frozen page while dragging, login
+      persists across app restart.

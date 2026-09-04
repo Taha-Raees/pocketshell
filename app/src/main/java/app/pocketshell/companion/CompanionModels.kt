@@ -104,9 +104,10 @@ fun failureHint(kind: CompanionFailureKind): String = when (kind) {
     CompanionFailureKind.RENDERER_GONE ->
         "This WebView build looks broken on this device. Update or roll it back, then retry."
     CompanionFailureKind.RENDER_STALLED ->
-        "The page started loading but never drew anything — this WebView build " +
-            "may be too old or broken. Update Android System WebView, then retry; " +
-            "retry also switches the canvas to a compatibility rendering mode."
+        "The page loaded but never drew a single frame. PocketShell already retried " +
+            "it on the compatibility renderer and that stalled too — this WebView build " +
+            "looks broken on this device. Update or roll back Android System WebView, " +
+            "then Retry (it alternates render modes)."
 }
 
 data class CompanionFailure(

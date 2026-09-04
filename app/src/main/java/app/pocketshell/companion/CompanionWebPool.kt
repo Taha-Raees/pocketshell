@@ -101,10 +101,16 @@ object CompanionWebPool {
     private var cookiesConfigured = false
 
     /**
-     * m4.0.3 render-stall watchdog: armed on every fresh load, disarmed by
-     * the first paint evidence (progress / commit). If neither arrives in
-     * time the page is painting nothing — the silent-white canvas the device
-     * kept showing — and the UI says so instead of leaving a white box.
+     * m4.0.4 PIXEL-TRUTH render watchdog (rewritten from the m4.0.3 event
+     * version, which the device defeated: progress/commit fire faithfully on
+     * the broken build while the compositor rasterizes NOTHING — the watchdog
+     * stood down and the canvas stayed a bare black flash-guard rectangle).
+     * Nothing but actual page pixels stand it down now: every
+     * [POLL_INTERVAL_MS] the tab is probed via [RenderProbe] (software draw
+     * readback, plus an API 29+ glass readback that catches frames lost
+     * between render and presentation). A tab still showing the bare
+     * flash-guard color after [MAX_PAINT_PROBES] probes raises
+     * [Listener.onRenderStuck].
      */
     private val watchdogHandler = Handler(Looper.getMainLooper())
     private val renderStallArmed = HashSet<String>()
@@ -258,21 +264,55 @@ object CompanionWebPool {
 
     // ------------------------------------------------------------------ core
 
-    // ---- render-stall watchdog (m4.0.3) ------------------------------------
+    // ---- render-stall watchdog (m4.0.3; pixel-truth rewrite m4.0.4) --------
 
+    /** Idempotent: re-arming an armed tab (every navigation) keeps the
+     *  running probe chain instead of stacking a second one. */
     private fun armRenderWatchdog(defId: String) {
-        renderStallArmed.add(defId)
-        watchdogHandler.postDelayed({
-            // Fire only when still armed AND the tab is still alive — a
-            // closed/evicted tab must never raise a ghost failure.
-            if (renderStallArmed.remove(defId) && pool.containsKey(defId)) {
-                listener?.onRenderStuck(defId)
-            }
-        }, RENDER_STALL_TIMEOUT_MS)
+        if (!renderStallArmed.add(defId)) return
+        schedulePaintProbe(defId, 0)
     }
 
-    private fun disarmRenderWatchdog(defId: String) {
-        renderStallArmed.remove(defId)
+    private fun schedulePaintProbe(defId: String, attempt: Int, idlePosts: Int = 0) {
+        watchdogHandler.postDelayed({
+            // A closed/forgotten/stood-down tab must never raise a ghost.
+            if (!renderStallArmed.contains(defId)) return@postDelayed
+            val view = pool[defId]?.webView ?: run {
+                renderStallArmed.remove(defId)
+                return@postDelayed
+            }
+            // A view with no chance to draw yet (not laid out, or detached
+            // while the sheet is down) waits without burning its probes —
+            // up to MAX_IDLE_POSTS, then the honest attempts proceed.
+            if ((view.width <= 0 || view.height <= 0 || !view.isShown) && idlePosts < MAX_IDLE_POSTS) {
+                schedulePaintProbe(defId, attempt, idlePosts + 1)
+                return@postDelayed
+            }
+            try {
+                RenderProbe.captureHasPainted(view) { painted ->
+                    // Main-thread callback; the tab may have been forgotten
+                    // while the capture ran — the arm-set is the gate.
+                    if (!renderStallArmed.contains(defId)) return@captureHasPainted
+                    if (painted) {
+                        renderStallArmed.remove(defId)
+                    } else if (attempt + 1 >= MAX_PAINT_PROBES) {
+                        renderStallArmed.remove(defId)
+                        listener?.onRenderStuck(defId)
+                    } else {
+                        schedulePaintProbe(defId, attempt + 1)
+                    }
+                }
+            } catch (_: Throwable) {
+                // A throwing probe must never kill the poll loop — treat as
+                // not painted and continue the chain.
+                if (attempt + 1 >= MAX_PAINT_PROBES) {
+                    renderStallArmed.remove(defId)
+                    listener?.onRenderStuck(defId)
+                } else {
+                    schedulePaintProbe(defId, attempt + 1)
+                }
+            }
+        }, POLL_INTERVAL_MS)
     }
 
     /**
@@ -305,7 +345,9 @@ object CompanionWebPool {
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(context: Context, defId: String, compatRender: Boolean): WebView {
         val webView = WebView(context)
-        webView.setBackgroundColor(0xFF080F1D.toInt()) // Midnight canvas — no white load flash
+        // Midnight canvas — no white load flash; ALSO the probe's reference
+        // color: a canvas uniformly in this exact value never drew a pixel.
+        webView.setBackgroundColor(RenderProbe.WEBVIEW_BACKGROUND)
         webView.isFocusable = true
         webView.isFocusableInTouchMode = true
         if (compatRender) {
@@ -360,11 +402,10 @@ object CompanionWebPool {
 
         override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
             if (url != null) listener?.onVisitStarted(defId, url)
-        }
-
-        override fun onPageCommitVisible(view: WebView, url: String?) {
-            // m4.0.3: first paint evidence — the watchdog can stand down.
-            disarmRenderWatchdog(defId)
+            // m4.0.4: every navigation re-arms the pixel probe (idempotent).
+            // This also covers the failure-clearing path in recordLastUrl —
+            // a tab navigating away from a stall gets a fresh probe budget.
+            armRenderWatchdog(defId)
         }
 
         override fun onReceivedError(
@@ -444,10 +485,6 @@ object CompanionWebPool {
             if (!title.isNullOrBlank()) listener?.onTitleReceived(defId, title)
         }
 
-        override fun onProgressChanged(view: WebView?, newProgress: Int) {
-            // m4.0.3: real load progress is also paint evidence.
-            if (newProgress >= 15) disarmRenderWatchdog(defId)
-        }
     }
 
     /** §13: DownloadManager into app-specific storage — no permission, no crash. */
@@ -506,8 +543,15 @@ object CompanionWebPool {
         }
     }
 
-    /** m4.0.3: how long a load may paint NOTHING before the canvas says so
-     *  honestly. Generous: a slow first response still usually reports
-     *  progress long before this. */
-    internal const val RENDER_STALL_TIMEOUT_MS = 15_000L
+    /** m4.0.4: probe cadence and the stall budget — POLL_INTERVAL_MS ×
+     *  MAX_PAINT_PROBES = the same generous 15s the m4.0.3 single-shot timer
+     *  allowed, now spent actually verifying pixels. */
+    internal const val POLL_INTERVAL_MS = 2_500L
+    internal const val MAX_PAINT_PROBES = 6
+
+    /** Idle waits (no chance to draw yet) before attempts must proceed. */
+    internal const val MAX_IDLE_POSTS = 8
+
+    /** The documented total budget before the canvas says so honestly. */
+    internal const val RENDER_STALL_TIMEOUT_MS = POLL_INTERVAL_MS * MAX_PAINT_PROBES
 }

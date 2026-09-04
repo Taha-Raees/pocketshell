@@ -1,5 +1,6 @@
 package app.pocketshell.ui.companion
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -106,6 +107,12 @@ fun CompanionLayer(
     // escape hatch for devices whose GPU path paints nothing.
     val compatRenders = remember { mutableStateMapOf<String, Boolean>() }
 
+    // m4.0.4: tabs whose failure card the user dismissed ("Continue
+    // anyway") — the pixel probe stays quiet for these until a Retry (or a
+    // fresh navigation the USER initiates from the raw canvas) re-opens
+    // the question, so the card never fights the user for the canvas.
+    val stallSuppressed = remember { mutableSetOf<String>() }
+
     // m4.0.3: the "+" affordance now opens the Companion picker sheet.
     var pickerOpen by remember { mutableStateOf(false) }
 
@@ -138,7 +145,22 @@ fun CompanionLayer(
             }
 
             override fun onRenderStuck(defId: String) {
-                viewModel.recordRenderStalled(defId)
+                // m4.0.4: a user who dismissed the card owns the canvas —
+                // the probe never fights them for it.
+                if (defId in stallSuppressed) return
+                // m4.0.4: the pixel probe confirmed NOTHING ever drew. The
+                // FIRST stall never bothers the user — the tab silently
+                // re-creates itself on the software renderer (the classic
+                // fix for GPU paths that rasterize nothing on broken
+                // WebView builds). Only a SECOND stall — compatibility
+                // mode already tried — becomes the honest card.
+                if (compatRenders[defId] == true) {
+                    viewModel.recordRenderStalled(defId)
+                } else {
+                    CompanionWebPool.forgetTab(defId)
+                    compatRenders[defId] = true
+                    webRetrySeed++
+                }
             }
         })
         onDispose { CompanionWebPool.setListener(null) }
@@ -260,12 +282,21 @@ fun CompanionLayer(
                             retrySeed = webRetrySeed,
                             compatRender = compatRenders[activeDef.id] ?: false,
                             onRetry = {
+                                // A Retry is the user asking the question again —
+                                // lift any dismissal so the probe may answer.
+                                stallSuppressed.remove(activeDef.id)
                                 viewModel.retryTab(activeDef.id)
                                 // m4.0.3: each Retry alternates GPU → software
                                 // rendering (then back) on the fresh WebView.
                                 compatRenders[activeDef.id] =
                                     !(compatRenders[activeDef.id] ?: false)
                                 webRetrySeed++
+                            },
+                            // m4.0.4: the raw canvas as-is — the site's own
+                            // consent banner lives there and may still work.
+                            onDismiss = {
+                                stallSuppressed.add(activeDef.id)
+                                viewModel.dismissFailure(activeDef.id)
                             },
                         )
                     }
@@ -358,12 +389,13 @@ private fun CompanionWebHost(
     retrySeed: Int,
     compatRender: Boolean,
     onRetry: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     // m4.0.2: the failure card comes FIRST — a renderer-gone tab has NO
     // WebView in the pool, and acquire() below would instantly re-create
     // one behind the card.
     if (failure != null) {
-        CompanionFailureCard(failure, onRetry)
+        CompanionFailureCard(failure, url, onRetry, onDismiss)
         return
     }
     // m4.0.3: creation uses the ACTIVITY context — the application context
@@ -566,15 +598,20 @@ private fun CompanionEmptyState(
 }
 
 /**
- * m4.0.2 — an honest failure state: the canvas is NEVER mysteriously white.
- * Mono title, the real detail (error + installed WebView version), one dim
- * hint, one action. Same language as the empty state.
+ * m4.0.2 — an honest failure state: the canvas is NEVER mysteriously white
+ * or black. Mono title, the real detail (error + installed WebView version),
+ * one dim hint, and m4.0.4's three actions: Retry, plus the two escape
+ * hatches — the same address in the device's real browser, or the raw
+ * canvas as-is (the site's own consent banner lives there and may work).
  */
 @Composable
 private fun CompanionFailureCard(
     failure: CompanionFailure,
+    url: String,
     onRetry: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -615,6 +652,36 @@ private fun CompanionFailureCard(
             onClick = onRetry,
             modifier = Modifier.padding(top = 18.dp),
         )
+        Row(
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 8.dp),
+        ) {
+            Text(
+                text = "Open in browser",
+                fontSize = 13.sp,
+                color = HomeTokens.textDim,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable {
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        } catch (_: Exception) {
+                            // No browser on the device — the card stays; honest.
+                        }
+                    }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+            Text(
+                text = "Continue anyway",
+                fontSize = 13.sp,
+                color = HomeTokens.textDim,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onDismiss() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
     }
 }
 

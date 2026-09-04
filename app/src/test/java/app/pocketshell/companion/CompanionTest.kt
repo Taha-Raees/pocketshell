@@ -250,16 +250,62 @@ class CompanionTest {
     }
 
     @Test
-    fun `render-stall failure explains itself and offers the compat retry`() {
-        // m4.0.3: the watchdog's card must carry the WebView version and the
-        // compatibility-rendering escape hatch — never a bare white canvas.
+    fun `render-stall failure explains itself after both render modes stalled`() {
+        // m4.0.4: the pixel probe's card. The FIRST stall silently retries on
+        // the software renderer; this card only appears once BOTH modes gave
+        // up — so the hint says exactly that, plus the WebView version.
         val failure = CompanionFailure(
             CompanionFailureKind.RENDER_STALLED,
             webViewVersion = "99.0.0.0",
         )
         assertEquals("Page never rendered", failure.title)
         assertEquals("Android System WebView 99.0.0.0", failure.body)
-        assertTrue(failure.hint.contains("never drew anything"))
-        assertTrue(failure.hint.contains("compatibility rendering"))
+        assertTrue(failure.hint.contains("never drew a single frame"))
+        assertTrue(failure.hint.contains("compatibility renderer"))
+    }
+
+    // ---- render probe (m4.0.4) ----------------------------------------------
+
+    @Test
+    fun `render probe - flash-guard background is the pool's exact canvas color`() {
+        // Single source of truth: createWebView paints THIS value, and the
+        // probe reads the SAME value — a canvas uniformly in it never drew.
+        assertEquals(0xFF080F1D.toInt(), RenderProbe.WEBVIEW_BACKGROUND)
+    }
+
+    @Test
+    fun `render probe - uniform flash-guard canvas means nothing painted`() {
+        val bg = RenderProbe.WEBVIEW_BACKGROUND
+        assertFalse(RenderProbe.hasPainted(IntArray(64) { bg }, bg))
+        // An empty sample has no evidence either way — never a false "painted".
+        assertFalse(RenderProbe.hasPainted(IntArray(0), bg))
+    }
+
+    @Test
+    fun `render probe - any differing pixel counts as painted`() {
+        val bg = RenderProbe.WEBVIEW_BACKGROUND
+        val mostlyBackground = IntArray(96) { bg }.also { it[42] = 0xFFFFFFFF.toInt() }
+        assertTrue(RenderProbe.hasPainted(mostlyBackground, bg))
+        // A page that painted its OWN solid color counts — even a near
+        // identical dark (only the EXACT flash-guard value means nothing).
+        assertTrue(RenderProbe.hasPainted(IntArray(64) { 0xFF080F1E.toInt() }, bg))
+        assertTrue(RenderProbe.hasPainted(IntArray(64) { 0xFF000000.toInt() }, bg))
+    }
+
+    @Test
+    fun `render probe - verdict samples the main region, not the banner dock`() {
+        // m4.0.4 device lesson (2026-09-05 cookie-banner screenshot): the
+        // site's own bottom-docked consent banner painted a few pixels on a
+        // dead canvas and the whole-canvas rule stood down. The judged
+        // region now excludes that dock — a banner can never vouch for a
+        // page whose main content never drew.
+        assertEquals(72, RenderProbe.mainRegionRows(96))
+        assertEquals(75, RenderProbe.mainRegionRows(100))
+        assertEquals(75, RenderProbe.mainRegionRows(101))
+        // Degenerate samples still judge at least one row — never zero.
+        assertEquals(1, RenderProbe.mainRegionRows(1))
+        assertEquals(1, RenderProbe.mainRegionRows(2))
+        assertEquals(3, RenderProbe.mainRegionRows(4))
+        assertEquals(99, RenderProbe.mainRegionRows(132))
     }
 }
