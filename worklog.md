@@ -790,3 +790,29 @@ Work Log:
 
 Stage Summary:
 - v0.7.0-m3.5 (vc22) delivered: tap-to-launch actually launches; Diagnostics/Packages/Settings now Midnight; 656/0 tests; three-way mirror verified; device gate = TESTING.md §15 (kilo TUI opens on tap)
+
+---
+Task ID: 40
+Agent: main (Super Z)
+Task: Phase 3.6 — permanent procfs fix (real /proc every session) + full m3.6 delivery chain (user: "update everything then you know new apk and zip on server to be downloaded").
+
+Work Log:
+- FIX (commit 6df9d16, built on the device-provided root cause): the in-guest `apk upgrade` replaced the checksum-pinned patched libapk -> M2.6 conditional /proc gate failed -> sessions spawned WITHOUT /proc -> Bun CLIs (Kilo's embedded runtime) resolve paths via /proc/self/fd on aarch64 (no realpath syscall) -> realpath() ENOENT on existing dirs.
+  · RuntimeProcessLauncher: /proc bind ABSOLUTE for INTERACTIVE_TERMINAL (derived from profile, procEnabled param deleted); PACKAGE_OPERATION stays /proc-free (require-guarded).
+  · GuestApkCompat rebuilt as pattern-based SELF-REPAIR: scans guest libapk.so.3* for the standalone '/proc/self/fd' gate literal (+ '/proc/self/fd/%d' format proof), re-applies the one-byte patch to any matching build, refuses ambiguous shapes; byte-equivalence re-proven on the pinned minirootfs.
+  · procContractProblem() fail-loud spawn audit (/proc+/dev+/sys) pinned by tests incl. stripped-spec cases.
+  · docs/PROCFS-CONTRACT.md (architecture, per-session bind audit /dev /dev/pts /sys /tmp /proc, device gate 16) + scripts/diagnose_platform.sh guest smoke gate (PASS=11/FAIL=0 in proot rehearsal).
+  · vc23 / 0.7.0-m3.6; 664 test executions, 0 failures.
+- FOLLOW-UP docs (9539a03): docs/ANTIGRAVITY-PLATFORM.md (musl platform gap evidence chain) + scripts/diagnose_platform.sh.
+- DELIVERY CHAIN (this session, after sandbox reset #12 wiped /home/z/tools + all payload dirs):
+  · Toolchain reinstalled foreground (~30s); local.properties recreated.
+  · Full suite re-run: 664 executions, 0 failures (matches the m3.6 gate exactly).
+  · assembleDebug (first attempt hit a transient daemon OOM; immediate clean re-run): APK sha256 195443f9eaf1ccaa1c686de88f318749427d4a53897a7d3308000b074e665e79; aapt2 = vc23 / 0.7.0-m3.6; apksigner cert d96a6f66…bf659 -> in-place chain 16→23 intact.
+  · Payload cut with scripts/make_payload_m2.sh (already m3.6-updated by the fix session): zip integrity OK, 0 dot-paths, 0 page.tsx shims, 0 node_modules, 303 files, all pins incl. docs/PROCFS-CONTRACT.md. NOTE: zip/tgz are NOT byte-reproducible across cutter runs (embedded timestamps) — published hashes are from the FINAL on-disk artifacts: zip 5e58c930…50385, tgz bb17d726…a9391, bundle 122206cd…5b689 (bundle IS deterministic).
+  · Three-way mirror rebuilt (public/ == dist-master/ == download/, 4 artifacts ×3, byte-verified; APK manually copied to dist-master/ — cutter doesn't).
+  · page.tsx rewritten (Phase 3.6 hero — the procfs story, §16 quick checks, vc23, tip 9539a03) + download/README.md hashes; committed 638c6f8.
+
+Stage Summary:
+- v0.7.0-m3.6 (vc23) delivered end-to-end: real /proc on every interactive session (absolute, self-audited, fail-loud), apk fd-gate self-repair survives guest upgrades, 664/0 tests, payload + delivery chain live and byte-verified.
+- NOT yet device-proven (needs the human): TESTING §16 — fresh session ls /proc/self + cat /proc/version without manual mount; kilo starts with no ENOENT/realpath and no manual mount; in-guest `apk update && apk upgrade` then `apk add` still commits; §12–§15 regressions.
+- git chain this phase: 6df9d16 (procfs fix) → 9539a03 (platform docs + guest diagnostic) → 638c6f8 (delivery page/README).
