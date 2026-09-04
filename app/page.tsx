@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m3.4";
+const VERSION = "v0.7.0-m3.5";
 
 const HASHES = {
-  apk: "2059d1965957e09a05d1bfa313f24c98030e3df23ed2893397b66d44f0d60dd5",
-  zip: "3b79eaac116e6eddcfb1ec889140f22a96eed6fbc86f1a8447303991b1bc4b6f",
-  tgz: "6de1188b5a2cb775908efe5e03b338f6a72b7228fd2ee21fb686ac3eda1d4522",
-  bundle: "9c2ff19d88078c61fe014cd2d7eb1797fb6de57543ce82f32be42af2063378b9",
+  apk: "c8d0effb3fb1ff81feeb9deb2822f9c8e15630e1ca584ce80dc07f1c06d91d0e",
+  zip: "5d3ef098a8bc69e4cd777845f426d4737c85432ed0b67543845a8f4337b3619b",
+  tgz: "9e95b3112dc898b7a276e89c85c6bc2467cf337e540fddbfbb7277015b5ebaee",
+  bundle: "a74645767f56a6a290616dd452b8fee76695be5492c0e470108bd36db568767e",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,79 +25,78 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Phase 3.4 — Registry Expansion + System Pages{" "}
-          <span className="badge">versionCode 21</span>
+          Phase 3.5 — Command Launch Fix + System Pages Join Midnight{" "}
+          <span className="badge">versionCode 22</span>
         </h2>
         <p>
-          The fix you reported: <b>an installed Kilo CLI now shows up</b>. Root
-          cause: command-app discovery = registry ∩ guest PATH — the probe asks
-          the login shell <code>command -v</code> only for registry names, and{" "}
-          <code>kilo</code> had no registry entry, so it was never probed and
-          could never appear. That is the honesty contract working (the
-          launcher never guesses from unknown PATH binaries); the registry is
-          the designed extension point. Kilo is now registered — probe-gated
-          like every app: the tile appears within one Home revisit once{" "}
-          <code>kilo</code> exists, and disappears when it does not. ZERO
-          pipeline changes. Design contract committed before implementation (
-          <code>docs/PHASE-3.4-DESIGN.md</code>).
+          The fix you reported: <b>tapping Kilo Code (or any app tile) now
+          directly launches the app</b> — no more plain shell. Root cause: the
+          launch command was written into the PTY immediately after session
+          construction, but the terminal&apos;s <code>TerminalSession</code>{" "}
+          forks the process only when the view first renders the session, and{" "}
+          <code>write()</code> silently drops bytes while no process exists —
+          so every tapped tile opened a plain login shell. The fix delivers the
+          command through the login shell&apos;s argv (
+          <code>sh -l -c &quot;kilo; exec sh -l&quot;</code>): deterministic,
+          timing-independent, still exactly what typing the command would do.
+          Design contract committed before implementation (
+          <code>docs/PHASE-3.5-DESIGN.md</code>).
         </p>
         <ul className="steps">
           <li>
-            <b>Registry expansion (data only):</b> five terminal AI agents
-            seeded — <b>Kilo Code</b> (<code>kilo</code>), <b>Gemini CLI</b> (
-            <code>gemini</code>), <b>Codex</b> (<code>codex</code>),{" "}
-            <b>Aider</b> (<code>aider</code>), <b>Qwen Code</b> (
-            <code>qwen</code>) — appended after the brief&apos;s four
-            (Hermes/OpenCode/Claude/ZCode), so launcher order on installed
-            devices never shuffles. Installing any of them is still the ONLY
-            way its tile can ever render; uninstall makes it disappear.
+            <b>One generic launch path — no hardcoding:</b> the registry stays
+            pure data (nine command apps); availability still comes ONLY from
+            the real login-shell probe. The same fixed path serves command apps
+            (Kilo Code, Claude Code, Gemini CLI, …) and catalog apps (nano,
+            git, …). Installing an app is still the only way its tile appears.
           </li>
           <li>
-            <b>Packages screen:</b> the &quot;runtime not installed&quot; state
-            is now inline text on the canvas (no container card) with a real{" "}
-            <b>Open Diagnostics</b> link — the action the copy always pointed
-            at. Title renamed &quot;Explore CLI Apps&quot; →{" "}
-            <b>&quot;Packages&quot;</b> (one name per object, matching Home).
-            Per-package surfaces stay — real objects (an installable package
-            with actions) are explicitly allowed.
+            <b>Launch semantics preserved:</b> a fresh dedicated guest session
+            per launch, verify-before-launch with honest refusal banners, and{" "}
+            <code>exec sh -l</code> drops you at a real prompt when the app
+            exits.
           </li>
           <li>
-            <b>Settings:</b> whole-row selection — theme radio rows and the
-            dynamic-color row are ≥48dp full-row touch targets with correct
-            accessibility roles; the dot/switch only render state. Visual
-            language unchanged.
+            <b>Diagnostics joins Midnight Sapphire:</b> the Midnight canvas,
+            mono page title + section labels, hairline dividers, mono fact
+            values with honest coloring (Sapphire = confirmed good, danger =
+            confirmed bad). Install/retry is the filled Sapphire action;
+            remove/check is the quiet hairline action.
           </li>
           <li>
-            <b>Diagnostics:</b> one uniform section pattern — full-width
-            divider + header for <b>System / Linux runtime / Package
-            environment</b>, plain label/value fact rows, no internal per-row
-            dividers. Every value stays exactly as honest as before.
+            <b>Packages joins Midnight Sapphire:</b> chrome search plate with a
+            Sapphire focus ring, search hits as flat mono rows, catalog cards
+            in the chrome tone, uninstall as the quiet destructive weight, and
+            operation progress as the honest banner (danger border only on
+            FAILED) with Cancel/Retry. All honesty rules intact — a failed
+            probe never reads as &quot;Not installed&quot;.
           </li>
           <li>
-            <b>Home needs zero changes:</b> the &quot;Your tools&quot; grid and
-            the <code>CLI Apps ▾</code> menu render from the registry — new
-            entries surface automatically.
+            <b>Settings joins Midnight Sapphire:</b> whole-row radio rows
+            (ring + Sapphire dot), Midnight switch and slider, same immediate
+            persistence. Status bar: light icons on every screen now.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m3.4-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m3.5-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m3.4)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m3.5)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 21 installs <b>in place over v0.7.0-m3.3 (20),
-          v0.7.0-m3.2 (19), v0.7.0-m3.1 (18), the discarded v0.7.0-ui (17) and
-          v0.6.2 (16)</b> — same pinned signing key. Your Alpine runtime,
-          installed packages, Hermes installation and cache are untouched:
-          Phase 3.4 changed registry DATA and three screens&apos; presentation —
-          the M2.6 Gates A–H environment, the Phase 3.1 §12 gate, the Phase
-          3.2 §13 gate and the Phase 3.3 §14 gate remain valid.
+          versionCode 22 installs <b>in place over v0.7.0-m3.4 (21),
+          v0.7.0-m3.3 (20), v0.7.0-m3.2 (19), v0.7.0-m3.1 (18), the discarded
+          v0.7.0-ui (17) and v0.6.2 (16)</b> — same pinned signing key. Your
+          Alpine runtime, installed packages, Kilo/Hermes installation and
+          cache are untouched: Phase 3.5 changed one launch transport and three
+          screens&apos; presentation — the M2.6 Gates A–H environment, the
+          Phase 3.1 §12 gate, the Phase 3.2 §13 gate and the Phase 3.3 §14
+          gate remain valid.
         </p>
       </div>
 
@@ -136,49 +135,53 @@ export default function Home() {
             one CLI Apps menu, single-purpose FAB, lightweight honest states.
           </li>
           <li>
-            <b>v0.7.0-m3.4 (this build):</b> the registry grows to nine
-            command apps (Kilo Code + four peers, all probe-gated) and the
-            Packages / Settings / Diagnostics screens adopt the Phase 3.3
-            guidelines concretely. Everything else is deliberately
-            byte-identical behavior.
+            Phase 3.4: registry grows to nine command apps (Kilo Code + four
+            peers, all probe-gated).
+          </li>
+          <li>
+            <b>v0.7.0-m3.5 (this build):</b> the launch-pipeline fix — tiles
+            actually run their command now — and Diagnostics / Packages /
+            Settings adopt the Midnight Sapphire design language via one
+            shared page kit. Everything else is deliberately byte-identical
+            behavior.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §15 — Phase 3.4 device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §15 — Phase 3.5 device gate)</h2>
         <ol className="steps">
           <li>
-            Install {VERSION} over v0.7.0-m3.3 (no uninstall) → with{" "}
-            <code>kilo</code> installed in the guest, a <b>Kilo Code</b> entry
-            appears under &quot;Your tools&quot; AND in the <code>CLI Apps ▾</code>{" "}
-            menu within one Home revisit; tapping it launches a dedicated
-            guest session.
+            Install {VERSION} over v0.7.0-m3.4 (no uninstall) → with{" "}
+            <code>kilo</code> installed in the guest, tap the <b>Kilo Code</b>{" "}
+            tile: the session opens and <b>kilo itself launches</b> — its TUI
+            appears without typing anything. Exiting lands at the guest prompt.
+          </li>
+          <li>
+            <b>Same for every app:</b> Claude Code / Gemini CLI tiles launch
+            their commands; Packages → Open on an installed nano opens nano in
+            a dedicated session.
           </li>
           <li>
             <b>Probe-gating holds:</b> gemini/codex/aider/qwen do NOT appear
-            unless actually installed; nano/git/python still never appear;
-            removing the <code>kilo</code> binary removes the tile.
+            unless actually installed; nano/git/python still never appear as
+            command apps; removing the <code>kilo</code> binary removes the
+            tile.
           </li>
           <li>
-            <b>Packages screen:</b> titled &quot;Packages&quot;; with no
-            runtime the state is inline text (no card) with a working
-            Open Diagnostics link; search/install/open behave exactly as §9/§13.
+            <b>Midnight system pages:</b> Diagnostics, Packages and Settings
+            now share the Home/Terminal Midnight identity — same canvas, mono
+            titles, hairline dividers; light status-bar icons on every screen.
           </li>
           <li>
-            <b>Settings:</b> tapping anywhere on a theme row selects it (the
-            label is no longer inert); the wallpaper-colors row toggles
-            end-to-end; no visual restyle.
+            <b>Packages:</b> search plate focuses with a Sapphire ring;
+            installs show honest progress; a failed probe keeps the last real
+            installed state visible.
           </li>
           <li>
-            <b>Diagnostics:</b> sections read System → Linux runtime →
-            Package environment, each divider + header + plain rows; values,
-            colors and buttons unchanged (§10 set).
-          </li>
-          <li>
-            <b>Regressions:</b> Home itself gained no new elements (§14 sweep
-            unchanged); §12 keyboard/terminal set and §13 command-app +
-            sessions behavior all still pass.
+            <b>Regressions:</b> Home unchanged (§14 sweep); §12
+            keyboard/terminal set and §13 command-app + sessions behavior all
+            still pass.
           </li>
         </ol>
       </div>
@@ -187,15 +190,15 @@ export default function Home() {
         <h2>Source (version control)</h2>
         <p>
           Complete buildable source. The zip intentionally contains no
-          dotfiles; full history rides in the git bundle (tip 41dcf82 —
+          dotfiles; full history rides in the git bundle (tip 7a8a136 —
           includes the complete milestone history, the honest record of the
-          discarded UI attempt + rollback, and all four Phase 3 design
+          discarded UI attempt + rollback, and all five Phase 3 design
           contracts).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m3.4-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m3.5-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m3.4-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m3.5-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -217,9 +220,9 @@ export default function Home() {
         search-install · M2.6 real /proc + real apk (device-CONFIRMED
         2026-09-02) · v0.6.2 hardlink + sysdata repairs · v0.7.0-m3.1 terminal
         redesign · v0.7.0-m3.2 OS launcher + command apps · v0.7.0-m3.3 flat
-        workspace · <b>v0.7.0-m3.4 (this build): Phase 3.4 — registry expansion
-        (Kilo Code + peers) + system pages</b>. Your device keeps doing the QA
-        that matters.
+        workspace · v0.7.0-m3.4 registry expansion · <b>v0.7.0-m3.5 (this
+        build): Phase 3.5 — command launch fix + system pages join
+        Midnight</b>. Your device keeps doing the QA that matters.
       </footer>
     </main>
   );
