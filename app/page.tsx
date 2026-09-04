@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m4.0.7";
+const VERSION = "v0.7.0-m4.0.8";
 
 const HASHES = {
-  apk: "e2c046913fe5b894052f41ab77442163d6937a66101bcc0e0c046923aa358703",
-  zip: "11c7472a3779cc15b86be697a5d4faf1c77ccba9f2afee30996805eab8c8d441",
-  tgz: "d662794e83616a151adc66233af3eb27ec888ebe894c154a002f3b12227324b2",
-  bundle: "7b6c470265efb00f9c072ed2f64b57cea03f329e7de77a0e5902e594f75ff05d",
+  apk: "6626d8dd51a26c12fa5d6990eb688d1eccf40961541452460c96939a1d33f22c",
+  zip: "7d9b738ae9b83806363e24ac3c9f81ef9d202d4c17c8818f701a4b3dbf64355c",
+  tgz: "8e9bd2b5eab347fa94e552c1210f349a9793d76229099e4f54e79603940ef172",
+  bundle: "91a01edcb725321329b3c474269863ebbef8e8209321bb75aae10d20936c2ff6",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,76 +25,81 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          The health sheet cracked it: the compat renderer never reached the
-          screen — and the creation recipe was the regression{" "}
-          <span className="badge">versionCode 31</span>
+          The painted-but-black decode: the light package returns, on top of
+          the fixed host <span className="badge">versionCode 32</span>
         </h2>
         <p>
-          <b>Your Copy report answered the question.</b> The health sheet
-          showed the page is <b>fully alive</b> — chat.com answered{" "}
-          <code>readyState=complete · 761 elements · 62 interactive · 394
-          text chars</code> with <b>zero boot errors</b> — while pixels read{" "}
-          <i>“never painted”</i> on GPU and <i>“unknown”</i> forever on the
-          compatibility renderer. A hydrated app with zero presented frames
-          is a <b>presentation</b> failure — and it exposed two real bugs:
+          <b>Your m4.0.7 health report cracked it.</b> Both tabs answered{" "}
+          <code>pixels: painted</code> — a GPU tab <b>and</b> a software-layer
+          tab — while you still saw black. A software-layer view cannot fail
+          to reach the screen (the rest of the app renders through the same
+          window), so the black <b>is the page&apos;s own painted output</b>:
+          the site&apos;s near-black body. Two dark sources had been re-armed
+          by m4.0.7&apos;s rollback:
         </p>
         <ul className="steps">
           <li>
-            <b>The compatibility renderer was never on screen:</b> AndroidView
-            runs its factory exactly once per composed node, so every
-            silently swapped WebView — the first-stall compat swap, the boot
-            retry, and <b>plain tab switching</b> — never attached. On your
-            device the old view (destroyed on the first stall) stayed
-            attached as the dead black canvas while the fresh software-mode
-            view sat stranded in the pool loading a perfect DOM it never
-            displayed — that is why pixels read “unknown” forever. The host
-            is now <b>keyed on the view instance</b>: every swap reaches the
-            screen, software mode gets its first real test, and tab switching
-            stops showing a stale page.
+            <b>Algorithmic darkening was ON:</b> PocketShell targets SDK 28
+            (the proot/W^X constraint), and a legacy-target app on Android 15
+            gets WebView algorithmic darkening by default.
           </li>
           <li>
-            <b>The creation recipe was the painting regression:</b> the
-            forced-light configuration context (m4.0.5/6) chased a dark-CSS
-            theory your DOM evidence refutes — and the regression line is
-            exact: m4.0.4 (plain activity context) still painted the cookie
-            banner; m4.0.5/6 (config context) painted nothing. Creation is
-            rolled back to the proven recipe (activity context, no darkening
-            levers); the Chrome-like UA stays (the Google login fix).
+            <b>prefers-color-scheme answered DARK:</b> the WebView inherits
+            the app&apos;s Midnight uiMode, so sites served their dark themes
+            onto a dark body. The m4.0.5/6 light levers had looked guilty only
+            because the never-attaching host (fixed in m4.0.7) made every
+            recipe paint nothing — the rollback over-corrected.
           </li>
           <li>
-            <b>Glass-first pixel probe:</b> the probe now asks PixelCopy —
-            the frame as PRESENTED, cropped to the keyboard-free top half of
-            the canvas — first; the software readback is only the fallback.
-            A hung copy times out after 1.5 s instead of hanging “unknown”
-            forever; a throwing fallback never manufactures a stall.
+            <b>Fix 1 — forced-light scheme:</b> the WebView&apos;s
+            configuration is pinned to UI_MODE_NIGHT_NO (the documented
+            prefers-color-scheme lever), so sites ALWAYS serve their light
+            themes — a white body with dark text you can SEE, even when a
+            page&apos;s app shell is thin.
           </li>
           <li>
-            <b>Attach kick:</b> the pool loads URLs before the view attaches;
-            some Chromium builds never bind the frame sink for such loads
-            (DOM alive, pixels never present — your exact signature). If
-            nothing painted 3.5 s after first layout, ONE silent reload
-            rebinds the load to the live surface. Once per view, never a
-            card.
+            <b>Fix 2 — darkening OFF at every API level:</b>{" "}
+            setAlgorithmicDarkeningAllowed(false) on Android 13+, the
+            deprecated setForceDark(FORCE_DARK_OFF) on 12 and below; the theme
+            already carries android:forceDarkAllowed=false.
           </li>
           <li>
-            <b>Nothing else changed:</b> data, logins, tabs and heights
-            survive the in-place update. Full suite green: <b>764 executions
-            / 0 failures</b> (+1 glass-region pin; all earlier pins intact).
+            <b>Fix 3 — the Activity lookup, fixed:</b> the forced-light
+            configuration context is not an Activity — the glass probe now
+            unwraps ANY context chain to find the hosting window, and the pool
+            remembers the host from acquire (a hidden m4.0.6 glass-probe
+            regression, gone).
+          </li>
+          <li>
+            <b>The probe cannot be fooled again:</b> the health report now
+            names WHAT IS ON THE GLASS —{" "}
+            <code>glass: dominant #0D0D0D · 97% near-black · 3 colors</code> —
+            plus <code>scheme: forced light</code> and the PAGE&apos;S OWN
+            VOICE (its title and first visible words). One pasted report now
+            names the page state (login wall, consent, empty shell) with zero
+            guessing.
+          </li>
+          <li>
+            <b>Nothing else changed:</b> the keyed swap-safe host, attach
+            kick, Chrome UA and all data survive. Full suite green:{" "}
+            <b>772 executions / 0 failures</b> (+4 pins; all earlier pins
+            intact).
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m4.0.7-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m4.0.8-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.7)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.8)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 31 installs <b>in place over v0.7.0-m4.0.6 (30),
+          versionCode 32 installs <b>in place over v0.7.0-m4.0.7 (31),
+          v0.7.0-m4.0.6 (30),
           v0.7.0-m4.0.5 (29),
           v0.7.0-m4.0.4 (28), v0.7.0-m4.0.3 (27), v0.7.0-m4.0.2 (26),
           v0.7.0-m4.0.1 (25), v0.7.0-m4.0 (24) and every earlier
@@ -148,50 +153,52 @@ export default function Home() {
           </li>
           <li>
             m4.0.6: the SSR-proof boot witness and the standing{" "}
-            <b>Page health</b> sheet with a one-tap <b>Copy report</b> —
-            your report is what cracked the case this build fixes.
+            <b>Page health</b> sheet with a one-tap <b>Copy report</b>.
+            m4.0.7: the swap-safe WebView host (compat renderer + tab
+            switches finally reach the screen), creation rollback, the
+            glass-first pixel probe, the attach kick.
           </li>
           <li>
-            <b>v0.7.0-m4.0.7 (this build):</b> the health sheet&apos;s verdict
-            decoded — the swap-safe WebView host (the compat renderer and
-            tab switches finally reach the screen), the creation-recipe
-            rollback to the proven activity context, the glass-first pixel
-            probe with a 1.5 s timeout, and the once-per-view attach kick.
+            <b>v0.7.0-m4.0.8 (this build):</b> the painted-but-black decode —
+            the light package returns on top of the fixed host: forced-light
+            prefers-color-scheme, darkening off at every API level, a
+            context-safe activity lookup, and a color-truthful health report
+            that names what is actually on the glass plus the page&apos;s own
+            voice.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §24 — the m4.0.7 device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §25 — the m4.0.8 device gate)</h2>
         <ol className="steps">
           <li>
             Install {VERSION} in place → open the previously-black Companion
-            tab. EXPECT the real page within a few seconds (theme now follows
-            the device — the light-forcing experiment is reverted): composer,
-            sidebar, text, all interactive. The &quot;Page never
-            rendered&quot; card must NOT appear while the page is visible.
+            tab. EXPECT the <b>LIGHT (white)</b> theme with visible dark
+            text — NOT black, NOT near-black. A login wall is an acceptable
+            and diagnosable state; pure black is not.
           </li>
           <li>
-            <b>Tab switching</b> (the latent bug this build fixes): switch
-            ChatGPT ⇄ Zai several times — the canvas must always show the
-            selected tab&apos;s page, with its scroll/login state intact.
+            Open the Zai tab too — same expectation. Let both run 30+
+            seconds: no failure card while a page is actually visible.
           </li>
           <li>
-            <b>Compat mode — its first real test:</b> Page health → Reload in
-            compatibility mode. The tab must RE-CREATE on screen (never load
-            invisibly again). If the page renders in compat mode, say so —
-            the GPU raster path is then the confirmed culprit.
+            <b>The health report must name the glass:</b> tab strip ⓘ chip →
+            Page health → expect <code>scheme: forced light</code>,{" "}
+            <code>glass: dominant #XXXXXX · N% near-black · N colors</code>,
+            and <code>page says: &quot;…&quot;</code>.
           </li>
           <li>
-            If anything is still broken: <b>Page health → Copy report →
-            paste in the chat</b> — pixels should read &quot;painted&quot;
-            (glass probe) within ~20 s, never &quot;unknown&quot; forever.
+            If anything still looks wrong: <b>Page health → Copy report →
+            paste in the chat</b> — the glass line names the exact on-screen
+            color and the page names its own state, so the next fix is
+            targeted, not a guess.
           </li>
           <li>
-            Regressions: §23.2 (health sheet), §21 (keyboard toggle one
-            spot/one shape), §20 (deck types into Companion AND terminal),
-            §18 startup, §17 spot-checks (drag 1:1, tabs, upload, Back,
-            login persistence).
+            Regressions: §24 (tab switching, compat mode), §23.2 (health
+            sheet), §21 (keyboard toggle one spot/one shape), §20 (deck types
+            into Companion AND terminal), §18 startup, §17 spot-checks
+            (drag 1:1, tabs, upload, Back, login persistence).
           </li>
         </ol>
       </div>
@@ -203,12 +210,12 @@ export default function Home() {
           dotfiles; full history rides in the git bundle — includes the
           complete milestone history, all Phase 3 design contracts, the
           procfs contract, and the Phase 4 Companion design contract with
-          the §22/§23/§24 amendments.
+          the §22/§23/§24/§25 amendments.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.7-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.8-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.7-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.8-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -233,10 +240,11 @@ export default function Home() {
         procfs contract · m4.0 Phase 4 Companion · m4.0.1 startup hotfix ·
         m4.0.2 honest failure surfaces · m4.0.3 one keyboard for everything ·
         m4.0.4 pixels over promises · m4.0.5 the black page attacked at the
-        root · m4.0.6 the page tells us everything ·{" "}
-        <b>v0.7.0-m4.0.7 (this build): the health sheet cracked it — the
-        compat renderer finally reaches the screen, creation rolled back,
-        glass-first probe, attach kick</b>.
+        root · m4.0.6 the page tells us everything · m4.0.7 the host was the
+        bug ·{" "}
+        <b>v0.7.0-m4.0.8 (this build): the painted-but-black decode — the
+        light package returns on top of the fixed host, and the health
+        report now names what is on the glass</b>.
         Your device keeps doing the QA that matters.
       </footer>
     </main>

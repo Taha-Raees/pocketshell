@@ -1,51 +1,45 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0.7 (payload cut at git tip edfde05; the health sheet
-cracked it — the compat renderer never reached the screen and the creation
-recipe was the regression: swap-safe WebView host, creation rolled back to
-the proven activity context, glass-first pixel probe, attach kick —
-versionCode 31)
-- PocketShell-v0.7.0-m4.0.7-debug.apk  sha256 e2c046913fe5b894052f41ab77442163d6937a66101bcc0e0c046923aa358703
-  Installs IN PLACE over v0.7.0-m4.0.6 (30), m4.0.5 (29), m4.0.4 (28),
-  m4.0.3 (27), m4.0.2 (26), m4.0.1 (25), m4.0 (24) and every earlier
-  build (vc16..23) — same pinned cert d96a6f66…8bf659. App data (Alpine
-  runtime, Kilo, Hermes, packages, Companion logins) survives.
-  WHAT FIXED (your Copy report cracked the case — it showed the page is
-  FULLY alive — chat.com: readyState=complete · 761 elements · 62
-  interactive · 394 text chars · zero boot errors — while pixels never
-  presented; a hydrated app with a black canvas is a PRESENTATION
-  failure, and it exposed two real bugs):
-  1. THE COMPAT RENDERER WAS NEVER ON SCREEN: AndroidView runs its
-     factory once per node, so every silently swapped WebView (first-
-     stall compat swap, boot retry, AND plain tab switching) never
-     attached — the device showed a DESTROYED view (the dead black
-     canvas) while the fresh software-mode view loaded invisibly (why
-     pixels read "unknown" forever). The host is now keyed on the view
-     instance: every swap reaches the screen, software mode gets its
-     first REAL test, tab switching stops showing a stale page.
-  2. THE CREATION RECIPE WAS THE REGRESSION: the forced-light
-     configuration context (m4.0.5/6) chased a dark-CSS theory your DOM
-     evidence refutes — m4.0.4 (plain activity context) still painted
-     the cookie banner; m4.0.5/6 (config context) painted NOTHING.
-     Creation is rolled back to the proven activity-context recipe; the
-     Chrome-like UA stays (Google login fix, orthogonal to painting).
-  3. GLASS-FIRST PIXEL PROBE: PixelCopy (the frame as PRESENTED, cropped
-     to the keyboard-free top half) is now the primary verdict; software
-     readback only as fallback; a hung copy times out after 1.5 s (no
-     more "unknown" forever); a throwing fallback never manufactures a
-     stall.
-  4. ATTACH KICK: the pool loads URLs before the view attaches; some
-     Chromium builds never bind the frame sink for such loads (DOM
-     alive, pixels never present — your exact signature). If nothing
-     painted 3.5 s after first layout, ONE silent reload rebinds the
-     load to the live surface. Once per view, never a card.
-  · Full suite green: 764 executions / 0 failures (+1 glass-region pin).
-  Device gate: docs/TESTING.md §24. Full record: docs/CHANGELOG
-  [0.7.0-m4.0.7].
-- PocketShell-v0.7.0-m4.0.7-source.zip sha256 11c7472a3779cc15b86be697a5d4faf1c77ccba9f2afee30996805eab8c8d441  (28M, 305 files)
-- PocketShell-v0.7.0-m4.0.7-source.tar.gz sha256 d662794e83616a151adc66233af3eb27ec888ebe894c154a002f3b12227324b2  (28 MB)
-- pocketshell-m2.gitbundle           sha256 7b6c470265efb00f9c072ed2f64b57cea03f329e7de77a0e5902e594f75ff05d  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md — honest, no rewrites)
+Current: v0.7.0-m4.0.8 (payload cut at git tip 25b826d; the painted-but-
+black decode — the m4.0.7 report showed BOTH tabs painting (GPU and
+software-layer) while the screen stayed black, so the black is the page's
+own near-black output: m4.0.7's rollback had re-armed algorithmic
+darkening (targetSdk 28 ⇒ ON by default on Android 15) and the dark
+prefers-color-scheme. The light package returns ON TOP of the fixed host —
+versionCode 32)
+- PocketShell-v0.7.0-m4.0.8-debug.apk  sha256 6626d8dd51a26c12fa5d6990eb688d1eccf40961541452460c96939a1d33f22c
+  Installs IN PLACE over v0.7.0-m4.0.7 (31), m4.0.6 (30), m4.0.5 (29),
+  m4.0.4 (28), m4.0.3 (27), m4.0.2 (26), m4.0.1 (25), m4.0 (24) and every
+  earlier build (vc16..23) — same pinned cert d96a6f66…8bf659. App data
+  (Alpine runtime, Kilo, Hermes, packages, Companion logins) survives.
+  WHAT FIXED (your m4.0.7 health report cracked it — BOTH tabs answered
+  "pixels: painted", a GPU tab AND a software-layer tab, while you still
+  saw black; a software-layer view cannot fail to reach the screen, so
+  the black IS the page's own painted near-black body):
+  1. FORCED-LIGHT SCHEME: the WebView's configuration is pinned to
+     UI_MODE_NIGHT_NO (the documented prefers-color-scheme lever), so
+     sites ALWAYS serve their light themes — a white body with dark text
+     you can SEE, even when a page's app shell is thin.
+  2. DARKENING OFF at every API level: setAlgorithmicDarkeningAllowed
+     (false) on Android 13+, setForceDark(FORCE_DARK_OFF) on 12 and
+     below; the theme already carries android:forceDarkAllowed=false.
+  3. THE ACTIVITY LOOKUP THE CONFIG CONTEXT BREAKS, FIXED: the glass
+     probe now unwraps ANY context chain to find the hosting Activity,
+     and the pool remembers the host from acquire (a configuration
+     context is not an Activity — a hidden m4.0.6 glass-probe
+     regression).
+  4. THE PROBE CANNOT BE FOOLED AGAIN: the health report now names WHAT
+     IS ON THE GLASS — "glass: dominant #0D0D0D · 97% near-black · 3
+     colors" — plus "scheme: forced light" and the PAGE'S OWN VOICE
+     (title + first visible words). If anything is ever wrong again, one
+     pasted report names the page state with zero guessing.
+  · Full suite green: 772 executions / 0 failures (+4 pins).
+  Device gate: docs/TESTING.md §25. Full record: docs/CHANGELOG
+  [0.7.0-m4.0.8].
+- PocketShell-v0.7.0-m4.0.8-source.zip sha256 7d9b738ae9b83806363e24ac3c9f81ef9d202d4c17c8818f701a4b3dbf64355c  (28M, 306 files)
+- PocketShell-v0.7.0-m4.0.8-source.tar.gz sha256 8e9bd2b5eab347fa94e552c1210f349a9793d76229099e4f54e79603940ef172  (28 MB)
+- pocketshell-m2.gitbundle           sha256 91a01edcb725321329b3c474269863ebbef8e8209321bb75aae10d20936c2ff6  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m4.0.6 superseded by m4.0.7; its records
+Older builds: withdrawn (v0.7.0-m4.0.7 superseded by m4.0.8; its records
 live in the bundle history — see docs/CHANGELOG for each confirmed fix).

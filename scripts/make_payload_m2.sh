@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.7
+VERSION=v0.7.0-m4.0.8
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,46 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.6) — THE HEALTH SHEET CRACKED IT: THE
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.7) — THE PAINTED-BUT-BLACK DECODE: THE
+LIGHT PACKAGE RETURNS, ON TOP OF THE FIXED HOST (still the one job):
+  - WHAT THE M4.0.7 REPORT PROVED: BOTH tabs — a GPU tab AND a software-layer
+    tab — answered "pixels: painted" while you still saw black. A software-
+    layer view cannot fail to reach the screen (the rest of the app renders
+    fine), so the black IS the page's own painted output: the site's
+    near-black body. The probe could not tell you that because it only asks
+    "any pixel differs from the flash-guard" — a #000000 canvas passes.
+  - WHY THE PAGE IS DARK: two dark sources were re-armed by m4.0.7's
+    rollback. PocketShell targets SDK 28 (the proot/W^X constraint), and a
+    legacy-target app on Android 15 gets WebView algorithmic darkening ON
+    by default; and prefers-color-scheme answers DARK because the app is
+    Midnight everywhere — so sites served dark themes on a dark body. The
+    m4.0.5/m4.0.6 light levers had looked guilty only because the
+    never-attaching host (fixed in m4.0.7) made every recipe paint nothing.
+  - FIX 1 — FORCED-LIGHT SCHEME: the WebView's configuration is pinned to
+    UI_MODE_NIGHT_NO (the documented prefers-color-scheme lever), so sites
+    always serve their LIGHT themes — a white body with dark text you can
+    SEE, even when a page's app shell is thin.
+  - FIX 2 — DARKENING OFF at every API level:
+    setAlgorithmicDarkeningAllowed(false) on Android 13+, and the
+    deprecated setForceDark(FORCE_DARK_OFF) on 12 and below; the app theme
+    already carries android:forceDarkAllowed=false.
+  - FIX 3 — THE ACTIVITY LOOKUP THE CONFIG CONTEXT BREAKS, FIXED: the
+    glass probe now unwraps ANY context chain to find the hosting Activity
+    (a configuration context is not an Activity — that was a hidden m4.0.6
+    regression), and the pool remembers the host from acquire.
+  - THE PROBE CANNOT BE FOOLED AGAIN: the health report now names WHAT IS
+    ON THE GLASS — "glass: dominant #0D0D0D · 97% near-black · 3 colors" —
+    plus the scheme line ("scheme: forced light") and the PAGE'S OWN VOICE
+    (its title and first visible words). If anything is ever wrong again,
+    one pasted report names the page state (login wall, consent, empty
+    shell) with zero guessing.
+  - +4 unit pins (color truth, activity unwrapping, uiMode arithmetic —
+    including a fix to the pin itself, and the page-voice parse). Full
+    suite green: 772 executions, 0 failures.
+  - versionCode 32 / 0.7.0-m4.0.8 — in-place update over 16..31; same
+    pinned cert. Device gate: docs/TESTING.md §25.
+
+WHAT WAS NEW IN v0.7.0-m4.0.7 (vs v0.7.0-m4.0.6) — THE HEALTH SHEET CRACKED IT: THE
 COMPAT RENDERER NEVER REACHED THE SCREEN, AND THE CREATION RECIPE WAS THE
 REGRESSION (still the one job; build numbered "4.0.7" per the naming rule):
   - WHAT THE REPORT PROVED: your five Page-health screenshots finally

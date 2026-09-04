@@ -504,3 +504,31 @@ remote development.
 - [x] versionCode 31.
 - [ ] Device gate §24 (tab switching, first REAL compat test, health
       sheet, §17–§23 regressions).
+
+### Phase 4.0.8 (2026-09-05, v0.7.0-m4.0.8) — The painted-but-black decode: the light package returns, on top of the fixed host
+- [x] DECODE (device m4.0.7 health report): both tabs — GPU and software-
+      layer — answered "pixels: painted" while the screen stayed black. A
+      software-layer view cannot fail to reach the screen ⇒ the black IS
+      the page's own near-black output. m4.0.7's creation rollback had
+      re-armed both dark sources: targetSdk 28 ⇒ WebView algorithmic
+      darkening ON by default on Android 15; prefers-color-scheme ⇒ dark
+      because the app is Midnight everywhere. The m4.0.5/6 levers had
+      looked guilty only because the never-attaching host (fixed in
+      4.0.7) made every recipe paint nothing.
+- [x] Forced-light scheme restored, done right: the WebView's
+      configuration pinned to UI_MODE_NIGHT_NO (documented
+      prefers-color-scheme lever) — sites always serve light themes.
+- [x] Darkening OFF at every API level: setAlgorithmicDarkeningAllowed
+      (false) on 33+, setForceDark(FORCE_DARK_OFF) on 29–32 (theme
+      forceDarkAllowed=false already in place). Renderer-priority lever
+      dropped — android-36 stubs removed it from WebSettings.
+- [x] Context-safe activity lookup: RenderProbe.findActivity unwraps any
+      ContextWrapper chain; the pool keeps the host Activity and hands it
+      to the glass probe (a configuration context is not an Activity).
+- [x] The probe cannot be fooled again: colorTruth (dominant color /
+      near-black share / distinct colors) + scheme line + the page's own
+      voice (title + first 100 visible chars) in the health report.
+- [x] +4 unit pins. Full suite: 772 executions / 0 failures.
+- [x] versionCode 32.
+- [ ] Device gate §25 (LIGHT page visible; health report names the
+      glass; escapes honest; §17–§24 regressions).

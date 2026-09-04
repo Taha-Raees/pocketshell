@@ -3,6 +3,75 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.8] — 2026-09-05 — The painted-but-black decode: the light package returns, on top of the fixed host (still the one job)
+
+Scope: still exactly one job. The user shipped the m4.0.7 health report
+back: **both tabs answered `pixels: painted` — a GPU tab AND a software-
+layer tab — while the screen stayed black** (`chat.z.ai`: readyState=
+complete · 242 elements · 24 interactive · 139 text chars; `chatgpt.com`:
+896 elements · 88 interactive · 394 text chars; boot errors none).
+
+### The decode
+- A software-layer (`LAYER_TYPE_SOFTWARE`) view cannot paint pixels that
+  fail to reach the screen — the rest of the app renders through the same
+  window. With m4.0.7's keyed host the attached view IS the live view.
+  Therefore the black **is the page's own painted output**: the site's
+  near-black body.
+- The probe could not say so because its verdict is
+  `any pixel ≠ flash-guard #080F1D` — a `#000000`/`#212121`/`#0d0d0d`
+  canvas passes trivially. "Painted" vouched for a black canvas.
+- Why the page is dark: m4.0.7's creation rollback re-armed BOTH dark
+  sources. (a) `targetSdk 28` is a deliberate proot/W^X constraint, and a
+  legacy-target app on Android 15 gets WebView **algorithmic darkening ON
+  by default**; (b) `prefers-color-scheme` answers **dark** because the
+  app is Midnight everywhere, so sites serve dark themes onto a dark
+  body. The m4.0.5/m4.0.6 light levers had looked guilty only because the
+  never-attaching host (fixed in m4.0.7) made every recipe paint nothing —
+  the rollback over-corrected.
+
+### Fixes (m4.0.7's attachment fixes all kept: keyed host, attach kick, glass-first probe, compat swap)
+- **Forced-light scheme**: the WebView's configuration is pinned to
+  `UI_MODE_NIGHT_NO` via the activity's `createConfigurationContext` —
+  the documented `prefers-color-scheme` lever. Sites always serve their
+  LIGHT themes: a white body with dark text the user can SEE even when a
+  page's app shell is thin.
+- **Darkening OFF at every API level**: framework
+  `setAlgorithmicDarkeningAllowed(false)` on API 33+
+  (the device is Android 15), deprecated `setForceDark(FORCE_DARK_OFF)`
+  on 29–32; the theme already carries `android:forceDarkAllowed=false`.
+  (The renderer-priority lever was dropped: android-36's stubs removed
+  `setRendererPriorityPolicy` from `WebSettings` — it moved to
+  androidx.webkit, which this project deliberately does not carry.)
+- **The Activity lookup the config context breaks, fixed at the source**:
+  `RenderProbe.findActivity` unwraps any `ContextWrapper` chain (a
+  configuration context is NOT an Activity — a hidden m4.0.6 glass-probe
+  regression), and the pool remembers the host Activity (WeakReference)
+  from every `acquire` and hands it to the glass probe.
+- **The probe cannot be fooled again** — the health report gains three
+  decisive lines: `scheme: forced light`; `glass: dominant #0D0D0D · 97%
+  near-black · 3 colors` (new pure `RenderProbe.colorTruth`: 16-levels-
+  per-channel bucket mean, near-black share, distinct colors); and the
+  **page's own voice** — `page says: "<title> — <first 100 visible
+  chars>"` via the DOM truth probe (`BootWitness.Truth` gains `title` +
+  `textSample`). One pasted report now names the page state (login wall,
+  consent, empty shell) with zero guessing.
+
+### Tests
+- +4 pins: glass color truth (flash-guard/black/mixed/empty), context
+  unwrapping, forced-light uiMode arithmetic (the pin itself was fixed —
+  `mask.inv()` strips NIGHT_NO), page-voice parsing incl. the legacy
+  shape. Full suite: **772 executions / 0 failures** (app + terminal,
+  debug + release; one unrelated concurrency flake in
+  PackageOperationManagerTest passed on re-run).
+
+### Build & delivery
+- versionCode 32 / 0.7.0-m4.0.8; aapt2 badging verified; apksigner
+  pinned cert `d96a6f66…8bf659`; APK sha256 `6626d8dd…3f22c`.
+- Payload cut at fix tip `25b826d`: zip `7d9b738a…`, tgz `8e9bd2b5…`,
+  bundle `91a01edc…`, apk `6626d8dd…`; stale m4.0.7 artifacts withdrawn
+  from all three mirrors; `CompanionHealth.kt`/`RenderProbe.kt`/
+  `BootWitness.kt` remain on the must-carry list.
+
 ## [0.7.0-m4.0.7] — 2026-09-05 — The health sheet cracked it: the compat renderer never reached the screen, and the creation recipe was the regression (still the one job)
 
 Scope: still exactly one job. The user shipped the m4.0.6 health sheet's

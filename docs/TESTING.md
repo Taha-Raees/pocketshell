@@ -1206,3 +1206,52 @@ m4.0.6's recipe painted nothing).
       retry intact (card only after BOTH modes stall).
 - [ ] §17/§18: drag 1:1 with frozen reflow, login persistence across
       restart, startup never touches android.webkit.
+
+## 25. Manual acceptance — m4.0.8 (the painted-but-black decode: the light package returns on top of the fixed host, v0.7.0-m4.0.8) — DEVICE GATE PENDING
+
+Still the one job. The m4.0.7 health report decoded the state: BOTH tabs
+painted (GPU tab and software-layer tab) while the screen stayed black —
+so the black is the page's own near-black output, not a presentation
+failure. m4.0.7's rollback had re-armed both dark sources (targetSdk 28
+⇒ algorithmic darkening ON by default on Android 15; prefers-color-scheme
+⇒ dark because the app is Midnight). This build re-applies the light
+package ON TOP of the fixed host and makes the health report
+color-truthful.
+
+### 25.1 The main event: LIGHT page visible
+- [ ] Install vc32 in place (over vc31); app data must survive
+      (logins, tabs, panel height).
+- [ ] Open the ChatGPT Companion. EXPECT the LIGHT (white) ChatGPT theme
+      with visible dark text — NOT black, NOT near-black. A login wall is
+      an acceptable and DIAGNOSABLE state; pure black is not.
+- [ ] Open the Zai Companion. EXPECT the same: a light, readable page.
+- [ ] Let both tabs run 30+ seconds: no failure card while a page is
+      actually visible.
+- [ ] Log in if asked (the Chrome-like UA keeps Google logins accepted);
+      login persistence still applies (§18).
+
+### 25.2 The health report must now name the glass
+- [ ] Tab strip ⓘ chip → Page health. EXPECT the new lines:
+      `scheme: forced light` and
+      `glass: dominant #XXXXXX · N% near-black · N colors`, plus
+      `page says: "<title> — <first words>"`.
+- [ ] Copy report and paste it into the chat IF anything still looks
+      wrong. The glass line names the exact on-screen color — a
+      `dominant #000000 · 99% near-black` answer is a page-state verdict,
+      no more guessing.
+
+### 25.3 Escapes still honest
+- [ ] Page health → Reload, and → Reload in compatibility mode, both
+      still re-create the tab and show a page (the compat path now ALSO
+      gets the light package).
+- [ ] Back, drag-handle, tab switching behave as in §24.2 (the keyed
+      host is untouched).
+
+### 25.4 Regression
+- [ ] §24 spot-checks repeat in one pass: tab switching shows the
+      selected tab's page with state intact; first-stall silent retry
+      never flashes a card while a page renders.
+- [ ] §17/§18: drag 1:1, login persistence across restart, startup never
+      touches android.webkit.
+- [ ] Terminal/Home untouched (Midnight stays Midnight — only the
+      WebView's scheme is forced light).

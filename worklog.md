@@ -987,3 +987,26 @@ Work Log:
 
 Stage Summary:
 - The black Companion case is CLOSED at the code level: two real bugs (never-attaching swaps + regressive creation recipe) fixed, the probe now measures what the user sees, and the compat renderer gets its first real device test. APK vc31 delivered three-way; device gate §24 pending (tab switching + compat mode are the tells).
+
+---
+Task ID: 51
+Agent: Super Z (main)
+Task: m4.0.8 — THE job: fix the black Companion screen (the m4.0.7 "painted but black" health report decoded)
+
+Work Log:
+- Read the user's pasted m4.0.7 health reports: BOTH tabs (Zai GPU, ChatGPT software-layer) answered "pixels: painted" — DOM complete, 242/896 elements, boot errors none — while the user still saw black. No new screenshots existed (the 5 from 22:29 were the ones decoded in the m4.0.7 session).
+- Re-read worklog/git log (recovered m4.0.5–m4.0.7 state), then every companion source file: CompanionWebPool, RenderProbe, BootWitness, ConsoleTail, CompanionHealth, CompanionLayer (host + health sheet), build.gradle (targetSdk 28 confirmed; vc31), themes.xml (forceDarkAllowed=false present).
+- THE DECODE: a LAYER_TYPE_SOFTWARE view cannot paint pixels that fail to reach the screen (the rest of the app renders through the same window), and m4.0.7's keyed host guarantees the attached view IS the live view ⇒ the black IS the page's own painted near-black output. The probe's verdict ("any pixel ≠ flash-guard #080F1D") is color-blind — a #000000 canvas passes. Dark sources re-armed by m4.0.7's rollback: targetSdk 28 ⇒ algorithmic darkening ON by default on Android 15; prefers-color-scheme ⇒ dark (app is Midnight everywhere). The m4.0.5/6 levers looked guilty only because the never-attaching host (fixed m4.0.7) made every recipe paint nothing.
+- FIX: createWebView re-applies the light package on top of the fixed host — forced-light createConfigurationContext (uiMode pinned NIGHT_NO via pure RenderProbe.forcedLightUiMode), setAlgorithmicDarkeningAllowed(false) guarded 33+, setForceDark(FORCE_DARK_OFF) guarded 29–32. Renderer-priority lever DROPPED (javap on android-36: setRendererPriorityPolicy no longer on WebSettings — androidx.webkit only).
+- RenderProbe.findActivity unwraps ContextWrapper chains (config context is not an Activity — hidden m4.0.6 glass-probe regression); pool keeps host Activity (WeakReference) from acquire and passes it to the probe.
+- RenderProbe.colorTruth (dominant color via 16-level/channel bucket mean, near-black %, distinct colors) + Reading(painted, colors); TabEntry.lastColors + scheme; healthFacts extended; CompanionHealth gains "scheme:", "glass: dominant #… · N% near-black · N colors", and the PAGE'S VOICE line.
+- BootWitness: DOM_TRUTH_JS now captures document.title (80) + body.innerText sample (100, whitespace-collapsed); Truth.title/textSample with defaults (legacy answers keep parsing).
+- Tests: +4 pins (color truth, findActivity, uiMode arithmetic — the pin's own mask.inv() was wrong and fixed, page-voice parse incl. legacy shape); testOptions.unitTests.isReturnDefaultValues=true for the ContextWrapper pin. One unrelated concurrency flake (PackageOperationManagerTest "cancel destroys the process") passed on isolated re-run. Full suite: 772 executions / 0 failures.
+- Build: vc32 / 0.7.0-m4.0.8 verified (aapt2 badging; apksigner pinned cert d96a6f66…8bf659); APK sha256 6626d8dd…3f22c.
+- Delivery: fix commit 25b826d → payload cut #1 → mirror step accidentally deleted the version-less gitbundle (stale-cleanup pattern too broad) → re-cut at the SAME tip (bundle 91a01edc…, zip 7d9b738a…, tgz 8e9bd2b5…, apk unchanged 6626d8dd…) → careful three-way mirror (public/ + dist-master/ + download/), stale m4.0.7 withdrawn, all four artifacts sha-verified across mirrors → dev server restarted on :3000, all artifacts HTTP 206, page serves m4.0.8.
+- Docs: CHANGELOG [0.7.0-m4.0.8], TESTING §25 device gate (25.1 LIGHT page visible, 25.2 health names the glass, 25.3 escapes honest, 25.4 regressions), ROADMAP Phase 4.0.8, page.tsx (hero/update/scope/§25 quick-checks/footer + hashes), download/README.md (new hashes + fix story), make_payload_m2.sh (VERSION + WHAT-IS-NEW, m4.0.7 block demoted).
+
+Stage Summary:
+- v0.7.0-m4.0.8 (vc32) delivered end-to-end. The black-page case now has a coherent causal story covering EVERY build: m4.0.3/4 dark shell (force-dark era, banner painted), m4.0.5/6 dead canvas (never-attaching host), m4.0.7 live canvas painted near-black (host fixed, levers rolled back), m4.0.8 light package re-applied ON TOP of the fixed host + a color-truthful health report.
+- THE ASK TO THE USER: install vc32 in place. EXPECT the LIGHT (white) theme on both tabs. If ANYTHING is still wrong: ⓘ chip → Copy report → paste — the report now names the glass color, the scheme, and the page's own words, so the next step is targeted with zero guessing.
+- Carried tasks unchanged: Kilo tile direct launch; CommandApps.kt registry de-hardcoding; Diagnostics/Package Manager/Settings redesign to Home 3.3/3.4 language; deferred keyboard-toggle Bug 2 (§20.3 shape fixed in m4.0.4).
