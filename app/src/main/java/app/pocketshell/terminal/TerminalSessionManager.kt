@@ -3,6 +3,7 @@ package app.pocketshell.terminal
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import app.pocketshell.apps.guestLaunchChain
 import app.pocketshell.packages.GuestSessionPreparation
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.runtime.GuestApkCompat
@@ -126,31 +127,36 @@ object TerminalSessionManager {
 
     /**
      * Phase 3.2 — launch a command-launchable app (docs/PHASE-3.2-DESIGN.md
-     * §4.3): the general form of [createLinuxAppSession] — a NEW dedicated
-     * guest login-shell session whose PTY receives [launchCommand]. The typed
-     * command stays visible in the session's scrollback; exiting the app
-     * returns to the guest shell prompt. The machinery (builder, proot spec,
-     * login shell, quoting defense) is byte-identical to the CLI-app path:
-     * what the launcher does is exactly what typing the command would do.
+     * §4.3, launch fixed in v0.7.0-m3.5): a NEW dedicated guest session whose
+     * login shell receives [launchCommand] through its ARGV —
+     * `sh -l -c "<command>; exec sh -l"` (see [guestLaunchChain]).
+     *
+     * The previous form wrote the command into the PTY right after
+     * construction — but TerminalSession forks the process only when the view
+     * first renders the session, and write() drops bytes while no process
+     * exists, so the command was silently lost and the user got a plain shell.
+     * The argv form is timing-independent: the login shell itself runs the
+     * command whenever the view attaches, then the exec'd shell takes over —
+     * exiting the app returns to the guest prompt, same as before.
+     *
+     * The machinery (builder, proot spec, login shell) is byte-identical to
+     * the Linux Shell path; this ONE path serves both the command-app
+     * registry and the catalog CLI apps — nothing is per-app special-cased.
      */
     fun createLinuxCommandSession(
         context: Context,
         label: String,
         launchCommand: List<String>,
     ): SessionEntry {
-        val shellEntry = createLinuxSessionInternal(
+        val chain = guestLaunchChain(
+            launchCommand = launchCommand,
+            guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+        )
+        return createLinuxSessionInternal(
             context,
-            guestCommand = listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
+            guestCommand = listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l", "-c", chain),
             label = label,
         )
-        val command = launchCommand.joinToString(" ") { token ->
-            // launch commands are plain argv tokens (pinned by tests); the
-            // quote is defense in depth, never a substitute for validation
-            if (token.matches(Regex("[A-Za-z0-9._/+%-]+"))) token else "'$token'"
-        }
-        val bytes = (command + "\n").toByteArray(Charsets.UTF_8)
-        shellEntry.session.write(bytes, 0, bytes.size)
-        return shellEntry
     }
 
     private fun createLinuxSessionInternal(

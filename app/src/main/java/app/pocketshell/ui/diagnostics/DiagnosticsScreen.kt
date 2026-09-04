@@ -2,19 +2,15 @@ package app.pocketshell.ui.diagnostics
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,7 +18,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -34,15 +29,27 @@ import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimePin
 import app.pocketshell.runtime.RuntimeState
 import app.pocketshell.runtime.RuntimeStorage
+import app.pocketshell.ui.home.HomeTokens
+import app.pocketshell.ui.system.FactState
+import app.pocketshell.ui.system.MidnightBanner
+import app.pocketshell.ui.system.MidnightFactRow
+import app.pocketshell.ui.system.MidnightFilledButton
+import app.pocketshell.ui.system.MidnightNote
+import app.pocketshell.ui.system.MidnightPageScaffold
+import app.pocketshell.ui.system.MidnightQuietButton
+import app.pocketshell.ui.system.MidnightSectionDivider
+import app.pocketshell.ui.system.MidnightSectionLabel
 
 /**
  * Diagnostics (brief §diagnostics): read-only facts about the real runtime.
  * No simulated values, no "everything looks great" decoration.
  *
- * Phase 3.4 (docs/PHASE-3.4-DESIGN.md §5): one hierarchy for every section —
- * full-width divider + header (System / Linux runtime / Package environment),
- * then plain label/value fact rows with a uniform rhythm. No internal
- * per-row dividers: the section is the separation unit, not the row.
+ * Phase 3.5 (docs/PHASE-3.5-DESIGN.md §4): the page joins the Midnight
+ * Sapphire system — mono section labels, hairline dividers, mono fact values
+ * with honest state coloring (Sapphire = confirmed-good, danger =
+ * confirmed-bad). The 3.4 structure is unchanged: one hierarchy — System /
+ * Linux runtime / Package environment — and actions carry exactly two
+ * weights: filled Sapphire (install/retry) and quiet hairline (remove/check).
  */
 @Composable
 fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -56,210 +63,227 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val runtimeReport = remember(runtimeState) {
         RuntimeDiagnostics.report(storage, runtimeState)
     }
+    val scope = rememberCoroutineScope()
+    var pkgReport by remember { mutableStateOf<app.pocketshell.packages.PackageEnvironmentReport?>(null) }
+    var pkgChecking by remember { mutableStateOf(false) }
+    var pkgError by remember { mutableStateOf<String?>(null) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-    ) {
-        Row(
+    MidnightPageScaffold(title = "Diagnostics", onBack = onBack, modifier = modifier) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .verticalScroll(rememberScrollState()),
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = "Back")
-            }
-            Text("Diagnostics", style = MaterialTheme.typography.titleLarge)
-        }
+            Spacer(Modifier.height(8.dp))
 
-        Text(
-            text = "System",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
-        rows.forEach { row ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = row.label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(0.42f),
-                )
-                Text(
-                    text = row.value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = when (row.ok) {
-                        true -> MaterialTheme.colorScheme.primary
-                        false -> MaterialTheme.colorScheme.error
-                        null -> MaterialTheme.colorScheme.onSurface
+            // ---- System ----------------------------------------------------
+            MidnightSectionLabel("System")
+            Spacer(Modifier.height(4.dp))
+            rows.forEach { row ->
+                MidnightFactRow(
+                    label = row.label,
+                    value = row.value,
+                    valueState = when (row.ok) {
+                        true -> FactState.OK
+                        false -> FactState.FAIL
+                        null -> FactState.NEUTRAL
                     },
-                    modifier = Modifier.weight(0.58f),
                 )
             }
-        }
 
-        // ---- M2.2: Linux runtime facts + install controls ------------------
-        HorizontalDivider(Modifier.padding(top = 10.dp))
-        Text(
-            text = "Linux runtime",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
-        RuntimeFactRow("State", runtimeState.name)
-        RuntimeFactRow(
-            "Distribution",
-            if (runtimeState.expectsRuntimeOnDisk) {
-                runtimeReport.metadata
-                    ?.let { "${it.distribution} ${it.distributionVersion} (${it.architecture})" }
-                    ?: "metadata unreadable"
-            } else {
-                "${RuntimePin.DISTRIBUTION} ${RuntimePin.DISTRIBUTION_VERSION} (not installed)"
-            },
-        )
-        RuntimeFactRow(
-            "Runtime size",
-            runtimeReport.runtimeSizeBytes?.let(RuntimeDiagnostics::formatBytes) ?: "—",
-        )
-        RuntimeFactRow("Free space", RuntimeDiagnostics.formatBytes(runtimeReport.freeBytes))
-        runtimeReport.rootfsEntryCount?.let {
-            RuntimeFactRow("Rootfs files", it.toString())
-        }
-        runtimeEvent?.let { event ->
-            RuntimeFactRow("Last event", describe(event))
-        }
+            MidnightSectionDivider()
+            Spacer(Modifier.height(12.dp))
 
-        val actionLabel = when {
-            runtimeState == RuntimeState.READY -> "Remove runtime"
-            runtimeState == RuntimeState.NOT_INSTALLED -> "Install Linux environment"
-            runtimeState == RuntimeState.UNSUPPORTED_ABI -> "Unsupported ABI on this device"
-            runtimeState == RuntimeState.FAILED ||
-                runtimeState == RuntimeState.REPAIR_REQUIRED -> "Retry install"
-            else -> null // in-flight states: no action, honest silence
-        }
-        actionLabel?.let { label ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            ) {
-                if (runtimeState == RuntimeState.READY) {
-                    OutlinedButton(
-                        onClick = { RuntimeManager.remove() },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(label)
-                    }
+            // ---- Linux runtime ----------------------------------------------
+            MidnightSectionLabel("Linux runtime")
+            Spacer(Modifier.height(4.dp))
+            MidnightFactRow(
+                label = "State",
+                value = runtimeState.name,
+                valueState = when (runtimeState) {
+                    RuntimeState.READY -> FactState.OK
+                    RuntimeState.FAILED, RuntimeState.REPAIR_REQUIRED, RuntimeState.UNSUPPORTED_ABI ->
+                        FactState.FAIL
+                    else -> FactState.NEUTRAL
+                },
+            )
+            MidnightFactRow(
+                label = "Distribution",
+                value = if (runtimeState.expectsRuntimeOnDisk) {
+                    runtimeReport.metadata
+                        ?.let { "${it.distribution} ${it.distributionVersion} (${it.architecture})" }
+                        ?: "metadata unreadable"
                 } else {
-                    Button(
-                        onClick = {
-                            if (runtimeState == RuntimeState.REPAIR_REQUIRED) {
-                                RuntimeManager.repair()
-                            } else {
-                                RuntimeManager.startInstall()
-                            }
-                        },
-                        enabled = runtimeState != RuntimeState.UNSUPPORTED_ABI,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(label)
+                    "${RuntimePin.DISTRIBUTION} ${RuntimePin.DISTRIBUTION_VERSION} (not installed)"
+                },
+            )
+            MidnightFactRow(
+                label = "Runtime size",
+                value = runtimeReport.runtimeSizeBytes?.let(RuntimeDiagnostics::formatBytes) ?: "—",
+            )
+            MidnightFactRow("Free space", RuntimeDiagnostics.formatBytes(runtimeReport.freeBytes))
+            runtimeReport.rootfsEntryCount?.let {
+                MidnightFactRow("Rootfs files", it.toString())
+            }
+            runtimeEvent?.let { event ->
+                MidnightFactRow(
+                    label = "Last event",
+                    value = describe(event),
+                    valueState = if (event is app.pocketshell.runtime.RuntimeInstallEvent.Failed) {
+                        FactState.FAIL
+                    } else {
+                        FactState.NEUTRAL
+                    },
+                )
+            }
+
+            val actionLabel = when {
+                runtimeState == RuntimeState.READY -> "Remove runtime"
+                runtimeState == RuntimeState.NOT_INSTALLED -> "Install Linux environment"
+                runtimeState == RuntimeState.UNSUPPORTED_ABI -> "Unsupported ABI on this device"
+                runtimeState == RuntimeState.FAILED ||
+                    runtimeState == RuntimeState.REPAIR_REQUIRED -> "Retry install"
+                else -> null // in-flight states: no action, honest silence
+            }
+            actionLabel?.let { label ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                ) {
+                    if (runtimeState == RuntimeState.READY) {
+                        MidnightQuietButton(
+                            text = label,
+                            onClick = { RuntimeManager.remove() },
+                            destructive = true,
+                        )
+                    } else {
+                        MidnightFilledButton(
+                            text = label,
+                            onClick = {
+                                if (runtimeState == RuntimeState.REPAIR_REQUIRED) {
+                                    RuntimeManager.repair()
+                                } else {
+                                    RuntimeManager.startInstall()
+                                }
+                            },
+                            enabled = runtimeState != RuntimeState.UNSUPPORTED_ABI,
+                        )
                     }
                 }
             }
-        }
-        if (runtimeState == RuntimeState.UNSUPPORTED_ABI) {
-            Text(
-                text = "M2 runtime ships an aarch64 (arm64-v8a) rootfs, " +
-                    "which this device does not report among its supported ABIs.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
-
-        // ---- M2.4: package environment (explicit check only) ---------------
-        // Nothing here runs on open: the check execs the guest (`apk
-        // --version`) and reads package config files — only because the user
-        // pressed the button. No network, no database writes.
-        HorizontalDivider(Modifier.padding(top = 10.dp))
-        Text(
-            text = "Package environment",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
-        Text(
-            text = "Nothing is checked automatically — press the button. " +
-                "The check includes one real apk update (network) so failures show their true cause.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        val scope = rememberCoroutineScope()
-        var pkgReport by remember { mutableStateOf<app.pocketshell.packages.PackageEnvironmentReport?>(null) }
-        var pkgChecking by remember { mutableStateOf(false) }
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        ) {
-            OutlinedButton(
-                onClick = {
-                    pkgChecking = true
-                    scope.launch {
-                        pkgReport = try {
-                            app.pocketshell.packages.PackageGateway.checkEnvironment()
-                        } finally {
-                            pkgChecking = false
-                        }
-                    }
-                },
-                enabled = !pkgChecking,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (pkgChecking) "Checking…" else "Check package environment")
+            if (runtimeState == RuntimeState.UNSUPPORTED_ABI) {
+                MidnightNote(
+                    text = "M2 runtime ships an aarch64 (arm64-v8a) rootfs, " +
+                        "which this device does not report among its supported ABIs.",
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
             }
-        }
-        pkgReport?.let { report ->
-            RuntimeFactRow("Runtime", if (report.runtimeReady) "READY" else "not READY")
-            RuntimeFactRow(
-                "apk",
-                report.apkVersion ?: report.apkError ?: "—",
+
+            MidnightSectionDivider()
+            Spacer(Modifier.height(12.dp))
+
+            // ---- Package environment (explicit check only) -------------------
+            // Nothing here runs on open: the check execs the guest (`apk
+            // --version`) and reads package config files — only because the
+            // user pressed the button. No network, no database writes.
+            MidnightSectionLabel("Package environment")
+            Spacer(Modifier.height(4.dp))
+            MidnightNote(
+                text = "Nothing is checked automatically — press the button. " +
+                    "The check includes one real apk update (network) so failures show their true cause.",
             )
-            RuntimeFactRow(
-                "Repositories",
-                report.repositories?.joinToString(", ") ?: "—",
-            )
-            RuntimeFactRow(
-                "Package database",
-                report.worldPackages?.let { "present ($it packages in world)" } ?: "unreadable",
-            )
-            RuntimeFactRow(
-                "Guest DNS",
-                when {
-                    report.dnsServers?.isNotEmpty() == true ->
-                        report.dnsServers.joinToString(", ") +
-                            " — " + (report.dnsSource ?: "")
-                    report.dnsConfigured -> "configured — " + (report.dnsSource ?: "")
-                    else -> "missing (repairs on first package operation)"
-                },
-            )
-            RuntimeFactRow(
-                "Repository fetch",
-                when {
-                    report.updateProbeOk == null -> "not probed"
-                    report.updateProbeOk == true -> "OK — ${(report.updateProbeDetail ?: "").take(120)}"
-                    else -> "FAILED — ${(report.updateProbeDetail ?: "unknown error").take(200)}"
-                },
-            )
-            RuntimeFactRow("apk fd-link patch", report.apkFdLinkPatch ?: "—")
-            RuntimeFactRow("Interactive /proc", report.guestProcPolicy ?: "—")
-            RuntimeFactRow("sysdata overlays", report.sysDataOverlays ?: "—")
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+            ) {
+                MidnightQuietButton(
+                    text = if (pkgChecking) "Checking…" else "Check package environment",
+                    onClick = {
+                        pkgChecking = true
+                        pkgError = null
+                        scope.launch {
+                            pkgReport = try {
+                                app.pocketshell.packages.PackageGateway.checkEnvironment()
+                            } catch (t: Throwable) {
+                                pkgError = t.message ?: t.javaClass.simpleName
+                                null
+                            } finally {
+                                pkgChecking = false
+                            }
+                        }
+                    },
+                    enabled = !pkgChecking,
+                )
+            }
+            pkgError?.let {
+                MidnightBanner(message = "Check failed: $it", modifier = Modifier.padding(horizontal = 20.dp))
+                Spacer(Modifier.height(8.dp))
+            }
+            pkgReport?.let { report ->
+                val inColumn = Modifier.padding(horizontal = 20.dp)
+                Column(inColumn) {
+                    MidnightFactRow(
+                        label = "Runtime",
+                        value = if (report.runtimeReady) "READY" else "not READY",
+                        valueState = if (report.runtimeReady) FactState.OK else FactState.FAIL,
+                    )
+                    MidnightFactRow("apk", report.apkVersion ?: report.apkError ?: "—")
+                    MidnightFactRow("Repositories", report.repositories?.joinToString(", ") ?: "—")
+                    MidnightFactRow(
+                        "Package database",
+                        report.worldPackages?.let { "present ($it packages in world)" } ?: "unreadable",
+                    )
+                    MidnightFactRow(
+                        "Guest DNS",
+                        when {
+                            report.dnsServers?.isNotEmpty() == true ->
+                                report.dnsServers.joinToString(", ") +
+                                    " — " + (report.dnsSource ?: "")
+                            report.dnsConfigured -> "configured — " + (report.dnsSource ?: "")
+                            else -> "missing (repairs on first package operation)"
+                        },
+                    )
+                    MidnightFactRow(
+                        label = "Repository fetch",
+                        value = when {
+                            report.updateProbeOk == null -> "not probed"
+                            report.updateProbeOk == true -> "OK — ${(report.updateProbeDetail ?: "").take(120)}"
+                            else -> "FAILED — ${(report.updateProbeDetail ?: "unknown error").take(200)}"
+                        },
+                        valueState = when (report.updateProbeOk) {
+                            true -> FactState.OK
+                            false -> FactState.FAIL
+                            null -> FactState.NEUTRAL
+                        },
+                    )
+                    MidnightFactRow("apk fd-link patch", report.apkFdLinkPatch ?: "—")
+                    MidnightFactRow("Interactive /proc", report.guestProcPolicy ?: "—")
+                    MidnightFactRow("sysdata overlays", report.sysDataOverlays ?: "—")
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+            if (pkgChecking) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = HomeTokens.accent,
+                    )
+                    Spacer(Modifier.padding(4.dp))
+                    Text(
+                        text = "Asking the real guest…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.textDim,
+                    )
+                }
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -276,26 +300,4 @@ private fun describe(event: app.pocketshell.runtime.RuntimeInstallEvent): String
     app.pocketshell.runtime.RuntimeInstallEvent.Configured -> "configured, promoting"
     app.pocketshell.runtime.RuntimeInstallEvent.Ready -> "ready"
     is app.pocketshell.runtime.RuntimeInstallEvent.Failed -> "failed: ${event.message}"
-}
-
-@Composable
-private fun RuntimeFactRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.42f),
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(0.58f),
-        )
-    }
 }

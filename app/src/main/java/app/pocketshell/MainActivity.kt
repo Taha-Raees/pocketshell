@@ -79,8 +79,9 @@ fun PocketShellRoot(
     val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
 
     // Phase 3.2 — status-bar icon appearance follows the SURFACE under the
-    // bar: home and terminal render the fixed Midnight Sapphire chrome in
-    // every app theme (light icons); other screens follow the app theme.
+    // bar: since Phase 3.5 every screen renders the fixed Midnight Sapphire
+    // chrome (Home, Terminal, and the system pages alike), so every screen
+    // takes light icons; the when remains for any future app-themed screen.
     val view = LocalView.current
     val themeDark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -92,7 +93,7 @@ fun PocketShellRoot(
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
         if (controller != null) {
             controller.isAppearanceLightStatusBars = when (screen) {
-                "home", "terminal" -> false
+                "home", "terminal", "explore", "settings", "diagnostics" -> false
                 else -> !themeDark
             }
         }

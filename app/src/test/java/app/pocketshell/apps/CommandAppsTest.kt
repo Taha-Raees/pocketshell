@@ -148,6 +148,46 @@ class CommandAppsTest {
         assertEquals(null, CommandAppCatalog.byId("not-a-real-app"))
     }
 
+    // --------------------------------------------------- v0.7.0-m3.5 launch fix
+
+    @Test
+    fun `guestLaunchChain runs the command through shell argv with an exec fallback`() {
+        // The m3.4 regression: the PTY write after construction was a silent
+        // no-op (the process does not exist until the view renders it), so a
+        // tapped tile opened a PLAIN shell. The chain must deliver the
+        // command as the login shell's -c argv and exec a fresh login shell
+        // after the app exits.
+        val chain = guestLaunchChain(listOf("kilo"), "/bin/sh")
+        assertEquals("kilo; exec /bin/sh -l", chain)
+    }
+
+    @Test
+    fun `guestLaunchChain joins multi-token commands and keeps the fallback last`() {
+        val chain = guestLaunchChain(listOf("npm", "exec", "kilo", "--profile", "ci"), "/bin/sh")
+        assertEquals("npm exec kilo --profile ci; exec /bin/sh -l", chain)
+    }
+
+    @Test
+    fun `guestLaunchChain quotes unsafe tokens as defense in depth`() {
+        val chain = guestLaunchChain(listOf("my app", "--flag"), "/bin/sh")
+        assertEquals("'my app' --flag; exec /bin/sh -l", chain)
+    }
+
+    @Test
+    fun `every registry app builds a chain that execs back to the guest shell`() {
+        for (app in CommandAppCatalog.registry) {
+            val chain = guestLaunchChain(app.launchCommand, "/bin/sh")
+            assertTrue(
+                "${app.id} chain must end with the login-shell fallback",
+                chain.endsWith("; exec /bin/sh -l"),
+            )
+            assertTrue(
+                "${app.id} command must lead the chain",
+                chain.startsWith(app.launchCommand.first()),
+            )
+        }
+    }
+
     private fun assertNotEquals(expected: String, actual: String) {
         assertFalse("expected not to equal '$expected'", expected == actual)
     }

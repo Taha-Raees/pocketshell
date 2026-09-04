@@ -129,6 +129,34 @@ object CommandAppCatalog {
 fun CommandApp.probeName(): String = launchCommand.first()
 
 /**
+ * Phase 3.5 — the ONE guest launch path (v0.7.0-m3.5 regression fix).
+ *
+ * The command is delivered to the guest shell through its ARGV —
+ * `sh -l -c "<command>; exec sh -l"` — never through a PTY write after
+ * spawn. The PTY write was a silent no-op: TerminalSession only forks the
+ * process when the view first renders it (initializeEmulator ← updateSize),
+ * and write() drops bytes while mShellPid == 0. The argv form is
+ * deterministic — the login shell reads its profiles and then runs the
+ * command itself, exactly what typing it would do, whenever the view
+ * attaches. When the app exits, the exec'd login shell takes over and the
+ * user lands at a real prompt.
+ *
+ * Pure and test-pinned: [CommandAppsTest] locks the quoting, the single
+ * form, and the trailing `exec` fallback.
+ */
+fun guestLaunchChain(
+    launchCommand: List<String>,
+    guestShell: String,
+): String {
+    val command = launchCommand.joinToString(" ") { token ->
+        // launch commands are plain argv tokens (pinned by tests); the quote
+        // is defense in depth, never a substitute for validation
+        if (token.matches(Regex("[A-Za-z0-9._/+%-]+"))) token else "'$token'"
+    }
+    return "$command; exec $guestShell -l"
+}
+
+/**
  * Classification (pure, test-pinned): the registry subset the REAL guest
  * answer confirms, in registry order. Anything absent from [paths] is absent
  * from the launcher — this function never adds an app the guest did not name,

@@ -3,26 +3,19 @@ package app.pocketshell.ui.apps
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,7 +28,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.TerminalViewModel
 import app.pocketshell.packages.ApkOutputParser
@@ -48,6 +43,16 @@ import app.pocketshell.packages.PackageSearchResult
 import app.pocketshell.packages.packageOperationTargetsCard
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeState
+import app.pocketshell.ui.home.HomeTokens
+import app.pocketshell.ui.system.MidnightBanner
+import app.pocketshell.ui.system.MidnightCard
+import app.pocketshell.ui.system.MidnightFilledButton
+import app.pocketshell.ui.system.MidnightNote
+import app.pocketshell.ui.system.MidnightPageScaffold
+import app.pocketshell.ui.system.MidnightQuietButton
+import app.pocketshell.ui.system.MidnightSectionLabel
+import app.pocketshell.ui.system.MidnightTextField
+import app.pocketshell.ui.theme.TerminalTheme
 import kotlinx.coroutines.launch
 
 /**
@@ -58,11 +63,13 @@ import kotlinx.coroutines.launch
  * real apk transactions observed through [PackageGateway.operations]. The
  * catalog below is metadata only; it can never claim an installed state.
  *
- * Phase 3.4 (docs/PHASE-3.4-DESIGN.md §3): the not-ready state is inline
- * text on the canvas — never a container (the 3.3 §9 rule) — and carries a
- * working `Open Diagnostics` affordance because that is where the runtime is
- * installed. Per-package surfaces stay: they are real objects (an installable
- * package with actions), which the 3.3 §4 card rules explicitly allow.
+ * Phase 3.5 (docs/PHASE-3.5-DESIGN.md §5): the page joins the Midnight
+ * Sapphire system. The search field is the quiet chrome plate (a real
+ * object — it may be a surface); catalog entries keep their cards (also real
+ * objects) in the chrome tone; search hits render as flat mono rows between
+ * hairlines; operation progress is the honest banner. Every 3.4 honesty
+ * rule is preserved verbatim — a failed probe never reads as "Not
+ * installed", the working state lands ONLY on the card it targets.
  */
 @Composable
 fun ExploreAppsScreen(
@@ -118,48 +125,36 @@ fun ExploreAppsScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = "Back")
-            }
-            Text("Packages", style = MaterialTheme.typography.titleLarge)
-        }
-
+    MidnightPageScaffold(title = "Packages", onBack = onBack, modifier = modifier) {
         if (runtimeState != RuntimeState.READY) {
-            // §9 honesty: an empty/blocked state is three quiet text lines on
+            // §9 honesty: an empty/blocked state is quiet text lines on
             // the canvas, never a container. The Diagnostics link is real —
             // that is where the runtime install lives.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(top = 8.dp),
             ) {
                 Text(
                     text = "The Linux runtime is not installed yet.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = HomeTokens.textPrimary,
+                    modifier = Modifier.padding(horizontal = 20.dp),
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
+                MidnightNote(
                     text = "Packages are installed with the real Alpine package manager (apk) " +
                         "inside the PocketShell Linux runtime. Install the runtime from " +
                         "Diagnostics first — this screen never pretends otherwise.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = "Open Diagnostics",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 14.sp,
+                    color = HomeTokens.accent,
                     modifier = Modifier
-                        .padding(top = 6.dp)
+                        .padding(start = 16.dp, top = 6.dp)
                         .clickable(
                             role = Role.Button,
                             onClickLabel = "Open Diagnostics",
@@ -167,35 +162,40 @@ fun ExploreAppsScreen(
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                 )
             }
-            return@Column
+            return@MidnightPageScaffold
         }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = 16.dp, vertical = 4.dp,
-            ),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // ---- search --------------------------------------------------
             item {
-                OutlinedTextField(
+                MidnightTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("Search Alpine packages") },
-                    trailingIcon = {
+                    placeholder = "Search Alpine packages",
+                    enabled = !packageBusy,
+                    trailing = {
                         if (packageBusy && operation?.state == PackageOperationState.SEARCHING) {
-                            Text("…", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "…",
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 14.sp,
+                                color = HomeTokens.textDim,
+                                modifier = Modifier.padding(start = 10.dp),
+                            )
                         }
                     },
                 )
+                Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    OutlinedButton(
+                    MidnightQuietButton(
+                        text = "Search",
                         onClick = {
                             val q = searchQuery.trim()
                             if (q.isNotEmpty()) {
@@ -213,38 +213,47 @@ fun ExploreAppsScreen(
                             }
                         },
                         enabled = !packageBusy,
-                    ) { Text("Search") }
+                        modifier = Modifier.width(132.dp),
+                    )
                 }
                 searchResults?.let { results ->
-                    val msg = if (results.isEmpty()) {
-                        "No packages matched (real apk search returned nothing)."
-                    } else {
-                        null
-                    }
-                    msg?.let {
+                    if (results.isEmpty()) {
                         Text(
-                            it,
+                            "No packages matched (real apk search returned nothing).",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = HomeTokens.textDim,
                         )
                     }
                     // M2.5: name matches first (nodejs for "node"), then the
                     // description-only hits apk also returns — and every hit
                     // is INSTALLABLE (real apk add by exact package name).
                     val ranked = ApkOutputParser.rankSearchHits(results, searchQueryUsed)
-                    ranked.take(12).forEach { hit ->
+                    ranked.take(12).forEachIndexed { index, hit ->
                         val known = CliAppCatalog.entries.firstOrNull { it.apkPackageName == hit.name }
                         val installedVersion = installedVersions[hit.name]
-                        Column(Modifier.padding(vertical = 4.dp)) {
-                            Text(
-                                "${hit.name}  ${hit.version}${hit.release?.let { "-$it" } ?: ""}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                        Column(Modifier.padding(vertical = 6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = hit.name,
+                                    fontFamily = TerminalTheme.mono,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = HomeTokens.textPrimary,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = hit.version + (hit.release?.let { "-$it" } ?: ""),
+                                    fontFamily = TerminalTheme.mono,
+                                    fontSize = 12.sp,
+                                    color = HomeTokens.textDim,
+                                )
+                            }
                             known?.let {
                                 Text(
                                     it.description,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = HomeTokens.textDim,
                                 )
                             }
                             when {
@@ -255,34 +264,41 @@ fun ExploreAppsScreen(
                                         } else {
                                             ""
                                         },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    fontFamily = TerminalTheme.mono,
+                                    fontSize = 12.sp,
+                                    color = HomeTokens.accent,
+                                    modifier = Modifier.padding(top = 2.dp),
                                 )
                                 else -> Row(
                                     horizontalArrangement = Arrangement.End,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp),
                                 ) {
-                                    OutlinedButton(
+                                    MidnightFilledButton(
+                                        text = if (packageOperationTargetsCard(packageBusy, operation, hit.name)) {
+                                            "Working…"
+                                        } else {
+                                            "Install"
+                                        },
                                         onClick = { terminalViewModel.installSearchResult(hit.name) },
                                         enabled = !packageBusy,
-                                    ) {
-                                        Text(
-                                            if (packageOperationTargetsCard(packageBusy, operation, hit.name)) {
-                                                "Working…"
-                                            } else {
-                                                "Install"
-                                            },
-                                        )
-                                    }
+                                        modifier = Modifier.width(160.dp),
+                                    )
                                 }
                             }
+                        }
+                        if (index != minOf(12, ranked.size) - 1) {
+                            androidx.compose.material3.HorizontalDivider(
+                                color = HomeTokens.hairline.copy(alpha = 0.6f),
+                            )
                         }
                     }
                     if (ranked.size > 12) {
                         Text(
                             "…and ${ranked.size - 12} more matches (refine the query to see them).",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = HomeTokens.textDim,
                         )
                     }
                 }
@@ -292,80 +308,74 @@ fun ExploreAppsScreen(
             operation?.let { op ->
                 if (packageBusy || op.state == PackageOperationState.FAILED) {
                     item {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
-                            color = if (op.state == PackageOperationState.FAILED) {
-                                MaterialTheme.colorScheme.errorContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerLow
-                            },
+                        val failed = op.state == PackageOperationState.FAILED
+                        MidnightBanner(
+                            message = opLabel(op),
+                            failed = failed,
                         ) {
-                            Column(Modifier.padding(16.dp)) {
+                            if (op.stdoutTail.isNotBlank()) {
                                 Text(
-                                    text = opLabel(op),
-                                    style = MaterialTheme.typography.titleSmall,
+                                    op.stdoutTail.lineSequence().lastOrNull { it.isNotBlank() } ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = HomeTokens.textDim,
                                 )
-                                if (op.stdoutTail.isNotBlank()) {
-                                    Text(
-                                        op.stdoutTail.lineSequence().lastOrNull { it.isNotBlank() } ?: "",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                op.error?.let {
-                                    Text(
-                                        it,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                                if (op.state == PackageOperationState.FAILED &&
-                                    op.stderrTail.isNotBlank() &&
-                                    op.stderrTail != op.error
+                            }
+                            op.error?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = HomeTokens.danger,
+                                )
+                            }
+                            if (failed &&
+                                op.stderrTail.isNotBlank() &&
+                                op.stderrTail != op.error
+                            ) {
+                                // apk's own stderr — the real failure text
+                                // (DNS / EACCES / HTTP), never summarized away.
+                                // Lines the summary already contains are not
+                                // repeated verbatim (v0.4.2 polish).
+                                Text(
+                                    op.stderrTail.lineSequence()
+                                        .filter { it.isNotBlank() }
+                                        .filter { line -> op.error?.contains(line) != true }
+                                        .take(4)
+                                        .joinToString("\n"),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = HomeTokens.textDim,
+                                )
+                            }
+                            if (packageBusy) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
                                 ) {
-                                    // apk's own stderr — the real failure text
-                                    // (DNS / EACCES / HTTP), never summarized away.
-                                    // Lines the summary already contains are not
-                                    // repeated verbatim (v0.4.2 polish).
-                                    Text(
-                                        op.stderrTail.lineSequence()
-                                            .filter { it.isNotBlank() }
-                                            .filter { line -> op.error?.contains(line) != true }
-                                            .take(4)
-                                            .joinToString("\n"),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    MidnightQuietButton(
+                                        text = "Cancel",
+                                        onClick = { PackageGateway.operations.cancelCurrent() },
+                                        modifier = Modifier.width(120.dp),
                                     )
                                 }
-                                if (packageBusy) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End,
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = { PackageGateway.operations.cancelCurrent() },
-                                        ) { Text("Cancel") }
-                                    }
-                                } else if (op.state == PackageOperationState.FAILED &&
-                                    op.kind == app.pocketshell.packages.PackageOperationKind.UPDATE_REPOSITORIES
+                            } else if (failed &&
+                                op.kind == app.pocketshell.packages.PackageOperationKind.UPDATE_REPOSITORIES
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End,
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = { terminalViewModel.retryRepositoryUpdate() },
-                                        ) { Text("Retry") }
-                                    }
-                                }
-                                if (op.state == PackageOperationState.FAILED) {
-                                    Text(
-                                        "Full output stays available in Diagnostics → Check package environment.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    MidnightQuietButton(
+                                        text = "Retry",
+                                        onClick = { terminalViewModel.retryRepositoryUpdate() },
+                                        modifier = Modifier.width(120.dp),
                                     )
                                 }
+                            }
+                            if (failed) {
+                                Text(
+                                    "Full output stays available in Diagnostics → Check package environment.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = HomeTokens.textDim,
+                                )
                             }
                         }
                     }
@@ -374,22 +384,18 @@ fun ExploreAppsScreen(
 
             // ---- featured catalog ----------------------------------------
             item {
-                Text(
-                    "Featured",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Text(
-                    "Curated entries — installed state always comes from the real apk database.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Spacer(Modifier.height(4.dp))
+                MidnightSectionLabel("Featured")
+                Spacer(Modifier.height(2.dp))
+                MidnightNote(
+                    text = "Curated entries — installed state always comes from the real apk database.",
                 )
                 probeError?.let {
                     Text(
                         "Installed state unavailable: $it — cards below may be out of date. " +
                             "\"Check package environment\" in Diagnostics shows the real cause.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = HomeTokens.danger,
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
@@ -419,7 +425,7 @@ fun ExploreAppsScreen(
                     Text(
                         it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = HomeTokens.danger,
                     )
                 }
                 Spacer(Modifier.height(24.dp))
@@ -458,54 +464,63 @@ private fun CatalogAppCard(
     onUninstall: () -> Unit,
     onOpen: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(entry.name, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        entry.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        // real version from apk info -e -v, an honest "Not
-                        // installed", or — when the probe itself failed —
-                        // "Installed state unknown" (never a guessed state).
-                        when {
-                            installedVersion != null -> "Installed · $installedVersion"
-                            stateUnknown -> "Installed state unknown"
-                            else -> "Not installed"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = when {
-                            installedVersion != null -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (installedVersion == null) {
-                    // "Install" is honest even when the state is unknown: apk
-                    // add on an installed package is a real, safe no-op — and
-                    // the status line above never claims either way.
-                    Button(onClick = onInstall, enabled = enabled) {
-                        Text(if (busy) "Working…" else "Install")
-                    }
-                } else {
-                    Button(onClick = onOpen, enabled = enabled) {
-                        Text(if (busy) "Working…" else "Open")
-                    }
-                    OutlinedButton(onClick = onUninstall, enabled = enabled) {
-                        Text("Uninstall")
-                    }
-                }
+    MidnightCard {
+        Column {
+            Text(
+                entry.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = HomeTokens.textPrimary,
+            )
+            Text(
+                entry.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+            )
+            Text(
+                // real version from apk info -e -v, an honest "Not
+                // installed", or — when the probe itself failed —
+                // "Installed state unknown" (never a guessed state).
+                when {
+                    installedVersion != null -> "Installed · $installedVersion"
+                    stateUnknown -> "Installed state unknown"
+                    else -> "Not installed"
+                },
+                fontFamily = TerminalTheme.mono,
+                fontSize = 12.sp,
+                color = when {
+                    installedVersion != null -> HomeTokens.accent
+                    else -> HomeTokens.textDim
+                },
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (installedVersion == null) {
+                // "Install" is honest even when the state is unknown: apk
+                // add on an installed package is a real, safe no-op — and
+                // the status line above never claims either way.
+                MidnightFilledButton(
+                    text = if (busy) "Working…" else "Install",
+                    onClick = onInstall,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                MidnightFilledButton(
+                    text = if (busy) "Working…" else "Open",
+                    onClick = onOpen,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                )
+                MidnightQuietButton(
+                    text = "Uninstall",
+                    onClick = onUninstall,
+                    enabled = enabled,
+                    destructive = true,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }

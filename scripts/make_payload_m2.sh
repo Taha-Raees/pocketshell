@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m3.4
+VERSION=v0.7.0-m3.5
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,38 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m3.3) — PHASE 3.4, REGISTRY EXPANSION +
+WHAT IS NEW IN $VERSION (vs v0.7.0-m3.4) — PHASE 3.5, COMMAND LAUNCH FIX +
+SYSTEM PAGES JOIN MIDNIGHT:
+  - THE REPORTED FIX: "when kilo is clicked it opens normal Linux terminal".
+    Root cause: the launch command was written into the PTY right after
+    session CONSTRUCTION — but TerminalSession forks the process only when
+    the view first renders the session, and write() drops bytes while no
+    process exists (mShellPid == 0). The command was silently discarded:
+    every tapped tile (kilo, claude, nano, git — ALL apps) opened a plain
+    shell. The fix delivers the command through the login shell's ARGV
+    (\`sh -l -c "kilo; exec sh -l"\`): deterministic, timing-independent,
+    still exactly what typing the command would do, still a fresh dedicated
+    session per launch, and exiting the app still returns to the guest
+    prompt. ONE generic path for every registry + catalog app — no per-app
+    code anywhere (the registry stays pure data; availability still comes
+    only from the real login-shell probe).
+  - DIAGNOSTICS, PACKAGES, SETTINGS JOIN MIDNIGHT SAPPHIRE: the three
+    app-theme pages now share the Home/Terminal identity — a shared page
+    kit (ui/system/MidnightPage.kt): Midnight canvas, edge-to-edge, mono
+    page titles + section labels, hairline dividers, mono fact values with
+    honest state coloring (Sapphire = confirmed good, danger = confirmed
+    bad). Actions carry two weights: filled Sapphire and quiet hairline
+    (destructive tone only on Remove runtime / Uninstall). Packages: chrome
+    search plate with Sapphire focus ring, search hits as flat mono rows,
+    catalog cards in the chrome tone, operation progress as the honest
+    banner (danger border only on FAILED) with Cancel/Retry. Settings:
+    whole-row radio rows (ring + Sapphire dot) and remapped switch/slider.
+    Status bar: light icons on every screen (all pages are Midnight now).
+  - versionCode 22 / 0.7.0-m3.5 — in-place update over 16..21; same pinned
+    cert. 656 test executions, 0 failures (baseline + 4 new launch-chain
+    pins). Design contract: docs/PHASE-3.5-DESIGN.md.
+
+WHAT WAS NEW IN v0.7.0-m3.4 (vs v0.7.0-m3.3) — PHASE 3.4, REGISTRY EXPANSION +
 SYSTEM PAGES:
   - THE REPORTED FIX: "I have installed kilocli but it doesn't show up".
     Root cause: command-app discovery = registry ∩ guest PATH — the probe
