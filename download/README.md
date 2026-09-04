@@ -1,6 +1,6 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0.6 (payload cut at git tip ccf9418; the last dark
+Current: v0.7.0-m4.0.6 (payload re-cut at git tip 66b0d00; the last dark
 lever off — the WebView now always answers prefers-color-scheme: light,
 the boot witness is SSR-proof, and a standing Page health sheet puts the
 page's full testimony on the clipboard with one tap — versionCode 30)
@@ -33,9 +33,9 @@ page's full testimony on the clipboard with one tap — versionCode 30)
     variant).
   Device gate: docs/TESTING.md §23. Full record: docs/CHANGELOG
   [0.7.0-m4.0.6].
-- PocketShell-v0.7.0-m4.0.6-source.zip sha256 f0330fe8d67b30479b0b6d22ca23bf507babd9a7d87fd7072da1e1b90cfd1296  (28M, 305 files)
-- PocketShell-v0.7.0-m4.0.6-source.tar.gz sha256 86e39ae89406d818372b1fdb0e3e32fabedddd72ab2622e351e365916dbdb152  (28 MB)
-- pocketshell-m2.gitbundle           sha256 266006333db1de0c3c09ddbea22854933e506a1d822039f823f335e55d9fee61  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
+- PocketShell-v0.7.0-m4.0.6-source.zip sha256 7eacc76c9c623cdd74232cd61b694b68545f87a8d2085080672e248645b29610  (28M, 305 files)
+- PocketShell-v0.7.0-m4.0.6-source.tar.gz sha256 d4274524e5771c60838957bd796d1d03903600ceea289f5b82f7e86795892d00  (28 MB)
+- pocketshell-m2.gitbundle           sha256 84871ad987adc6b621c663596ff42f3c119cca7a964607910fcf6b6610bddbdc  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.7.0-m4.0.5 superseded by m4.0.6; its records
