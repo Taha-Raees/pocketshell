@@ -879,3 +879,45 @@ bar (no floating button, no text).
 - [ ] Command apps still launch from Home tiles (argv transport intact).
 - [ ] Home / Packages / Settings / Diagnostics visuals unchanged; Settings
       now carries the Companion entry row.
+
+## 18. Manual acceptance — Hotfix m4.0.1 (startup decoupled from WebView provider health, v0.7.0-m4.0.1) — DEVICE GATE PENDING
+
+Context: m4.0 (vc24) crashed on EVERY launch on a Samsung/microG device
+whose Android System WebView had just been updated — Samsung Device Care
+offered "Uninstall WebView updates?". Root cause: `CookieManager.getInstance()`
+during `Application.onCreate` loaded the entire WebView provider before any
+UI; a broken provider killed every start. m4.0.1 (vc25) makes Application
+startup WebView-free and guards every provider touch.
+
+Prereq: install vc25 IN PLACE over the crashing vc24 (same cert; app data
+including Companion logins survives). Do NOT uninstall WebView updates
+first — the hotfix must start cleanly regardless.
+
+### 18.1 Startup (the reported bug)
+- [ ] PocketShell opens normally to Home — no crash, even though the
+      device's WebView package is the same one Samsung blamed.
+- [ ] Launch → kill → relaunch 3×: starts every time, no Device Care
+      crash dialog reappears for PocketShell.
+- [ ] All pre-existing screens normal: Terminal (PTY, keyboard, tabs),
+      Home tiles, Explore, Diagnostics, Settings.
+
+### 18.2 Companion degradation (only if the WebView stays broken)
+- [ ] Pull the Companion handle up → minimal Midnight notice
+      "Companion unavailable / Android System WebView is missing or
+      crashing on this device…" — no crash, no blank panel, handle
+      still drags, Back still collapses.
+- [ ] Terminal keeps working while the notice is up (switch screens,
+      run commands).
+
+### 18.3 Companion recovery (healthy WebView path)
+- [ ] Update/repair Android System WebView (Play Store) or accept the
+      Samsung rollback, restart PocketShell.
+- [ ] Pull the handle up → Companion loads normally (§17.1 behavior);
+      previously logged-in site still logged in (cookies live in the
+      app's private web storage, untouched by this update).
+
+### 18.4 Regression
+- [ ] §17 spot-check: drag 1:1 without page reflow, tab switch without
+      reload, file upload, Back = web history → collapse → navigation.
+- [ ] §12–§16 spot-check: fresh Linux session shows /proc (`cat
+      /proc/version`, `ps`), `apk update` in-guest, kilo launches.

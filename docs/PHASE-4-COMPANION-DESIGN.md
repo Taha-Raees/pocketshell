@@ -424,3 +424,26 @@ No blocking limitation found. Honest boundaries accepted by design
 login, is lost — identical to mobile browsers); camera capture inputs
 not wired in Phase 4; no velocity fling on the drag. None of these
 change the promised experience.
+
+## 22. Hotfix m4.0.1 — Startup Decoupled from WebView Provider Health (device-reported 2026-09-05)
+
+Failure: on a Samsung/microG device with a freshly updated WebView
+package, m4.0 crashed on every launch before any UI (Samsung Device Care
+offered "Uninstall WebView updates?"). Mechanism: the m4.0 init path
+called `CookieManager.getInstance()` during `Application.onCreate`,
+which synchronously loads the entire WebView provider before any UI —
+so a provider that crashes at init killed every app start, although the
+Companion was never opened.
+
+Amendment to §3/§8 (binding): **Application startup must never touch
+`android.webkit`.** `CompanionWebPool.init()` is a context handoff only.
+The provider is loaded exactly once, lazily, at first WebView creation
+(`configureCookiesOnce()` + guarded `createWebView`). Any provider
+failure is recorded in `CompanionWebPool.runtimeFailed`; `acquire()`
+returns null and the layer renders the honest "Companion unavailable"
+notice (§9 language, no cards). The terminal and every other screen are
+unaffected by the provider's health. `pauseAll()` never loads the
+provider incidentally; `clearWebData()` guards all provider touches.
+The promised Companion experience is unchanged on healthy devices;
+the change is purely: broken provider → graceful degradation instead of
+a dead app.

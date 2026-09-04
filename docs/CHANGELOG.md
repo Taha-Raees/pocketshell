@@ -3,6 +3,53 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.1] — 2026-09-05 — Hotfix: startup crash when the WebView provider is broken
+
+Scope: the Companion web runtime's initialization + failure paths ONLY.
+No feature, UI, storage or contract change; the Companion experience is
+exactly as shipped in m4.0 whenever the device's WebView is healthy.
+
+### Root cause (device-reported 2026-09-05)
+- Symptom: on a Samsung device (microG-based), m4.0 crashed on EVERY
+  launch before any UI appeared; Samsung Device Care attributed the crash
+  to the freshly updated Android System WebView and offered "Uninstall
+  WebView updates?".
+- Mechanism: `PocketShellApp.onCreate()` → `CompanionWebPool.init()` →
+  `CookieManager.getInstance()`. `getInstance()` synchronously loads the
+  entire WebView provider (`WebViewFactory.getProvider()`) inside
+  Application startup — before any UI, on every launch. When the device's
+  updated WebView package itself crashes during provider initialization
+  (fragile on microG devices where Trichrome components can mismatch),
+  every PocketShell launch died with it — although the Companion was
+  never opened. An optional layer's engine held the whole terminal app
+  hostage: a direct violation of the Companion's own contract (a purely
+  optional secondary workspace that must never take PocketShell down).
+
+### Fix
+- `Application.onCreate` no longer touches `android.webkit` at all:
+  `CompanionWebPool.init()` is a context handoff only.
+- Cookie configuration (R4/§7) moved into the guarded lazy path
+  (`configureCookiesOnce()` at first WebView creation; retried
+  automatically if the provider was broken at the first attempt).
+- WebView creation is now the single guarded provider-load point: on
+  failure `acquire()` returns null and `CompanionWebPool.runtimeFailed`
+  flips true — the Companion layer renders an honest Midnight Sapphire
+  "Companion unavailable" notice naming Android System WebView and the
+  way out, while the terminal, Home, packages, Diagnostics and Settings
+  keep working untouched.
+- `pauseAll()` skips the cookie flush while no WebView was ever created
+  (no incidental provider load) and guards it otherwise;
+  `clearWebData()` wraps all provider touches in `runCatching`.
+- No code path can crash the process on a broken WebView provider.
+
+### Tests + delivery
+- Full suite: 704 tests, 0 failures (both modules × both variants).
+  No new unit pins: the guards wrap Android-only provider calls, which
+  the spec forbids faking (§32); the fix is pinned by device gate §18.
+- versionCode 25 / 0.7.0-m4.0.1 — in-place update over 16..24, same
+  pinned cert. App data (logins included) survives the update; the
+  Companion works normally once the device has a healthy WebView.
+
 ## [0.7.0-m4.0] — 2026-09-05 — Phase 4: Companion (the embedded web workspace)
 
 Scope: a NEW feature layer. Terminal, Home, Packages, Diagnostics and the

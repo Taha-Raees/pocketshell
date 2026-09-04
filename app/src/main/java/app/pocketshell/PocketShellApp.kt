@@ -21,9 +21,13 @@ class PocketShellApp : Application() {
         // M2.4: real apk-backed package layer (process-scoped, like the
         // terminal session manager; nothing runs during init).
         PackageGateway.init(this)
-        // Phase 4: Companion web runtime — cookie acceptance + the WebView
-        // pool (process-scoped like the other engine layers; nothing runs
-        // during init) — docs/PHASE-4-COMPANION-DESIGN.md §3/§8.
+        // Phase 4: Companion web runtime — context handoff ONLY. m4.0.1
+        // hotfix (device-reported 2026-09-05): this call runs at EVERY app
+        // start, so it must NEVER load the WebView provider — m4.0's eager
+        // CookieManager.getInstance() here made a broken/updated WebView
+        // package crash every PocketShell launch before any UI. All
+        // provider touches now happen lazily inside the pool, guarded;
+        // failure degrades only the Companion surface (runtimeFailed).
         app.pocketshell.companion.CompanionWebPool.init(this)
     }
 }

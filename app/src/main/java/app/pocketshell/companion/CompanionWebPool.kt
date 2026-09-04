@@ -65,15 +65,28 @@ object CompanionWebPool {
     private var fileChooserHost: FileChooserHost? = null
     private var pendingFileChooser: ValueCallback<Array<Uri>>? = null
 
+    /**
+     * m4.0.1 hotfix (device-reported 2026-09-05): a broken or freshly-updated
+     * WebView package crashed provider load — and because m4.0 called
+     * CookieManager.getInstance() during Application.onCreate, EVERY
+     * PocketShell launch died before any UI. The provider's health must
+     * never gate app startup. Every provider touch now happens lazily at
+     * first WebView creation and is guarded; when it fails, [runtimeFailed]
+     * flips true so the Companion surface shows an honest notice while the
+     * terminal, Home and all other screens keep working untouched.
+     */
+    @Volatile
+    var runtimeFailed: Boolean = false
+        private set
+
+    private var cookiesConfigured = false
+
     fun init(context: Context) {
+        // Context handoff ONLY. This runs in Application.onCreate — it must
+        // NEVER touch android.webkit here (see [runtimeFailed] note). Cookie
+        // configuration moved to [configureCookiesOnce], called under guard
+        // at first WebView creation.
         appContext = context.applicationContext
-        // R4: cookie acceptance is global and persistent; third-party cookies
-        // are required by real login flows (§7). CookieManager persists to
-        // disk automatically; flush() at pause makes it deterministic.
-        CookieManager.getInstance().apply {
-            setAcceptCookie(true)
-            setAcceptThirdPartyCookies(null, true)
-        }
     }
 
     fun setListener(value: Listener?) {
@@ -93,12 +106,26 @@ object CompanionWebPool {
     /**
      * The live WebView for a tab, creating it on first need and rehydrating
      * an evicted one from its saved navigation state (contract §8).
-     * Returns null only before init.
+     * Returns null before init — or when the WebView provider itself is
+     * broken (m4.0.1: [runtimeFailed] then tells the UI why).
      */
     fun acquire(defId: String, url: String): WebView? {
         val context = appContext ?: return null
         val isNew = !pool.containsKey(defId)
-        val entry = pool.getOrPut(defId) { TabEntry(createWebView(context, defId)) }
+        val entry = pool.getOrPut(defId) {
+            // m4.0.1: creation is the ONLY step that loads the provider —
+            // a broken WebView package now degrades the Companion to the
+            // UI's "unavailable" notice instead of crashing the process.
+            configureCookiesOnce()
+            try {
+                val created = TabEntry(createWebView(context, defId))
+                runtimeFailed = false
+                created
+            } catch (_: Throwable) {
+                runtimeFailed = true
+                return null
+            }
+        }
         entry.lastUsed = System.currentTimeMillis()
         if (isNew) {
             val saved = evictedStates.remove(defId)
@@ -145,7 +172,14 @@ object CompanionWebPool {
     /** Activity pause: park everything and make cookie persistence deterministic. */
     fun pauseAll() {
         pool.values.forEach { it.webView.onPause() }
-        CookieManager.getInstance().flush()
+        // m4.0.1: nothing to persist while no tab ever created a WebView —
+        // and getInstance() would load the provider, which is exactly what
+        // must not happen incidentally. Guarded even when the pool is live.
+        if (pool.isEmpty()) return
+        try {
+            CookieManager.getInstance().flush()
+        } catch (_: Throwable) {
+        }
     }
 
     /** Activity resume: only the active tab wakes (§8). */
@@ -171,6 +205,22 @@ object CompanionWebPool {
     }
 
     // ------------------------------------------------------------------ core
+
+    /** R4: cookie acceptance is global and persistent; third-party cookies
+     *  are required by real login flows (§7). Runs once, lazily, guarded —
+     *  never during Application startup (m4.0.1 hotfix). */
+    private fun configureCookiesOnce() {
+        if (cookiesConfigured) return
+        try {
+            CookieManager.getInstance().apply {
+                setAcceptCookie(true)
+                setAcceptThirdPartyCookies(null, true)
+            }
+            cookiesConfigured = true
+        } catch (_: Throwable) {
+            // Provider broken — retried on the next creation attempt.
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(context: Context, defId: String): WebView {

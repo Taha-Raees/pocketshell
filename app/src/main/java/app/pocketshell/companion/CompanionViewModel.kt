@@ -182,12 +182,16 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
     fun clearWebData() {
         viewModelScope.launch {
             CompanionWebPool.clearAll()
-            android.webkit.CookieManager.getInstance().apply {
-                removeAllCookies(null)
-                flush()
+            // m4.0.1: all three calls load provider components — a broken
+            // WebView package must not crash the Settings screen either.
+            runCatching {
+                android.webkit.CookieManager.getInstance().apply {
+                    removeAllCookies(null)
+                    flush()
+                }
+                android.webkit.WebStorage.getInstance().deleteAllData()
+                android.webkit.WebViewDatabase.getInstance(getApplication()).clearFormData()
             }
-            android.webkit.WebStorage.getInstance().deleteAllData()
-            android.webkit.WebViewDatabase.getInstance(getApplication()).clearFormData()
         }
     }
 

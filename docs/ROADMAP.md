@@ -338,3 +338,17 @@ remote development.
       decision, height math, JSON round-trips — no WebView fakes.
 - [ ] Device gate §17 (login persistence, drag experience, tabs, upload,
       navigation, performance, §12–§16 regressions).
+
+### Phase 4.0.1 (2026-09-05, v0.7.0-m4.0.1) — Hotfix: startup decoupled from WebView provider health
+- [x] Device-reported crash: m4.0 crashed on EVERY launch (Samsung/microG,
+      freshly updated WebView package); Samsung Device Care offered the
+      WebView rollback. Root cause: `CookieManager.getInstance()` in
+      `Application.onCreate` loaded the whole WebView provider before any
+      UI — a broken provider killed every start of the whole app.
+- [x] Fix: Application startup is WebView-free (context handoff only);
+      cookie config + WebView creation lazy and guarded; failure flips
+      `runtimeFailed` → Companion shows an honest "Companion unavailable"
+      notice while every other screen keeps working; `pauseAll` /
+      `clearWebData` guarded — no path crashes on a broken provider.
+- [ ] Device gate §18 (starts with broken WebView; notice renders;
+      recovery after WebView repair; §17 + §12–§16 spot-checks).

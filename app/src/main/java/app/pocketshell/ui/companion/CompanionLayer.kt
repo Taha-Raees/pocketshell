@@ -274,7 +274,11 @@ private fun CompanionWebHost(
         onDispose { }
     }
     if (webView == null) {
-        Box(Modifier.fillMaxSize())
+        // m4.0.1: the provider itself is broken (missing/crashing WebView
+        // package) — say so honestly; the terminal keeps working. Blank
+        // only for the not-yet-initialized case.
+        if (CompanionWebPool.runtimeFailed) CompanionRuntimeUnavailable()
+        else Box(Modifier.fillMaxSize())
         return
     }
     AndroidView(
@@ -321,6 +325,43 @@ private fun CompanionEmptyState(
             text = if (hasDefinitions) "Open Companion" else "+ Add Companion",
             onClick = if (hasDefinitions) onAdd else onOpenSettings,
             modifier = Modifier.padding(horizontal = 48.dp),
+        )
+    }
+}
+
+/**
+ * m4.0.1 — the WebView provider itself is broken on this device. Same
+ * minimal language as the empty state (mono title, one dim line); the
+ * message names the actual system component and the way out. No cards,
+ * no crash — the rest of PocketShell is unaffected.
+ */
+@Composable
+private fun CompanionRuntimeUnavailable() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(320.dp)
+            .background(TerminalTheme.canvas),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+    ) {
+        Text(
+            text = "Companion unavailable",
+            fontFamily = TerminalTheme.mono,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.4.sp,
+            color = HomeTokens.textPrimary,
+        )
+        Text(
+            text = "Android System WebView is missing or crashing on this device. " +
+                "Update or reinstall it, then reopen PocketShell.",
+            fontSize = 13.sp,
+            color = HomeTokens.textDim,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .padding(horizontal = 32.dp),
         )
     }
 }

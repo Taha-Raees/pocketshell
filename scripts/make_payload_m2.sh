@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0
+VERSION=v0.7.0-m4.0.1
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,37 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m3.6) — PHASE 4, COMPANION: THE EMBEDDED
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0) — HOTFIX: STARTUP CRASH WHEN THE
+DEVICE'S WEBVIEW PACKAGE IS BROKEN OR FRESHLY UPDATED (device-reported
+2026-09-05 via Samsung Device Care's "Uninstall WebView updates?" dialog):
+  - THE REPORTED BUG: on m4.0 the app crashed on EVERY start before any
+    UI appeared; Samsung Device Care blamed the freshly updated Android
+    System WebView and offered to roll it back. Root cause: m4.0 called
+    CookieManager.getInstance() during Application.onCreate — which
+    synchronously LOADS THE ENTIRE WEBVIEW PROVIDER before any UI. On
+    devices where the updated WebView package crashes at provider init
+    (seen on a Samsung running microG), every PocketShell launch died
+    with it — even though the Companion was never opened.
+  - THE FIX — STARTUP NO LONGER DEPENDS ON WEBVIEW HEALTH: the
+    Application now holds nothing but a context reference; cookie
+    configuration and WebView creation happen lazily at first Companion
+    use and are fully guarded. A broken WebView package degrades ONLY
+    the Companion surface: the layer shows an honest "Companion
+    unavailable" notice naming the system component and the way out,
+    while the terminal, Home, packages, settings and every other screen
+    keep working untouched. Clear-web-data and the pause path are
+    guarded the same way — no path can crash the process on a broken
+    provider.
+  - DATA UNCHANGED: logins still live in the app's private web storage —
+    installing this hotfix in place keeps every session; the Companion
+    works normally once the device has a healthy WebView (update
+    "Android System WebView" in the Play Store, or accept Samsung's
+    rollback — either way PocketShell itself now always starts).
+  - versionCode 25 / 0.7.0-m4.0.1 — in-place update over 16..24; same
+    pinned cert. Full suite: 704 tests, 0 failures. Device gate:
+    docs/TESTING.md §18.
+
+WHAT WAS NEW IN v0.7.0-m4.0 (vs v0.7.0-m3.6) — PHASE 4, COMPANION: THE EMBEDDED
 WEB WORKSPACE:
   - Companion is a lightweight web workspace INSIDE PocketShell: a
     persistent layer below every screen, pulled up by a bottom drag
