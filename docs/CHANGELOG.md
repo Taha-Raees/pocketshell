@@ -3,6 +3,48 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0] — 2026-09-05 — Phase 4: Companion (the embedded web workspace)
+
+Scope: a NEW feature layer. Terminal, Home, Packages, Diagnostics and the
+guest pipeline are untouched. Contract: `docs/PHASE-4-COMPANION-DESIGN.md`
+(committed before implementation).
+
+- Companion is a lightweight embedded web workspace inside PocketShell —
+  a persistent layer below every screen, pulled up by a bottom drag
+  handle. No floating button, no browser chrome: a Companion is exactly
+  **Name + URL**, fully generic (ChatGPT, GitHub, docs sites, local
+  dashboards — the user decides; nothing AI-specific anywhere).
+- Engine: android.webkit System WebView ONLY — zero new dependencies.
+  Chromium renders in its own sandboxed process; cookies and DOM storage
+  persist to the app's private web storage (logins survive restarts,
+  `CookieManager.flush()` at pause), Safe Browsing on, mixed content
+  never, file/content access off, device permissions (camera/mic/geo)
+  denied, no UA spoofing.
+- Drag: 1:1 with the finger from the 28dp handle zone ONLY; while
+  dragging the WebView's measured height is frozen (bottom-aligned) so
+  the page never reflows under the finger — one resize on release.
+  Gentle anchors (half 0.55 / near-full 0.94) snap only within 6%;
+  otherwise the panel stays exactly where released and the height is
+  persisted. The handle is reachable at every height — never trapped.
+- Tabs: inverted Phase 3.1 editor language (active tab cuts the strip's
+  hairline and opens into the web canvas, 2.5dp Sapphire bottom edge).
+  Switching never reloads: background tabs stay alive-but-paused in a
+  process-scoped pool (active + 4 LRU; eviction saveStates and restores
+  on reactivation; `onTrimMemory` drops background pages first).
+- Integration: Back = web history → collapse → normal PocketShell
+  navigation (never traps); http(s) stays in Companion, mailto/tel/intent
+  resolve to the system with an honest Toast when nothing handles them;
+  file uploads use the normal Android picker; downloads go to
+  app-private storage via DownloadManager (no permission, no crash).
+  `.imePadding()` lifts the panel above the keyboard for chat inputs.
+- Settings → Companion: add/edit/delete definitions (inline Midnight
+  editor), quick-add templates as editable pre-fills, default Companion
+  radio rows, Clear web data (quiet destructive).
+- 20 unit pins in CompanionTest (validation, tab reducer, back decision,
+  height math, JSON round-trips). Full suite: 704 executions, 0 failures.
+- versionCode 24 / 0.7.0-m4.0 — in-place update over vc16..vc23, same
+  pinned cert; device gate: docs/TESTING.md §17.
+
 ## [0.7.0-m3.6] — 2026-09-04 — Phase 3.6: Procfs Contract (the "kilo ENOENT" fix)
 
 Scope: the Linux environment initialization layer only. Terminal UI, session

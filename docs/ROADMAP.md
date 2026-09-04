@@ -297,3 +297,44 @@ remote development.
       intact. Guest diagnostic added: scripts/diagnose_platform.sh.
 - [ ] Device gate §16 (fresh session: /proc/self, /proc/version, ps, kilo
       end-to-end WITHOUT manual mount; §12–§15 regressions).
+
+### Phase 4.0 (2026-09-05, v0.7.0-m4.0) — Companion: the embedded web workspace
+- [x] Design contract committed BEFORE implementation
+      (docs/PHASE-4-COMPANION-DESIGN.md): purpose, architecture, data
+      model, WebView lifecycle, persistence, tab/memory strategies, drag +
+      gesture policies, chooser/download/back/external-link policies,
+      security considerations, UI structure, test + device plans.
+- [x] Engine research: android.webkit System WebView chosen (zero new
+      dependencies; Chromium renderer in its own sandboxed process;
+      Play-updated). GeckoView (massive), Custom Tabs (external browser
+      UI) and every AI/API approach rejected per the brief.
+- [x] Companion data model = Name + URL, fully generic; fail-closed
+      validation (https allowlist at definition AND navigation time;
+      javascript:/file:/data:/about:/intent:/blob: rejected in both).
+- [x] Persistence: DataStore "companion" (defs JSON, default, open tabs
+      w/ cold-restore anchors, active tab, panel height); cookies + DOM
+      storage persist via the platform WebView profile (flush at pause);
+      honest boundary documented (page state survives tab switches and
+      backgrounding, not process death — same as real mobile browsers).
+- [x] CompanionLayer: bottom drag handle ONLY (no floating button, no
+      labels, brief R1); 1:1 drag with frozen WebView height (page never
+      reflows under the finger); gentle 6% snap to half/near-full anchors,
+      otherwise stays put; height persisted; `.imePadding()` for chat
+      inputs; handle reachable at every height (never trapped).
+- [x] Tabs: inverted Phase 3.1 editor language; switch without reload;
+      process-scoped WebView pool (active + 4 LRU, saveState-on-evict,
+      restore-on-reactivate, onTrimMemory drops background pages first);
+      close-neighbor selection; "+" focuses an existing tab of the same
+      Companion instead of duplicating.
+- [x] Policies shipped: Back = web history → collapse → normal navigation;
+      file chooser via the normal Android picker; downloads via
+      DownloadManager into app-private storage (no permission, no crash);
+      mailto/tel/intent resolved to the system with an honest Toast on
+      failure; camera/mic/geo denied.
+- [x] Settings → Companion: add/edit/delete (inline Midnight editor),
+      quick-add templates as pre-fills, default Companion rows, Clear web
+      data (quiet destructive).
+- [x] 19 unit pins (CompanionTest): validation, tab reducer, back
+      decision, height math, JSON round-trips — no WebView fakes.
+- [ ] Device gate §17 (login persistence, drag experience, tabs, upload,
+      navigation, performance, §12–§16 regressions).

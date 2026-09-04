@@ -814,3 +814,68 @@ session, and run the whole gate WITHOUT ever typing a manual mount command.
 - [ ] Package operations from the UI (Explore search / install / uninstall)
       still pass §9 — they run the no-/proc PACKAGE_OPERATION profile by
       design and must be untouched.
+
+---
+
+## 17. Manual acceptance — Phase 4 (Companion, v0.7.0-m4.0) — DEVICE GATE PENDING
+
+Prereq: install vc24 IN PLACE over vc23; existing runtime + Kilo untouched.
+Companion starts collapsed: the ONLY visible element is the bottom handle
+bar (no floating button, no text).
+
+### 17.1 Login persistence (the reason Companion exists)
+- [ ] Settings → Companion websites → quick-add "ChatGPT" → Save
+      (fields pre-filled, still fully editable).
+- [ ] Pull the handle up → the Companion surface rises from the bottom;
+      ChatGPT loads (its own mobile web UI, no PocketShell chrome around it).
+- [ ] Log in normally with the real account.
+- [ ] Close PocketShell completely (recents swipe).
+- [ ] Reopen PocketShell → pull Companion up → STILL LOGGED IN.
+- [ ] Settings → Companion → Default Companion = ChatGPT.
+
+### 17.2 Drag experience (smooth as silk, gestures never fight)
+- [ ] Drag the handle up/down through MANY heights: the surface follows
+      the finger 1:1 with no jump on grab and no reflow of the page
+      mid-drag (one resize on release).
+- [ ] Release near half / near-full → gentle snap to the anchor; release
+      elsewhere → stays exactly there; kill + reopen → height restored.
+- [ ] Scroll the webpage itself → the page scrolls, the Companion does
+      NOT resize (only the handle zone resizes).
+- [ ] Expand near full-screen → the handle is still reachable at the top;
+      drag it down → collapses again. Back with no web history also
+      collapses.
+
+### 17.3 Tabs
+- [ ] Add a second Companion (GitHub) via "+" → tab strip shows both,
+      inverted editor style (active tab opens into the content).
+- [ ] Switch ChatGPT → GitHub → ChatGPT: NO reloads, ChatGPT conversation
+      exactly where it was; scroll positions preserved.
+- [ ] Close a tab (✕ on the selected tab) → neighbor becomes active.
+- [ ] Reopen the closed Companion via "+" → fresh load, still logged in
+      (cookies live in the web profile, not the tab).
+
+### 17.4 File upload
+- [ ] In ChatGPT, attach a file → the normal Android picker opens.
+- [ ] Pick a PDF/image → upload proceeds (single-file Phase 4 scope).
+
+### 17.5 Navigation
+- [ ] Navigate inside a site (e.g. GitHub → a repo) → press Android Back →
+      webpage goes back (NOT out of the screen).
+- [ ] At the page's root, Back again → Companion collapses (screen stays).
+- [ ] Back once more → normal PocketShell navigation (e.g. Terminal → Home).
+- [ ] Open a mailto:/tel: link → the system resolves it (or an honest
+      Toast appears); no silent breakage.
+
+### 17.6 Performance
+- [ ] Open a heavy modern site; scroll, switch tabs, resize repeatedly —
+      watch for jank, crashes, surprise reloads.
+- [ ] With several tabs open, background the app under memory pressure →
+      return: active tab intact; background tabs may rehydrate on demand
+      (documented strategy, never a crash).
+
+### 17.7 PocketShell regression (the workspace must not move)
+- [ ] Return to Terminal → terminal, custom keyboard, PTY input all normal.
+- [ ] Linux environment works: `apk update` inside the guest.
+- [ ] Command apps still launch from Home tiles (argv transport intact).
+- [ ] Home / Packages / Settings / Diagnostics visuals unchanged; Settings
+      now carries the Companion entry row.
