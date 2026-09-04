@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://stackoverflow.com/questions/57449900/letting-webview-on-android-work-with-prefers-color-scheme-dark",
+    "name": "Letting WebView on Android work with prefers-color-scheme: dark",
+    "snippet": "Aug 11, 2019 · I have an Android App that uses webview, and lately I'm trying to figure out how to add a dark theme by using the new @media (prefers-color- ... WebView resetting UiMode and breaking dark theme - Stack Overflow How do I force darken the WebView parent so that I can use ... More results from stackoverflow.com",
+    "host_name": "stackoverflow.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.android.com/develop/ui/views/layout/webapps/dark-theme",
+    "name": "Darken web content in WebView | Views - Android Developers",
+    "snippet": "Jun 17, 2026 · This document explains how Android apps can support a Dark theme for web content displayed within WebView, adapting to the system theme and ...",
+    "host_name": "developer.android.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/ionic-team/capacitor/discussions/1978",
+    "name": "Android Dark-Mode could not be detected #1978 - GitHub",
+    "snippet": "May 7, 2021 · Running the latest webview (v77) on Android 10 it doesn't seem to support the prefers-color-scheme CSS media feature however it does if you open ...",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://issues.chromium.org/40189461",
+    "name": "With forced dark mode, preferred color scheme should be dark",
+    "snippet": "The reason is that WebView has a mode where they expect to always force darkening while still always reporting a light preferred color-scheme. Setting the ...",
+    "host_name": "issues.chromium.org",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://msicc.net/workaround-to-force-xamarin-forms-webview-to-use-a-dark-mode-css-for-local-content-on-android",
+    "name": "Workaround to force Xamarin.Forms WebView to use a dark mode",
+    "snippet": "Apr 6, 2021 · As the 'prefer-color-scheme'-CSS query does not work on Android with a Xamarin.Forms WebView, I needed find a workaround to support dark ...",
+    "host_name": "msicc.net",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://issuetracker.google.com/issues/171501830",
+    "name": "IssueTracker - Google Issue Tracker",
+    "snippet": "Oct 23, 2020 · The app has a WebView and is using the `DayNight` theme. Does not use `setForceDark/setForceDarkStrategy` to the WebView. Let the WebView load ...",
+    "host_name": "issuetracker.google.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.framework7.io/t/dark-mode-auto-detect-broken-on-android-with-chrome-webview-98/14899",
+    "name": "Dark Mode auto-detect broken on Android with Chrome Webview 98",
+    "snippet": "Feb 17, 2022 · It looks like they possibly changed something in prefers-color-scheme support, you can disable the chrome auto dark thing by setting the css ...",
+    "host_name": "forum.framework7.io",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/droid-log/webview-darkening-force-dark-mode-for-web-contents-d76d86ff9efa",
+    "name": "WebView darkening — Force Dark Mode for Web Contents - Medium",
+    "snippet": "Jun 23, 2020 · WebView darkening — Force Dark Mode for Web Contents Now you can automatically render all web contents using a dark theme in Android WebView ...",
+    "host_name": "medium.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]

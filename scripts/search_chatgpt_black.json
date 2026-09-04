@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://stackoverflow.com/questions/31686611/how-can-i-specify-the-text-color-for-a-pinned-site-tile",
+    "name": "How can I specify the text color for a pinned site tile? - Stack Overflow",
+    "snippet": "Jul 28, 2015 · If I remember correctly, the color of the text depends on the color of the background and it can only be white or black. Build My Pinned ... Missing: blank | Show results with: blank",
+    "host_name": "stackoverflow.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://documentation.bloomreach.com/engagement/changelog/release-notes-archive",
+    "name": "Release Notes Archive - Bloomreach Documentation",
+    "snippet": "Sep 5, 2023 · Guides, API reference, and all information for developers necessary to integrate and use Bloomreach Marketing with ease.",
+    "host_name": "documentation.bloomreach.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/in/pavelkorolevxyz",
+    "name": "Pavel Korolev - Android Tech Lead | LinkedIn",
+    "snippet": "Made convenient mechanism of screens layout via AdapterDelegates; - Implemented dark theme; As a lead developer handled everything related to the Android app",
+    "host_name": "www.linkedin.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://unsung.aresluna.org/tags/interface-design",
+    "name": "#interface-design – Unsung",
+    "snippet": "scrollbars mismatched in theme (e.g. light scrollbars on dark-theme surfaces)",
+    "host_name": "unsung.aresluna.org",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://m.facebook.com/yourstorycom/photos/founded-by-stanford-graduate-and-former-palantir-engineer-prakash-sanker-launch-/1207727488055890",
+    "name": "YourStory - Facebook",
+    "snippet": "Aug 11, 2025 · She describes it as “ChatGPT with hands” — an AI platform designed not just for conversation, but to perform actions, bridging the gap between ...",
+    "host_name": "m.facebook.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/b0o/starred/blob/master/by-language.md",
+    "name": "starred/by-language.md at master · b0o/starred - GitHub",
+    "snippet": "Redshift adjusts the color temperature of your screen according to your surroundings. of the screen at night. Dark theme",
+    "host_name": "github.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.braze.com/docs/es/developer_guide/changelogs",
+    "name": "Registros de cambios del SDK de Braze",
+    "snippet": "Fixed an issue where browser version was incorrectly reported in Android Webview. Fixed an issue which was causing the in-app message refresh throttle not to ...",
+    "host_name": "www.braze.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.dnsfilter.com/blog/cybersecurity-briefing-december-2023",
+    "name": "Cybersecurity News and Events: December 2023 | DNSFilter",
+    "snippet": "Jan 9, 2024 · WebView, the preinstalled engine from Google, lets developers display web content in-app without launching a web browser, and an autofill ...",
+    "host_name": "www.dnsfilter.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]
