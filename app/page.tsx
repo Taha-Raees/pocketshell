@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m4.0.4";
+const VERSION = "v0.7.0-m4.0.5";
 
 const HASHES = {
-  apk: "adbdcfe30fa99db486a671c813a1b0bc22f952527767a278bc4e1baa5d52333e",
-  zip: "fa0decf9625cd7f6bd24a5fe00b7e09467299616444fede35d1d516a5ef4c1ca",
-  tgz: "cf30c3d8508a59e0a86f99fb40fecb8c5e2756d0ef21fb0681fe77bd3a2c8b24",
-  bundle: "81b2c89b26d979a6814130b9593f0eab84e712acde54e78b3485fa7b903bae76",
+  apk: "bbba0856e9771e01b44bb198d3b9923191903ce4e1f0a28cff27a0934393df26",
+  zip: "9ce2750bf37b6acc7d2ab507a554d1ab33ab85b42219b2f5f6467345401b438d",
+  tgz: "af7c1ebfc530d93052910bfc6076ab6784ac33beccaeedf8e7859d3ab2982bce",
+  bundle: "37c08ec7bb64cf1b8ccf847734c373857b4107f3e877ed98e930e6c364f92e08",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,92 +25,82 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Your post-m4.0.3 report — and what your screenshot proved{" "}
-          <span className="badge">versionCode 28</span>
+          The black page — fixed at the root, and the page now testifies{" "}
+          <span className="badge">versionCode 29</span>
         </h2>
         <p>
-          <b>The cookie banner cracked the black-page case.</b> That banner is
-          the SITE&apos;S OWN (ChatGPT/OpenAI&apos;s) — and it painted at the
-          bottom of an otherwise dead canvas. Translation: the page pipeline
-          fires faithfully on this device&apos;s WebView build while the main
-          content never rasterizes — which is exactly why every event-based
-          watchdog so far stood down. This build stops trusting events and
-          reads pixels. Plus: the keyboard toggle now lives in ONE place, in
-          ONE shape, in both states.
+          <b>Your evidence named the killer.</b> The cookie banner dismissed on
+          tap → the whole page pipeline is ALIVE (network, JS, layout, touch,
+          compositing). No m4.0.4 failure card → the main region DID paint —
+          the site&apos;s own darkened empty body. So the site&apos;s app
+          simply never mounts. Two classic causes fit every observation, and
+          both were still armed on this device. This build disarms both — and
+          if any page still refuses to start, the card now shows the page&apos;s
+          OWN testimony instead of a mystery.
         </p>
         <ul className="steps">
           <li>
-            <b>The watchdog reads pixels, not promises:</b> every couple of
-            seconds the canvas is probed twice — a software readback of the
-            WebView, and on modern Android a PixelCopy of the frame exactly as
-            it was PRESENTED. Only real page pixels stand the probe down. A
-            canvas whose main region is still the bare Midnight flash-guard
-            after ~15s IS a stall, whatever the page pipeline claims.
+            <b>Force Dark is OFF — three layers:</b> this app runs with a
+            legacy targetSdk (a documented proot constraint), which leaves
+            WebView <b>Force Dark / algorithmic darkening ARMED BY DEFAULT</b>{" "}
+            in dark mode — the documented mangler that darkens site shells and
+            breaks exactly this kind of page. Killed in the theme (API 29+),
+            via the runtime Force-Dark-OFF call (API 29–32), and via the
+            algorithmic-darkening-OFF call (API 33+). Sites now render exactly
+            as their authors made them — own theme, own colors, unmangled.
           </li>
           <li>
-            <b>Partial paint is not content:</b> the cookie banner painted a
-            few pixels at the bottom of the dead canvas — an &quot;any
-            differing pixel&quot; check would call that healthy. The verdict
-            now samples the MAIN region only: everything above the bottom 25%
-            of the canvas, where sites dock consent bars. A banner can never
-            vouch for a dead page again.
+            <b>Chrome-identical user agent:</b> the WebView default UA carried
+            the <code>; wv</code> marker — the second-class client that Google
+            login answers <code>disallowed_useragent</code> outright and
+            bot-fronted sites serve degraded or challenged bundles. This build
+            presents the byte-for-byte Chrome mobile UA of your device. Logins
+            stop being refused; sites stop second-guessing the client.
           </li>
           <li>
-            <b>Silent first retry, honest second card:</b> the first detected
-            stall re-creates the tab on the SOFTWARE renderer by itself (the
-            classic fix for GPU paths that rasterize nothing). Only if that
-            stalls too do you see the card: &quot;Page never rendered&quot; +
-            your installed WebView version.
+            <b>The page now testifies — no more mystery canvases:</b> a
+            boot-error trap rides in every page from its first moment, the
+            console&apos;s last lines are kept per tab, and a DOM witness polls
+            the page&apos;s own truth (readyState, element count) for up to
+            20s. A tab is called healthy only when pixels painted AND the
+            page&apos;s app actually mounted.
           </li>
           <li>
-            <b>Three ways out on the card:</b> <b>Retry</b> (each press
-            alternates GPU → SOFTWARE rendering), <b>Open in browser</b> (the
-            same address in your real browser — settles whether it&apos;s the
-            site or this device&apos;s WebView build), and{" "}
-            <b>Continue anyway</b> (the raw canvas — you can tap the site&apos;s
-            own Accept button; the probe then stays quiet and never fights you
-            for the canvas).
+            <b>If an app never starts:</b> you get ONE silent fresh reload
+            (flaky networks happen) — and if it still refuses, the card reads{" "}
+            <b>&quot;Page won&apos;t start&quot;</b> with the page&apos;s OWN
+            numbers: readyState, DOM element count, first script error, first
+            console line, WebView version — plus the usual{" "}
+            <b>Retry</b> / <b>Open in browser</b> / <b>Continue anyway</b>. If
+            you ever see that card, report the detail line verbatim — it names
+            the exact cause.
           </li>
           <li>
-            <b>Keyboard toggle in one place:</b> the [⌨] key now sits in the
-            deck row BETWEEN Space and Enter (Ctrl · Alt · Space · Shift ·
-            [⌨] · Enter) — and with the deck toggled off, the SAME rectangular
-            key box parks at that same right-hand spot. The round bottom-right
-            bubble is gone. One toggle, one shape, one place, both states.
-          </li>
-          <li>
-            <b>About that cookie banner:</b> it belongs to the WEBSITE, not to
-            PocketShell. Choose Accept/Reject once — cookies are flushed to
-            storage on every pause, so your choice (and your logins) persist
-            across launches. If it ever reappears every launch, that&apos;s a
-            bug to report.
-          </li>
-          <li>
-            <b>Nothing else changed:</b> data, logins, tabs and heights
-            survive the in-place update. Full suite green: <b>0 failures</b>{" "}
-            across all modules and variants (2 new pins on the main-region
-            arithmetic).
+            <b>Nothing else changed:</b> data, logins, tabs and heights survive
+            the in-place update. Full suite green: <b>754 executions / 0
+            failures</b> (12 new pins: UA compat, mount verdict, probe-answer
+            parsing, console ring, failure card).
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m4.0.4-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m4.0.5-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.4)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.5)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 28 installs <b>in place over v0.7.0-m4.0.3 (27),
-          v0.7.0-m4.0.2 (26), v0.7.0-m4.0.1 (25), v0.7.0-m4.0 (24) and every
-          earlier pinned-cert build</b>. Your Alpine runtime, installed
-          packages, Kilo/Hermes installation, the procfs contract, every Phase
-          3 behavior and all Companion data (logins included) are untouched.
-          This build also contains the m4.0.1 startup fix — it starts
-          regardless of the WebView package&apos;s state.
+          versionCode 29 installs <b>in place over v0.7.0-m4.0.4 (28),
+          v0.7.0-m4.0.3 (27), v0.7.0-m4.0.2 (26), v0.7.0-m4.0.1 (25),
+          v0.7.0-m4.0 (24) and every earlier pinned-cert build</b>. Your Alpine
+          runtime, installed packages, Kilo/Hermes installation, the procfs
+          contract, every Phase 3 behavior and all Companion data (logins
+          included) are untouched. This build also contains the m4.0.1 startup
+          fix — it starts regardless of the WebView package&apos;s state.
         </p>
       </div>
 
@@ -148,48 +138,50 @@ export default function Home() {
           <li>
             m4.0.1: startup decoupled from WebView provider health. m4.0.2:
             honest failure cards. m4.0.3: the shared keyboard + render-stall
-            watchdog + the &quot;+&quot; Companion picker.
+            watchdog + the &quot;+&quot; Companion picker. m4.0.4: the
+            pixel-truth stall probe (main-region verdict) + the keyboard
+            toggle in one spot/one shape.
           </li>
           <li>
-            <b>v0.7.0-m4.0.4 (this build):</b> the cookie-banner lesson — the
-            pixel-truth stall probe (main-region verdict, partial paint never
-            counts), the silent software-render retry, the honest card with
-            three ways out, and the keyboard toggle in one spot/one shape.
+            <b>v0.7.0-m4.0.5 (this build):</b> the black page fixed at the
+            root — Force Dark off (three layers), Chrome-identical UA, and the
+            DOM ground-truth witness: pixels AND a mounted app are both
+            required, and failures carry the page&apos;s own testimony.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §21 — the m4.0.4 device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §22 — the m4.0.5 device gate)</h2>
         <ol className="steps">
           <li>
             Install {VERSION} in place → open the previously-black Companion
-            tab. Within ~15s ONE of these must happen: the page renders, OR
-            the &quot;Page never rendered&quot; card appears (it silently
-            retried on the software renderer first). A bare black canvas that
-            just sits there is a failure of this gate — report it.
+            tab. EXPECT the real page: ChatGPT&apos;s own UI (&quot;What can I
+            help with?&quot; / composer) — in its own dark or light theme,
+            either is correct. A dead shell with only the cookie banner is a
+            failure of this gate — report it.
           </li>
           <li>
-            On the card, try <b>Open in browser</b> — the same address in your
-            real browser. If it works there, this device&apos;s WebView build
-            is the culprit (the card shows its version — report it).
+            Type into the page via the deck; tap around; scroll. The site must
+            respond normally. Accept the cookie banner once — it must stay
+            gone after a full app restart.
           </li>
           <li>
-            Try <b>Continue anyway</b>: the raw canvas comes back — if the
-            site&apos;s cookie banner is there, tap Accept/Reject once, then
-            fully close and reopen PocketShell: the banner must NOT return
-            (cookies persist).
+            If a <b>&quot;Page won&apos;t start&quot;</b> card ever appears:
+            screenshot it and <b>report the detail line verbatim</b> (it reads
+            the page&apos;s own numbers: readyState · DOM elements · first
+            error · console line · WebView version). Then update &quot;Android
+            System WebView&quot; (Play Store / Device care) and hit Retry.
           </li>
           <li>
-            Keyboard: the [⌨] key sits between Space and Enter; tap it → the
-            deck collapses and the SAME rectangular key box appears at that
-            right-hand spot (no round bubble); tap it → the deck returns.
+            Logins: a Google sign-in inside a Companion must no longer be
+            refused (the Chrome UA is now presented).
           </li>
           <li>
-            Regressions: §20 (deck types into Companion AND terminal, deck
-            pushes everything up, &quot;-&quot;/digits quick-tap), §18
-            startup, §17 spot-checks (drag 1:1, tabs, upload, Back, login
-            persistence).
+            Regressions: §21 (keyboard toggle one spot/one shape, both
+            states), §20 (deck types into Companion AND terminal, deck pushes
+            everything up, &quot;-&quot;/digits quick-tap), §18 startup, §17
+            spot-checks (drag 1:1, tabs, upload, Back, login persistence).
           </li>
         </ol>
       </div>
@@ -203,10 +195,10 @@ export default function Home() {
           procfs contract, and the Phase 4 Companion design contract with
           the §22/§23/§24 amendments.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.4-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.5-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.4-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.5-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -229,10 +221,10 @@ export default function Home() {
         v0.7.0-m3.1 terminal redesign · m3.2 OS launcher · m3.3 flat
         workspace · m3.4 registry expansion · m3.5 command launch fix · m3.6
         procfs contract · m4.0 Phase 4 Companion · m4.0.1 startup hotfix ·
-        m4.0.2 honest failure surfaces · m4.0.3 one keyboard for everything ·{" "}
-        <b>v0.7.0-m4.0.4 (this build): the cookie-banner lesson — pixels over
-        promises, and one toggle in one place</b>. Your device keeps doing the
-        QA that matters.
+        m4.0.2 honest failure surfaces · m4.0.3 one keyboard for everything ·
+        m4.0.4 pixels over promises · <b>v0.7.0-m4.0.5 (this build): the black
+        page fixed at the root — Force Dark off, Chrome UA, and the page now
+        testifies</b>. Your device keeps doing the QA that matters.
       </footer>
     </main>
   );
