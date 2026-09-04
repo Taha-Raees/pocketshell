@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m4.0.5";
+const VERSION = "v0.7.0-m4.0.6";
 
 const HASHES = {
-  apk: "bbba0856e9771e01b44bb198d3b9923191903ce4e1f0a28cff27a0934393df26",
-  zip: "9a4a28d3ef1318f9d9158e0b70f518ee81a5503909f4fa33949237a3179d5979",
-  tgz: "53e60b559f2b466b8555288cb6787a186f258fd1229d5188043e72f8de9f7583",
-  bundle: "30ea0bbb5f8038ffefa85e93aa4855e56bc960bf67b4583c964c97bdfa95cdbc",
+  apk: "5934b41635c06f90c2b2a604215484e3e613050c916ac0849cc6f827d1c54273",
+  zip: "2cfed15aa1809cc0d02a4d8f716a0d4802e6f6d96d5f667986643d719cddc99e",
+  tgz: "ab7b5d7e9f485f72266de27eadc1f638f64d07a61987f4106a9e7cff08bfcdd2",
+  bundle: "a3256db60ddea1b1bb4a352a5be6c3a32f5d0aaa91024fd2259a3c9cdadda96c",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,82 +25,83 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          The black page — fixed at the root, and the page now testifies{" "}
-          <span className="badge">versionCode 29</span>
+          The last dark lever off, the witness de-fooled — and the page can
+          now TELL us everything{" "}
+          <span className="badge">versionCode 30</span>
         </h2>
         <p>
-          <b>Your evidence named the killer.</b> The cookie banner dismissed on
-          tap → the whole page pipeline is ALIVE (network, JS, layout, touch,
-          compositing). No m4.0.4 failure card → the main region DID paint —
-          the site&apos;s own darkened empty body. So the site&apos;s app
-          simply never mounts. Two classic causes fit every observation, and
-          both were still armed on this device. This build disarms both — and
-          if any page still refuses to start, the card now shows the page&apos;s
-          OWN testimony instead of a mystery.
+          <b>4.0.5 stayed black with NO error — and that was the clue.</b> Both
+          safety witnesses stood down: the pixel probe passed because the page
+          painted its own near-black body, and the DOM witness passed because
+          chatgpt.com&apos;s server-rendered shell lands with hundreds of
+          inert nodes <i>before</i> its app hydrates — instantly clearing the
+          60-element &quot;mounted&quot; floor even with a dead script bundle.
+          One dark lever was also still armed: Force-Dark-off stops the
+          framework from inverting pages, but the WebView still{" "}
+          <b>answered</b> <code>prefers-color-scheme: dark</code> (it reads the
+          app&apos;s uiMode — and this app is Midnight everywhere), so sites
+          kept serving dark CSS. This build closes all three holes:
         </p>
         <ul className="steps">
           <li>
-            <b>Force Dark is OFF — three layers:</b> this app runs with a
-            legacy targetSdk (a documented proot constraint), which leaves
-            WebView <b>Force Dark / algorithmic darkening ARMED BY DEFAULT</b>{" "}
-            in dark mode — the documented mangler that darkens site shells and
-            breaks exactly this kind of page. Killed in the theme (API 29+),
-            via the runtime Force-Dark-OFF call (API 29–32), and via the
-            algorithmic-darkening-OFF call (API 33+). Sites now render exactly
-            as their authors made them — own theme, own colors, unmangled.
+            <b>Forced-light scheme:</b> the WebView is now created inside a
+            configuration context pinned to <b>light mode</b>, so every site
+            sees <code>prefers-color-scheme: light</code> and renders as
+            authored for daylight. ChatGPT serves its light theme — the
+            black-shell path is gone at the source. (Direction confirmed by
+            web research: WebView derives prefers-color-scheme from the
+            app&apos;s uiMode.)
           </li>
           <li>
-            <b>Chrome-identical user agent:</b> the WebView default UA carried
-            the <code>; wv</code> marker — the second-class client that Google
-            login answers <code>disallowed_useragent</code> outright and
-            bot-fronted sites serve degraded or challenged bundles. This build
-            presents the byte-for-byte Chrome mobile UA of your device. Logins
-            stop being refused; sites stop second-guessing the client.
+            <b>SSR-proof witness:</b> a captured boot error is now decisive —
+            an erroring page only counts as alive when it also shows real
+            visible text. A SyntaxError-dead shell with 800 inert nodes now
+            gets the honest <b>&quot;Page won&apos;t start&quot;</b> card WITH
+            the error, instead of silently passing. The probe also reads
+            interactive-element and text counts for sharper testimony.
           </li>
           <li>
-            <b>The page now testifies — no more mystery canvases:</b> a
-            boot-error trap rides in every page from its first moment, the
-            console&apos;s last lines are kept per tab, and a DOM witness polls
-            the page&apos;s own truth (readyState, element count) for up to
-            20s. A tab is called healthy only when pixels painted AND the
-            page&apos;s app actually mounted.
+            <b>Page health, always one tap away:</b> the tab strip has a new{" "}
+            <b>ⓘ chip</b>. It opens a Midnight sheet with the active tab&apos;s
+            FULL LIVE TESTIMONY — url, WebView version, renderer (GPU/
+            SOFTWARE), pixel verdict, readyState, DOM/interactive/text counts,
+            boot errors, the last console lines, and the exact user-agent.
           </li>
           <li>
-            <b>If an app never starts:</b> you get ONE silent fresh reload
-            (flaky networks happen) — and if it still refuses, the card reads{" "}
-            <b>&quot;Page won&apos;t start&quot;</b> with the page&apos;s OWN
-            numbers: readyState, DOM element count, first script error, first
-            console line, WebView version — plus the usual{" "}
-            <b>Retry</b> / <b>Open in browser</b> / <b>Continue anyway</b>. If
-            you ever see that card, report the detail line verbatim — it names
-            the exact cause.
+            <b>Copy report — the guess loop is over:</b> if ANYTHING is ever
+            still broken: <b>Page health → Copy report → paste it in the
+            chat</b>. The device names the cause verbatim (a SyntaxError from
+            an old WebView build, a bot-challenge page, zero pixels = a
+            compositor stall…). Plus <b>Refresh</b>, <b>Reload</b>, and{" "}
+            <b>Reload in compatibility mode</b> as standing escapes.
           </li>
           <li>
-            <b>Nothing else changed:</b> data, logins, tabs and heights survive
-            the in-place update. Full suite green: <b>754 executions / 0
-            failures</b> (12 new pins: UA compat, mount verdict, probe-answer
-            parsing, console ring, failure card).
+            <b>Nothing else changed:</b> data, logins, tabs and heights
+            survive the in-place update. Full suite green: <b>762 executions
+            / 0 failures</b> (8 new pins: SSR-defeats-floor verdict,
+            interactive parsing, health-report composition).
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m4.0.5-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m4.0.6-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.5)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.6)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 29 installs <b>in place over v0.7.0-m4.0.4 (28),
-          v0.7.0-m4.0.3 (27), v0.7.0-m4.0.2 (26), v0.7.0-m4.0.1 (25),
-          v0.7.0-m4.0 (24) and every earlier pinned-cert build</b>. Your Alpine
-          runtime, installed packages, Kilo/Hermes installation, the procfs
-          contract, every Phase 3 behavior and all Companion data (logins
-          included) are untouched. This build also contains the m4.0.1 startup
-          fix — it starts regardless of the WebView package&apos;s state.
+          versionCode 30 installs <b>in place over v0.7.0-m4.0.5 (29),
+          v0.7.0-m4.0.4 (28), v0.7.0-m4.0.3 (27), v0.7.0-m4.0.2 (26),
+          v0.7.0-m4.0.1 (25), v0.7.0-m4.0 (24) and every earlier
+          pinned-cert build</b>. Your Alpine runtime, installed packages,
+          Kilo/Hermes installation, the procfs contract, every Phase 3
+          behavior and all Companion data (logins included) are untouched.
+          This build also contains the m4.0.1 startup fix — it starts
+          regardless of the WebView package&apos;s state.
         </p>
       </div>
 
@@ -140,48 +141,52 @@ export default function Home() {
             honest failure cards. m4.0.3: the shared keyboard + render-stall
             watchdog + the &quot;+&quot; Companion picker. m4.0.4: the
             pixel-truth stall probe (main-region verdict) + the keyboard
-            toggle in one spot/one shape.
+            toggle in one spot/one shape. m4.0.5: Force Dark off (3 layers),
+            Chrome UA, the DOM boot witness with the page&apos;s own
+            testimony.
           </li>
           <li>
-            <b>v0.7.0-m4.0.5 (this build):</b> the black page fixed at the
-            root — Force Dark off (three layers), Chrome-identical UA, and the
-            DOM ground-truth witness: pixels AND a mounted app are both
-            required, and failures carry the page&apos;s own testimony.
+            <b>v0.7.0-m4.0.6 (this build):</b> the last dark lever off
+            (forced-light prefers-color-scheme), the SSR-proof boot witness,
+            and the standing <b>Page health</b> sheet with a one-tap{" "}
+            <b>Copy report</b> — the device can now hand over the exact cause
+            of any failure, verbatim.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §22 — the m4.0.5 device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §23 — the m4.0.6 device gate)</h2>
         <ol className="steps">
           <li>
             Install {VERSION} in place → open the previously-black Companion
-            tab. EXPECT the real page: ChatGPT&apos;s own UI (&quot;What can I
-            help with?&quot; / composer) — in its own dark or light theme,
-            either is correct. A dead shell with only the cookie banner is a
-            failure of this gate — report it.
+            tab. EXPECT the real page — most likely in its <b>light</b> theme
+            now (white background): &quot;What can I help with?&quot; /
+            composer / sidebar, all interactive. A dead shell is a failure of
+            this gate.
           </li>
           <li>
-            Type into the page via the deck; tap around; scroll. The site must
-            respond normally. Accept the cookie banner once — it must stay
-            gone after a full app restart.
+            If the page STILL misbehaves: tap the <b>ⓘ chip</b> at the right
+            end of the tab strip → <b>Copy report</b> → <b>paste the report
+            into the chat</b>. That single paste names the exact cause and
+            ends the guess loop permanently.
           </li>
           <li>
-            If a <b>&quot;Page won&apos;t start&quot;</b> card ever appears:
-            screenshot it and <b>report the detail line verbatim</b> (it reads
-            the page&apos;s own numbers: readyState · DOM elements · first
-            error · console line · WebView version). Then update &quot;Android
-            System WebView&quot; (Play Store / Device care) and hit Retry.
+            Also try <b>Reload in compatibility mode</b> once (the software
+            renderer) and note whether the page then renders.
           </li>
           <li>
-            Logins: a Google sign-in inside a Companion must no longer be
-            refused (the Chrome UA is now presented).
+            A page that refuses to start now escalates to the honest card
+            EVEN when its server-rendered shell is huge — if you see
+            &quot;Page won&apos;t start&quot;, the detail line carries the
+            page&apos;s own numbers (readyState · elements · interactive ·
+            text · error). Report it verbatim.
           </li>
           <li>
-            Regressions: §21 (keyboard toggle one spot/one shape, both
-            states), §20 (deck types into Companion AND terminal, deck pushes
-            everything up, &quot;-&quot;/digits quick-tap), §18 startup, §17
-            spot-checks (drag 1:1, tabs, upload, Back, login persistence).
+            Regressions: §22 (Force-Dark-off rendering, Chrome-UA logins),
+            §21 (keyboard toggle one spot/one shape), §20 (deck types into
+            Companion AND terminal), §18 startup, §17 spot-checks (drag 1:1,
+            tabs, upload, Back, login persistence).
           </li>
         </ol>
       </div>
@@ -195,10 +200,10 @@ export default function Home() {
           procfs contract, and the Phase 4 Companion design contract with
           the §22/§23/§24 amendments.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.5-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.6-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.5-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.6-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -222,9 +227,10 @@ export default function Home() {
         workspace · m3.4 registry expansion · m3.5 command launch fix · m3.6
         procfs contract · m4.0 Phase 4 Companion · m4.0.1 startup hotfix ·
         m4.0.2 honest failure surfaces · m4.0.3 one keyboard for everything ·
-        m4.0.4 pixels over promises · <b>v0.7.0-m4.0.5 (this build): the black
-        page fixed at the root — Force Dark off, Chrome UA, and the page now
-        testifies</b>. Your device keeps doing the QA that matters.
+        m4.0.4 pixels over promises · m4.0.5 the black page attacked at the
+        root · <b>v0.7.0-m4.0.6 (this build): the last dark lever off, the
+        witness de-fooled, and Copy report — the page tells us everything</b>.
+        Your device keeps doing the QA that matters.
       </footer>
     </main>
   );

@@ -1,44 +1,42 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0.5 (payload re-cut at git tip e1183a4; the black page
-fixed at the root — Force Dark off in three layers, Chrome-identical UA,
-DOM ground-truth witness: pixels AND a mounted app required, failures
-carry the page's own testimony — versionCode 29)
-- PocketShell-v0.7.0-m4.0.5-debug.apk  sha256 bbba0856e9771e01b44bb198d3b9923191903ce4e1f0a28cff27a0934393df26
-  Installs IN PLACE over v0.7.0-m4.0.4 (28), m4.0.3 (27), m4.0.2 (26),
-  m4.0.1 (25), m4.0 (24) and every earlier build (vc16..vc23) — same
-  pinned cert d96a6f66…8bf659. App data (Alpine runtime, Kilo, Hermes,
-  packages, Companion logins) survives.
-  WHAT FIXED (the one job — your evidence named the killer):
-  1. THE DIAGNOSIS: the cookie banner dismissed on tap → the page
-     pipeline is ALIVE. No m4.0.4 card → the main region painted the
-     site's own darkened empty body → the site's APP never mounted.
-  2. FORCE DARK OFF — THREE LAYERS: legacy targetSdk (a documented
-     proot constraint) leaves WebView Force Dark / algorithmic
-     darkening ARMED BY DEFAULT in dark mode — the documented mangler
-     of exactly this kind of page. Theme flag (API 29+) + runtime
-     Force-Dark-OFF (API 29–32) + algorithmic-darkening-OFF (API 33+).
-     Sites render as authored — own theme, own colors, unmangled.
-  3. CHROME-IDENTICAL UA: the "; wv" and "Version/4.0" markers are
-     stripped — byte-for-byte the Chrome mobile UA of your device.
-     Google login stops answering disallowed_useragent; bot-fronted
-     sites stop being served degraded bundles.
-  4. THE PAGE NOW TESTIFIES: boot-error trap from the first moment,
-     per-tab console tail, and a DOM witness (readyState + element
-     count, 20s budget). Healthy = pixels painted AND app mounted.
-     Failure → ONE silent fresh reload → honest "Page won't start"
-     card with the page's OWN numbers (readyState · DOM elements ·
-     first error · console line · WebView version) + Retry / Open in
-     browser / Continue anyway. If you see it, report the detail line
-     verbatim — it names the exact cause.
-  · Full suite green: 754 executions / 0 failures (+12 new pins per
+Current: v0.7.0-m4.0.6 (payload cut at git tip ccf9418; the last dark
+lever off — the WebView now always answers prefers-color-scheme: light,
+the boot witness is SSR-proof, and a standing Page health sheet puts the
+page's full testimony on the clipboard with one tap — versionCode 30)
+- PocketShell-v0.7.0-m4.0.6-debug.apk  sha256 5934b41635c06f90c2b2a604215484e3e613050c916ac0849cc6f827d1c54273
+  Installs IN PLACE over v0.7.0-m4.0.5 (29), m4.0.4 (28), m4.0.3 (27),
+  m4.0.2 (26), m4.0.1 (25), m4.0 (24) and every earlier build (vc16..23)
+  — same pinned cert d96a6f66…8bf659. App data (Alpine runtime, Kilo,
+  Hermes, packages, Companion logins) survives.
+  WHAT FIXED (still the one job — the silent black canvas decoded us):
+  1. THE NO-CARD BLACK DECODED: under m4.0.5 BOTH witnesses stood down.
+     The pixel probe passed because the page painted its own near-black
+     body; the DOM witness passed because chatgpt.com's SSR shell lands
+     with hundreds of inert nodes BEFORE hydration, clearing the
+     60-element floor with a dead script bundle.
+  2. FORCED-LIGHT SCHEME: the WebView is created in a configuration
+     context pinned to light — every site sees
+     prefers-color-scheme: light (the one dark lever m4.0.5 left armed:
+     Force-Dark-off does not change what the WebView ANSWERS). ChatGPT
+     now serves its light theme; the black-shell path dies at source.
+  3. SSR-PROOF WITNESS: a captured boot error is decisive — an erroring
+     page only counts as alive with real visible text (>= 200 chars).
+     The probe also reads interactive-element and text counts.
+  4. PAGE HEALTH + COPY REPORT: a new info chip at the tab strip's end
+     opens a sheet with the tab's full live testimony (url, WebView
+     version, renderer, pixel verdict, readyState/DOM/interactive/text,
+     boot errors, console lines, UA) and a COPY REPORT button — if
+     anything is ever still broken, paste the report in the chat and it
+     names the cause verbatim. Plus Refresh / Reload / Reload-in-compat.
+  · Full suite green: 762 executions / 0 failures (+8 new pins per
     variant).
-  Device gate: docs/TESTING.md §22. Full record: docs/CHANGELOG
-  [0.7.0-m4.0.5].
-- PocketShell-v0.7.0-m4.0.5-source.zip sha256 9a4a28d3ef1318f9d9158e0b70f518ee81a5503909f4fa33949237a3179d5979  (28M, 301 files)
-- PocketShell-v0.7.0-m4.0.5-source.tar.gz sha256 53e60b559f2b466b8555288cb6787a186f258fd1229d5188043e72f8de9f7583  (28 MB)
-- pocketshell-m2.gitbundle           sha256 30ea0bbb5f8038ffefa85e93aa4855e56bc960bf67b4583c964c97bdfa95cdbc  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
+  Device gate: docs/TESTING.md §23. Full record: docs/CHANGELOG
+  [0.7.0-m4.0.6].
+- PocketShell-v0.7.0-m4.0.6-source.zip sha256 2cfed15aa1809cc0d02a4d8f716a0d4802e6f6d96d5f667986643d719cddc99e  (28M, 305 files)
+- PocketShell-v0.7.0-m4.0.6-source.tar.gz sha256 ab7b5d7e9f485f72266de27eadc1f638f64d07a61987f4106a9e7cff08bfcdd2  (28 MB)
+- pocketshell-m2.gitbundle           sha256 a3256db60ddea1b1bb4a352a5be6c3a32f5d0aaa91024fd2259a3c9cdadda96c  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m4.0.4 superseded by m4.0.5; its records
+Older builds: withdrawn (v0.7.0-m4.0.5 superseded by m4.0.6; its records
 live in the bundle history — see docs/CHANGELOG for each confirmed fix).
