@@ -202,6 +202,11 @@ class CompanionTest {
             "Page renderer crashed",
             CompanionFailure(CompanionFailureKind.RENDERER_GONE).title,
         )
+        // m4.0.3: the silent-white signature gets its own honest title.
+        assertEquals(
+            "Page never rendered",
+            CompanionFailure(CompanionFailureKind.RENDER_STALLED).title,
+        )
     }
 
     @Test
@@ -242,5 +247,19 @@ class CompanionTest {
         assertTrue(
             CompanionFailure(CompanionFailureKind.RENDERER_GONE).hint.contains("Update or roll it back"),
         )
+    }
+
+    @Test
+    fun `render-stall failure explains itself and offers the compat retry`() {
+        // m4.0.3: the watchdog's card must carry the WebView version and the
+        // compatibility-rendering escape hatch — never a bare white canvas.
+        val failure = CompanionFailure(
+            CompanionFailureKind.RENDER_STALLED,
+            webViewVersion = "99.0.0.0",
+        )
+        assertEquals("Page never rendered", failure.title)
+        assertEquals("Android System WebView 99.0.0.0", failure.body)
+        assertTrue(failure.hint.contains("never drew anything"))
+        assertTrue(failure.hint.contains("compatibility rendering"))
     }
 }
