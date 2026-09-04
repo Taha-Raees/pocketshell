@@ -736,3 +736,19 @@ Work Log:
 
 Stage Summary:
 - Delivery content fully ready and repeatedly verified; serving depends solely on the platform's Preview Panel trigger. The m3.4 APK (vc21, Kilo fix inside, cert chain 16→21) is the artifact the user must install.
+
+---
+Task ID: 37
+Agent: main
+Task: Run Dev server with m3.4 APK + source zip staged (user re-request)
+
+Work Log:
+- Verified payload in public/: APK (2059d196…0dd5, vc21) + source.zip (3b79eaac…4b6f) + tgz + gitbundle, all present
+- Re-confirmed sandbox listener model: call-spawned next dev dies at call boundary (curl exit 7 on next call); single-call boot+verify+shutdown is the reliable pattern
+- Single-call verification: HTTP 200; page markers v0.7.0-m3.4 / versionCode 21 / Kilo Code / both sha256 pins all present (1 each)
+- Byte checks over HTTP: APK and zip downloads sha256-identical to public/ (uniq -c == 2)
+- Stale m3.3 URL correctly 404
+- Port freed after shutdown for platform Preview Panel auto-start
+
+Stage Summary:
+- Delivery site verified serving vc21 (0.7.0-m3.4) APK + source zip byte-identical; persistent server = platform auto-start via Preview Panel

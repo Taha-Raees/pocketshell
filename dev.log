@@ -5,22 +5,12 @@ $ next dev -p 3000
    - Environments: .env
 
  ✓ Starting...
- ✓ Ready in 1660ms
+ ✓ Ready in 1654ms
  ○ Compiling / ...
- ✓ Compiled / in 3.9s (539 modules)
- GET / 200 in 4464ms
- GET / 200 in 180ms
- GET / 200 in 200ms
-$ next dev -p 3000
-   ▲ Next.js 15.5.25
-   - Local:        http://localhost:3000
-   - Network:      http://21.0.13.131:3000
-   - Environments: .env
-
- ✓ Starting...
- ✓ Ready in 1629ms
- ○ Compiling / ...
- ✓ Compiled / in 3.9s (539 modules)
- GET / 200 in 4359ms
- GET / 200 in 129ms
- GET / 200 in 169ms
+ ✓ Compiled / in 3.8s (539 modules)
+ GET / 200 in 4276ms
+ GET / 200 in 131ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 800ms (530 modules)
+ GET /PocketShell-v0.7.0-m3.3-debug.apk 404 in 973ms
+[?25h
