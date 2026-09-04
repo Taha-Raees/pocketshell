@@ -33,9 +33,9 @@ page's full testimony on the clipboard with one tap — versionCode 30)
     variant).
   Device gate: docs/TESTING.md §23. Full record: docs/CHANGELOG
   [0.7.0-m4.0.6].
-- PocketShell-v0.7.0-m4.0.6-source.zip sha256 2cfed15aa1809cc0d02a4d8f716a0d4802e6f6d96d5f667986643d719cddc99e  (28M, 305 files)
-- PocketShell-v0.7.0-m4.0.6-source.tar.gz sha256 ab7b5d7e9f485f72266de27eadc1f638f64d07a61987f4106a9e7cff08bfcdd2  (28 MB)
-- pocketshell-m2.gitbundle           sha256 a3256db60ddea1b1bb4a352a5be6c3a32f5d0aaa91024fd2259a3c9cdadda96c  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
+- PocketShell-v0.7.0-m4.0.6-source.zip sha256 f0330fe8d67b30479b0b6d22ca23bf507babd9a7d87fd7072da1e1b90cfd1296  (28M, 305 files)
+- PocketShell-v0.7.0-m4.0.6-source.tar.gz sha256 86e39ae89406d818372b1fdb0e3e32fabedddd72ab2622e351e365916dbdb152  (28 MB)
+- pocketshell-m2.gitbundle           sha256 266006333db1de0c3c09ddbea22854933e506a1d822039f823f335e55d9fee61  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.7.0-m4.0.5 superseded by m4.0.6; its records
