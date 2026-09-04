@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m3.6
+VERSION=v0.7.0-m4.0
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,8 +40,48 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m3.5) — PHASE 3.6, THE PROCFS CONTRACT
-(/proc UNCONDITIONAL + apk fd-link SELF-REPAIR):
+WHAT IS NEW IN $VERSION (vs v0.7.0-m3.6) — PHASE 4, COMPANION: THE EMBEDDED
+WEB WORKSPACE:
+  - Companion is a lightweight web workspace INSIDE PocketShell: a
+    persistent layer below every screen, pulled up by a bottom drag
+    handle. NO floating button, NO browser chrome, NO address bar: the
+    website is the content, PocketShell owns the chrome. A Companion is
+    exactly Name + URL — fully generic (ChatGPT, Claude, Gemini, DeepSeek,
+    GitHub, docs sites, local dashboards — anything). This is NOT an AI
+    chatbot and has NO AI APIs: you log into the real website with your
+    real account and get the real experience.
+  - ENGINE: Android System WebView only — ZERO new dependencies. Chromium
+    renders in its own sandboxed process. Cookies + site storage persist
+    in the app's private web profile (logins survive full app restarts);
+    Safe Browsing on, mixed content never, file/content access off,
+    camera/mic/geo denied, no user-agent spoofing.
+  - DRAG: 1:1 with the finger, handle zone only — webpage scrolling and
+    resizing never fight. While dragging, the page does NOT reflow (its
+    height freezes, one resize on release). Gentle anchors (half,
+    near-full) snap only within a 6% window; otherwise the surface stays
+    exactly where released and the height is remembered. The handle is
+    reachable at every height — you are never trapped.
+  - TABS: inverted Phase 3.1 editor style (the active tab opens into the
+    web canvas, 2.5dp Sapphire bottom edge). Switching tabs NEVER reloads:
+    background tabs stay alive-but-paused in a process-scoped pool
+    (active + 4 LRU; evicted tabs keep their navigation state and restore
+    on reactivation; memory pressure drops background pages first).
+  - INTEGRATION: Back = webpage history, then collapse, then normal
+    PocketShell navigation — never traps you. File uploads use the normal
+    Android picker; downloads go to app-private storage via the system
+    DownloadManager (no permission, no crash); mailto/tel/intent links
+    resolve to the system (honest Toast when nothing can); the panel
+    lifts above the keyboard for chat inputs.
+  - SETTINGS > COMPANION: add/edit/delete definitions (inline Midnight
+    editor), quick-add templates as editable pre-fills (ChatGPT, Claude,
+    Gemini, DeepSeek, GitHub), Default Companion rows, Clear web data.
+  - versionCode 24 / 0.7.0-m4.0 — in-place update over 16..23; same pinned
+    cert. 704 test executions, 0 failures. Contract:
+    docs/PHASE-4-COMPANION-DESIGN.md. Device gate: docs/TESTING.md §17.
+
+WHAT WAS NEW IN v0.7.0-m3.6 (vs v0.7.0-m3.5) — PHASE 3.6, THE PROCFS CONTRACT
+(/proc UNCONDITIONAL + apk fd-link SELF-REPAIR) [superseded by Phase 4; the
+procfs contract remains fully active in the runtime]:
   - THE REPORTED BUG: inside the Linux environment, Kilo Code died with
     "TUI worker error ENOENT: no such file or directory, realpath ..." on
     directories that EXISTED, and /proc/version, /proc/self/root, ps were
@@ -703,7 +743,12 @@ echo "dot-path entries       : $DOTS  (want 0)"
 echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 0)  (want 0)"
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
-           docs/PROCFS-CONTRACT.md \
+           docs/PROCFS-CONTRACT.md docs/PHASE-4-COMPANION-DESIGN.md \
+           app/src/main/java/app/pocketshell/companion/CompanionModels.kt \
+           app/src/main/java/app/pocketshell/companion/CompanionWebPool.kt \
+           app/src/main/java/app/pocketshell/ui/companion/CompanionLayer.kt \
+           app/src/main/java/app/pocketshell/ui/companion/CompanionTabStrip.kt \
+           app/src/main/java/app/pocketshell/ui/companion/CompanionSettingsScreen.kt \
            docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md docs/PHASE-3.3-DESIGN.md \
            docs/PHASE-3.4-DESIGN.md docs/PHASE-3.5-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
