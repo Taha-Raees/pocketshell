@@ -1,6 +1,6 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0.3 (payload cut at git tip f9a730c; the device bug
+Current: v0.7.0-m4.0.3 (payload cut at git tip c7bc60e; the device bug
 batch — keyboard everywhere, keyboard pushes everything up, dead "-"
 fixed, honest render-stall card, "+" Companion picker — versionCode 27)
 - PocketShell-v0.7.0-m4.0.3-debug.apk  sha256 b456160e678b1883ace401903904dd99206e6f4dadfc2241a7b8d671223ce431
@@ -30,9 +30,9 @@ fixed, honest render-stall card, "+" Companion picker — versionCode 27)
   · 724 tests green (0 failures; +6 new pins per variant).
   Device gate: docs/TESTING.md §20. Full record: docs/CHANGELOG
   [0.7.0-m4.0.3]; contract amendment: docs/PHASE-4-COMPANION-DESIGN §24.
-- PocketShell-v0.7.0-m4.0.3-source.zip sha256 06ec5d5e25a2553beea6421de6f2d47bb72d5b39c6dad89eba758d15c02ae30e  (28 MB, 298 files)
-- PocketShell-v0.7.0-m4.0.3-source.tar.gz sha256 f773a5b97f0c2578e37b62f7fa718c9ae2cf6c9faf4b57cef8c4167fc23e28a6  (28 MB)
-- pocketshell-m2.gitbundle           sha256 be5241600204ba79cb522dbf74c05355bb241a0ddd070aa99e097d109222d406  (full history; ~26 MB — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
+- PocketShell-v0.7.0-m4.0.3-source.zip sha256 0bcc2312ba0c02b3657c59af90b359dad20093fa03a3e2801b2db972a28d7ea5  (28 MB, 298 files)
+- PocketShell-v0.7.0-m4.0.3-source.tar.gz sha256 b1bdd622ae5661687804829fb900ab50b2d95e0ce1e225762953c7840600faa3  (28 MB)
+- pocketshell-m2.gitbundle           sha256 919c9bcf569f3d1d0244216d960c0f823196df910f2a53b758dcd1ad3755abdd  (full history; ~26 MB — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.7.0-m4.0.2 superseded by m4.0.3; its records
