@@ -1,0 +1,192 @@
+package app.pocketshell.companion
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Phase 4 — Companion unit pins (docs/PHASE-4-COMPANION-DESIGN.md §18).
+ * Pure logic only: validation, tab reducer, back decision, height math,
+ * JSON round-trips. No WebView fakes (the project rule) — device behavior
+ * is gated manually in docs/TESTING.md §17.
+ */
+class CompanionTest {
+
+    // ---- URL validation (contract §4) --------------------------------------
+
+    @Test
+    fun `scheme-less url gets https`() {
+        assertEquals("https://chatgpt.com", CompanionValidation.normalizeUrl("chatgpt.com"))
+        assertEquals("https://github.com", CompanionValidation.normalizeUrl("  github.com  "))
+    }
+
+    @Test
+    fun `explicit https and http survive`() {
+        assertEquals("https://chat.deepseek.com", CompanionValidation.normalizeUrl("https://chat.deepseek.com"))
+        assertEquals("http://192.168.1.10:8080", CompanionValidation.normalizeUrl("http://192.168.1.10:8080"))
+    }
+
+    @Test
+    fun `forbidden schemes are rejected`() {
+        listOf(
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "data:text/html;base64,AAAA",
+            "about:blank",
+            "intent://x#Intent;scheme=y;end",
+            "blob:https://x/y",
+        ).forEach { url -> assertNull(url, CompanionValidation.normalizeUrl(url)) }
+    }
+
+    @Test
+    fun `malformed urls are rejected`() {
+        assertNull(CompanionValidation.normalizeUrl(""))
+        assertNull(CompanionValidation.normalizeUrl("   "))
+        assertNull(CompanionValidation.normalizeUrl("not a url"))
+        assertNull(CompanionValidation.normalizeUrl("https://"))
+        assertNull(CompanionValidation.normalizeUrl("ftp://files.example.com"))
+    }
+
+    @Test
+    fun `host without dot is rejected`() {
+        // URI parses it; the contract requires a dotted host.
+        assertNull(CompanionValidation.normalizeUrl("http://localhost"))
+    }
+
+    @Test
+    fun `oversized input rejected`() {
+        val long = "a".repeat(CompanionValidation.MAX_URL_LENGTH + 1)
+        assertNull(CompanionValidation.normalizeUrl(long))
+    }
+
+    // ---- name validation ----------------------------------------------------
+
+    @Test
+    fun `name is trimmed and capped`() {
+        assertEquals("ChatGPT", CompanionValidation.validateName("  ChatGPT "))
+        assertNull(CompanionValidation.validateName("   "))
+        assertNull(CompanionValidation.validateName("x".repeat(CompanionValidation.MAX_NAME_LENGTH + 1)))
+    }
+
+    // ---- tab reducer (contract §6) ------------------------------------------
+
+    private fun tab(defId: String) = TabRecord(defId)
+
+    @Test
+    fun `open focuses existing tab instead of duplicating`() {
+        val tabs = listOf(tab("a"), tab("b"))
+        val result = CompanionTabs.opened(tabs, "a")
+        assertEquals(tabs, result)
+        assertEquals(0, CompanionTabs.indexAfterOpen(tabs, "a"))
+    }
+
+    @Test
+    fun `open appends new tab`() {
+        val tabs = listOf(tab("a"))
+        val result = CompanionTabs.opened(tabs, "b")
+        assertEquals(listOf(tab("a"), tab("b")), result)
+        assertEquals(1, CompanionTabs.indexAfterOpen(tabs, "b"))
+    }
+
+    @Test
+    fun `closing inactive tab keeps selection`() {
+        val tabs = listOf(tab("a"), tab("b"), tab("c"))
+        val (surviving, next) = CompanionTabs.closed(tabs, "b", activeDefId = "c")
+        assertEquals(listOf(tab("a"), tab("c")), surviving)
+        assertEquals("c", next)
+    }
+
+    @Test
+    fun `closing active tab selects left neighbor then right`() {
+        val tabs = listOf(tab("a"), tab("b"), tab("c"))
+        val (surviving1, next1) = CompanionTabs.closed(tabs, "b", activeDefId = "b")
+        assertEquals("a", next1)
+        val (surviving2, next2) = CompanionTabs.closed(listOf(tab("a"), tab("c")), "a", activeDefId = "a")
+        assertEquals("c", next2)
+        assertEquals(listOf(tab("c")), surviving2)
+    }
+
+    @Test
+    fun `closing last tab clears selection`() {
+        val (surviving, next) = CompanionTabs.closed(listOf(tab("a")), "a", "a")
+        assertTrue(surviving.isEmpty())
+        assertNull(next)
+    }
+
+    @Test
+    fun `deleting a definition removes its tabs and repairs selection`() {
+        val tabs = listOf(tab("a"), tab("b"))
+        val (surviving, next) = CompanionTabs.defsRemoved(tabs, "a", activeDefId = "a")
+        assertEquals(listOf(tab("b")), surviving)
+        assertEquals("b", next)
+    }
+
+    @Test
+    fun `resolved active repairs stale selections`() {
+        val tabs = listOf(tab("a"), tab("b"))
+        assertEquals("b", CompanionTabs.resolvedActive(tabs, "b"))
+        assertEquals("a", CompanionTabs.resolvedActive(tabs, "gone"))
+        // No explicit selection but tabs exist → first tab (cold-restore UX).
+        assertEquals("a", CompanionTabs.resolvedActive(tabs, null))
+        // No tabs at all → honest null.
+        assertNull(CompanionTabs.resolvedActive(emptyList(), "a"))
+    }
+
+    // ---- JSON round-trips (contract §5) --------------------------------------
+
+    @Test
+    fun `defs and tabs json round-trip`() {
+        val defs = listOf(
+            CompanionDef("id1", "ChatGPT", "https://chatgpt.com"),
+            CompanionDef("id2", "GitHub", "https://github.com"),
+        )
+        val encoded = CompanionJson.encodeToString(defs)
+        assertEquals(defs, CompanionJson.decodeFromString<List<CompanionDef>>(encoded))
+
+        val tabs = listOf(TabRecord("id1", "https://github.com/pocketshell"))
+        assertEquals(tabs, CompanionJson.decodeFromString<List<TabRecord>>(CompanionJson.encodeToString(tabs)))
+    }
+
+    // ---- back decision (contract §14) ----------------------------------------
+
+    @Test
+    fun `back decision order is web then collapse then passthrough`() {
+        assertEquals(CompanionBackAction.PASS_THROUGH, decideBackAction(canGoBack = true, raised = false))
+        assertEquals(CompanionBackAction.WEB_BACK, decideBackAction(canGoBack = true, raised = true))
+        assertEquals(CompanionBackAction.COLLAPSE, decideBackAction(canGoBack = false, raised = true))
+    }
+
+    // ---- height math (contract §9) --------------------------------------------
+
+    @Test
+    fun `release snaps only within the gentle window`() {
+        assertEquals(CompanionHeights.HALF, CompanionHeights.settled(CompanionHeights.HALF + 0.04f))
+        assertEquals(CompanionHeights.FULL, CompanionHeights.settled(CompanionHeights.FULL - 0.05f))
+        // Outside the window: stay exactly where released.
+        val free = CompanionHeights.HALF + 0.12f
+        assertEquals(free, CompanionHeights.settled(free))
+    }
+
+    @Test
+    fun `release below the collapse threshold collapses`() {
+        assertEquals(0f, CompanionHeights.settled(0.07f))
+        assertEquals(0.09f, CompanionHeights.settled(0.09f))
+    }
+
+    @Test
+    fun `fractions clamp into the legal band`() {
+        assertEquals(0f, CompanionHeights.clamp(-0.5f))
+        assertEquals(CompanionHeights.FULL, CompanionHeights.clamp(1.5f))
+        assertEquals(0.4f, CompanionHeights.clamp(0.4f))
+    }
+
+    @Test
+    fun `raised means at or above the minimum`() {
+        assertFalse(CompanionHeights.isRaised(0f))
+        assertFalse(CompanionHeights.isRaised(0.01f))
+        assertTrue(CompanionHeights.isRaised(CompanionHeights.MIN_RAISED))
+        assertTrue(CompanionHeights.isRaised(0.5f))
+    }
+}

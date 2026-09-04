@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -69,6 +70,10 @@ fun PocketShellRoot(
     val keyboardState = remember { KeyboardState() }
     var screen by rememberSaveable { mutableStateOf("home") }
 
+    // Phase 4: created once here so Companion state (definitions, tabs,
+    // height, the in-process WebView pool's identity) survives screen switches.
+    val companionViewModel: app.pocketshell.companion.CompanionViewModel = viewModel()
+
     val sessions by terminalViewModel.sessions.collectAsStateWithLifecycle()
     val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
     val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
@@ -102,7 +107,8 @@ fun PocketShellRoot(
 
     BackHandler(enabled = screen != "home") { screen = "home" }
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         when (screen) {
             "terminal" -> TerminalScreen(
                 sessions = sessions,
@@ -138,7 +144,14 @@ fun PocketShellRoot(
                 onThemeMode = settingsViewModel::setThemeMode,
                 onDynamicColor = settingsViewModel::setDynamicColor,
                 onFontSize = settingsViewModel::setDefaultFontSize,
+                onOpenCompanions = { screen = "companionSettings" },
                 onBack = { screen = "home" },
+                modifier = Modifier.padding(padding),
+            )
+
+            "companionSettings" -> app.pocketshell.ui.companion.CompanionSettingsScreen(
+                viewModel = companionViewModel,
+                onBack = { screen = "settings" },
                 modifier = Modifier.padding(padding),
             )
 
@@ -182,5 +195,16 @@ fun PocketShellRoot(
                 modifier = Modifier,
             )
         }
+
+        // Phase 4 — the Companion layer: a persistent workspace surface
+        // overlaying EVERY screen, resized only by its bottom handle.
+        // Composed after the screens so its BackHandler (web history →
+        // collapse → screen navigation) is registered last.
+        app.pocketshell.ui.companion.CompanionLayer(
+            viewModel = companionViewModel,
+            onOpenCompanionSettings = { screen = "companionSettings" },
+        )
+    }
     }
 }
+

@@ -21,6 +21,10 @@ class PocketShellApp : Application() {
         // M2.4: real apk-backed package layer (process-scoped, like the
         // terminal session manager; nothing runs during init).
         PackageGateway.init(this)
+        // Phase 4: Companion web runtime — cookie acceptance + the WebView
+        // pool (process-scoped like the other engine layers; nothing runs
+        // during init) — docs/PHASE-4-COMPANION-DESIGN.md §3/§8.
+        app.pocketshell.companion.CompanionWebPool.init(this)
     }
 }
 

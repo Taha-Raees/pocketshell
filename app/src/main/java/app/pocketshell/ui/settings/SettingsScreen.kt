@@ -1,10 +1,12 @@
 package app.pocketshell.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pocketshell.settings.SettingsRepository
@@ -49,6 +52,7 @@ fun SettingsScreen(
     onThemeMode: (ThemeMode) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onFontSize: (Int) -> Unit,
+    onOpenCompanions: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -137,6 +141,43 @@ fun SettingsScreen(
                 ),
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
+
+            MidnightSectionDivider()
+            Spacer(Modifier.height(12.dp))
+
+            // Phase 4 — Companion definitions (docs/PHASE-4-COMPANION-DESIGN.md).
+            MidnightSectionLabel("Companion")
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button, onClickLabel = "Manage Companions") {
+                        onOpenCompanions()
+                    }
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Companion websites",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = HomeTokens.textPrimary,
+                    )
+                    Text(
+                        "Your web workspaces — ChatGPT, GitHub, anything",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.textDim,
+                    )
+                }
+                Text(
+                    text = "›",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 18.sp,
+                    color = HomeTokens.textDim,
+                )
+            }
+
             Spacer(Modifier.height(24.dp))
         }
     }
