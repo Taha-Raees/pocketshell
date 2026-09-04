@@ -859,3 +859,24 @@ Stage Summary:
 - v0.7.0-m4.0.1 (vc25) delivered end-to-end: the m4.0 launch-crash is fixed at the architecture level — WebView provider health can no longer gate app startup; failure degrades only the Companion surface, honestly labeled.
 - Awaiting device verification: install vc25 IN PLACE over the crash-looping vc24 (no WebView rollback needed) → PocketShell must start; TESTING §18.
 - Carried tasks unchanged: Kilo tile direct launch; CommandApps.kt registry de-hardcoding; Diagnostics/Package Manager/Settings redesign to Home 3.3/3.4 language.
+
+---
+Task ID: 43
+Agent: Super Z (main)
+Task: Device follow-up to the m4.0.1 hotfix — Companion canvas rendered a PURE WHITE rectangle (ChatGPT tab, no error). Make every failure honest + diagnosable; deliver m4.0.2.
+
+Work Log:
+- Read the second screenshot: app STARTS (m4.0.1 startup fix CONFIRMED working on device); Companion raised with ChatGPT tab; canvas pure white. All PocketShell surfaces are dark → white came from the WebView content side (load failure / too-old rolled-back WebView / broken updated build).
+- Implemented m4.0.2 "honest failure surfaces": pool Listener += onMainFrameError/onRendererGone; onReceivedError(main frame only) → card; onRenderProcessGone → destroy ONLY the crashed view + return true (platform default kills the app) → card; CompanionWebPool.webViewVersion() (guarded getCurrentWebViewPackage).
+- CompanionFailure pure model (kind/detail/version → title/body/hint) + in-canvas Midnight failure card with Retry; failure-first CompanionWebHost (renderer-gone tabs have no pool entry — acquire must not run behind the card); retrySeed re-keys remember so Retry rebuilds the WebView; failure cleared on committed navigation; provider-broken notice now shows the WebView version.
+- +4 unit pins; one pin caught a real defect (blank-string version formatted into the body). Full suite: 712 tests / 0 failures.
+- APK vc26 / 0.7.0-m4.0.2 verified (aapt2 + apksigner, cert d96a6f66…8bf659); sha256 d4b04acc…605bb2.
+- Housekeeping: platform auto-snapshot commits (UUID-titled) had tracked tool-results/ scratch — untracked, gitignored, and excluded from the payload source tree (296 files now).
+- Docs: CHANGELOG [0.7.0-m4.0.2]; TESTING §19 gate (failure cards, Retry, example.com isolation, §17/§18 spot-checks); ROADMAP Phase 4.0.2; design contract §23 (canvas never silently blank).
+- Payload m4.0.2 cut (zip 8247c686… / tgz 2d160f10… / bundle a82f9fcb… / apk d4b04acc…), three-way mirror byte-verified; m4.0.1 artifacts withdrawn.
+- Page rewritten (failure-surface hero, §19 quick checks); worklog + page/README commits follow.
+
+Stage Summary:
+- v0.7.0-m4.0.2 (vc26) delivered end-to-end. Chain on device now: m4.0 crashed at start → m4.0.1 starts (CONFIRMED by user) → m4.0.2 turns the white-canvas mystery into labeled cards (cause + WebView version + Retry).
+- NEXT DEVICE DATA NEEDED: which card appears (load error vs renderer crash vs page loads), the WebView version on the card, and the example.com isolation result.
+- Carried tasks unchanged: Kilo tile direct launch; CommandApps.kt registry de-hardcoding; Diagnostics/Package Manager/Settings redesign to Home 3.3/3.4 language.

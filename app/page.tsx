@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m4.0.1";
+const VERSION = "v0.7.0-m4.0.2";
 
 const HASHES = {
-  apk: "c9fc0cc3c2bfbdca98fa1b948bec2bec7a1fd9d60f3cdd77a348414c23ccd678",
-  zip: "7435127f3ecf4697cde67e45eb4c7948a315c85cd2223570ac877cb83df50b37",
-  tgz: "dabbdb9692592a8ff3195a6acafade79b5a9e4d16fbc3044a330c091e2c4b213",
-  bundle: "9020f9da0e25758d62520fb0e37b1a8e9b70cdae00c86a99723749f990fab205",
+  apk: "d4b04acc3919fc6da9bd72a37590bb2587e00c900cc83202619dec0158605bb2",
+  zip: "8247c6867121bfe6a18ea30f027b06d3f5ee206d71b1deeed718fc6c67b6f537",
+  tgz: "2d160f1095ff1b1589a6ce16c17e4d23af0323dfebec0e3e56dc19b7064f7ab2",
+  bundle: "a82f9fcb547eb21b6441a116db43783d8732c3381f1b8c333f703b0ceffed091",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,72 +25,75 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Hotfix — a broken WebView update could kill every launch{" "}
-          <span className="badge">versionCode 25</span>
+          The Companion canvas is never mysteriously white{" "}
+          <span className="badge">versionCode 26</span>
         </h2>
         <p>
-          <b>The reported crash (device, 2026-09-05):</b> after updating to
-          m4.0, PocketShell crashed on <b>every</b> start before any UI
-          appeared — and Samsung Device Care popped up &quot;Uninstall WebView
-          updates?&quot;. Root cause, found and fixed: m4.0 initialized the
-          Companion web runtime during Application startup, and that init
-          called <code>CookieManager.getInstance()</code> — which
-          <b> synchronously loads the entire Android System WebView provider
-          before any UI, on every launch</b>. On this device the freshly
-          updated WebView package itself crashes at provider init (a
-          Samsung + microG combination), so every PocketShell launch died
-          with it — even though the Companion was never opened. An optional
-          layer&apos;s engine had taken the whole terminal app hostage.
+          <b>The device finding (same session as the startup hotfix):</b> after
+          m4.0.1 fixed the launch crash, the app starts — but pulling the
+          Companion up showed the ChatGPT tab strip over a <b>pure white
+          canvas</b>: no page, no error, no explanation. Every PocketShell
+          surface is dark, so the white came from the WebView content side.
+          Three possible causes, all device-dependent: the page can&apos;t load
+          over the network/VPN, the WebView build is too old for a modern site
+          (Samsung&apos;s rollback can leave an ancient factory build), or the
+          updated build renders blank. A silent white rectangle is not
+          acceptable — so now the canvas reports the truth.
         </p>
         <ul className="steps">
           <li>
-            <b>The fix:</b> Application startup is now WebView-free — it
-            holds a context reference and nothing else. Cookie configuration
-            and WebView creation happen lazily at first Companion use and
-            are fully guarded. No code path can crash the process on a
-            broken provider anymore.
+            <b>&quot;Page didn&apos;t load&quot; card:</b> if the main frame fails
+            (network, DNS, VPN), the canvas shows the REAL error string (e.g.{" "}
+            <code>net::ERR_NAME_NOT_RESOLVED</code>), the installed Android
+            System WebView version, the hint that matters — and a{" "}
+            <b>Retry</b> button.
           </li>
           <li>
-            <b>Graceful degradation, honestly:</b> if the device&apos;s WebView
-            package is missing or crashing, only the Companion surface
-            changes — it shows a minimal Midnight notice (&quot;Companion
-            unavailable — Android System WebView is missing or crashing on
-            this device&quot;). The terminal, Home, packages, Diagnostics and
-            Settings keep working untouched.
+            <b>&quot;Page renderer crashed&quot; card:</b> when the WebView
+            renderer dies (the classic white-canvas signature of broken
+            WebView builds — Android&apos;s DEFAULT behavior here is to kill
+            the whole app), PocketShell now destroys only the crashed view,
+            stays alive, and says exactly that with the version + an
+            update/rollback hint.
           </li>
           <li>
-            <b>Your data is unchanged:</b> installing this hotfix in place
-            keeps every session — Companion logins live in the app&apos;s
-            private web storage. Once the device has a healthy WebView
-            (update &quot;Android System WebView&quot; in the Play Store, or accept
-            Samsung&apos;s rollback — either way), the Companion works exactly
-            as shipped in m4.0. You do NOT need to uninstall WebView updates
-            for PocketShell to start anymore.
+            <b>Retry rebuilds the tab</b> from scratch; any successful
+            navigation clears the failure automatically. The
+            &quot;Companion unavailable&quot; notice shows the WebView version
+            too.
           </li>
           <li>
-            <b>Phase 4 itself is untouched:</b> no feature, UI, storage or
-            contract change. Full suite green: 704 tests, 0 failures.
+            <b>Honest boundary:</b> a page that loads but renders blank
+            because an old WebView can&apos;t run its JavaScript fires no
+            error event. That case is identified with the version line on the
+            cards plus a static-site test (add <code>example.com</code> as a
+            second Companion — it renders on ANY WebView).
+          </li>
+          <li>
+            <b>Nothing else changed:</b> no feature, storage or contract
+            change. Full suite green: 712 tests, 0 failures (4 new pins on
+            the failure model — one caught a real defect before delivery).
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m4.0.1-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m4.0.2-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.1)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.2)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 25 installs <b>in place over v0.7.0-m4.0 (24),
-          v0.7.0-m3.6 (23) and every earlier pinned-cert build</b>. Your
-          Alpine runtime, installed packages, Kilo/Hermes installation, the
-          procfs contract, every Phase 3 behavior and all Companion data are
-          untouched. If the app is currently crash-looping on your device,
-          install this build over the broken one — it starts regardless of
-          the WebView package&apos;s state.
+          versionCode 26 installs <b>in place over v0.7.0-m4.0.1 (25),
+          v0.7.0-m4.0 (24) and every earlier pinned-cert build</b>. Your Alpine
+          runtime, installed packages, Kilo/Hermes installation, the procfs
+          contract, every Phase 3 behavior and all Companion data (logins
+          included) are untouched. This build also contains the m4.0.1
+          startup fix — it starts regardless of the WebView package&apos;s
+          state.
         </p>
       </div>
 
@@ -126,35 +129,46 @@ export default function Home() {
             throughout.
           </li>
           <li>
-            <b>v0.7.0-m4.0.1 (this build):</b> startup decoupled from WebView
-            provider health — the m4.0 launch-crash fix described above;
-            everything else identical to m4.0.
+            m4.0.1: startup decoupled from WebView provider health (the
+            launch-crash fix).
+          </li>
+          <li>
+            <b>v0.7.0-m4.0.2 (this build):</b> honest Companion failure
+            surfaces — load errors and renderer crashes become labeled cards
+            with the real cause + WebView version + Retry. Never a silent
+            white rectangle.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §18 — hotfix device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §19 — failure-surface device gate)</h2>
         <ol className="steps">
           <li>
-            Install {VERSION} in place over the crashing m4.0 (do NOT
-            uninstall WebView updates first) → PocketShell opens normally to
-            Home. Launch, kill, relaunch 3× — starts every time.
+            Install {VERSION} in place over the current build → PocketShell
+            starts; pull the Companion up with the ChatGPT tab.
           </li>
           <li>
-            With the WebView still broken: pull the Companion handle up →
-            the minimal &quot;Companion unavailable&quot; notice renders — no crash,
-            no blank panel; the terminal keeps working while it&apos;s up.
+            If the page can&apos;t load: the dark card shows &quot;Page
+            didn&apos;t load&quot; + the real error + the WebView version — no
+            white rectangle. If the renderer dies: &quot;Page renderer
+            crashed&quot; and PocketShell survives.
           </li>
           <li>
-            Repair Android System WebView (Play Store update or Samsung&apos;s
-            rollback) → restart PocketShell → the Companion loads normally
-            and previously logged-in sites are still logged in.
+            Tap <b>Retry</b> → the tab reloads fresh. Then add{" "}
+            <code>example.com</code> as a second Companion: if it renders,
+            network + WebView are fine and the ChatGPT failure is site- or
+            VPN-specific; if it also fails, the WebView build/network is the
+            problem.
           </li>
           <li>
-            Spot-checks: §17 (drag 1:1, tab switch without reload, file
-            upload, Back = history → collapse → navigation) and §12–§16
-            (<code>apk update</code> in the guest, Home tiles launch apps).
+            Report the WebView version shown on the card — that number
+            decides whether to update (&quot;Android System WebView&quot; in
+            the Play Store) or roll back (Samsung&apos;s dialog).
+          </li>
+          <li>
+            Regressions: §18 startup checks, §17 spot-checks (drag, tabs,
+            upload, Back), guest <code>apk update</code>.
           </li>
         </ol>
       </div>
@@ -163,15 +177,15 @@ export default function Home() {
         <h2>Source (version control)</h2>
         <p>
           Complete buildable source. The zip intentionally contains no
-          dotfiles; full history rides in the git bundle (tip 8244772 —
-          includes the complete milestone history, all six Phase 3 design
-          contracts, the procfs contract, and the Phase 4 Companion design
-          contract with the §22 hotfix amendment).
+          dotfiles; full history rides in the git bundle — includes the
+          complete milestone history, all six Phase 3 design contracts, the
+          procfs contract, and the Phase 4 Companion design contract with the
+          §22/§23 hotfix amendments.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.1-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.2-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.1-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.2-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -193,9 +207,9 @@ export default function Home() {
         search-install · M2.6 real /proc + real apk · v0.6.2 sysdata repairs ·
         v0.7.0-m3.1 terminal redesign · m3.2 OS launcher · m3.3 flat
         workspace · m3.4 registry expansion · m3.5 command launch fix · m3.6
-        procfs contract · m4.0 Phase 4 Companion · <b>v0.7.0-m4.0.1 (this
-        build): startup decoupled from WebView provider health</b>. Your
-        device keeps doing the QA that matters.
+        procfs contract · m4.0 Phase 4 Companion · m4.0.1 startup hotfix ·{" "}
+        <b>v0.7.0-m4.0.2 (this build): the Companion canvas is never
+        mysteriously white</b>. Your device keeps doing the QA that matters.
       </footer>
     </main>
   );
