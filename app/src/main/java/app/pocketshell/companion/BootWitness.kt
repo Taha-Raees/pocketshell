@@ -19,6 +19,14 @@ import kotlinx.serialization.json.jsonPrimitive
  * ever actually MOUNTED. A consent banner is a few dozen DOM nodes; any
  * real app shell is hundreds. All decisions are pure and unit-pinned —
  * no WebView fakes, per the testing contract.
+ *
+ * m4.0.6 (device 2026-09-05: still black, no card, under m4.0.5): the
+ * element floor had a server-rendered blind spot — chatgpt.com's shell
+ * lands with hundreds of inert nodes BEFORE hydration, so the witness
+ * stood down on a page whose script bundle may have died. Boot errors
+ * are now decisive (an erroring page must show real visible text to
+ * count as alive), and the full testimony is surfaced at any moment via
+ * the tab strip's page-health sheet ([CompanionHealth]).
  */
 object BootWitness {
 
@@ -35,13 +43,19 @@ object BootWitness {
             "var r=e.reason;window.__psBoot.errs.push('promise:'+String((r&&r.message)?r.message:r)" +
             ".slice(0,180))}catch(_){}})})()"
 
-    /** One probe of the page's own truth (safe against a hostile/odd DOM). */
+    /** One probe of the page's own truth (safe against a hostile/odd DOM).
+     *  m4.0.6: also counts INTERACTIVE elements — SSR shells ship hundreds of
+     *  inert markup nodes before their app ever hydrates, but they ship few
+     *  live controls; the count sharpens the testimony without deciding
+     *  alone (device 2026-09-05: chatgpt.com's shell beat the 60-element
+     *  floor while the canvas stayed black). */
     const val DOM_TRUTH_JS: String =
         "(function(){try{var b=window.__psBoot;return JSON.stringify({" +
             "rs:document.readyState,n:document.getElementsByTagName('*').length," +
+            "i:document.querySelectorAll('button,a,input,textarea,select,[role=button],[contenteditable]').length," +
             "t:(document.body?document.body.innerText.length:0)," +
             "e:(b?b.errs.slice(0,2):[])})}catch(err){return JSON.stringify(" +
-            "{rs:'probe-error',n:-1,t:0,e:[String(err).slice(0,120)]})}})()"
+            "{rs:'probe-error',n:-1,i:-1,t:0,e:[String(err).slice(0,120)]})}})()"
 
     /**
      * A page whose app mounted has hundreds of DOM nodes; a bare shell with
@@ -50,12 +64,32 @@ object BootWitness {
      */
     const val MOUNT_ELEMENT_FLOOR = 60
 
-    /** One reading of the page's truth (parsed from [DOM_TRUTH_JS]). */
+    /**
+     * m4.0.6 (device 2026-09-05: still black under m4.0.5, no card) — when
+     * the page CAPTURED A BOOT ERROR, raw element count can no longer vouch
+     * for health: server-rendered shells (chatgpt.com among them) sit in
+     * the DOM instantly, so a page whose script bundle died still clears
+     * the 60-element floor while its canvas stays black forever. A page
+     * with errors is only "alive" when it also shows real visible text.
+     */
+    const val TEXT_MOUNT_FLOOR = 200
+
+    /** True when the page's app shell actually exists AND (should errors
+     *  exist) is actually showing content. Pure; unit-pinned. */
+    fun mounted(truth: Truth): Boolean = when {
+        truth.bootErrors.isNotEmpty() -> truth.textLength >= TEXT_MOUNT_FLOOR
+        else -> truth.elementCount >= MOUNT_ELEMENT_FLOOR
+    }
+
+    /** One reading of the page's truth (parsed from [DOM_TRUTH_JS]).
+     *  [interactiveCount] defaults to -1 (unknown) so m4.0.5 fixtures and
+     *  any degraded probe answer keep parsing. */
     data class Truth(
         val readyState: String,
         val elementCount: Int,
         val textLength: Int,
         val bootErrors: List<String>,
+        val interactiveCount: Int = -1,
     )
 
     /**
@@ -74,6 +108,7 @@ object BootWitness {
             Truth(
                 readyState = obj["rs"]?.jsonPrimitive?.content ?: "unknown",
                 elementCount = obj["n"]?.jsonPrimitive?.content?.toIntOrNull() ?: -1,
+                interactiveCount = obj["i"]?.jsonPrimitive?.content?.toIntOrNull() ?: -1,
                 textLength = obj["t"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                 bootErrors = obj["e"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList(),
             )
@@ -81,9 +116,6 @@ object BootWitness {
             null
         }
     }
-
-    /** True when the page's app shell actually exists in the DOM. */
-    fun mounted(truth: Truth): Boolean = truth.elementCount >= MOUNT_ELEMENT_FLOOR
 
     /**
      * The honest detail line for the failure card: exactly what the PAGE
@@ -100,6 +132,10 @@ object BootWitness {
                 if (truth.elementCount >= 0) "${truth.elementCount} DOM elements"
                 else "DOM unreadable",
             )
+            if (truth.interactiveCount >= 0) {
+                parts.add("${truth.interactiveCount} interactive")
+            }
+            parts.add("${truth.textLength} text chars")
             truth.bootErrors.firstOrNull()
                 ?.takeIf { it.isNotBlank() }
                 ?.let { parts.add("error: $it") }

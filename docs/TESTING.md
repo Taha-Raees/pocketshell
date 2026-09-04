@@ -1106,3 +1106,52 @@ self-describing.
       everything up; "-" and digits quick-tap fine.
 - [ ] §17/§18: drag 1:1, login persists, startup OK with a
       broken/updated WebView provider.
+
+## 23. Manual acceptance — m4.0.6 (the last dark lever + the SSR-proof witness + the page can tell us everything, v0.7.0-m4.0.6) — DEVICE GATE PENDING
+
+Still the one job. m4.0.5's witnesses were both defeated by a
+server-rendered dark shell; this build forces the light scheme at the
+context level, makes boot errors decisive, and adds a STANDING Page
+health sheet with a copy button so the device's own testimony reaches
+the chat no matter what the canvas does.
+
+### 23.1 The main event: does the tab render now?
+- [ ] Install vc30 in place (over vc29); app data must survive.
+- [ ] Open the ChatGPT Companion. EXPECT the real page — most likely in
+      its LIGHT theme now (white background), because the WebView is
+      forced to prefer light. Content must be visible and interactive:
+      "What can I help with?" / composer / sidebar.
+- [ ] If the page now shows WHITE and renders correctly — the dark
+      scheme path was the killer; report success and the dark-theme
+      question can be revisited later as a feature, not a bug.
+- [ ] If it STILL fails, any failure card must carry real numbers
+      (readyState · elements · interactive · text chars · error) —
+      see 23.3 for how to hand them over.
+
+### 23.2 The Page health chip (new, always available)
+- [ ] A small ⓘ glyph sits at the right end of the Companion tab strip,
+      next to "+". Tap it: the "Page health" sheet slides up.
+- [ ] EXPECT a report block: url, webview version, renderer, pixels
+      verdict, readyState/DOM/interactive/text counts, boot errors,
+      console lines, UA.
+- [ ] Tap **Copy report**: a toast confirms; paste the clipboard into
+      the chat. THAT is the deliverable when anything is still broken.
+- [ ] **Refresh** re-reads the page live; **Reload** reloads the tab;
+      **Reload in compatibility mode** re-creates it on the software
+      renderer. Back or scrim tap closes the sheet.
+
+### 23.3 If the canvas is STILL black
+- [ ] Open Page health → Copy report → paste into the chat verbatim.
+      That single paste names the cause (SyntaxError from an old
+      WebView build, a bot-challenge page, zero pixels = compositor,
+      etc.) and ends the guess loop permanently.
+- [ ] Also try "Reload in compatibility mode" once, and note whether
+      the page then renders.
+
+### 23.4 Regression
+- [ ] §22.2 still holds: a never-booting page escalates to the honest
+      card after one silent reload — now also when its SSR shell is
+      huge (the m4.0.6 verdict rule).
+- [ ] §21/§20 spot-checks: keyboard toggle one spot/one shape; deck
+      types into Companions; first-stall silent software retry intact.
+- [ ] §17/§18: drag 1:1, login persistence, startup OK.

@@ -419,6 +419,108 @@ class CompanionTest {
     }
 
     @Test
+    fun `boot witness - a captured boot error defeats the SSR element count`() {
+        // THE m4.0.6 device pin: chatgpt.com's server-rendered shell lands
+        // with hundreds of inert nodes BEFORE its app hydrates — under the
+        // m4.0.5 floor rule that shell vouched for a page whose canvas was
+        // black. With a captured boot error, only REAL visible text may
+        // call the page alive.
+        val ssrShell = BootWitness.Truth(
+            readyState = "complete",
+            elementCount = 800,
+            textLength = 12,
+            bootErrors = listOf("SyntaxError: Unexpected token '?'"),
+        )
+        assertFalse("SSR node count must not vouch for an erroring page", BootWitness.mounted(ssrShell))
+        // The same page once its app actually renders content IS alive.
+        val alive = ssrShell.copy(textLength = BootWitness.TEXT_MOUNT_FLOOR + 5)
+        assertTrue(BootWitness.mounted(alive))
+        // A quiet page keeps the pure element-floor rule.
+        assertTrue(BootWitness.mounted(BootWitness.Truth("complete", 60, 0, emptyList())))
+        assertFalse(BootWitness.mounted(BootWitness.Truth("complete", 59, 0, emptyList())))
+    }
+
+    @Test
+    fun `boot witness - the probe reads the interactive-element count`() {
+        val inner =
+            """{"rs":"complete","n":412,"i":23,"t":1337,"e":[]}"""
+        val raw = "\"" + inner.replace("\"", "\\\"") + "\""
+        val truth = BootWitness.parseTruth(raw)
+        assertEquals(23, truth?.interactiveCount)
+        // A degraded answer without the field stays parseable (m4.0.5 shape).
+        val legacy = BootWitness.parseTruth("\"{\\\"rs\\\":\\\"loading\\\",\\\"n\\\":9,\\\"t\\\":0,\\\"e\\\":[]}\"")
+        assertEquals(-1, legacy?.interactiveCount)
+    }
+
+    // ---- page-health report (m4.0.6) ----------------------------------------
+
+    @Test
+    fun `health report - carries every testimony line in stable order`() {
+        val facts = CompanionHealth.Facts(
+            name = "ChatGPT",
+            url = "https://chatgpt.com/",
+            webViewVersion = "124.0.6367.82",
+            renderer = "GPU",
+            pixels = "painted",
+            truth = BootWitness.Truth(
+                readyState = "complete",
+                elementCount = 800,
+                interactiveCount = 23,
+                textLength = 12,
+                bootErrors = listOf("SyntaxError: Unexpected token '?'"),
+            ),
+            console = listOf("Uncaught SyntaxError @main.js:1"),
+            userAgent = "Mozilla/5.0 (Linux; Android 14) Chrome/124 Mobile",
+        )
+        val report = CompanionHealth.compose(facts)
+        listOf(
+            "PocketShell Companion health — ChatGPT",
+            "url: https://chatgpt.com/",
+            "webview: 124.0.6367.82 · renderer: GPU · pixels: painted",
+            "readyState=complete · 800 elements · 23 interactive · 12 text chars",
+            "boot error 1: SyntaxError: Unexpected token '?'",
+            "console (last 1):",
+            "> Uncaught SyntaxError @main.js:1",
+            "ua: Mozilla/5.0",
+        ).forEach { line -> assertTrue("missing: $line", report.contains(line)) }
+        assertTrue(report.length <= CompanionHealth.MAX_REPORT_LENGTH)
+    }
+
+    @Test
+    fun `health report - honest empty states and the hard cap`() {
+        val bare = CompanionHealth.compose(
+            CompanionHealth.Facts(
+                name = "Zai",
+                url = null,
+                webViewVersion = "unknown",
+                renderer = "SOFTWARE",
+                pixels = "unknown",
+                truth = null,
+                console = emptyList(),
+                userAgent = null,
+            ),
+        )
+        assertTrue(bare.contains("no DOM reading yet"))
+        // Console testimony survives even without a DOM reading (m4.0.5's
+        // console tail keeps working when the probe can't).
+        assertTrue(bare.contains("console: empty"))
+        // A chatty page can never blow out the sheet.
+        val flooded = CompanionHealth.compose(
+            CompanionHealth.Facts(
+                name = "Flood",
+                url = "https://flood.example",
+                webViewVersion = "1",
+                renderer = "GPU",
+                pixels = "painted",
+                truth = null,
+                console = List(50) { "e".repeat(160) },
+                userAgent = null,
+            ),
+        )
+        assertEquals(CompanionHealth.MAX_REPORT_LENGTH, flooded.length)
+    }
+
+    @Test
     fun `console tail - bounded ring keeps the newest lines`() {
         val tail = ConsoleTail(cap = 8)
         repeat(10) { tail.append("line $it") }

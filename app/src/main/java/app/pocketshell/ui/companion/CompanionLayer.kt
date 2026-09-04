@@ -1,7 +1,11 @@
 package app.pocketshell.ui.companion
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,11 +23,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
@@ -32,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.companion.CompanionBackAction
 import app.pocketshell.companion.CompanionDef
 import app.pocketshell.companion.CompanionFailure
+import app.pocketshell.companion.CompanionHealth
 import app.pocketshell.companion.CompanionHeights
 import app.pocketshell.companion.CompanionWebPool
 import app.pocketshell.companion.CompanionViewModel
@@ -123,6 +132,10 @@ fun CompanionLayer(
 
     // m4.0.3: the "+" affordance now opens the Companion picker sheet.
     var pickerOpen by remember { mutableStateOf(false) }
+
+    // m4.0.6: the page-health sheet — the standing window into everything
+    // the runtime knows about the active tab, with a copy button.
+    var healthOpen by remember { mutableStateOf(false) }
 
     // In-flight drag fraction; null when the pointer is up (settled state).
     var dragFraction by remember { mutableStateOf<Float?>(null) }
@@ -288,6 +301,8 @@ fun CompanionLayer(
                         // m4.0.3: "+" opens the picker sheet (list + add),
                         // it no longer silently opens the default tab.
                         onAdd = { pickerOpen = true },
+                        // m4.0.6: the info chip opens the page-health sheet.
+                        onHealth = { healthOpen = true },
                     )
                     Box(
                         modifier = Modifier
@@ -350,6 +365,34 @@ fun CompanionLayer(
             )
         }
 
+        // m4.0.6 — the page-health sheet: the tab's own testimony (DOM
+        // truth, boot errors, console, probe verdict, WebView version, UA)
+        // plus one-tap COPY REPORT and the two reload escapes. Composed
+        // above the panel with the same keyboard inset as the picker.
+        if (healthOpen && activeDef != null) {
+            CompanionHealthSheet(
+                defId = activeDef.id,
+                name = activeDef.name,
+                bottomModifier = bottomModifier,
+                onReload = {
+                    healthOpen = false
+                    stallSuppressed.remove(activeDef.id)
+                    bootRetried.remove(activeDef.id)
+                    viewModel.retryTab(activeDef.id)
+                    webRetrySeed++
+                },
+                onReloadCompat = {
+                    healthOpen = false
+                    stallSuppressed.remove(activeDef.id)
+                    bootRetried.remove(activeDef.id)
+                    compatRenders[activeDef.id] = true
+                    viewModel.retryTab(activeDef.id)
+                    webRetrySeed++
+                },
+                onDismiss = { healthOpen = false },
+            )
+        }
+
         // Back policy (§14): web history → collapse → fall through. The
         // handler is composed AFTER the screens' handlers, so while raised
         // it wins; when collapsed it disables itself (PASS_THROUGH).
@@ -363,6 +406,9 @@ fun CompanionLayer(
 
         // m4.0.3: the picker is the topmost surface — Back closes it first.
         BackHandler(enabled = pickerOpen) { pickerOpen = false }
+
+        // m4.0.6: the health sheet is topmost while open — Back closes it.
+        BackHandler(enabled = healthOpen) { healthOpen = false }
     }
 }
 
@@ -576,6 +622,161 @@ private fun CompanionPickerSheet(
                     fontWeight = FontWeight.Medium,
                     color = TerminalTheme.accentBright,
                     modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * m4.0.6 — the page-health sheet: everything the runtime knows about the
+ * active tab's page, live (a fresh DOM reading is taken on open), with
+ * one-tap COPY REPORT so the device's testimony lands in the chat verbatim,
+ * plus the two honest reload escapes (GPU again, or the software
+ * compatibility renderer). Midnight language, identical to the picker.
+ */
+@Composable
+private fun CompanionHealthSheet(
+    defId: String,
+    name: String,
+    bottomModifier: Modifier,
+    onReload: () -> Unit,
+    onReloadCompat: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    // The composed report; null while the first probe is in flight and when
+    // the tab has no live WebView (an honest "nothing to report" then).
+    var report by remember(defId) { mutableStateOf<String?>(null) }
+    var refreshTick by remember(defId) { mutableStateOf(0) }
+
+    LaunchedEffect(defId, refreshTick) {
+        // Fresh reading first — the callback (main thread) then re-composes
+        // the report from the pool's updated facts.
+        CompanionWebPool.probeHealth(defId) { _ ->
+            report = CompanionWebPool.healthFacts(defId, name)
+                ?.let { CompanionHealth.compose(it) }
+        }
+    }
+
+    fun copyReport() {
+        val text = report ?: return
+        try {
+            val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            clip?.setPrimaryClip(ClipData.newPlainText("PocketShell page health", text))
+            Toast.makeText(context, "Health report copied — paste it in the chat", Toast.LENGTH_SHORT).show()
+        } catch (_: Throwable) {
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .then(bottomModifier)
+                .background(
+                    TerminalTheme.deck,
+                    RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+                )
+                .padding(top = 10.dp, bottom = 8.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Page health",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.3.sp,
+                    color = HomeTokens.textPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close",
+                        tint = TerminalTheme.textDim,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 260.dp)
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(TerminalTheme.canvas)
+                    .verticalScroll(rememberScrollState())
+                    .padding(12.dp),
+            ) {
+                Text(
+                    text = report
+                        ?: "No reading yet — the tab may not have a live page. Reload, then reopen this sheet.",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    color = if (report == null) HomeTokens.textDim else HomeTokens.textPrimary,
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MidnightFilledButton(
+                    text = "Copy report",
+                    onClick = { copyReport() },
+                    modifier = Modifier.weight(1f),
+                )
+                MidnightFilledButton(
+                    text = "Refresh",
+                    onClick = { refreshTick++ },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Reload",
+                    fontSize = 13.sp,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onReload() }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                )
+                Text(
+                    text = "Reload in compatibility mode",
+                    fontSize = 13.sp,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onReloadCompat() }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
                 )
             }
         }

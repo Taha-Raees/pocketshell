@@ -5,6 +5,7 @@ import android.app.DownloadManager
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -80,6 +81,14 @@ object CompanionWebPool {
 
     private class TabEntry(val webView: WebView) {
         var lastUsed: Long = System.currentTimeMillis()
+
+        /** m4.0.6 — standing testimony for the page-health sheet: the last
+         *  DOM truth reading, the pixel probe's verdict, the rasterizer
+         *  this view was created with, and the UA it presents. */
+        var lastTruth: BootWitness.Truth? = null
+        var lastPainted: Boolean? = null
+        var renderer: String = "GPU"
+        var userAgent: String? = null
     }
 
     private var appContext: Context? = null
@@ -182,6 +191,13 @@ object CompanionWebPool {
             try {
                 val created = TabEntry(createWebView(creationContext, defId, compatRender))
                 runtimeFailed = false
+                // m4.0.6: record the standing testimony facts at birth.
+                created.renderer = if (compatRender) "SOFTWARE" else "GPU"
+                created.userAgent = try {
+                    created.webView.settings.userAgentString
+                } catch (_: Throwable) {
+                    null
+                }
                 created
             } catch (_: Throwable) {
                 runtimeFailed = true
@@ -327,6 +343,9 @@ object CompanionWebPool {
                 view.evaluateJavascript(BootWitness.DOM_TRUTH_JS) { raw ->
                     if (!bootWitnessArmed.contains(defId)) return@evaluateJavascript
                     val truth = BootWitness.parseTruth(raw)
+                    // m4.0.6: every reading is kept — the health sheet shows
+                    // the tab's truth even when the witness stood DOWN.
+                    if (truth != null) pool[defId]?.lastTruth = truth
                     if (truth != null && BootWitness.mounted(truth)) {
                         bootWitnessArmed.remove(defId)
                     } else if (attempt + 1 >= MAX_BOOT_PROBES) {
@@ -373,6 +392,9 @@ object CompanionWebPool {
                     // Main-thread callback; the tab may have been forgotten
                     // while the capture ran — the arm-set is the gate.
                     if (!renderStallArmed.contains(defId)) return@captureHasPainted
+                    // m4.0.6: the verdict is testimony too — kept either way
+                    // for the health sheet.
+                    pool[defId]?.lastPainted = painted
                     if (painted) {
                         renderStallArmed.remove(defId)
                     } else if (attempt + 1 >= MAX_PAINT_PROBES) {
@@ -425,7 +447,21 @@ object CompanionWebPool {
     @SuppressLint("SetJavaScriptEnabled")
     @Suppress("DEPRECATION")
     private fun createWebView(context: Context, defId: String, compatRender: Boolean): WebView {
-        val webView = WebView(context)
+        // m4.0.6 — the LAST dark-theme lever, and the one m4.0.5 left armed:
+        // Force Dark off stops the FRAMEWORK from inverting the page, but the
+        // WebView still ANSWERS prefers-color-scheme: dark (it reads the
+        // ambient uiMode — this app is Midnight everywhere), so sites serve
+        // their native dark CSS. A dark shell whose app never hydrates is a
+        // black canvas — the exact device state. The view is therefore
+        // created in a FORCED-LIGHT configuration: the site always sees
+        // prefers-color-scheme: light and renders as authored for daylight.
+        // The context is derived FROM the activity context (m4.0.3's lesson:
+        // the application context breeds blank-canvas WebViews on OEM
+        // builds), so the activity association is preserved.
+        val lightConf = Configuration(context.resources.configuration)
+        lightConf.uiMode = (lightConf.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+            Configuration.UI_MODE_NIGHT_NO
+        val webView = WebView(context.createConfigurationContext(lightConf))
         // Midnight canvas — no white load flash; ALSO the probe's reference
         // color: a canvas uniformly in this exact value never drew a pixel.
         webView.setBackgroundColor(RenderProbe.WEBVIEW_BACKGROUND)
@@ -474,6 +510,55 @@ object CompanionWebPool {
         webView.webViewClient = client(defId)
         webView.webChromeClient = chromeClient(defId)
         return webView
+    }
+
+    /**
+     * m4.0.6 — a FRESH DOM-truth reading for the health sheet: stored like
+     * the witnessed readings and returned to the caller. Null when the tab
+     * is gone or the probe threw — the sheet then shows what it already has.
+     * Main-thread in, main-thread callback; never blocks.
+     */
+    fun probeHealth(defId: String, onResult: (BootWitness.Truth?) -> Unit) {
+        val view = pool[defId]?.webView ?: run {
+            onResult(null)
+            return
+        }
+        try {
+            view.evaluateJavascript(BootWitness.DOM_TRUTH_JS) { raw ->
+                val truth = try { BootWitness.parseTruth(raw) } catch (_: Throwable) { null }
+                if (truth != null) pool[defId]?.lastTruth = truth
+                onResult(truth)
+            }
+        } catch (_: Throwable) {
+            onResult(pool[defId]?.lastTruth)
+        }
+    }
+
+    /**
+     * m4.0.6 — the tab's standing testimony snapshot for [CompanionHealth].
+     * Null when the tab has no live WebView (the sheet is then unreachable
+     * or shows nothing — by design, never invented).
+     */
+    fun healthFacts(defId: String, name: String): CompanionHealth.Facts? {
+        val entry = pool[defId] ?: return null
+        return try {
+            CompanionHealth.Facts(
+                name = name,
+                url = entry.webView.url,
+                webViewVersion = webViewVersion(),
+                renderer = entry.renderer,
+                pixels = when (entry.lastPainted) {
+                    true -> "painted"
+                    false -> "never painted"
+                    null -> "unknown"
+                },
+                truth = entry.lastTruth,
+                console = consoleTails[defId]?.snapshot().orEmpty(),
+                userAgent = entry.userAgent,
+            )
+        } catch (_: Throwable) {
+            null
+        }
     }
 
     /** §15 navigation policy: http(s) stays inside; everything else resolves out. */

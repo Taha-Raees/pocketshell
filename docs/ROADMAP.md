@@ -446,3 +446,28 @@ remote development.
 - [x] +12 unit pins/variant. Full suite: 754 executions / 0 failures.
 - [x] versionCode 29.
 - [ ] Device gate §22 (§17–§21 regressions included).
+
+### Phase 4.0.6 (2026-09-05, v0.7.0-m4.0.6) — The last dark lever off, the witness de-fooled, the page tells us everything
+- [x] Device verdict on m4.0.5 ("still black, no page, no error" + the
+      pure-black screenshot, no card) decoded: BOTH witnesses stood down
+      — the pixel probe on the site's own near-black body paint, the DOM
+      witness on chatgpt.com's server-rendered shell clearing the
+      60-element floor before hydration. The no-card black canvas was
+      itself the diagnosis.
+- [x] Forced-light scheme: the WebView is created in a
+      `createConfigurationContext` with `UI_MODE_NIGHT_NO` (derived from
+      the ACTIVITY context), so sites always receive
+      `prefers-color-scheme: light` — the one dark lever m4.0.5 left
+      armed (Force Dark off does not change what the WebView ANSWERS).
+- [x] SSR-proof boot witness: a captured boot error is decisive (an
+      erroring page must show ≥ 200 visible text chars to count as
+      alive); the DOM probe also reads interactive-element and body-text
+      counts for sharper testimony.
+- [x] Page health sheet (standing, always reachable from the tab strip
+      info chip): live DOM truth + boot errors + console tail + probe
+      verdict + WebView version + UA, one-tap COPY REPORT, Refresh /
+      Reload / Reload-in-compat escapes. The device can now hand us the
+      exact cause of any future failure verbatim.
+- [x] +8 unit pins/variant. Full suite: 762 executions / 0 failures.
+- [x] versionCode 30.
+- [ ] Device gate §23 (§17–§22 regressions included).

@@ -3,6 +3,68 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.6] — 2026-09-05 — The last dark lever off, the witness de-fooled, and the page can now TELL us everything (still the one job)
+
+Scope: still exactly one job. m4.0.5 shipped a root fix (Force Dark off,
+Chrome UA) and a testifying witness — yet the device report stayed
+"From 4.0.5 apk. Still black screen no page no error" (screenshot
+`Screenshot_20260905_000506`: tabs render, canvas pure black, NO failure
+card). The absence of the card was itself the diagnosis.
+
+### What the no-card black canvas proved
+1. Both m4.0.5 witnesses stood DOWN on the broken page. The pixel probe
+   passed because the page painted its own near-black body (anything
+   that is not the flash-guard color counts as painted — it cannot know
+   which pixels are "content").
+2. The DOM witness passed because of a **server-rendered blind spot**:
+   chatgpt.com's shell lands in the DOM with hundreds of inert nodes
+   BEFORE its JavaScript app hydrates — instantly clearing the
+   60-element mount floor even if the script bundle dies on load. SSR
+   markup vouched for an app that never started.
+3. And one dark-theme lever was STILL armed: Force Dark off stops the
+   framework from INVERTING pages, but the WebView still **answers
+   `prefers-color-scheme: dark`** (it reads the app's ambient uiMode —
+   and PocketShell is Midnight everywhere), so sites kept serving their
+   native dark CSS. A dark shell + a dead hydration = a black canvas.
+
+### Fix 1 — the WebView is created in a FORCED-LIGHT configuration
+- The creation context is rebuilt with `UI_MODE_NIGHT_NO`
+  (`createConfigurationContext`, derived from the ACTIVITY context per
+  the m4.0.3 lesson), so the page always sees
+  `prefers-color-scheme: light` and renders as authored for daylight.
+  ChatGPT now serves its light theme — the black-shell path is gone at
+  the source. (Confirmed direction by web research: WebView derives
+  `prefers-color-scheme` from the app's uiMode — Android Developers
+  "Darken web content in WebView" + Chromium issue 40189461.)
+
+### Fix 2 — the boot witness can no longer be fooled by SSR shells
+- A captured boot error is now DECISIVE: an erroring page only counts
+  as alive when it also shows real visible text (≥ 200 chars). A
+  SyntaxError-dead SSR shell with 800 inert nodes now gets the honest
+  "Page won't start" card WITH the error, instead of silently passing.
+- The DOM probe also reads the count of INTERACTIVE elements (buttons,
+  inputs, `[role=button]`, contenteditable) and the body text length —
+  both surface in every diagnosis line.
+
+### Fix 3 — the page can now TELL us everything, always (Page health)
+- The tab strip carries a quiet info chip. It opens a Midnight
+  "Page health" sheet with a LIVE reading of the active tab's full
+  testimony: current URL, WebView version, renderer (GPU/SOFTWARE),
+  pixel-probe verdict, readyState, DOM/interactive/text counts,
+  captured boot errors, the last console lines, and the exact UA.
+- **Copy report** puts all of it on the clipboard — whatever the next
+  canvas mystery is, the device's answer lands in the chat verbatim.
+  Plus **Refresh**, **Reload**, and **Reload in compatibility mode**
+  (software renderer) as standing escapes. Pure report composition is
+  unit-pinned; the guess loop is over.
+
+### Tests & delivery
+- +8 pins across variants (SSR-defeats-floor verdict, interactive
+  parsing incl. legacy answers, health-report composition + hard cap).
+  Full suite: 762 executions, 0 failures.
+- versionCode 30 / 0.7.0-m4.0.6 — in-place update over 16..29; same
+  pinned cert. Device gate: docs/TESTING.md §23.
+
 ## [0.7.0-m4.0.5] — 2026-09-05 — The black page, fixed at the root — and the page now testifies (the one job)
 
 Scope: exactly one job, the user's words — "Bro only one job now, please

@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.5
+VERSION=v0.7.0-m4.0.6
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,45 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.4) — THE BLACK PAGE, FIXED AT THE
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.5) — THE LAST DARK LEVER OFF, THE
+WITNESS DE-FOOLED, AND THE PAGE CAN NOW TELL US EVERYTHING (still the one
+job; build numbered "4.0.6" per the standing naming rule):
+  - WHAT THE SILENT BLACK PROVED: under 4.0.5 the canvas stayed black
+    with NO error card — both witnesses stood down. The pixel probe
+    passed because the page painted its own near-black body; the DOM
+    witness passed because chatgpt.com's server-rendered shell lands
+    with hundreds of inert nodes BEFORE its app hydrates, instantly
+    clearing the 60-element mount floor. SSR markup vouched for an app
+    that never started. And one dark lever was STILL armed: Force Dark
+    off stops the framework from inverting pages, but the WebView still
+    ANSWERS prefers-color-scheme: dark (it reads the app's uiMode —
+    this app is Midnight everywhere), so sites kept serving dark CSS.
+  - FORCED-LIGHT SCHEME: the WebView is now created in a configuration
+    context pinned to light mode, so every site sees
+    prefers-color-scheme: light and renders as authored for daylight.
+    ChatGPT serves its light theme — the black-shell path is gone at
+    the source. (Direction confirmed by web research: WebView derives
+    prefers-color-scheme from the app's uiMode.)
+  - SSR-PROOF WITNESS: a captured boot error is now decisive — an
+    erroring page only counts as alive when it also shows real visible
+    text. A SyntaxError-dead shell with 800 inert nodes now gets the
+    honest "Page won't start" card WITH the error instead of silently
+    passing. The probe also reads interactive-element and text counts.
+  - PAGE HEALTH, ALWAYS ONE TAP AWAY: the tab strip has a new info
+    chip. It opens a Midnight sheet with the ACTIVE TAB'S FULL LIVE
+    TESTIMONY — url, WebView version, renderer, pixel verdict,
+    readyState/DOM/interactive/text counts, boot errors, console
+    lines, exact user-agent — and a COPY REPORT button. If ANYTHING is
+    ever still broken: Page health → Copy report → paste it in the
+    chat. The device tells us the cause verbatim; the guess loop is
+    over. Plus Refresh / Reload / Reload-in-compatibility-mode.
+  - +8 unit pins (SSR-defeats-floor verdict, interactive parsing incl.
+    legacy answers, health-report composition + hard cap). Full suite:
+    762 executions, 0 failures.
+  - versionCode 30 / 0.7.0-m4.0.6 — in-place update over 16..29; same
+    pinned cert. Device gate: docs/TESTING.md §23.
+
+WHAT WAS NEW IN v0.7.0-m4.0.5 (vs v0.7.0-m4.0.4) — THE BLACK PAGE, FIXED AT THE
 ROOT — AND THE PAGE NOW TESTIFIES (the one job this build exists for;
 build numbered "4.0.5" per the standing naming rule):
   - WHY IT WAS BLACK — THE FULL CHAIN: your screenshot cracked it. The
@@ -932,6 +970,7 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/companion/RenderProbe.kt \
            app/src/main/java/app/pocketshell/companion/BootWitness.kt \
            app/src/main/java/app/pocketshell/companion/WebCompat.kt \
+           app/src/main/java/app/pocketshell/companion/CompanionHealth.kt \
            app/src/main/java/app/pocketshell/companion/CompanionWebPool.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionLayer.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionTabStrip.kt \

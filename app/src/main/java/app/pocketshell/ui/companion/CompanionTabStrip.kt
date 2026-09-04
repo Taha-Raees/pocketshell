@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,6 +62,7 @@ fun CompanionTabStrip(
     onSelect: (String) -> Unit,
     onClose: (String) -> Unit,
     onAdd: () -> Unit,
+    onHealth: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val defsById = remember(defs) { defs.associateBy { it.id } }
@@ -95,11 +97,17 @@ fun CompanionTabStrip(
                     )
                 }
             }
+            HealthTabButton(
+                onOpen = onHealth,
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+                    .padding(start = 6.dp),
+            )
             AddTabButton(
                 onAdd = onAdd,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
-                    .padding(start = 6.dp, end = 4.dp),
+                    .padding(start = 2.dp, end = 4.dp),
             )
         }
     }
@@ -208,6 +216,30 @@ private fun AddTabButton(onAdd: () -> Unit, modifier: Modifier = Modifier) {
             contentDescription = "New Companion tab",
             tint = TerminalTheme.textDim,
             modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+/**
+ * m4.0.6 — the standing page-health chip. One quiet info glyph at the
+ * strip's end, always reachable: whatever the canvas is doing (even a
+ * mystery black), the page's own testimony is two taps away, with a copy
+ * button — the device can now TELL us what a broken page did.
+ */
+@Composable
+private fun HealthTabButton(onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onOpen() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Info,
+            contentDescription = "Page health report",
+            tint = TerminalTheme.textDim,
+            modifier = Modifier.size(16.dp),
         )
     }
 }
