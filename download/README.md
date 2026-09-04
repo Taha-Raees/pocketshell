@@ -1,42 +1,49 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m3.5 (payload cut at git tip 7a8a136; Phase 3.5 — Command
-Launch Fix + System Pages Join Midnight, versionCode 22)
-- PocketShell-v0.7.0-m3.5-debug.apk  sha256 c8d0effb3fb1ff81feeb9deb2822f9c8e15630e1ca584ce80dc07f1c06d91d0e
-  Installs IN PLACE over v0.7.0-m3.4 (versionCode 21), m3.3 (20), m3.2 (19),
-  m3.1 (18), the discarded v0.7.0-ui (17) and v0.6.2 (16) — same pinned cert
-  d96a6f66…8bf659. App data (Alpine runtime, Kilo, Hermes, packages) survives.
-  SCOPE: one launch-transport fix + three pages' presentation — ZERO
-  probing/runtime/terminal changes. Verify-before-launch, login-shell
-  probing, dedicated guest sessions, the forbidden package list, the
-  Phase 3.1 terminal and every runtime behavior are untouched.
-  Design contract: docs/PHASE-3.5-DESIGN.md (committed before implementation).
-  Phase 3.5 highlights:
-  · THE FIX: tapping an app tile launches the app. Root cause: the launch
-    command was PTY-written right after session construction, but
-    TerminalSession forks the process only when the view renders the
-    session, and write() silently drops bytes while mShellPid == 0 — every
-    tile opened a plain shell. Fixed by argv delivery: the guest login
-    shell runs `sh -l -c "kilo; exec sh -l"` — deterministic,
-    timing-independent, still exactly what typing would do; exiting the
-    app returns to the guest prompt. ONE generic path for all registry +
-    catalog apps — the registry stays pure data, nothing per-app.
-  · Diagnostics / Packages / Settings adopt Midnight Sapphire via the
-    shared page kit (ui/system/MidnightPage.kt): Midnight canvas, mono
-    titles + section labels, hairline dividers, mono fact values with
-    honest state coloring; filled-Sapphire vs quiet-hairline actions
-    (destructive tone only on Remove runtime / Uninstall); Packages gets
-    the chrome search plate with Sapphire focus, mono search-hit rows and
-    the honest operation banner; Settings keeps whole-row targets with
-    ring + dot radios; light status-bar icons everywhere.
-  · 656 test executions green (baseline + 4 new launch-chain pins).
-  Device gate: docs/TESTING.md §15 (kilo TUI opens on tile tap; every
-  other tile runs its command; Packages open runs the program; §12/§13/§14
-  regressions).
-- PocketShell-v0.7.0-m3.5-source.zip sha256 5d3ef098a8bc69e4cd777845f426d4737c85432ed0b67543845a8f4337b3619b  (28 MB, 300 files)
-- PocketShell-v0.7.0-m3.5-source.tar.gz sha256 9e95b3112dc898b7a276e89c85c6bc2467cf337e540fddbfbb7277015b5ebaee  (28 MB)
-- pocketshell-m2.gitbundle           sha256 a74645767f56a6a290616dd452b8fee76695be5492c0e470108bd36db568767e  (full history @ 7a8a136; ~26 MB — includes the complete milestone history, the discarded UI attempt + rollback records, and all five Phase 3 design contracts — honest, no rewrites)
+Current: v0.7.0-m3.6 (payload cut at git tip 9539a03; Phase 3.6 — The
+Procfs Contract, versionCode 23)
+- PocketShell-v0.7.0-m3.6-debug.apk  sha256 195443f9eaf1ccaa1c686de88f318749427d4a53897a7d3308000b074e665e79
+  Installs IN PLACE over v0.7.0-m3.5 (versionCode 22), m3.4 (21), m3.3 (20),
+  m3.2 (19), m3.1 (18), the discarded v0.7.0-ui (17) and v0.6.2 (16) — same
+  pinned cert d96a6f66…8bf659. App data (Alpine runtime, Kilo, Hermes,
+  packages) survives.
+  SCOPE: procfs initialization + apk self-repair only — ZERO probing/
+  launch-transport/terminal/presentation changes. Tap-to-launch, the
+  registry, verify-before-launch, the Midnight pages and every runtime
+  behavior from Phase 3.5 are untouched.
+  Contract: docs/PROCFS-CONTRACT.md (launch architecture, per-session bind
+  audit, validation layers, device gate 16).
+  Phase 3.6 highlights:
+  · THE FIX: every interactive terminal session now binds a REAL /proc —
+    absolutely, derived from the session profile, never conditionally.
+    Root cause chain: an in-guest `apk upgrade` replaced the checksum-
+    pinned patched libapk → the M2.6 conditional /proc gate failed → new
+    sessions spawned without /proc → Bun-compiled CLIs (Kilo's embedded
+    runtime) resolve paths via /proc/self/fd on aarch64 (no realpath
+    syscall) → realpath() of existing directories returned ENOENT. The
+    manual `mount -t proc proc /proc` workaround is no longer needed.
+  · apk fd-gate SELF-REPAIR: GuestApkCompat now pattern-scans whatever
+    libapk.so.3* the guest carries for the standalone '/proc/self/fd'
+    gate literal (+ the '/proc/self/fd/%d' format literal as proof) and
+    re-applies the one-byte patch to any matching apk-tools build;
+    ambiguous/alien shapes are refused without writes. Byte equivalence
+    with the M2.6 asset re-proven on the pinned minirootfs.
+  · FAIL-LOUD spawn contract: procContractProblem() audits every
+    interactive spec for /proc+/dev+/sys at spawn — a stripped spec
+    refuses to start with an explicit diagnostic, never runs crippled.
+  · PACKAGE_OPERATION sessions stay /proc-free (require-guarded,
+    device-proven SELinux-safe apk commit environment).
+  · Guest smoke gate: scripts/diagnose_platform.sh (procfs + /dev + /dev/
+    pts + /sys + /tmp + libc identity + ELF interpreter probe) — verified
+    PASS=11/FAIL=0 with the fixed shape in the proot rehearsal.
+  · 664 test executions green (baseline + proc-contract/self-repair pins).
+  Device gate: docs/TESTING.md §16 (fresh session: ls /proc/self, cat
+  /proc/version without any manual mount; kilo starts clean; apk survives
+  an in-guest upgrade; §12–§15 regressions).
+- PocketShell-v0.7.0-m3.6-source.zip sha256 5e58c9302377e12027168024054e1c726b3293d3a58ebcf32d272ab83dd50385  (28 MB, 303 files)
+- PocketShell-v0.7.0-m3.6-source.tar.gz sha256 bb17d7262ed7ad759c7677ca2fa19b0aa93fa4f163553d81cd55a59d4a4a9391  (28 MB)
+- pocketshell-m2.gitbundle           sha256 122206cd69f56ce279bf02d66f336e101aa6f1656959c017d061b55c8054b689  (full history @ 9539a03; ~26 MB — includes the complete milestone history, the discarded UI attempt + rollback records, all six Phase 3 design contracts, and docs/PROCFS-CONTRACT.md — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m3.4 superseded by Phase 3.5; its records
+Older builds: withdrawn (v0.7.0-m3.5 superseded by Phase 3.6; its records
 live in the bundle history — see docs/CHANGELOG for each confirmed fix).
