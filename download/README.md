@@ -1,6 +1,6 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0.5 (payload cut at git tip 095afc3; the black page
+Current: v0.7.0-m4.0.5 (payload re-cut at git tip e1183a4; the black page
 fixed at the root — Force Dark off in three layers, Chrome-identical UA,
 DOM ground-truth witness: pixels AND a mounted app required, failures
 carry the page's own testimony — versionCode 29)
@@ -35,9 +35,9 @@ carry the page's own testimony — versionCode 29)
     variant).
   Device gate: docs/TESTING.md §22. Full record: docs/CHANGELOG
   [0.7.0-m4.0.5].
-- PocketShell-v0.7.0-m4.0.5-source.zip sha256 9ce2750bf37b6acc7d2ab507a554d1ab33ab85b42219b2f5f6467345401b438d  (28M, 301 files)
-- PocketShell-v0.7.0-m4.0.5-source.tar.gz sha256 af7c1ebfc530d93052910bfc6076ab6784ac33beccaeedf8e7859d3ab2982bce  (28 MB)
-- pocketshell-m2.gitbundle           sha256 37c08ec7bb64cf1b8ccf847734c373857b4107f3e877ed98e930e6c364f92e08  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
+- PocketShell-v0.7.0-m4.0.5-source.zip sha256 9a4a28d3ef1318f9d9158e0b70f518ee81a5503909f4fa33949237a3179d5979  (28M, 301 files)
+- PocketShell-v0.7.0-m4.0.5-source.tar.gz sha256 53e60b559f2b466b8555288cb6787a186f258fd1229d5188043e72f8de9f7583  (28 MB)
+- pocketshell-m2.gitbundle           sha256 30ea0bbb5f8038ffefa85e93aa4855e56bc960bf67b4583c964c97bdfa95cdbc  (full history; ~26M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.7.0-m4.0.4 superseded by m4.0.5; its records
