@@ -290,5 +290,10 @@ remote development.
 - [x] Contract documented in docs/PROCFS-CONTRACT.md (launch architecture,
       per-session bind audit incl. /dev /dev/pts /sys /tmp, validation
       layers, regression procedure).
+- [x] Antigravity CLI 404 diagnosed end-to-end with real network probes and
+      executed binaries (docs/ANTIGRAVITY-PLATFORM.md): linux_arm64_musl is
+      UNSUPPORTED BY UPSTREAM (no musl manifests at all); glibc build runs
+      on real glibc but not on Alpine gcompat; nothing patched, checksums
+      intact. Guest diagnostic added: scripts/diagnose_platform.sh.
 - [ ] Device gate §16 (fresh session: /proc/self, /proc/version, ps, kilo
       end-to-end WITHOUT manual mount; §12–§15 regressions).

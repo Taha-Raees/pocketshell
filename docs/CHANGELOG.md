@@ -53,6 +53,25 @@ Contract: `docs/PROCFS-CONTRACT.md`.
   table (safe / repairable / ambiguous / alien / junk / sibling libraries /
   read-only probe). Full suite: 664 executions, 0 failures.
 
+### Environment investigations (real-command evidence, docs/ANTIGRAVITY-PLATFORM.md)
+- **Antigravity CLI 404 diagnosed**: `linux_arm64_musl` is the installer's
+  CORRECT reading of the guest (musl marker file + `uname -m`); the updater
+  serves NO musl manifests for ANY architecture (`linux_amd64_musl` also
+  404) — upstream gap, not networking, not a detection bug. The glibc
+  `linux_arm64` build was downloaded (SHA512 VERIFIED) and executed under
+  qemu-aarch64: runs on real glibc (`--version` → 1.1.26), fails on stock
+  Alpine gcompat (missing `__read`/`__open`/`__lseek`/`pvalloc`) and dies in
+  its embedded runtime even shimmed. Verdict: UNSUPPORTED BY UPSTREAM FOR
+  ARM64 MUSL; platform string NOT patched, checksum verification untouched.
+- **Environment rehearsal** (real proot 5.4.0 + Alpine 3.24 aarch64 +
+  qemu): reproduced the no-`/proc` regression shape (`/proc/version` ENOENT,
+  empty `ps`) and verified the fixed shape; CLI battery green in fresh
+  sessions: node 24.18.1, npm 11.12.1, Python 3.12.14, git 2.54.0, curl
+  8.22.0 (real HTTPS → 200), OpenSSH 10.3p1, htop 3.5.3, apk 3.0.6.
+- Added `scripts/diagnose_platform.sh`: guest-runnable /proc + virtual-fs +
+  libc-identity smoke gate (exit 0/1), verified PASS=11/FAIL=0 on the fixed
+  shape and FAIL=7 on the broken shape in the same rehearsal.
+
 ## [0.7.0-m3.5] — 2026-09-04 — Phase 3.5: Tap-to-Launch Fix + Midnight System Pages
 
 - Fixed the "Kilo tile opens a plain shell" bug for EVERY command app: the
