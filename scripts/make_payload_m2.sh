@@ -176,7 +176,7 @@ WHAT WAS NEW IN v0.7.0-m3.2 (vs v0.7.0-m3.1) — PHASE 3.2, HOME / OS LAUNCHER:
     (test-pinned). New apps/CommandApps.kt registry (Hermes Agent,
     OpenCode, Claude Code, ZCode) — a tile exists ONLY when the guest
     confirms the command.
-  - LOGIN-SHELL AVAILABILITY PROBE: one batched `sh -lc` exec asking
+  - LOGIN-SHELL AVAILABILITY PROBE: one batched \`sh -lc\` exec asking
     exactly "would a fresh guest login shell find this command?" — the
     same environment the user's typing sees, where uv-installed
     launchers (hermes, M2.6) are reachable (the spec's static PATH lacks
@@ -184,7 +184,7 @@ WHAT WAS NEW IN v0.7.0-m3.2 (vs v0.7.0-m3.1) — PHASE 3.2, HOME / OS LAUNCHER:
     Probe failure renders "could not be checked" and KEEPS the last real
     list — never a fake "no apps" (v0.4.4 honesty rule).
   - LAUNCH FLOW: tap Hermes → runtime gate → fresh probe → NEW dedicated
-    guest session whose PTY receives `hermes` — what the launcher does is
+    guest session whose PTY receives \`hermes\` — what the launcher does is
     exactly what typing would do (typed command visible in scrollback;
     exiting the app returns to the guest prompt).
   - MIDNIGHT SAPPHIRE LAUNCHER: page #0B1424, Terminal tile in the exact
@@ -538,7 +538,7 @@ WHAT WAS NEW IN v0.4.0-m2.4:
   - M2.4: REAL Alpine package management. Explore CLI Apps is now a working
     frontend for the real apk inside the guest: search (real \`apk search\`),
     install (\`apk add\`), verify (\`apk info -e -v\` exit codes + POSIX
-    `command -v`), open (new dedicated guest session running the real
+    \`command -v\`), open (new dedicated guest session running the real
     program), uninstall (\`apk del\`). The same proot exec infrastructure as
     the Linux Shell is reused; nothing is faked: no fake progress, no fake
     installed state, no fake catalog claims. Package operations run in a
@@ -591,7 +591,7 @@ WHAT WAS NEW IN v0.2.x:
     Now declared honestly and RuntimeCrashGuard contains any pipeline
     failure as a retryable FAILED/REPAIR_REQUIRED state
 
-NOTE: the on-device gate for M2.3 is `uname; id; echo hello` inside the
+NOTE: the on-device gate for M2.3 is \`uname; id; echo hello\` inside the
 guest (docs/TESTING.md §8) — the M2.4 package gate is TESTING.md §9 (install nano via the UI,
 open it, uninstall).
 
@@ -668,7 +668,7 @@ echo "web shim page.tsx      : $(echo "$LIST" | rg -c '/app/page\.tsx$' || echo 
 echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0)  (want 0)"
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md docs/PHASE-3.3-DESIGN.md \
-           docs/PHASE-3.4-DESIGN.md \
+           docs/PHASE-3.4-DESIGN.md docs/PHASE-3.5-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \
            app/src/main/java/app/pocketshell/runtime/GuestSysDataCompat.kt \
            app/src/test/java/app/pocketshell/runtime/GuestSysDataCompatTest.kt \
@@ -681,6 +681,7 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/ui/home/HomeTokens.kt \
            app/src/main/java/app/pocketshell/ui/home/HomeMarks.kt \
            app/src/main/java/app/pocketshell/ui/home/QuickActions.kt \
+           app/src/main/java/app/pocketshell/ui/system/MidnightPage.kt \
            app/src/main/res/font/jetbrains_mono_nl_regular.ttf \
            app/src/main/res/font/jetbrains_mono_nl_bold.ttf \
            app/src/main/res/font/jetbrains_mono_nl_italic.ttf \
