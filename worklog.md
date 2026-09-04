@@ -770,3 +770,23 @@ Stage Summary:
 - PERSISTENT dev server now running on :3000 via orphan spawn (scripts/orphan_spawn.py dev3000)
 - Previous "server dies at call boundary" finding was wrong in mechanism: it kills call-tree-attached processes, not listeners per se; orphaning survives
 - If sandbox resets, restore with: python3 scripts/orphan_spawn.py dev3000
+
+---
+Task ID: 39
+Agent: main
+Task: Phase 3.5 — Kilo tile launches plain shell (user video report); redesign Diagnostics/Packages/Settings; no hardcoding
+
+Work Log:
+- Video analysis (17 frames @1fps): tap on Kilo → Terminal screen shows plain shell/empty state — command never runs
+- ROOT CAUSE: TerminalSessionManager.createLinuxCommandSession PTY-wrote the command right after TerminalSession CONSTRUCTION, but TerminalSession forks the process lazily in initializeEmulator (when the view renders), and write() drops bytes while mShellPid == 0 → command silently discarded for EVERY app (registry + catalog)
+- FIX: guestLaunchChain() (pure, CommandApps.kt) builds "cmd; exec /bin/sh -l"; createLinuxCommandSession now passes it as the guest shell's argv (sh -l -c ...) — deterministic, no PTY timing; ONE generic path, zero per-app code
+- Tests: +4 pins in CommandAppsTest (single/multi-token, quoting, exec fallback for every registry entry); fixed one wrong expectation (@ is not in the safe token set → quoted). Full suite: 656/0
+- MidnightPage.kt (ui/system): shared kit — scaffold (screenBg, 720dp, mono title), section labels/dividers, fact rows (OK/FAIL/NEUTRAL), filled/quiet buttons, banner, card, text field, switch, radio rows
+- DiagnosticsScreen, ExploreAppsScreen (Packages), SettingsScreen rewritten on the kit; MainActivity status-bar: light icons on all five screens
+- vc22 / 0.7.0-m3.5; APK sha256 c8d0effb…d91d0e; docs/PHASE-3.5-DESIGN.md contract; cutter updated (m3.5 block, heredoc backtick escapes — 4 bare-backtick lines were silently command-substituting since m3.3!, sanity keys + MidnightPage/PHASE-3.5)
+- Payload cut @ 7a8a136; three-way mirror completed manually (APK → dist-master/, zip/tgz/bundle → download/); stale m3.4 purged from public/download/dist-master
+- page.tsx + download/README.md refreshed (new hashes + tip); commits 7a8a136, bec68a0, f6f9320
+- Server verification (persistent orphan-spawned next dev, still alive after ~1h across all calls): page 200 with m3.5/vc22/launch-fix markers; APK+zip byte-identical over HTTP; m3.4 URL 404
+
+Stage Summary:
+- v0.7.0-m3.5 (vc22) delivered: tap-to-launch actually launches; Diagnostics/Packages/Settings now Midnight; 656/0 tests; three-way mirror verified; device gate = TESTING.md §15 (kilo TUI opens on tap)

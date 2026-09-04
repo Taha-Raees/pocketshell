@@ -39,3 +39,31 @@ $ next dev -p 3000
  GET / 200 in 167ms
  GET / 200 in 137ms
  GET / 200 in 326ms
+ GET / 200 in 302ms
+ GET / 200 in 267ms
+ GET / 200 in 115ms
+ GET / 200 in 159ms
+ GET / 200 in 141ms
+ GET / 200 in 122ms
+ GET / 200 in 305ms
+ GET / 200 in 700ms
+ GET / 200 in 919ms
+ GET / 200 in 332ms
+ GET / 200 in 157ms
+ GET / 200 in 143ms
+ GET / 200 in 351ms
+ ✓ Compiled in 472ms (312 modules)
+ GET / 200 in 212ms
+ GET / 200 in 423ms
+ GET / 200 in 124ms
+ ✓ Compiled /_not-found in 475ms (530 modules)
+ GET /PocketShell-v0.7.0-m3.4-debug.apk 404 in 663ms
+ GET / 200 in 169ms
+ GET / 200 in 488ms
+ GET / 200 in 441ms
+ GET / 200 in 215ms
+ GET / 200 in 138ms
+ GET / 200 in 357ms
+ GET / 200 in 129ms
+ GET / 200 in 163ms
+ GET / 200 in 157ms
