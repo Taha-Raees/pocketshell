@@ -447,3 +447,26 @@ provider incidentally; `clearWebData()` guards all provider touches.
 The promised Companion experience is unchanged on healthy devices;
 the change is purely: broken provider → graceful degradation instead of
 a dead app.
+
+## 23. Hotfix m4.0.2 — Failure Surfaces: the Canvas Is Never Silently Blank (device-reported 2026-09-05)
+
+Finding: with the provider fixed by §22, a raised Companion tab still
+rendered a pure WHITE canvas — no page, no error. Silent failure is a
+contract violation (the project's honesty rule; §15's "never silently
+broken" applied to the canvas itself).
+
+Amendment (binding, extends §8/§9/§15):
+- Main-frame load failures (`onReceivedError`, `isForMainFrame` only) set
+  a per-tab failure state rendered as a Midnight card in-canvas: title,
+  the real error string, the installed WebView provider version, a hint,
+  and Retry. Subresource errors never surface.
+- `onRenderProcessGone` returns true after destroying ONLY the crashed
+  view (the platform default kills the whole app) and sets the
+  "renderer crashed" failure. PocketShell survives any single page.
+- A committed navigation (visit-started) clears the tab's failure; Retry
+  drops the failure and re-creates the tab's WebView from scratch.
+- Failure state is in-process only (never persisted), exactly like
+  page titles.
+- Honest boundary: a page that commits but renders blank because an old
+  WebView cannot run its JavaScript fires NO error — documented; the
+  version line + a static-site Companion test identify that case.

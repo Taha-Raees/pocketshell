@@ -921,3 +921,37 @@ first — the hotfix must start cleanly regardless.
       reload, file upload, Back = web history → collapse → navigation.
 - [ ] §12–§16 spot-check: fresh Linux session shows /proc (`cat
       /proc/version`, `ps`), `apk update` in-guest, kilo launches.
+
+## 19. Manual acceptance — m4.0.2 (honest Companion failure surfaces, v0.7.0-m4.0.2) — DEVICE GATE PENDING
+
+Context: after m4.0.1 the device showed the ChatGPT Companion tab with a
+PURE WHITE canvas — no error, no explanation. m4.0.2 (vc26) makes the
+canvas report main-frame load failures and dead renderers with the real
+cause + installed WebView version + Retry.
+
+Prereq: install vc26 IN PLACE over vc25 (same cert; data survives).
+
+### 19.1 White-canvas follow-up (the reported case)
+- [ ] PocketShell starts; pull the Companion up with the ChatGPT tab.
+- [ ] If the page cannot load: the canvas shows the dark card
+      "Page didn't load" + the real error string + "Android System
+      WebView <version>" + the network/VPN hint. NO white rectangle.
+- [ ] If the renderer dies: the canvas shows "Page renderer crashed" +
+      the WebView version + the update/rollback hint; PocketShell does
+      NOT die.
+- [ ] If the page loads normally: no card — the site renders.
+- [ ] Retry: tap it → the tab's WebView is recreated and the URL reloads.
+- [ ] Note the displayed WebView version and report it.
+
+### 19.2 Isolation (identify which cause it was)
+- [ ] Settings → Companion → add a second Companion "example.com".
+- [ ] Switch tabs: example.com renders (static page works on ANY WebView)
+      → network + WebView OK; chatgpt.com alone failing points at site
+      requirements (VPN/region or a too-old WebView for its JS).
+- [ ] example.com ALSO blank/failing → the WebView build or the network
+      is the problem (update/roll back WebView; check the VPN).
+
+### 19.3 Regression
+- [ ] §18 startup checks still pass (starts 3× with a broken WebView).
+- [ ] §17 spot-check: drag 1:1, tab switch without reload, file upload,
+      Back = history → collapse → navigation.

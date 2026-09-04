@@ -3,6 +3,51 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.2] — 2026-09-05 — Honest Companion failure surfaces (never a mysteriously white canvas)
+
+Scope: Companion failure reporting only. No feature, storage or contract
+change; on healthy devices the Companion behaves exactly as before. Follow-up
+to the m4.0.1 startup hotfix, from the same device session.
+
+### Device finding (2026-09-05, continued)
+- After m4.0.1 the app starts; pulling the Companion up showed the ChatGPT
+  tab strip and a PURE WHITE canvas — no page, no error, no explanation.
+  Every PocketShell-owned surface is dark, so the white came from the
+  WebView content side. Candidate causes (device-dependent): the page
+  cannot load (network/VPN to the site), the installed WebView build is
+  too old for a modern site (after Samsung's rollback the factory build
+  can be ancient), or the updated build renders blank. None of these were
+  visible to the user — a silent white rectangle violates the project's
+  "nothing faked, ever" rule.
+
+### Fix — the canvas can no longer be silently blank
+- Main-frame load failures (`onReceivedError`, main frame only —
+  subresource noise ignored) now render an in-canvas Midnight card:
+  "Page didn't load" + the REAL error string (e.g.
+  `net::ERR_NAME_NOT_RESOLVED`) + the installed Android System WebView
+  version + a hint (network/VPN or WebView update) + Retry.
+- A dead page renderer (`onRenderProcessGone` — the classic white-canvas
+  signature of broken WebView builds, whose default behavior KILLS THE
+  APP) is now handled: only the crashed view is destroyed, PocketShell
+  stays alive, and the card reads "Page renderer crashed" + the WebView
+  version + update/rollback hint + Retry.
+- The "Companion unavailable" notice (m4.0.1) now includes the installed
+  WebView version too.
+- Retry re-creates the tab's WebView from scratch (failure cleared; a
+  successful navigation also clears the failure automatically).
+- Known honest boundary: a page that "loads" but renders blank due to an
+  ancient WebView's JavaScript failing fires NO error event — the version
+  line on the cards plus a static-site test (e.g. example.com as a second
+  Companion) are how that case is identified.
+
+### Tests + delivery
+- +4 unit pins on the pure failure model (titles, detail+version body
+  join, blank-part skipping, hints) — one pin caught a real defect
+  (blank-string formatting) before delivery. Full suite: 712 tests,
+  0 failures (both modules × both variants).
+- versionCode 26 / 0.7.0-m4.0.2 — in-place update over 16..25, same
+  pinned cert. Device gate: docs/TESTING.md §19.
+
 ## [0.7.0-m4.0.1] — 2026-09-05 — Hotfix: startup crash when the WebView provider is broken
 
 Scope: the Companion web runtime's initialization + failure paths ONLY.

@@ -352,3 +352,19 @@ remote development.
       `clearWebData` guarded — no path crashes on a broken provider.
 - [ ] Device gate §18 (starts with broken WebView; notice renders;
       recovery after WebView repair; §17 + §12–§16 spot-checks).
+
+### Phase 4.0.2 (2026-09-05, v0.7.0-m4.0.2) — Honest Companion failure surfaces
+- [x] Device finding: after the m4.0.1 startup fix, the Companion canvas
+      rendered PURE WHITE (ChatGPT tab) with no error — silent failure
+      violates the project's honesty rule.
+- [x] Fix: main-frame load failures render an in-canvas Midnight card
+      (real net::ERR string + installed WebView version + hint + Retry);
+      `onRenderProcessGone` destroys only the crashed view (default would
+      kill the app) and reports "Page renderer crashed"; the provider-
+      broken notice shows the WebView version; Retry re-creates the tab.
+      Honest boundary documented (silent-JS-failure blank pages fire no
+      event — identified via version line + static-site test).
+- [x] +4 unit pins on the pure failure model (one caught a real
+      blank-string defect). Full suite: 712/0.
+- [ ] Device gate §19 (failure cards, Retry, example.com isolation,
+      §17/§18 spot-checks).

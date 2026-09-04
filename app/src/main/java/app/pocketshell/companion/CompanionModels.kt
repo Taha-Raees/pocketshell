@@ -104,9 +104,10 @@ data class CompanionFailure(
         }
 
     val body: String
-        get() = listOfNotNull(detail, webViewVersion?.let { "Android System WebView $it" })
-            .filter { it.isNotBlank() }
-            .joinToString(" · ")
+        get() = listOfNotNull(
+            detail?.takeIf { it.isNotBlank() },
+            webViewVersion?.takeIf { it.isNotBlank() }?.let { "Android System WebView $it" },
+        ).joinToString(" · ")
 
     val hint: String
         get() = when (kind) {
