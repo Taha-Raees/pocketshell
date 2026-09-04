@@ -816,3 +816,24 @@ Stage Summary:
 - v0.7.0-m3.6 (vc23) delivered end-to-end: real /proc on every interactive session (absolute, self-audited, fail-loud), apk fd-gate self-repair survives guest upgrades, 664/0 tests, payload + delivery chain live and byte-verified.
 - NOT yet device-proven (needs the human): TESTING §16 — fresh session ls /proc/self + cat /proc/version without manual mount; kilo starts with no ENOENT/realpath and no manual mount; in-guest `apk update && apk upgrade` then `apk add` still commits; §12–§15 regressions.
 - git chain this phase: 6df9d16 (procfs fix) → 9539a03 (platform docs + guest diagnostic) → 638c6f8 (delivery page/README).
+
+---
+Task ID: 41
+Agent: main (Super Z)
+Task: Phase 4 — Companion (embedded web workspace): inspect → research → design contract → checkpoints 4.1–4.10 → delivery chain.
+
+Work Log:
+- INSPECT (per brief §28): git clean at d18c29e; vc23/0.7.0-m3.6; single-Activity Compose (string screen router, root BackHandler, rememberSaveable), DataStore+serialization persistence pattern, PocketShellApp process-scoped init pattern (PackageGateway precedent), Phase 3.1 tab language extracted (editor tabs, active-tab-merges-into-content), MidnightPage kit + HomeTokens/TerminalTheme tokens read, no imePadding anywhere (Companion adds it), INTERNET already in manifest, targetSdk 28 documented tradeoff.
+- RESEARCH (brief §29): web searches on multi-WebView memory + cookie persistence; verified saveState/restoreState official guidance (in-process only, 1MB savedInstanceState cap), CookieManager.flush() at pause for deterministic login durability. ENGINE = android.webkit System WebView (zero deps, Chromium sandboxed renderer process); GeckoView/CustomTabs/APIs rejected.
+- DESIGN CONTRACT (brief §30): docs/PHASE-4-COMPANION-DESIGN.md committed BEFORE code — 21 sections incl. data model (Name+URL generic), persistence keys, WebView pool, drag/gesture policies, chooser/download/back/external-link/security policies, checkpoints, test + device plans, versioning (m4.0/vc24). STOP-rule reviewed: no blocking limitation.
+- IMPLEMENTATION (checkpoints 4.1–4.9 in one coherent commit after per-file compiles): companion/ (CompanionModels w/ fail-closed validation https-allowlist both at definition AND navigation time, CompanionRepository DataStore "companion", CompanionTabs pure reducer, CompanionWebPool process-scoped pool: active+4 LRU, saveState-on-evict/restore-on-reactivate, trim hook, clients: nav allowlist + intent resolution + file chooser + DownloadManager app-private + permissions denied, CookieManager init + flush) + ui/companion/ (CompanionLayer: handle-only resize, frozen web height during drag, anchors 0/0.55/0.94 gentle 6% snap, inverted editor tab strip w/ Sapphire bottom edge, Midnight empty state, BackHandler web→collapse→passthrough, GetContent file bridge, imePadding) + SettingsScreen Companion entry + CompanionSettingsScreen (inline editor, quick-add templates, default radios, clear web data) + MainActivity Box wrap + companionSettings route + PocketShellApp.init.
+- TESTS: CompanionTest 20 pins (validation/reducer/back/height/JSON). 3 initial failures were 2 wrong expectations + 1 real bug (indexAfterOpen returned lastIndex instead of post-append size) — all fixed. Full suite: 704 executions, 0 failures (both modules × both variants).
+- GATE: assembleDebug OK (transient daemon OOM once, clean re-run); aapt2 = vc24/0.7.0-m4.0; apksigner cert d96a6f66…bf659 → chain 16→24 intact; APK sha256 a9f1fb71…a438.
+- DOCS: CHANGELOG [0.7.0-m4.0], ROADMAP Phase 4.0, TESTING §17 device gate (the brief's 35-step sequence). Version bump commit.
+- PAYLOAD: cutter updated (m4.0 block, m3.6 → WHAT-WAS-NEW, 7 Companion pins; committed BEFORE cut); cut at tip 4ebf734: 316 files, 0 dot-paths, 0 shims, 0 node_modules. Hashes: zip 577b86f7…152a, tgz a0001fd6…b57e, bundle 6a90c259…903d, apk a9f1fb71…a438. Three-way mirror byte-verified (public/ == dist-master/ == download/; stale m3.6 purged).
+- WEB: page.tsx rewritten (Phase 4 hero, §17 quick checks, vc24, tip 4ebf734) + download/README.md.
+
+Stage Summary:
+- v0.7.0-m4.0 (vc24) delivered end-to-end: Companion shipped per the design contract — generic Name+URL companions, bottom-handle-only layer, frozen-height drag, persistent logins, live multi-tab w/ LRU pool, file upload, intelligent Back, Midnight Sapphire; 704/0 tests; payload + delivery chain live.
+- NOT yet device-proven (needs the human): TESTING §17 — esp. ChatGPT login persistence across app restart, drag smoothness/no-gesture-fights, tab state preservation, file upload, Back behavior, and §12–§16 regressions.
+- git chain this phase: 426-line design contract → implementation (4.1–4.9) → docs+version → cutter → delivery page. Payload tip 4ebf734.
