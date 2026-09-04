@@ -964,3 +964,26 @@ Stage Summary:
 - v0.7.0-m4.0.6 (vc30) delivered end-to-end. Three holes closed: the WebView always answers prefers-color-scheme: light; SSR shells can no longer vouch for a dead app; and — decisive for the loop — the tab strip's ⓘ chip opens Page health with ONE-TAP COPY REPORT, so whatever the canvas does next, the device hands us the exact cause verbatim.
 - THE ASK TO THE USER: install vc30 in place. Open the ChatGPT tab — expect the LIGHT (white) theme working. If ANYTHING is still wrong: ⓘ chip → Copy report → paste it in the chat. That paste ends this hunt with certainty.
 - Carried tasks unchanged: Kilo tile direct launch; CommandApps.kt registry de-hardcoding; Diagnostics/Package Manager/Settings redesign to Home 3.3/3.4 language; deferred keyboard-toggle Bug 2 (§20.3 shape was fixed in m4.0.4).
+
+---
+Task ID: 39
+Agent: main (Super Z)
+Task: m4.0.7 — THE job: fix the black Companion screen (the m4.0.6 health-sheet screenshots decoded the failure)
+
+Work Log:
+- Read all 5 device screenshots (Screenshot_20260905_0026*–0028*): the m4.0.6 health sheet proved the page is FULLY alive (chat.com: readyState=complete · 761 elements · 62 interactive · 394 text chars, zero boot errors; chat.z.ai: 240 elements, site JS logging normally) while pixels were "never painted" (GPU) / "unknown" forever (compat), ending in the "Page never rendered" card → a PRESENTATION failure, dark-CSS theories refuted.
+- Re-read every companion file (pool, layer, probe, witness, health, models, viewmodel, manifest, gradle) — contents had been lost to context compression.
+- ROOT CAUSE 1 (certain, in code): CompanionWebHost's `AndroidView(factory = { webView })` never re-runs its factory — every silent swap (first-stall compat swap, boot-retry reload, plain TAB SWITCHING) never attached the new view; the device showed a DESTROYED view (dead black canvas) while the fresh SOFTWARE view loaded invisibly → "unknown" forever → false "compat stalled" card. The compat renderer had literally never been tested on the device.
+- ROOT CAUSE 2 (regression line exact): m4.0.5/6's forced-light `createConfigurationContext` creation painted NOTHING where m4.0.4's plain activity context still painted the banner; the config context also broke the probe's `(context as? Activity)` lookup.
+- Fix 1: host is now `key(webView) { AndroidView(...) }` (CompanionLayer.kt) — any instance swap re-creates the node; factory re-runs; current view = attached view.
+- Fix 2: createWebView rolled back to `WebView(activityContext)`, no darkening levers; kept Chrome-like UA + Midnight flash-guard background (CompanionWebPool.kt).
+- Fix 3: RenderProbe rewritten glass-first — PixelCopy (window capture cropped to the view's keyboard-free top half via new pure `glassRegionRows`) is the primary verdict; software readback only as fallback; 1.5 s timeout ends the "unknown forever" hang; throwing fallback resolves "painted" (no manufactured stalls).
+- Fix 4: attach kick — once per view, one silent `reload()` 3.5 s after first layout if the render watchdog is still armed (frame-sink rebind for load-before-attach).
+- PixelCopy API fact: the View-direct overload does NOT exist (Window/Surface/SurfaceView only) — verified via javap on android.jar after a compile error; window capture + crop used instead.
+- Tests: +1 pin (glass region arithmetic, incl. truncation case 3→1); full suite 764 executions / 0 failures.
+- versionCode 31 / 0.7.0-m4.0.7; aapt2 badging + apksigner certs verified (pinned key d96a6f66…8bf659).
+- Docs: CHANGELOG [0.7.0-m4.0.7], TESTING.md §24 device gate, ROADMAP Phase 4.0.7, page.tsx (hero/update/quick-checks/footer + hashes), download/README.md, make_payload_m2.sh (VERSION + WHAT-IS-NEW, m4.0.6 block demoted).
+- Payload cut at fix tip edfde05: zip 11c7472a… / tgz d662794e… / bundle 7b6c4702… / apk e2c04691…; stale m4.0.6 artifacts removed from download/.
+
+Stage Summary:
+- The black Companion case is CLOSED at the code level: two real bugs (never-attaching swaps + regressive creation recipe) fixed, the probe now measures what the user sees, and the compat renderer gets its first real device test. APK vc31 delivered three-way; device gate §24 pending (tab switching + compat mode are the tells).
