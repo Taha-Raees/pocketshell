@@ -1,39 +1,39 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0.2 (payload cut at git tip of the m4.0.2 chain; honest
-Companion failure surfaces — the canvas is never mysteriously white,
-versionCode 26)
-- PocketShell-v0.7.0-m4.0.2-debug.apk  sha256 d4b04acc3919fc6da9bd72a37590bb2587e00c900cc83202619dec0158605bb2
-  Installs IN PLACE over v0.7.0-m4.0.1 (25), m4.0 (24) and every earlier
-  build (vc16..vc23) — same pinned cert d96a6f66…8bf659. App data
-  (Alpine runtime, Kilo, Hermes, packages, Companion logins) survives.
-  SCOPE: failure reporting of the Phase 4 Companion only — no
-  feature/storage/contract change; behavior on healthy devices is
-  identical to m4.0/m4.0.1.
-  DEVICE FINDING (2026-09-05): after the m4.0.1 startup fix, the
-  ChatGPT Companion tab rendered a PURE WHITE canvas — no page, no
-  error, no explanation. The white came from the WebView content side
-  (page can't load over network/VPN · WebView build too old after
-  Samsung's rollback · or the updated build rendering blank).
-  THE FIX: main-frame load failures render an in-canvas Midnight card —
-  "Page didn't load" + the REAL net::ERR string + the installed Android
-  System WebView version + the hint that matters + Retry. A dead page
-  renderer (whose DEFAULT Android behavior kills the app) now destroys
-  only the crashed view and reports "Page renderer crashed" — the app
-  survives. The "Companion unavailable" notice shows the WebView
-  version too. Retry rebuilds the tab; a successful navigation clears
-  the failure.
-  HONEST BOUNDARY: a page that loads but renders blank from an ancient
-  WebView's failing JavaScript fires NO error — use the version line +
-  a static-site Companion (example.com) to identify that case.
-  · 712 tests green (0 failures; +4 new pins on the failure model).
-  Device gate: docs/TESTING.md §19. Full record: docs/CHANGELOG
-  [0.7.0-m4.0.2]; contract amendment: docs/PHASE-4-COMPANION-DESIGN §23.
-- PocketShell-v0.7.0-m4.0.2-source.zip sha256 8247c6867121bfe6a18ea30f027b06d3f5ee206d71b1deeed718fc6c67b6f537  (28 MB, 296 files)
-- PocketShell-v0.7.0-m4.0.2-source.tar.gz sha256 2d160f1095ff1b1589a6ce16c17e4d23af0323dfebec0e3e56dc19b7064f7ab2  (28 MB)
-- pocketshell-m2.gitbundle           sha256 a82f9fcb547eb21b6441a116db43783d8732c3381f1b8c333f703b0ceffed091  (full history; ~26 MB — includes the complete milestone history, all six Phase 3 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23 hotfix amendments — honest, no rewrites)
+Current: v0.7.0-m4.0.3 (payload cut at git tip f9a730c; the device bug
+batch — keyboard everywhere, keyboard pushes everything up, dead "-"
+fixed, honest render-stall card, "+" Companion picker — versionCode 27)
+- PocketShell-v0.7.0-m4.0.3-debug.apk  sha256 b456160e678b1883ace401903904dd99206e6f4dadfc2241a7b8d671223ce431
+  Installs IN PLACE over v0.7.0-m4.0.2 (26), m4.0.1 (25), m4.0 (24) and
+  every earlier build (vc16..vc23) — same pinned cert d96a6f66…8bf659.
+  App data (Alpine runtime, Kilo, Hermes, packages, Companion logins)
+  survives.
+  WHAT FIXED (from your m4.0.2 bug report, one by one):
+  1. KEYBOARD FOR COMPANIONS TOO: the deck now follows focus — tap the
+     Companion page, type: text lands in the page; tap the terminal,
+     type: text lands in the shell. No system keyboard while the deck
+     is up; deck off → system keyboard allowed for Companion inputs.
+  2. KEYBOARD PUSHES EVERYTHING UP: the deck is the bottom-most
+     surface; the Companion panel rides ABOVE it — nothing is ever
+     under the keyboard anymore.
+  3. TOGGLE = WHOLE KEYBOARD GONE → a small Midnight keyboard icon
+     floats at the bottom-right corner to bring it back anytime.
+  4. "-" (and the whole digit row) works on quick taps now — the
+     hold-gesture layer had swallowed short taps; holding still gives
+     F-keys. Arrow keys are 12dp longer horizontally.
+  5. WHITE CANVAS: WebViews now use the ACTIVITY context (blank-canvas
+     source on OEM builds), and a 15s watchdog turns "paints nothing"
+     into an honest "Page never rendered" card + WebView version.
+     Retry alternates GPU → SOFTWARE rendering (compatibility mode).
+  6. "+" opens a Midnight sheet listing every Companion (open tabs
+     marked); "Add Companion" goes to the management page.
+  · 724 tests green (0 failures; +6 new pins per variant).
+  Device gate: docs/TESTING.md §20. Full record: docs/CHANGELOG
+  [0.7.0-m4.0.3]; contract amendment: docs/PHASE-4-COMPANION-DESIGN §24.
+- PocketShell-v0.7.0-m4.0.3-source.zip sha256 06ec5d5e25a2553beea6421de6f2d47bb72d5b39c6dad89eba758d15c02ae30e  (28 MB, 298 files)
+- PocketShell-v0.7.0-m4.0.3-source.tar.gz sha256 f773a5b97f0c2578e37b62f7fa718c9ae2cf6c9faf4b57cef8c4167fc23e28a6  (28 MB)
+- pocketshell-m2.gitbundle           sha256 be5241600204ba79cb522dbf74c05355bb241a0ddd070aa99e097d109222d406  (full history; ~26 MB — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m4.0 superseded by the m4.0.1 hotfix;
-its records live in the bundle history — see docs/CHANGELOG for each
-confirmed fix).
+Older builds: withdrawn (v0.7.0-m4.0.2 superseded by m4.0.3; its records
+live in the bundle history — see docs/CHANGELOG for each confirmed fix).

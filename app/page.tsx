@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m4.0.2";
+const VERSION = "v0.7.0-m4.0.3";
 
 const HASHES = {
-  apk: "d4b04acc3919fc6da9bd72a37590bb2587e00c900cc83202619dec0158605bb2",
-  zip: "8247c6867121bfe6a18ea30f027b06d3f5ee206d71b1deeed718fc6c67b6f537",
-  tgz: "2d160f1095ff1b1589a6ce16c17e4d23af0323dfebec0e3e56dc19b7064f7ab2",
-  bundle: "a82f9fcb547eb21b6441a116db43783d8732c3381f1b8c333f703b0ceffed091",
+  apk: "b456160e678b1883ace401903904dd99206e6f4dadfc2241a7b8d671223ce431",
+  zip: "06ec5d5e25a2553beea6421de6f2d47bb72d5b39c6dad89eba758d15c02ae30e",
+  tgz: "f773a5b97f0c2578e37b62f7fa718c9ae2cf6c9faf4b57cef8c4167fc23e28a6",
+  bundle: "be5241600204ba79cb522dbf74c05355bb241a0ddd070aa99e097d109222d406",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,75 +25,86 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          The Companion canvas is never mysteriously white{" "}
-          <span className="badge">versionCode 26</span>
+          Your m4.0.2 bug list — every item fixed{" "}
+          <span className="badge">versionCode 27</span>
         </h2>
         <p>
-          <b>The device finding (same session as the startup hotfix):</b> after
-          m4.0.1 fixed the launch crash, the app starts — but pulling the
-          Companion up showed the ChatGPT tab strip over a <b>pure white
-          canvas</b>: no page, no error, no explanation. Every PocketShell
-          surface is dark, so the white came from the WebView content side.
-          Three possible causes, all device-dependent: the page can&apos;t load
-          over the network/VPN, the WebView build is too old for a modern site
-          (Samsung&apos;s rollback can leave an ancient factory build), or the
-          updated build renders blank. A silent white rectangle is not
-          acceptable — so now the canvas reports the truth.
+          <b>The keyboard now belongs to the whole app.</b> It types into
+          Companions, it pushes everything up instead of stacking on top of
+          anything, it collapses into a small corner icon when toggled off,
+          the dead <b>-</b> key works, the arrows are longer — and the
+          Companion white screen finally gets both an engine fix and an
+          honest explanation. The <b>+</b> button opens a real Companion
+          picker.
         </p>
         <ul className="steps">
           <li>
-            <b>&quot;Page didn&apos;t load&quot; card:</b> if the main frame fails
-            (network, DNS, VPN), the canvas shows the REAL error string (e.g.{" "}
-            <code>net::ERR_NAME_NOT_RESOLVED</code>), the installed Android
-            System WebView version, the hint that matters — and a{" "}
-            <b>Retry</b> button.
+            <b>Keyboard for Companions too:</b> deck presses follow focus.
+            Tap a text field in the Companion page and type — the characters
+            land in the page. Tap the terminal above and type — the shell
+            gets them again. While the deck is up, the system keyboard is
+            blocked (never two keyboards); toggle the deck off and Companion
+            inputs can still summon the system keyboard, with the panel
+            lifting above it.
           </li>
           <li>
-            <b>&quot;Page renderer crashed&quot; card:</b> when the WebView
-            renderer dies (the classic white-canvas signature of broken
-            WebView builds — Android&apos;s DEFAULT behavior here is to kill
-            the whole app), PocketShell now destroys only the crashed view,
-            stays alive, and says exactly that with the version + an
-            update/rollback hint.
+            <b>Nothing hides under the keyboard:</b> the deck is now the
+            bottom-most surface. The Companion panel (handle + tabs + page)
+            rides ABOVE it — the keyboard never opens on top of anything.
           </li>
           <li>
-            <b>Retry rebuilds the tab</b> from scratch; any successful
-            navigation clears the failure automatically. The
-            &quot;Companion unavailable&quot; notice shows the WebView version
-            too.
+            <b>Toggle = full collapse:</b> the keyboard button now removes
+            the WHOLE deck; a small Midnight keyboard icon floats at the
+            bottom-right corner (above every layer) to bring it back
+            whenever you want.
           </li>
           <li>
-            <b>Honest boundary:</b> a page that loads but renders blank
-            because an old WebView can&apos;t run its JavaScript fires no
-            error event. That case is identified with the version line on the
-            cards plus a static-site test (add <code>example.com</code> as a
-            second Companion — it renders on ANY WebView).
+            <b>Every key works:</b> the &quot;-&quot; key (and the whole
+            digit row) was dead on quick taps because its hold-gesture layer
+            swallowed them — a quick tap now commits the character, holding
+            still gives the F-key layer. Arrow keys are 12dp longer
+            horizontally.
           </li>
           <li>
-            <b>Nothing else changed:</b> no feature, storage or contract
-            change. Full suite green: 712 tests, 0 failures (4 new pins on
-            the failure model — one caught a real defect before delivery).
+            <b>The white canvas, for real:</b> WebViews are now created with
+            the Activity context (the application context used so far is a
+            known blank-canvas source on OEM builds), and a 15s watchdog
+            catches the case where a page paints nothing: the canvas shows
+            &quot;Page never rendered&quot; + the installed WebView version
+            instead of a silent white box. <b>Retry</b> alternates GPU →
+            SOFTWARE rendering (compatibility mode) — the honest second
+            attempt for broken WebView builds.
+          </li>
+          <li>
+            <b>&quot;+&quot; finally does something:</b> it opens a Midnight
+            sheet listing every Companion (open tabs marked) — tap to open
+            one, or &quot;Add Companion&quot; to go to the management page.
+          </li>
+          <li>
+            <b>Nothing else changed:</b> data, logins, tabs and heights
+            survive the in-place update. Full suite green: <b>724 tests, 0
+            failures</b> (6 new pins on routing + the render-stall model).
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m4.0.2-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m4.0.3-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.2)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.3)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 26 installs <b>in place over v0.7.0-m4.0.1 (25),
-          v0.7.0-m4.0 (24) and every earlier pinned-cert build</b>. Your Alpine
-          runtime, installed packages, Kilo/Hermes installation, the procfs
-          contract, every Phase 3 behavior and all Companion data (logins
-          included) are untouched. This build also contains the m4.0.1
-          startup fix — it starts regardless of the WebView package&apos;s
-          state.
+          versionCode 27 installs <b>in place over v0.7.0-m4.0.2 (26),
+          v0.7.0-m4.0.1 (25), v0.7.0-m4.0 (24) and every earlier pinned-cert
+          build</b>. Your Alpine runtime, installed packages, Kilo/Hermes
+          installation, the procfs contract, every Phase 3 behavior and all
+          Companion data (logins included) are untouched. This build also
+          contains the m4.0.1 startup fix — it starts regardless of the
+          WebView package&apos;s state.
         </p>
       </div>
 
@@ -130,45 +141,53 @@ export default function Home() {
           </li>
           <li>
             m4.0.1: startup decoupled from WebView provider health (the
-            launch-crash fix).
+            launch-crash fix). m4.0.2: honest failure cards — the canvas is
+            never mysteriously white.
           </li>
           <li>
-            <b>v0.7.0-m4.0.2 (this build):</b> honest Companion failure
-            surfaces — load errors and renderer crashes become labeled cards
-            with the real cause + WebView version + Retry. Never a silent
-            white rectangle.
+            <b>v0.7.0-m4.0.3 (this build):</b> the shared keyboard —
+            focus-routed into Companions, bottom-most on screen, fully
+            collapsible to a corner icon, every key working — plus the
+            render-stall watchdog with compatibility-mode Retry, and the
+            &quot;+&quot; Companion picker.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §19 — failure-surface device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §20 — keyboard + honesty device gate)</h2>
         <ol className="steps">
           <li>
-            Install {VERSION} in place over the current build → PocketShell
-            starts; pull the Companion up with the ChatGPT tab.
+            Install {VERSION} in place over the current build → open the
+            terminal, raise the Companion: the panel now sits ABOVE the
+            keyboard — nothing under it.
           </li>
           <li>
-            If the page can&apos;t load: the dark card shows &quot;Page
-            didn&apos;t load&quot; + the real error + the WebView version — no
-            white rectangle. If the renderer dies: &quot;Page renderer
-            crashed&quot; and PocketShell survives.
+            Tap a text field in the Companion page, type on the PocketShell
+            keyboard → characters appear IN THE PAGE. No GBoard. Tap the
+            terminal and type → back to the shell.
           </li>
           <li>
-            Tap <b>Retry</b> → the tab reloads fresh. Then add{" "}
-            <code>example.com</code> as a second Companion: if it renders,
-            network + WebView are fine and the ChatGPT failure is site- or
-            VPN-specific; if it also fails, the WebView build/network is the
-            problem.
+            Tap <b>-</b> → appears instantly. Quick-tap digits → digits.
+            Hold a digit → F-key popup. Toggle the keyboard off → the whole
+            deck vanishes and a small keyboard icon appears at the
+            bottom-right corner; tap it → the deck returns.
           </li>
           <li>
-            Report the WebView version shown on the card — that number
-            decides whether to update (&quot;Android System WebView&quot; in
-            the Play Store) or roll back (Samsung&apos;s dialog).
+            Tap <b>+</b> on the Companion tab strip → the picker sheet lists
+            your Companions; &quot;Add Companion&quot; opens the management
+            page.
           </li>
           <li>
-            Regressions: §18 startup checks, §17 spot-checks (drag, tabs,
-            upload, Back), guest <code>apk update</code>.
+            The previously-white tab: EITHER it now renders (Activity-context
+            fix) OR within ~15s you get &quot;Page never rendered&quot; + the
+            WebView version — never a silent white box. Try <b>Retry</b>:
+            the second attempt uses SOFTWARE rendering (compatibility mode).
+            Report the WebView version shown on the card.
+          </li>
+          <li>
+            Regressions: §18 startup, §19 failure cards, §17 spot-checks
+            (drag 1:1, tabs, upload, Back, login persistence).
           </li>
         </ol>
       </div>
@@ -178,14 +197,14 @@ export default function Home() {
         <p>
           Complete buildable source. The zip intentionally contains no
           dotfiles; full history rides in the git bundle — includes the
-          complete milestone history, all six Phase 3 design contracts, the
-          procfs contract, and the Phase 4 Companion design contract with the
-          §22/§23 hotfix amendments.
+          complete milestone history, all Phase 3 design contracts, the
+          procfs contract, and the Phase 4 Companion design contract with
+          the §22/§23/§24 amendments.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.2-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.3-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.2-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.3-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -207,9 +226,11 @@ export default function Home() {
         search-install · M2.6 real /proc + real apk · v0.6.2 sysdata repairs ·
         v0.7.0-m3.1 terminal redesign · m3.2 OS launcher · m3.3 flat
         workspace · m3.4 registry expansion · m3.5 command launch fix · m3.6
-        procfs contract · m4.0 Phase 4 Companion · m4.0.1 startup hotfix ·{" "}
-        <b>v0.7.0-m4.0.2 (this build): the Companion canvas is never
-        mysteriously white</b>. Your device keeps doing the QA that matters.
+        procfs contract · m4.0 Phase 4 Companion · m4.0.1 startup hotfix ·
+        m4.0.2 honest failure surfaces ·{" "}
+        <b>v0.7.0-m4.0.3 (this build): one keyboard for everything — and the
+        white canvas can no longer hide</b>. Your device keeps doing the QA
+        that matters.
       </footer>
     </main>
   );
