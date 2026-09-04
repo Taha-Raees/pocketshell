@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.1
+VERSION=v0.7.0-m4.0.2
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,38 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0) — HOTFIX: STARTUP CRASH WHEN THE
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.1) — HONEST COMPANION FAILURE
+SURFACES: THE CANVAS IS NEVER MYSTERIOUSLY WHITE (device finding 2026-09-05,
+same session as the startup hotfix):
+  - THE FINDING: after the m4.0.1 startup fix, PocketShell starts — but
+    pulling the Companion up showed the ChatGPT tab strip over a PURE
+    WHITE canvas: no page, no error, no explanation. Every PocketShell
+    surface is dark, so the white came from the WebView content side
+    (page can't load over the network/VPN, a WebView build too old for a
+    modern site after Samsung's rollback, or the updated build rendering
+    blank). A silent white rectangle is not acceptable here.
+  - THE FIX: main-frame load failures now render an in-canvas Midnight
+    card — "Page didn't load" + the REAL error string (e.g.
+    net::ERR_NAME_NOT_RESOLVED) + the installed Android System WebView
+    version + the hint that matters (network/VPN or WebView update) + a
+    Retry button. A dead page renderer (onRenderProcessGone — the classic
+    white-canvas signature of broken WebView builds, whose DEFAULT
+    behavior kills the whole app) is handled: only the crashed view is
+    destroyed, PocketShell stays alive, and the card reads "Page renderer
+    crashed" with the version + update/rollback hint. The "Companion
+    unavailable" notice now shows the WebView version too. Retry
+    re-creates the tab from scratch; a successful navigation clears the
+    failure automatically.
+  - HONEST BOUNDARY: a page that loads but renders blank because an old
+    WebView cannot run its JavaScript fires NO error event — that case is
+    identified with the version line on the cards plus a static-site test
+    (add example.com as a second Companion: it renders on ANY WebView).
+  - +4 unit pins on the pure failure model (one caught a real defect
+    before delivery). Full suite: 712 tests, 0 failures.
+  - versionCode 26 / 0.7.0-m4.0.2 — in-place update over 16..25; same
+    pinned cert. Device gate: docs/TESTING.md §19.
+
+WHAT WAS NEW IN v0.7.0-m4.0.1 (vs v0.7.0-m4.0) — HOTFIX: STARTUP CRASH WHEN THE
 DEVICE'S WEBVIEW PACKAGE IS BROKEN OR FRESHLY UPDATED (device-reported
 2026-09-05 via Samsung Device Care's "Uninstall WebView updates?" dialog):
   - THE REPORTED BUG: on m4.0 the app crashed on EVERY start before any
@@ -743,6 +774,7 @@ tar --exclude='./.git' --exclude='./.gitignore' --exclude='./.gitattributes' \
     --exclude='./dev.log' --exclude='./server.log' \
     --exclude='./skills' --exclude='./upload' --exclude='./download' \
     --exclude='./scratch' --exclude='./vframes' --exclude='./sheets' \
+    --exclude='./tool-results' \
     --exclude='./dist-master' --exclude='./examples' --exclude='./mini-services' \
     --exclude='./tests' \
     --exclude='./.env' --exclude='./local.properties' \
