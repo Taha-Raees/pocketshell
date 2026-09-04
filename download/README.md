@@ -1,50 +1,35 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0 (payload cut at git tip 4ebf734; Phase 4 — Companion,
-the embedded web workspace, versionCode 24)
-- PocketShell-v0.7.0-m4.0-debug.apk  sha256 a9f1fb71949b558a3f6d89a8d92b615d3d6a4d0905f714853898d6d7b418a438
-  Installs IN PLACE over v0.7.0-m3.6 (versionCode 23), m3.5 (22), m3.4 (21),
-  m3.3 (20), m3.2 (19), m3.1 (18), the discarded v0.7.0-ui (17) and v0.6.2
-  (16) — same pinned cert d96a6f66…8bf659. App data (Alpine runtime, Kilo,
-  Hermes, packages) survives.
-  SCOPE: one NEW feature layer — Companion — plus its Settings section.
-  Terminal, Home, Packages, Diagnostics and the entire guest pipeline are
-  untouched. Contract: docs/PHASE-4-COMPANION-DESIGN.md (committed before
-  implementation).
-  Phase 4 highlights:
-  · THE WORKSPACE: a persistent web layer below every screen, pulled up
-    by a small bottom drag handle ONLY (no floating button, no labels,
-    no browser chrome). A Companion is exactly Name + URL — fully
-    generic; not an AI chatbot, no AI APIs; you use the real website
-    with your real account.
-  · SMOOTH AS SILK: 1:1 drag, page never reflows mid-drag (frozen web
-    height, one resize on release); gentle half/near-full anchors (6%
-    window) else stay-put; height persisted; handle reachable at every
-    height — never trapped. Only the handle zone resizes; page scrolling
-    is never stolen.
-  · REAL LOGINS PERSIST: cookies + DOM storage in the app's private web
-    profile (flush at pause); log in once, restart, still logged in.
-    Engine = Android System WebView (zero new dependencies), Safe
-    Browsing on, mixed content never, file/content access off, camera/
-    mic/geo denied, default UA (no spoofing).
-  · TABS: inverted Phase 3.1 editor language; switch WITHOUT reloads
-    (background tabs alive-but-paused, active + 4 LRU pool,
-    saveState-on-evict / restore-on-reactivate, onTrimMemory drops
-    background pages first).
-  · INTEGRATION: Back = web history → collapse → normal navigation;
-    uploads via the normal Android picker; downloads via DownloadManager
-    into app-private storage (no permission, no crash); mailto/tel/
-    intent resolved by the system with an honest toast on failure;
-    .imePadding() lifts the panel above the keyboard.
-  · SETTINGS > COMPANION: add/edit/delete, quick-add templates (editable
-    pre-fills only), Default Companion, Clear web data.
-  · 704 test executions green (baseline + 20 Companion pins).
-  Device gate: docs/TESTING.md §17 (login persistence, drag experience,
-  tabs, file upload, navigation, performance, §12–§16 regressions).
-- PocketShell-v0.7.0-m4.0-source.zip sha256 577b86f759f500286d91b2264aaa0f22fd2d440f1fab0b9aa5ca6a005332152a  (28 MB, 316 files)
-- PocketShell-v0.7.0-m4.0-source.tar.gz sha256 a0001fd68cce64fc57166c8842a569a1c454debff403c995065d053ac5c5b57e  (28 MB)
-- pocketshell-m2.gitbundle           sha256 6a90c25990ce255e94235767fb1e47a487678f196f4475e38a274f6522b1903d  (full history @ 4ebf734; ~26 MB — includes the complete milestone history, all six Phase 3 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md — honest, no rewrites)
+Current: v0.7.0-m4.0.1 (payload cut at git tip 8244772; HOTFIX — startup
+decoupled from WebView provider health, versionCode 25)
+- PocketShell-v0.7.0-m4.0.1-debug.apk  sha256 c9fc0cc3c2bfbdca98fa1b948bec2bec7a1fd9d60f3cdd77a348414c23ccd678
+  Installs IN PLACE over v0.7.0-m4.0 (versionCode 24) and every earlier
+  build (vc16..vc23) — same pinned cert d96a6f66…8bf659. App data
+  (Alpine runtime, Kilo, Hermes, packages, Companion logins) survives.
+  SCOPE: failure-path hardening of the Phase 4 Companion only — no
+  feature/UI/contract change; the Companion behaves exactly as shipped
+  in m4.0 on devices with a healthy WebView.
+  THE REPORTED BUG (device 2026-09-05): m4.0 crashed on EVERY launch —
+  Samsung Device Care blamed the freshly updated Android System WebView
+  ("Uninstall WebView updates?"). Root cause: m4.0's Application.onCreate
+  called CookieManager.getInstance(), which synchronously LOADS the
+  entire WebView provider before any UI; a provider that crashes at init
+  (seen on Samsung+microG after a WebView update) killed every start,
+  although the Companion was never opened.
+  THE FIX: Application startup is WebView-free; cookie configuration and
+  WebView creation happen lazily at first Companion use and are guarded —
+  a broken provider now degrades ONLY the Companion surface (an honest
+  "Companion unavailable" notice) while the terminal, Home, packages,
+  Diagnostics and Settings keep working. No path can crash the process
+  on a broken provider. Logins/data unchanged.
+  · 704 tests green (0 failures, both modules × both variants).
+  Device gate: docs/TESTING.md §18. Full record: docs/CHANGELOG
+  [0.7.0-m4.0.1]; contract amendment: docs/PHASE-4-COMPANION-DESIGN §22.
+- PocketShell-v0.7.0-m4.0.1-source.zip sha256 7435127f3ecf4697cde67e45eb4c7948a315c85cd2223570ac877cb83df50b37  (28 MB, 317 files)
+- PocketShell-v0.7.0-m4.0.1-source.tar.gz sha256 dabbdb9692592a8ff3195a6acafade79b5a9e4d16fbc3044a330c091e2c4b213  (28 MB)
+- pocketshell-m2.gitbundle           sha256 9020f9da0e25758d62520fb0e37b1a8e9b70cdae00c86a99723749f990fab205  (full history @ 8244772; ~26 MB — includes the complete milestone history, all six Phase 3 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m3.6 superseded by Phase 4; its records
-live in the bundle history — see docs/CHANGELOG for each confirmed fix).
+Older builds: withdrawn (v0.7.0-m4.0 superseded by the m4.0.1 hotfix;
+its records live in the bundle history — see docs/CHANGELOG for each
+confirmed fix).

@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m4.0";
+const VERSION = "v0.7.0-m4.0.1";
 
 const HASHES = {
-  apk: "a9f1fb71949b558a3f6d89a8d92b615d3d6a4d0905f714853898d6d7b418a438",
-  zip: "577b86f759f500286d91b2264aaa0f22fd2d440f1fab0b9aa5ca6a005332152a",
-  tgz: "a0001fd68cce64fc57166c8842a569a1c454debff403c995065d053ac5c5b57e",
-  bundle: "6a90c25990ce255e94235767fb1e47a487678f196f4475e38a274f6522b1903d",
+  apk: "c9fc0cc3c2bfbdca98fa1b948bec2bec7a1fd9d60f3cdd77a348414c23ccd678",
+  zip: "7435127f3ecf4697cde67e45eb4c7948a315c85cd2223570ac877cb83df50b37",
+  tgz: "dabbdb9692592a8ff3195a6acafade79b5a9e4d16fbc3044a330c091e2c4b213",
+  bundle: "9020f9da0e25758d62520fb0e37b1a8e9b70cdae00c86a99723749f990fab205",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,79 +25,72 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Phase 4 — Companion: the embedded web workspace{" "}
-          <span className="badge">versionCode 24</span>
+          Hotfix — a broken WebView update could kill every launch{" "}
+          <span className="badge">versionCode 25</span>
         </h2>
         <p>
-          PocketShell grows into a personal mobile Linux workspace, and
-          Companion is its newest room: <b>a persistent web workspace layer
-          that lives below every screen</b>, pulled up by a small bottom
-          drag handle. Pull it up while working in the terminal, ask ChatGPT
-          something, pull it half down, keep typing commands, pull it back
-          up — <b>the conversation is still there</b>. You never left
-          PocketShell. There is no floating button, no browser chrome, no
-          address bar: the website IS the content, and a Companion is
-          exactly <b>Name + URL</b> — ChatGPT, GitHub, your docs site, a
-          local dashboard, anything. Fully generic, deliberately not an AI
-          chatbot: you log into the real website with your real account.
+          <b>The reported crash (device, 2026-09-05):</b> after updating to
+          m4.0, PocketShell crashed on <b>every</b> start before any UI
+          appeared — and Samsung Device Care popped up &quot;Uninstall WebView
+          updates?&quot;. Root cause, found and fixed: m4.0 initialized the
+          Companion web runtime during Application startup, and that init
+          called <code>CookieManager.getInstance()</code> — which
+          <b> synchronously loads the entire Android System WebView provider
+          before any UI, on every launch</b>. On this device the freshly
+          updated WebView package itself crashes at provider init (a
+          Samsung + microG combination), so every PocketShell launch died
+          with it — even though the Companion was never opened. An optional
+          layer&apos;s engine had taken the whole terminal app hostage.
         </p>
         <ul className="steps">
           <li>
-            <b>Drag handle only:</b> a small visual handle at the bottom of
-            every screen. Dragging follows your finger 1:1 and the page
-            never reflows mid-drag (one resize on release); half-screen and
-            near-full anchors snap gently, everything else stays exactly
-            where you leave it — and the height is remembered.
+            <b>The fix:</b> Application startup is now WebView-free — it
+            holds a context reference and nothing else. Cookie configuration
+            and WebView creation happen lazily at first Companion use and
+            are fully guarded. No code path can crash the process on a
+            broken provider anymore.
           </li>
           <li>
-            <b>Real logins persist:</b> cookies and site storage live in the
-            app&apos;s private web profile — log into ChatGPT once, close
-            PocketShell, come back still logged in. The engine is the
-            Android System WebView: zero new dependencies, Chromium in its
-            own sandboxed process, Safe Browsing on, device permissions
-            (camera/mic/geo) denied.
+            <b>Graceful degradation, honestly:</b> if the device&apos;s WebView
+            package is missing or crashing, only the Companion surface
+            changes — it shows a minimal Midnight notice (&quot;Companion
+            unavailable — Android System WebView is missing or crashing on
+            this device&quot;). The terminal, Home, packages, Diagnostics and
+            Settings keep working untouched.
           </li>
           <li>
-            <b>Web tabs, PocketShell style:</b> the Phase 3.1 editor-tab
-            language, inverted — the active tab opens into the web canvas
-            with a 2.5dp Sapphire edge. Switching tabs never reloads:
-            background tabs stay alive-but-paused (active + 4, LRU), evicted
-            tabs restore on reactivation, memory pressure drops background
-            pages first.
+            <b>Your data is unchanged:</b> installing this hotfix in place
+            keeps every session — Companion logins live in the app&apos;s
+            private web storage. Once the device has a healthy WebView
+            (update &quot;Android System WebView&quot; in the Play Store, or accept
+            Samsung&apos;s rollback — either way), the Companion works exactly
+            as shipped in m4.0. You do NOT need to uninstall WebView updates
+            for PocketShell to start anymore.
           </li>
           <li>
-            <b>Honest integration:</b> Back = webpage history, then
-            collapse, then normal PocketShell navigation — never trapped.
-            File uploads use the normal Android picker; downloads land in
-            app-private storage via the system DownloadManager; external
-            schemes (mailto/tel/intent) resolve to the system with an honest
-            toast when nothing can handle them.
-          </li>
-          <li>
-            <b>Settings → Companion:</b> add/edit/delete your Companions,
-            quick-add templates as editable pre-fills, a Default Companion,
-            and Clear web data. The empty state is one line and one button —
-            no cards, no clutter.
+            <b>Phase 4 itself is untouched:</b> no feature, UI, storage or
+            contract change. Full suite green: 704 tests, 0 failures.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m4.0-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m4.0.1-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.1)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 24 installs <b>in place over v0.7.0-m3.6 (23),
-          v0.7.0-m3.5 (22), v0.7.0-m3.4 (21) and every earlier pinned-cert
-          build</b>. Your Alpine runtime, installed packages, Kilo/Hermes
-          installation, the procfs contract and every Phase 3 behavior are
-          untouched: Phase 4 adds one new layer and touches nothing else —
-          the §12–§16 gates remain valid.
+          versionCode 25 installs <b>in place over v0.7.0-m4.0 (24),
+          v0.7.0-m3.6 (23) and every earlier pinned-cert build</b>. Your
+          Alpine runtime, installed packages, Kilo/Hermes installation, the
+          procfs contract, every Phase 3 behavior and all Companion data are
+          untouched. If the app is currently crash-looping on your device,
+          install this build over the broken one — it starts regardless of
+          the WebView package&apos;s state.
         </p>
       </div>
 
@@ -127,43 +120,41 @@ export default function Home() {
             pages.
           </li>
           <li>
-            <b>v0.7.0-m4.0 (this build):</b> Companion — the embedded web
-            workspace. Generic Name+URL definitions, bottom drag handle,
-            persistent sessions, live multi-tab, file upload, intelligent
-            Back, Midnight Sapphire throughout.
+            Phase 4 (m4.0): Companion — the embedded web workspace. Generic
+            Name+URL definitions, bottom drag handle, persistent sessions,
+            live multi-tab, file upload, intelligent Back, Midnight Sapphire
+            throughout.
+          </li>
+          <li>
+            <b>v0.7.0-m4.0.1 (this build):</b> startup decoupled from WebView
+            provider health — the m4.0 launch-crash fix described above;
+            everything else identical to m4.0.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §17 — Phase 4 device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §18 — hotfix device gate)</h2>
         <ol className="steps">
           <li>
-            Install {VERSION} over m3.6 → the only new element is the small
-            bottom handle (no floating button, no text).
+            Install {VERSION} in place over the crashing m4.0 (do NOT
+            uninstall WebView updates first) → PocketShell opens normally to
+            Home. Launch, kill, relaunch 3× — starts every time.
           </li>
           <li>
-            Settings → Companion → quick-add <b>ChatGPT</b> → pull the
-            handle up → log in → close PocketShell → reopen → still logged
-            in.
+            With the WebView still broken: pull the Companion handle up →
+            the minimal &quot;Companion unavailable&quot; notice renders — no crash,
+            no blank panel; the terminal keeps working while it&apos;s up.
           </li>
           <li>
-            Drag through many heights: 1:1 follow, no page reflow mid-drag,
-            gentle snap near anchors, stay-put elsewhere, height restored
-            after restart. Scrolling the page never resizes the Companion.
+            Repair Android System WebView (Play Store update or Samsung&apos;s
+            rollback) → restart PocketShell → the Companion loads normally
+            and previously logged-in sites are still logged in.
           </li>
           <li>
-            Add <b>GitHub</b> via +: two tabs, switch without reloads,
-            conversation intact, close → neighbor selected.
-          </li>
-          <li>
-            Upload a file in ChatGPT (normal Android picker); navigate
-            GitHub → repo → Back goes back in the webpage; at the page root
-            Back collapses the Companion, then normal navigation resumes.
-          </li>
-          <li>
-            Regressions: <code>apk update</code> in the guest, Home tiles
-            still launch apps, §12–§16 gates all still pass.
+            Spot-checks: §17 (drag 1:1, tab switch without reload, file
+            upload, Back = history → collapse → navigation) and §12–§16
+            (<code>apk update</code> in the guest, Home tiles launch apps).
           </li>
         </ol>
       </div>
@@ -172,15 +163,15 @@ export default function Home() {
         <h2>Source (version control)</h2>
         <p>
           Complete buildable source. The zip intentionally contains no
-          dotfiles; full history rides in the git bundle (tip 4ebf734 —
+          dotfiles; full history rides in the git bundle (tip 8244772 —
           includes the complete milestone history, all six Phase 3 design
           contracts, the procfs contract, and the Phase 4 Companion design
-          contract).
+          contract with the §22 hotfix amendment).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.1-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.1-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -202,9 +193,9 @@ export default function Home() {
         search-install · M2.6 real /proc + real apk · v0.6.2 sysdata repairs ·
         v0.7.0-m3.1 terminal redesign · m3.2 OS launcher · m3.3 flat
         workspace · m3.4 registry expansion · m3.5 command launch fix · m3.6
-        procfs contract · <b>v0.7.0-m4.0 (this build): Phase 4 —
-        Companion, the embedded web workspace</b>. Your device keeps doing
-        the QA that matters.
+        procfs contract · m4.0 Phase 4 Companion · <b>v0.7.0-m4.0.1 (this
+        build): startup decoupled from WebView provider health</b>. Your
+        device keeps doing the QA that matters.
       </footer>
     </main>
   );

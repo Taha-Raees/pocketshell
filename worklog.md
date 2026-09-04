@@ -837,3 +837,25 @@ Stage Summary:
 - v0.7.0-m4.0 (vc24) delivered end-to-end: Companion shipped per the design contract — generic Name+URL companions, bottom-handle-only layer, frozen-height drag, persistent logins, live multi-tab w/ LRU pool, file upload, intelligent Back, Midnight Sapphire; 704/0 tests; payload + delivery chain live.
 - NOT yet device-proven (needs the human): TESTING §17 — esp. ChatGPT login persistence across app restart, drag smoothness/no-gesture-fights, tab state preservation, file upload, Back behavior, and §12–§16 regressions.
 - git chain this phase: 426-line design contract → implementation (4.1–4.9) → docs+version → cutter → delivery page. Payload tip 4ebf734.
+
+---
+Task ID: 42
+Agent: Super Z (main)
+Task: Device-reported crash — "App is crashing on start" (m4.0, Samsung/microG device; screenshot: Samsung Device Care "Uninstall WebView updates?"). Diagnose, fix, deliver hotfix.
+
+Work Log:
+- Inspected screenshot: Samsung Device Care attributes repeated PocketShell crashes to the freshly updated Android System WebView.
+- Repo state check: Phase 4 Companion was already delivered (v0.7.0-m4.0 / vc24, tip a7271e4) — the app now embeds WebView code.
+- ROOT CAUSE: PocketShellApp.onCreate → CompanionWebPool.init() → CookieManager.getInstance() synchronously loads the ENTIRE WebView provider (WebViewFactory.getProvider) inside Application.onCreate, before any UI, on every launch. On the device the updated WebView package crashes at provider init (Samsung+microG Trichrome fragility) → every PocketShell start died although the Companion was never opened. Manifest single-process (multi-process WebView conflict ruled out); CompanionLayer/Repository confirmed lazy/guarded otherwise.
+- FIX (commit 8244772, vc25 / 0.7.0-m4.0.1): Application.onCreate is WebView-free (init = context handoff only); cookie config moved to configureCookiesOnce() (lazy, guarded, retried); WebView creation is the single guarded provider-load point — failure flips CompanionWebPool.runtimeFailed, acquire() returns null, CompanionLayer renders minimal "Companion unavailable" Midnight notice (terminal/Home/Settings unaffected); pauseAll() skips flush when pool never created a WebView + guards it; clearWebData() wraps provider touches in runCatching. No path can crash the process on a broken provider.
+- Tests: full suite 704 tests / 0 failures (both modules × both variants) — matches m4.0 baseline exactly; no new unit pins (guards wrap Android-only provider calls; spec §32 forbids WebView fakes) — pinned by device gate §18 instead.
+- Build: assembleDebug OK (memory caps); aapt2: versionCode 25 / versionName 0.7.0-m4.0.1; apksigner: cert d96a6f66…8bf659 (in-place chain 16→25 intact); APK sha256 c9fc0cc3…cd678.
+- Docs: CHANGELOG [0.7.0-m4.0.1] (root cause + fix + delivery); TESTING §18 device gate (startup with broken WebView, degradation notice, recovery, §17+§12–§16 spot-checks); ROADMAP Phase 4.0.1; PHASE-4-COMPANION-DESIGN §22 binding amendment (Application startup must never touch android.webkit).
+- Payload: cutter VERSION→v0.7.0-m4.0.1 + hotfix WHAT-IS-NEW block (m4.0 block retitled); zip 7435127f… / tgz dabbdb96… / bundle 9020f9da… / apk c9fc0cc3…; three-way mirror (public/dist-master/download) byte-verified.
+- Page: app/page.tsx rewritten (hotfix hero, §18 quick checks, tip 8244772); dev server hot-reloaded; 4/4 artifacts HTTP-verified byte-identical on :3000; stale m4.0 URLs withdrawn (404).
+- Commits: 8244772 (fix+docs+version+cutter), page/README commit follows this entry.
+
+Stage Summary:
+- v0.7.0-m4.0.1 (vc25) delivered end-to-end: the m4.0 launch-crash is fixed at the architecture level — WebView provider health can no longer gate app startup; failure degrades only the Companion surface, honestly labeled.
+- Awaiting device verification: install vc25 IN PLACE over the crash-looping vc24 (no WebView rollback needed) → PocketShell must start; TESTING §18.
+- Carried tasks unchanged: Kilo tile direct launch; CommandApps.kt registry de-hardcoding; Diagnostics/Package Manager/Settings redesign to Home 3.3/3.4 language.
