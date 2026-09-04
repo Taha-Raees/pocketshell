@@ -22,8 +22,17 @@ android {
         // exact tradeoff Termux makes. Side-load distribution; Play rules do
         // not apply (and Android 14+ still installs targetSdk >= 23).
         targetSdk = 28
-        versionCode = 31
-        versionName = "0.7.0-m4.0.7"
+        versionCode = 32
+        versionName = "0.7.0-m4.0.8"
+    }
+
+    // m4.0.8: the render-probe pins exercise RenderProbe.findActivity's
+    // ContextWrapper unwrapping — ContextWrapper.getBaseContext() must
+    // answer null (default) in JVM tests instead of throwing "not mocked".
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
     }
 
     // v0.4.1: pin the debug signing key IN THE REPO. Lesson from sandbox reset

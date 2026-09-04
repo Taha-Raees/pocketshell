@@ -1,12 +1,15 @@
 package app.pocketshell.companion
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.DownloadManager
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
@@ -28,6 +31,7 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.core.view.doOnLayout
 import app.pocketshell.keyboard.KeyboardInputRouter
+import java.lang.ref.WeakReference
 
 /**
  * Phase 4 — the embedded web runtime (docs/PHASE-4-COMPANION-DESIGN.md §8).
@@ -91,7 +95,23 @@ object CompanionWebPool {
 
         /** m4.0.7 — the attach kick is a once-per-view remedy. */
         var attachKickDone: Boolean = false
+
+        /** m4.0.8 — what the glass ACTUALLY shows (dominant color,
+         *  near-black share) and the color-scheme recipe this view was
+         *  created with — the two facts the "painted but black" report
+         *  was missing. */
+        var lastColors: RenderProbe.ColorTruth? = null
+        var scheme: String = "inherits app"
     }
+
+    /** m4.0.8 — the hosting Activity, kept from the most recent acquire so
+     *  the glass probe's window lookup survives ANY creation context
+     *  (a configuration context is not an Activity). Weak: never pins a
+     *  destroyed activity. */
+    private var hostActivityRef: WeakReference<Activity>? = null
+
+    /** The current host Activity, if one is alive and known. */
+    internal fun hostActivity(): Activity? = hostActivityRef?.get()
 
     private var appContext: Context? = null
     private val pool = LinkedHashMap<String, TabEntry>()
@@ -184,6 +204,11 @@ object CompanionWebPool {
         compatRender: Boolean = false,
     ): WebView? {
         val creationContext = context ?: appContext ?: return null
+        // m4.0.8: remember the real host Activity (through any wrapper) for
+        // the glass probe — a forced-light configuration context is NOT one.
+        val hostActivity = RenderProbe.findActivity(creationContext)
+        if (hostActivity != null) hostActivityRef = WeakReference(hostActivity)
+        val forcedLight = hostActivity != null
         val isNew = !pool.containsKey(defId)
         val entry = pool.getOrPut(defId) {
             // m4.0.1: creation is the ONLY step that loads the provider —
@@ -191,10 +216,13 @@ object CompanionWebPool {
             // UI's "unavailable" notice instead of crashing the process.
             configureCookiesOnce()
             try {
-                val created = TabEntry(createWebView(creationContext, defId, compatRender))
+                val created = TabEntry(
+                    createWebView(creationContext, defId, compatRender, forcedLight),
+                )
                 runtimeFailed = false
                 // m4.0.6: record the standing testimony facts at birth.
                 created.renderer = if (compatRender) "SOFTWARE" else "GPU"
+                created.scheme = if (forcedLight) "forced light" else "inherits app"
                 created.userAgent = try {
                     created.webView.settings.userAgentString
                 } catch (_: Throwable) {
@@ -390,14 +418,15 @@ object CompanionWebPool {
                 return@postDelayed
             }
             try {
-                RenderProbe.captureHasPainted(view) { painted ->
+                RenderProbe.captureHasPainted(view, hostActivity()) { reading ->
                     // Main-thread callback; the tab may have been forgotten
                     // while the capture ran — the arm-set is the gate.
                     if (!renderStallArmed.contains(defId)) return@captureHasPainted
-                    // m4.0.6: the verdict is testimony too — kept either way
-                    // for the health sheet.
-                    pool[defId]?.lastPainted = painted
-                    if (painted) {
+                    // m4.0.6/0.8: the verdict AND the color truth are
+                    // testimony — kept either way for the health sheet.
+                    pool[defId]?.lastPainted = reading.painted
+                    pool[defId]?.lastColors = reading.colors
+                    if (reading.painted) {
                         renderStallArmed.remove(defId)
                     } else if (attempt + 1 >= MAX_PAINT_PROBES) {
                         renderStallArmed.remove(defId)
@@ -448,24 +477,54 @@ object CompanionWebPool {
 
     @SuppressLint("SetJavaScriptEnabled")
     @Suppress("DEPRECATION")
-    private fun createWebView(context: Context, defId: String, compatRender: Boolean): WebView {
-        // m4.0.7 — CREATION RECIPE ROLLBACK, evidence-driven (device
-        // 2026-09-05, the health sheet's testimony): the page loads COMPLETE
-        // under every recipe — chatgpt.com answered 761 DOM elements, 62
-        // interactive controls and 394 visible text chars with ZERO boot
-        // errors — so the m4.0.5/m4.0.6 dark-theme theories were solving a
-        // non-problem, and the ONLY observable effect of their levers was
-        // NEGATIVE: m4.0.4 (plain activity context, no darkening calls)
-        // could still paint a partial frame; m4.0.6 (forced-light
-        // createConfigurationContext + setAlgorithmicDarkeningAllowed off)
-        // painted NOTHING. A configuration context is also NOT an Activity:
-        // it silently broke the glass probe's activity lookup on top.
-        // The view is therefore created exactly the m4.0.4 way — the best
-        // presentation state this device has demonstrated — with the one
-        // m4.0.5 change that is provably orthogonal to painting kept (the
-        // Chrome-like UA; Google login answers disallowed_useragent to
-        // the "; wv" marker outright).
-        val webView = WebView(context)
+    private fun createWebView(
+        context: Context,
+        defId: String,
+        compatRender: Boolean,
+        forcedLight: Boolean,
+    ): WebView {
+        // m4.0.8 — THE LIGHT PACKAGE, RE-APPLIED CORRECTLY (device m4.0.7:
+        // "pixels painted" yet the user sees black — the canvas shows the
+        // site's own near-black body). Two dark sources were ARMED again by
+        // m4.0.7's rollback: with targetSdk 28, WebView algorithmic
+        // darkening is ON by default on this Android 15 device, and
+        // prefers-color-scheme answers DARK because the app is Midnight
+        // everywhere. The m4.0.5/m4.0.6 levers looked guilty only because
+        // the never-attaching host (fixed in m4.0.7) made every recipe
+        // paint nothing — the rollback over-corrected. Both levers return,
+        // on top of the fixed host:
+        //
+        //  1. FORCED-LIGHT CONFIGURATION CONTEXT (the documented
+        //     prefers-color-scheme lever): the WebView's configuration is
+        //     pinned to UI_MODE_NIGHT_NO, so sites always serve their LIGHT
+        //     themes — a white body with dark text is visible even when the
+        //     page's app shell is thin. The Activity lookup this context
+        //     breaks is fixed at the source (RenderProbe.findActivity +
+        //     the pool's hostActivity()).
+        //  2. DARKENING OFF at every API level: framework
+        //     setAlgorithmicDarkeningAllowed(false) on 33+, deprecated
+        //     setForceDark(FORCE_DARK_OFF) on 29–32; the theme already
+        //     carries android:forceDarkAllowed=false. (The renderer-priority
+        //     lever was dropped: android-36's stubs removed it from
+        //     WebSettings — it moved to androidx.webkit, which this project
+        //     deliberately does not carry.)
+        //
+        //  Kept from the recipes the device PROVED: the flash-guard
+        //  background, the Chrome-like UA, the compat software layer, and
+        //  (m4.0.7) the swap-safe keyed host + attach kick.
+        val activity = RenderProbe.findActivity(context)
+        val creation = if (forcedLight && activity != null) {
+            try {
+                val config = Configuration(activity.resources.configuration)
+                config.uiMode = RenderProbe.forcedLightUiMode(config.uiMode)
+                activity.createConfigurationContext(config)
+            } catch (_: Throwable) {
+                context
+            }
+        } else {
+            context
+        }
+        val webView = WebView(creation)
         // Midnight canvas — no white load flash; ALSO the probe's reference
         // color: a canvas uniformly in this exact value never drew a pixel.
         webView.setBackgroundColor(RenderProbe.WEBVIEW_BACKGROUND)
@@ -479,6 +538,21 @@ object CompanionWebPool {
             // hierarchy silently failed (see CompanionWebHost's keyed host);
             // with the swap fixed, compat mode gets its first real test.
             webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        }
+        // m4.0.8: force dark OFF at every API level (see the recipe note).
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                webView.settings.setAlgorithmicDarkeningAllowed(false)
+            }
+        } catch (_: Throwable) {
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+            ) {
+                webView.settings.setForceDark(WebSettings.FORCE_DARK_OFF)
+            }
+        } catch (_: Throwable) {
         }
         // m4.0.3: whichever surface the user taps last owns the shared deck.
         webView.setOnFocusChangeListener { v, hasFocus ->
@@ -583,6 +657,8 @@ object CompanionWebPool {
                 truth = entry.lastTruth,
                 console = consoleTails[defId]?.snapshot().orEmpty(),
                 userAgent = entry.userAgent,
+                colors = entry.lastColors,
+                scheme = entry.scheme,
             )
         } catch (_: Throwable) {
             null

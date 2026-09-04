@@ -31,6 +31,12 @@ object CompanionHealth {
         val truth: BootWitness.Truth?,
         val console: List<String>,
         val userAgent: String?,
+        /** m4.0.8 — what the glass ACTUALLY shows (dominant color, near-black
+         *  share, distinct colors); null until the probe has sampled. */
+        val colors: RenderProbe.ColorTruth? = null,
+        /** m4.0.8 — the color-scheme recipe this view was created with
+         *  ("forced light" / "inherits app"). */
+        val scheme: String? = null,
     )
 
     /**
@@ -41,6 +47,12 @@ object CompanionHealth {
         add("PocketShell Companion health — ${f.name.ifBlank { "tab" }}")
         add("url: ${f.url ?: "unknown"}")
         add("webview: ${f.webViewVersion} · renderer: ${f.renderer} · pixels: ${f.pixels}")
+        // m4.0.8: the two facts the "painted but black" mystery was missing —
+        // what color scheme the page was served and WHAT COLOR the glass is.
+        if (!f.scheme.isNullOrBlank()) add("scheme: ${f.scheme}")
+        f.colors?.let {
+            add("glass: dominant ${it.dominantHex} · ${it.nearBlackPct}% near-black · ${it.distinctColors} colors")
+        }
         val t = f.truth
         if (t == null) {
             add("page: no DOM reading yet")
@@ -50,6 +62,12 @@ object CompanionHealth {
                     (if (t.interactiveCount >= 0) "${t.interactiveCount} interactive · " else "") +
                     "${t.textLength} text chars",
             )
+            // m4.0.8: the page's own voice — its title and first visible
+            // words name the exact page state (login wall, consent, shell).
+            val voice = listOf(t.title.take(80), t.textSample.take(100))
+                .filter { it.isNotBlank() }
+                .joinToString(" — ")
+            if (voice.isNotBlank()) add("page says: \"$voice\"")
             if (t.bootErrors.isEmpty()) {
                 add("boot errors: none captured")
             } else {

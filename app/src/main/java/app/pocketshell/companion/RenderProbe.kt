@@ -1,5 +1,9 @@
 package app.pocketshell.companion
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Handler
@@ -114,15 +118,104 @@ object RenderProbe {
     }
 
     /**
-     * Asynchronous two-probe capture of [view]. [onResult] receives true the
-     * moment the evidence says the user can actually be seeing page pixels;
-     * false only when the GLASS shows the bare flash-guard background (or —
-     * glass unreadable — the software fallback does). Never leaves the
-     * caller without a verdict: every failure resolves toward "painted" so
-     * a probe can never manufacture a false stall. Main-thread in/out.
+     * m4.0.8 — THE COLOR TRUTH. The device cracked the "painted but black"
+     * mystery: hasPainted only asks "any pixel differs from the flash-guard",
+     * so a #000000 or #212121 canvas — the site's dark body, possibly
+     * force-darkened — trivially reads as "painted" and the health report
+     * vouches for a page the user calls black. This reading names WHAT is
+     * actually on the glass: the dominant color (16-levels-per-channel
+     * bucket mean), the share of near-black pixels and the distinct color
+     * count. A pasted report that says "dominant #000000 · 99% near-black"
+     * is a page-state answer, not a guess. Null for an empty sample.
+     * Pure; unit-pinned.
      */
-    fun captureHasPainted(view: WebView, onResult: (Boolean) -> Unit) {
-        glassVerdict(view) { glass ->
+    fun colorTruth(pixels: IntArray): ColorTruth? {
+        if (pixels.isEmpty()) return null
+        val bucketCount = IntArray(16 * 16 * 16)
+        val bucketR = IntArray(16 * 16 * 16)
+        val bucketG = IntArray(16 * 16 * 16)
+        val bucketB = IntArray(16 * 16 * 16)
+        var nearBlack = 0
+        for (pixel in pixels) {
+            val r = (pixel shr 16) and 0xFF
+            val g = (pixel shr 8) and 0xFF
+            val b = pixel and 0xFF
+            if (0.299f * r + 0.587f * g + 0.114f * b < NEAR_BLACK_LUMA) nearBlack++
+            val bucket = ((r shr 4) shl 8) or ((g shr 4) shl 4) or (b shr 4)
+            bucketCount[bucket]++
+            bucketR[bucket] += r
+            bucketG[bucket] += g
+            bucketB[bucket] += b
+        }
+        var best = 0
+        for (i in 1 until bucketCount.size) if (bucketCount[i] > bucketCount[best]) best = i
+        val count = bucketCount[best]
+        val dominant = String.format(
+            "#%02X%02X%02X",
+            bucketR[best] / count,
+            bucketG[best] / count,
+            bucketB[best] / count,
+        )
+        val distinct = bucketCount.count { it > 0 }
+        return ColorTruth(
+            dominantHex = dominant,
+            nearBlackPct = (nearBlack * 100L / pixels.size).toInt(),
+            distinctColors = distinct,
+        )
+    }
+
+    /** Below this luma (0–255) a pixel counts as near-black in [colorTruth]. */
+    const val NEAR_BLACK_LUMA = 32
+
+    /** The glass's own testimony — see [colorTruth]. Pure data. */
+    data class ColorTruth(
+        val dominantHex: String,
+        val nearBlackPct: Int,
+        val distinctColors: Int,
+    )
+
+    /** One probe answer: the paint verdict AND what the glass actually shows. */
+    data class Reading(val painted: Boolean, val colors: ColorTruth?)
+
+    /**
+     * m4.0.8 — the WebView's host Activity, found through ANY context:
+     * the forced-light creation recipe wraps the activity in a
+     * configuration context, so the old `context as? Activity` cast
+     * silently broke the glass probe's window lookup (the m4.0.6
+     * regression). Pure unwrapping; unit-pinned.
+     */
+    fun findActivity(context: Context?): Activity? {
+        var current: Context? = context
+        var hops = 0
+        while (current != null && hops < 16) {
+            if (current is Activity) return current
+            current = (current as? ContextWrapper)?.baseContext
+            hops++
+        }
+        return null
+    }
+
+    /**
+     * m4.0.8 — uiMode arithmetic for the forced-light creation recipe:
+     * the WebView's configuration is pinned to UI_MODE_NIGHT_NO so sites
+     * always answer prefers-color-scheme: light (the app itself stays
+     * Midnight). Pure; unit-pinned.
+     */
+    fun forcedLightUiMode(current: Int): Int =
+        (current and Configuration.UI_MODE_NIGHT_MASK.inv()) or Configuration.UI_MODE_NIGHT_NO
+
+    /**
+     * Asynchronous two-probe capture of [view]. [onResult] receives the
+     * [Reading] the moment the evidence says what the user can actually be
+     * seeing: painted=true + the glass's COLOR truth whenever any probe
+     * path found non-flash-guard pixels; painted=false only when the GLASS
+     * shows the bare flash-guard background (or — glass unreadable — the
+     * software fallback does). Never leaves the caller without a verdict:
+     * every failure resolves toward "painted" so a probe can never
+     * manufacture a false stall. Main-thread in/out.
+     */
+    fun captureHasPainted(view: WebView, activity: Activity?, onResult: (Reading) -> Unit) {
+        glassVerdict(view, activity) { glass ->
             if (glass != null) {
                 onResult(glass)
                 return@glassVerdict
@@ -132,9 +225,9 @@ object RenderProbe {
             // probe must never create a stall on its own.
             onResult(
                 try {
-                    softwareCaptureHasPainted(view)
+                    softwareReading(view)
                 } catch (_: Throwable) {
-                    true
+                    Reading(painted = true, colors = null)
                 },
             )
         }
@@ -153,8 +246,8 @@ object RenderProbe {
      * readback. The timeout guard is what keeps a dead copy path from
      * leaving the watchdog chain hanging verdict-less forever.
      */
-    private fun glassVerdict(view: WebView, onResult: (Boolean?) -> Unit) {
-        val window = (view.context as? android.app.Activity)?.window
+    private fun glassVerdict(view: WebView, activity: Activity?, onResult: (Reading?) -> Unit) {
+        val window = activity?.window ?: findActivity(view.context)?.window
         if (window == null || view.width <= 0 || view.height <= 0) {
             onResult(null)
             return
@@ -185,7 +278,7 @@ object RenderProbe {
                 window,
                 capture,
                 { result ->
-                    val verdict: Boolean? = try {
+                    val verdict: Reading? = try {
                         if (result == PixelCopy.SUCCESS) glassJudge(view, capture) else null
                     } catch (_: Throwable) {
                         null
@@ -217,8 +310,10 @@ object RenderProbe {
      * keyboard-free top region. Returns null when the copy itself failed
      * (unreadable — the caller falls back), never when the region merely
      * shows the flash-guard color (that is a real "nothing painted").
+     * m4.0.8: the same sample also yields the COLOR truth — what the glass
+     * actually shows — reported alongside the verdict.
      */
-    private fun glassJudge(view: WebView, capture: Bitmap): Boolean? {
+    private fun glassJudge(view: WebView, capture: Bitmap): Reading? {
         val location = IntArray(2)
         view.getLocationInWindow(location)
         val left = location[0].coerceIn(0, capture.width - 1)
@@ -229,14 +324,14 @@ object RenderProbe {
         if (width <= 0 || height <= 0) return null
         val pixels = IntArray(width * height)
         capture.getPixels(pixels, 0, width, left, top, width, height)
-        return hasPainted(pixels, WEBVIEW_BACKGROUND)
+        return Reading(hasPainted(pixels, WEBVIEW_BACKGROUND), colorTruth(pixels))
     }
 
     /** Probe 2 (fallback) — the WebView's own draw path into a scaled bitmap. */
-    private fun softwareCaptureHasPainted(view: WebView): Boolean {
+    private fun softwareReading(view: WebView): Reading {
         val width = view.width
         val height = view.height
-        if (width <= 0 || height <= 0) return false
+        if (width <= 0 || height <= 0) return Reading(painted = false, colors = null)
         val scale = SAMPLE_MAX_DIMENSION.toFloat() / maxOf(width, height)
         val bitmapWidth = (width * scale).toInt().coerceIn(1, SAMPLE_MAX_DIMENSION)
         val bitmapHeight = (height * scale).toInt().coerceIn(1, SAMPLE_MAX_DIMENSION)
@@ -250,7 +345,7 @@ object RenderProbe {
             val mainRows = mainRegionRows(bitmapHeight)
             val pixels = IntArray(bitmapWidth * mainRows)
             bitmap.getPixels(pixels, 0, bitmapWidth, 0, 0, bitmapWidth, mainRows)
-            return hasPainted(pixels, WEBVIEW_BACKGROUND)
+            return Reading(hasPainted(pixels, WEBVIEW_BACKGROUND), colorTruth(pixels))
         } finally {
             bitmap.recycle()
         }

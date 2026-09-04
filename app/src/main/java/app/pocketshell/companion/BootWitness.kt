@@ -54,6 +54,8 @@ object BootWitness {
             "rs:document.readyState,n:document.getElementsByTagName('*').length," +
             "i:document.querySelectorAll('button,a,input,textarea,select,[role=button],[contenteditable]').length," +
             "t:(document.body?document.body.innerText.length:0)," +
+            "ti:(document.title||'').slice(0,80)," +
+            "s:(document.body?document.body.innerText.replace(/\\s+/g,' ').slice(0,100):'')," +
             "e:(b?b.errs.slice(0,2):[])})}catch(err){return JSON.stringify(" +
             "{rs:'probe-error',n:-1,i:-1,t:0,e:[String(err).slice(0,120)]})}})()"
 
@@ -83,13 +85,18 @@ object BootWitness {
 
     /** One reading of the page's truth (parsed from [DOM_TRUTH_JS]).
      *  [interactiveCount] defaults to -1 (unknown) so m4.0.5 fixtures and
-     *  any degraded probe answer keep parsing. */
+     *  any degraded probe answer keep parsing. m4.0.8: [title] and
+     *  [textSample] are the PAGE'S OWN VOICE — what it calls itself and
+     *  its first visible words — so a black canvas report names the page
+     *  state (login wall, consent, empty shell) with no guessing. */
     data class Truth(
         val readyState: String,
         val elementCount: Int,
         val textLength: Int,
         val bootErrors: List<String>,
         val interactiveCount: Int = -1,
+        val title: String = "",
+        val textSample: String = "",
     )
 
     /**
@@ -111,6 +118,8 @@ object BootWitness {
                 interactiveCount = obj["i"]?.jsonPrimitive?.content?.toIntOrNull() ?: -1,
                 textLength = obj["t"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                 bootErrors = obj["e"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList(),
+                title = obj["ti"]?.jsonPrimitive?.content ?: "",
+                textSample = obj["s"]?.jsonPrimitive?.content ?: "",
             )
         } catch (_: Throwable) {
             null

@@ -471,6 +471,77 @@ class CompanionTest {
         assertEquals(-1, legacy?.interactiveCount)
     }
 
+    @Test
+    fun `boot witness - the probe carries the page's own voice (title + text)`() {
+        // m4.0.8: title and first visible words — the page names its own
+        // state (login wall, consent, empty shell) in one pasted line.
+        val inner =
+            """{"rs":"complete","n":896,"i":88,"t":394,"ti":"ChatGPT","s":"Welcome to ChatGPT Log in Sign up","e":[]}"""
+        val raw = "\"" + inner.replace("\"", "\\\"") + "\""
+        val truth = BootWitness.parseTruth(raw)
+        assertEquals("ChatGPT", truth?.title)
+        assertEquals("Welcome to ChatGPT Log in Sign up", truth?.textSample)
+        // A legacy answer without the fields keeps parsing (m4.0.6 shape).
+        val legacy = BootWitness.parseTruth(
+            "\"{\\\"rs\\\":\\\"complete\\\",\\\"n\\\":9,\\\"t\\\":0,\\\"e\\\":[]}\"",
+        )
+        assertEquals("", legacy?.title)
+        assertEquals("", legacy?.textSample)
+    }
+
+    // ---- render probe m4.0.8: the color truth -------------------------------
+
+    @Test
+    fun `render probe - color truth names what is on the glass`() {
+        // The device's killer case: a canvas the old report called
+        // "painted" while the user saw black. The color truth NAMES it.
+        val flashGuard = RenderProbe.WEBVIEW_BACKGROUND
+        val dark = RenderProbe.colorTruth(IntArray(64) { flashGuard })!!
+        assertEquals("#080F1D", dark.dominantHex)
+        assertEquals(100, dark.nearBlackPct)
+        assertEquals(1, dark.distinctColors)
+        val black = RenderProbe.colorTruth(IntArray(50) { 0xFF000000.toInt() })!!
+        assertEquals("#000000", black.dominantHex)
+        assertEquals(100, black.nearBlackPct)
+        assertEquals(1, black.distinctColors)
+        // A mixed sample: dominant bucket wins, near-black share is exact.
+        val mixed = IntArray(100) { if (it < 90) 0xFF000000.toInt() else 0xFFFFFFFE.toInt() }
+        val truth = RenderProbe.colorTruth(mixed)!!
+        assertEquals("#000000", truth.dominantHex)
+        assertEquals(90, truth.nearBlackPct)
+        assertEquals(2, truth.distinctColors)
+        // Empty sample — no evidence, never invented.
+        assertNull(RenderProbe.colorTruth(IntArray(0)))
+    }
+
+    @Test
+    fun `render probe - findActivity unwraps any context wrapper`() {
+        assertNull(RenderProbe.findActivity(null))
+        // A wrapper chain that never reaches an Activity: null, never a cast
+        // crash — and a wrapper-of-wrapper chain is followed to its base.
+        val inner = android.content.ContextWrapper(null)
+        val outer = android.content.ContextWrapper(inner)
+        assertNull(RenderProbe.findActivity(outer))
+        assertNull(RenderProbe.findActivity(android.content.ContextWrapper(null)))
+    }
+
+    @Test
+    fun `render probe - forced-light uiMode arithmetic is exact`() {
+        val yes = android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val no = android.content.res.Configuration.UI_MODE_NIGHT_NO
+        val undefined = android.content.res.Configuration.UI_MODE_NIGHT_UNDEFINED
+        assertEquals(no, RenderProbe.forcedLightUiMode(yes))
+        assertEquals(no, RenderProbe.forcedLightUiMode(no))
+        assertEquals(no, RenderProbe.forcedLightUiMode(undefined))
+        // Non-night bits ride along untouched: TELEVISION stays, night
+        // bits land exactly on NIGHT_NO.
+        val mixed = yes or android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+        assertEquals(
+            android.content.res.Configuration.UI_MODE_TYPE_TELEVISION or no,
+            RenderProbe.forcedLightUiMode(mixed),
+        )
+    }
+
     // ---- page-health report (m4.0.6) ----------------------------------------
 
     @Test
@@ -487,16 +558,23 @@ class CompanionTest {
                 interactiveCount = 23,
                 textLength = 12,
                 bootErrors = listOf("SyntaxError: Unexpected token '?'"),
+                title = "ChatGPT",
+                textSample = "Welcome back",
             ),
             console = listOf("Uncaught SyntaxError @main.js:1"),
             userAgent = "Mozilla/5.0 (Linux; Android 14) Chrome/124 Mobile",
+            colors = RenderProbe.ColorTruth("#0D0D0D", 97, 3),
+            scheme = "forced light",
         )
         val report = CompanionHealth.compose(facts)
         listOf(
             "PocketShell Companion health — ChatGPT",
             "url: https://chatgpt.com/",
             "webview: 124.0.6367.82 · renderer: GPU · pixels: painted",
+            "scheme: forced light",
+            "glass: dominant #0D0D0D · 97% near-black · 3 colors",
             "readyState=complete · 800 elements · 23 interactive · 12 text chars",
+            "page says: \"ChatGPT — Welcome back\"",
             "boot error 1: SyntaxError: Unexpected token '?'",
             "console (last 1):",
             "> Uncaught SyntaxError @main.js:1",
