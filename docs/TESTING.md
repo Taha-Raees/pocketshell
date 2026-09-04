@@ -1058,3 +1058,51 @@ All prior Companion behavior (§17–§20) must keep working.
       provider (no startup crash).
 - [ ] §17 spot-check: drag 1:1, frozen page while dragging, login
       persists across app restart.
+
+## 22. Manual acceptance — m4.0.5 (the black page fixed at the root + the page testifies, v0.7.0-m4.0.5) — DEVICE GATE PENDING
+
+The one job: the Companion canvas must show the real site. Everything in
+this gate follows from the m4.0.5 diagnosis: Force Dark off (3 layers),
+Chrome-identical UA, and a DOM witness that makes any remaining failure
+self-describing.
+
+### 22.1 The ChatGPT tab actually renders
+- [ ] Install vc29 in place (over vc28); app data must survive.
+- [ ] Open the ChatGPT Companion. EXPECT the real page: ChatGPT's own
+      UI ("What can I help with?" / composer), NOT a black canvas.
+- [ ] The page may render in its OWN dark or light theme — either is
+      correct; what matters is that the app's content is visible and
+      interactive, not the site's empty shell.
+- [ ] Type into the page via the deck; tap around; scroll. Site must
+      respond normally.
+- [ ] The cookie banner (already accepted previously, or on first open):
+      choose once; it must stay gone after a full app restart.
+
+### 22.2 If anything still fails, the card must say WHY
+- [ ] If a failure card appears for a page that loads but never starts,
+      it reads "Page won't start" and its detail line contains the
+      page's OWN numbers, e.g.
+      `readyState=complete · 23 DOM elements · error: SyntaxError … ·
+      console: … · Android System WebView <version>`.
+- [ ] REPORT THAT DETAIL LINE VERBATIM (screenshot) — it names the
+      exact cause (too-old WebView / refused script / blocked request).
+- [ ] Before retrying: Settings → Device care (or Play Store) → update
+      "Android System WebView", reopen PocketShell, Retry the tab.
+
+### 22.3 Honest-fit spot checks
+- [ ] A healthy page never shows a card (pixels + mounted DOM both
+      verified internally; no nagging).
+- [ ] "Open in browser" on any card opens the same address in the
+      device browser; "Continue anyway" shows the raw canvas and the
+      card does not return until Retry.
+- [ ] Logins: a Google sign-in inside a Companion must no longer be
+      refused with disallowed_useragent (Chrome UA now presented).
+
+### 22.4 Regression
+- [ ] §21 spot-checks: keyboard toggle one spot/one shape both states;
+      first-stall silent software retry behavior unchanged for
+      never-painted pages.
+- [ ] §20: deck types into Companion AND terminal; keyboard pushes
+      everything up; "-" and digits quick-tap fine.
+- [ ] §17/§18: drag 1:1, login persists, startup OK with a
+      broken/updated WebView provider.

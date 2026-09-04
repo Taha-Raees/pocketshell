@@ -209,6 +209,20 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         ))
     }
 
+    /**
+     * m4.0.5: pixels painted but the page's own app never started — the
+     * device's cookie-banner state. The card carries the page's OWN
+     * testimony ([diagnostics]: readyState, DOM element count, first
+     * script error, first console line) so the mystery ends here.
+     */
+    fun recordAppNotBooted(defId: String, diagnostics: String) {
+        pageFailures.value = pageFailures.value + (defId to CompanionFailure(
+            kind = CompanionFailureKind.APP_NOT_BOOTED,
+            detail = diagnostics.takeIf { it.isNotBlank() },
+            webViewVersion = CompanionWebPool.webViewVersion(),
+        ))
+    }
+
     /** Retry: drop the failure, destroy the tab's WebView, reload fresh. */
     fun retryTab(defId: String) {
         pageFailures.value = pageFailures.value - defId

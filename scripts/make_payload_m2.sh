@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.4
+VERSION=v0.7.0-m4.0.5
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,44 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.3) — THE COOKIE-BANNER LESSON:
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.4) — THE BLACK PAGE, FIXED AT THE
+ROOT — AND THE PAGE NOW TESTIFIES (the one job this build exists for;
+build numbered "4.0.5" per the standing naming rule):
+  - WHY IT WAS BLACK — THE FULL CHAIN: your screenshot cracked it. The
+    site's own cookie banner painted AND answered taps, so the WebView
+    was alive — but the site's APP never started, and this app runs
+    with a legacy targetSdk, which leaves WebView FORCE DARK
+    (algorithmic darkening) ARMED BY DEFAULT in dark mode: the
+    documented mangler that darkens site shells and breaks exactly this
+    kind of page. On top of that the WebView user-agent carried the
+    "; wv" marker that sites treat as a second-class embedded client
+    (Google login answers disallowed_useragent outright; bot-fronted
+    sites quietly serve degraded or challenged bundles).
+  - FORCE DARK IS OFF — THREE LAYERS: a theme flag (API 29+), the
+    runtime Force-Dark-OFF call (API 29-32), and the API 33+
+    algorithmic-darkening-OFF call. Companion sites now render exactly
+    as their authors made them — own theme, own colors, unmangled.
+  - CHROME-IDENTICAL USER AGENT: the WebView default UA minus the
+    "; wv" and "Version/4.0" markers — byte-for-byte the Chrome mobile
+    UA of the same device. Logins stop being refused; sites stop
+    second-guessing the client.
+  - THE PAGE NOW TESTIFIES — NO MORE MYSTERY CANVASES: a boot-error
+    trap is injected into every page at the first moment, the console's
+    last lines are kept per tab, and a DOM witness polls the page's own
+    truth (readyState, element count) for up to 20s. A tab is healthy
+    only when pixels painted AND the page's app actually mounted. If an
+    app never starts you get ONE silent fresh reload (flaky networks
+    happen) — and if it still refuses, the card says so with the
+    page's OWN numbers: readyState, DOM element count, first script
+    error, first console line, WebView version — plus Retry, Open in
+    browser, and Continue anyway, exactly as before.
+  - +12 unit pins (UA compat, mount verdict, probe-answer parsing,
+    diagnosis composition, console ring, failure card). Full suite:
+    754 executions, 0 failures.
+  - versionCode 29 / 0.7.0-m4.0.5 — in-place update over 16..28; same
+    pinned cert. Device gate: docs/TESTING.md §22.
+
+WHAT WAS NEW IN v0.7.0-m4.0.4 (vs v0.7.0-m4.0.3) — THE COOKIE-BANNER LESSON:
 PIXEL-TRUTH STALL DETECTION + ONE-SPOT KEYBOARD TOGGLE (device bug batch,
 screenshots analyzed 2026-09-05; build numbered "4.0.4" per the standing
 naming rule):
@@ -893,6 +930,8 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            docs/PROCFS-CONTRACT.md docs/PHASE-4-COMPANION-DESIGN.md \
            app/src/main/java/app/pocketshell/companion/CompanionModels.kt \
            app/src/main/java/app/pocketshell/companion/RenderProbe.kt \
+           app/src/main/java/app/pocketshell/companion/BootWitness.kt \
+           app/src/main/java/app/pocketshell/companion/WebCompat.kt \
            app/src/main/java/app/pocketshell/companion/CompanionWebPool.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionLayer.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionTabStrip.kt \

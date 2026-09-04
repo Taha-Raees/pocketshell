@@ -4,5 +4,9 @@
     <style name="Theme.PocketShell" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- m4.0.5: WebView Force Dark must never algorithmically darken
+             companion sites (legacy targetSdk keeps it enabled by default in
+             dark mode — the black-canvas fix, theme layer). -->
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

@@ -113,6 +113,14 @@ fun CompanionLayer(
     // the question, so the card never fights the user for the canvas.
     val stallSuppressed = remember { mutableSetOf<String>() }
 
+    // m4.0.5: tabs that already received one SILENT fresh reload after the
+    // DOM boot-witness said the page's app never mounted. A software
+    // renderer cannot fix a script boot, so the silent first response is a
+    // plain reload; only a SECOND boot failure becomes the honest card.
+    // Cleared by Retry (the user asking again) — never by navigation,
+    // because the silent reload itself navigates.
+    val bootRetried = remember { mutableStateMapOf<String, Boolean>() }
+
     // m4.0.3: the "+" affordance now opens the Companion picker sheet.
     var pickerOpen by remember { mutableStateOf(false) }
 
@@ -160,6 +168,22 @@ fun CompanionLayer(
                     CompanionWebPool.forgetTab(defId)
                     compatRenders[defId] = true
                     webRetrySeed++
+                }
+            }
+
+            override fun onAppNotBooted(defId: String, diagnostics: String) {
+                // m4.0.5: same user-owns-the-canvas rule as onRenderStuck.
+                if (defId in stallSuppressed) return
+                if (bootRetried[defId] != true) {
+                    // FIRST boot failure: one silent fresh reload (a flaky
+                    // bundle fetch can starve a page's boot too). A fresh
+                    // load re-arms the witness; the flag survives it on
+                    // purpose so a persistent failure escalates to the card.
+                    bootRetried[defId] = true
+                    CompanionWebPool.forgetTab(defId)
+                    webRetrySeed++
+                } else {
+                    viewModel.recordAppNotBooted(defId, diagnostics)
                 }
             }
         })
@@ -285,6 +309,7 @@ fun CompanionLayer(
                                 // A Retry is the user asking the question again —
                                 // lift any dismissal so the probe may answer.
                                 stallSuppressed.remove(activeDef.id)
+                                bootRetried.remove(activeDef.id)
                                 viewModel.retryTab(activeDef.id)
                                 // m4.0.3: each Retry alternates GPU → software
                                 // rendering (then back) on the fresh WebView.

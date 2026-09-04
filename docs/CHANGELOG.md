@@ -3,6 +3,75 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.5] — 2026-09-05 — The black page, fixed at the root — and the page now testifies (the one job)
+
+Scope: exactly one job, the user's words — "Bro only one job now, please
+fix this time… Still black screen and yes banner goes away when
+selected". The m4.0.4 pixel probe + the cookie-banner screenshot finally
+yielded a complete diagnosis; this build removes the root causes and
+makes any future failure self-describing. No data-model or storage
+change; logins/tabs/height survive the in-place update.
+
+### The diagnosis the evidence forced (2026-09-05)
+1. The banner dismissing on tap proved the whole page pipeline is ALIVE
+   on the device: network, HTML, CSS, JS, layout, touch, compositing.
+2. The absence of any m4.0.4 failure card proved the MAIN region DID
+   paint non-flash-guard pixels — the page painted its own darkened
+   body — while the site's app (ChatGPT's React shell: "What can I help
+   with?", composer) never mounted.
+3. Two app-side classics fit every observation, and both were still
+   armed: (a) WebView **Force Dark / algorithmic darkening** — active
+   BY DEFAULT for legacy-target apps (`targetSdk = 28`, a documented
+   proot constraint) once the device is in dark mode, and a notorious
+   mangler of complex SPAs; (b) the WebView default **user-agent** with
+   its `; wv` marker — the second-class client that Google login
+   answers `disallowed_useragent` and bot-fronted sites serve degraded
+   or challenged bundles.
+4. And if neither was the culprit, the app had no way to know WHY:
+   pixels cannot distinguish "empty shell" from "alive page".
+
+### Fix 1 — Force Dark off, three layers
+- Theme: `android:forceDarkAllowed=false` (API 29+ behavior).
+- Runtime, tiered by API: `WebSettings.setForceDark(FORCE_DARK_OFF)`
+  on API 29–32; `WebSettings.setAlgorithmicDarkeningAllowed(false)` on
+  API 33+ (the attribute-based lever; the framework method is called
+  directly — no new dependency).
+- Companion sites now render exactly as their authors made them: own
+  theme, own colors, unmangled.
+
+### Fix 2 — Chrome-identical user agent
+- `WebCompat.chromeLikeUserAgent`: the WebView default UA minus
+  `; wv)` and `Version/4.0 ` — byte-for-byte the Chrome mobile UA of
+  the same device. Pure, idempotent, blank-safe; unit-pinned.
+
+### Fix 3 — the DOM ground-truth witness (mystery canvases end here)
+- `BootWitness.BOOT_TRAP_JS` injected at every `onPageStarted` —
+  records `window.onerror` and unhandled rejections from the first
+  moment of every document.
+- `ConsoleTail` keeps each tab's last 8 console lines (length-capped),
+  cleared per document, dropped with the tab.
+- `BootWitness.DOM_TRUTH_JS` polled every 2.5s for up to 8 probes
+  (20s): `readyState` + DOM element count + captured boot errors. A
+  mounted app shell is hundreds of elements; a consent banner is
+  dozens — floor 60, pure and unit-pinned.
+- A tab is now healthy only when BOTH witnesses agree: pixels painted
+  AND the app mounted. On budget exhaustion the canvas raises
+  APP_NOT_BOOTED carrying the page's OWN testimony
+  (`readyState=… · N DOM elements · error: … · console: …`) plus the
+  WebView version; the layer first answers with ONE silent fresh
+  reload (flaky networks happen), then the honest card with the
+  established escapes (Retry / Open in browser / Continue anyway).
+- Disarm/cleanup discipline: every eviction/destruction path clears
+  both witness channels (`disarmTab`).
+
+### Tests & delivery
+- +12 pins/variant (UA compat idempotence, mount floor, probe-answer
+  parsing incl. the double-encoded callback form, garbage-answer
+  rejection, diagnosis composition + cap, console ring, APP_NOT_BOOTED
+  card text). Full suite: **754 executions / 0 failures**.
+- versionCode 29 / 0.7.0-m4.0.5 — in-place update over 16..28; same
+  pinned cert (`d96a6f66…8bf659`). Device gate: docs/TESTING.md §22.
+
 ## [0.7.0-m4.0.4] — 2026-09-05 — The cookie-banner lesson: pixel-truth stall detection + one-spot keyboard toggle (device bug batch)
 
 Scope: two device-reported bugs on the m4.0.3 build, plus the failure

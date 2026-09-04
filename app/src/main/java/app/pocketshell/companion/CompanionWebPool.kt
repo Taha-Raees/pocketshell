@@ -5,12 +5,15 @@ import android.app.DownloadManager
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.GeolocationPermissions
@@ -67,6 +70,12 @@ object CompanionWebPool {
          *  window (no error event, no renderer death — the silent-white
          *  signature the device kept hitting). The UI explains honestly. */
         fun onRenderStuck(defId: String) {}
+
+        /** m4.0.5: pixels DID paint, but the page's own app never mounted
+         *  (the device's cookie-banner state: pipeline alive, page dead).
+         *  [diagnostics] is the page's own testimony — readyState, DOM
+         *  element count, first script error, first console line. */
+        fun onAppNotBooted(defId: String, diagnostics: String) {}
     }
 
     private class TabEntry(val webView: WebView) {
@@ -114,6 +123,13 @@ object CompanionWebPool {
      */
     private val watchdogHandler = Handler(Looper.getMainLooper())
     private val renderStallArmed = HashSet<String>()
+
+    /** m4.0.5: tabs whose DOM boot-witness is running (see BootWitness). */
+    private val bootWitnessArmed = HashSet<String>()
+
+    /** m4.0.5: per-tab console testimony (cleared per document, dropped
+     *  with the tab — it exists to explain a failure card, nothing else). */
+    private val consoleTails = HashMap<String, ConsoleTail>()
 
     fun init(context: Context) {
         // Context handoff ONLY. This runs in Application.onCreate — it must
@@ -186,9 +202,10 @@ object CompanionWebPool {
                     entry.webView.loadUrl(url)
                 }
                 armRenderWatchdog(defId)
+                armBootWitness(defId)
             } catch (_: Throwable) {
                 runtimeFailed = true
-                renderStallArmed.remove(defId)
+                disarmTab(defId)
                 pool.remove(defId)?.webView?.destroyQuietly()
                 return null
             }
@@ -203,7 +220,7 @@ object CompanionWebPool {
     /** Tab closed (or definition deleted): its state is dropped for good. */
     fun forgetTab(defId: String) {
         evictedStates.remove(defId)
-        renderStallArmed.remove(defId)
+        disarmTab(defId)
         pool.remove(defId)?.webView?.destroyQuietly()
     }
 
@@ -211,7 +228,7 @@ object CompanionWebPool {
 
     fun clearAll() {
         evictedStates.clear()
-        renderStallArmed.clear()
+        pool.keys.toList().forEach { disarmTab(it) }
         pool.values.toList().forEach { it.webView.destroyQuietly() }
         pool.clear()
     }
@@ -257,9 +274,17 @@ object CompanionWebPool {
             .toList()
             .forEach { (id, entry) ->
                 evictedStates[id] = Bundle().also { entry.webView.saveState(it) }
+                disarmTab(id)
                 entry.webView.destroyQuietly()
                 pool.remove(id)
             }
+    }
+
+    /** One stop for every witness/console channel of a tab (m4.0.5). */
+    private fun disarmTab(defId: String) {
+        renderStallArmed.remove(defId)
+        bootWitnessArmed.remove(defId)
+        consoleTails.remove(defId)
     }
 
     // ------------------------------------------------------------------ core
@@ -271,6 +296,61 @@ object CompanionWebPool {
     private fun armRenderWatchdog(defId: String) {
         if (!renderStallArmed.add(defId)) return
         schedulePaintProbe(defId, 0)
+    }
+
+    /** m4.0.5 — the DOM boot-witness (same arming discipline as the pixel
+     *  probe; the two are independent witnesses over the same tab). */
+    private fun armBootWitness(defId: String) {
+        if (!bootWitnessArmed.add(defId)) return
+        scheduleBootProbe(defId, 0, 0, null)
+    }
+
+    /**
+     * Polls the page's own truth every [POLL_INTERVAL_MS]. MOUNTED stands it
+     * down; budget exhaustion raises [Listener.onAppNotBooted] with the
+     * page's own diagnostics. evaluateJavascript's callback returns on the
+     * main thread, so the chain continues FROM the callback — never by
+     * blocking it.
+     */
+    private fun scheduleBootProbe(defId: String, attempt: Int, idlePosts: Int, last: BootWitness.Truth?) {
+        watchdogHandler.postDelayed({
+            if (!bootWitnessArmed.contains(defId)) return@postDelayed
+            val view = pool[defId]?.webView ?: run {
+                bootWitnessArmed.remove(defId)
+                return@postDelayed
+            }
+            if ((view.width <= 0 || view.height <= 0 || !view.isShown) && idlePosts < MAX_IDLE_POSTS) {
+                scheduleBootProbe(defId, attempt, idlePosts + 1, last)
+                return@postDelayed
+            }
+            try {
+                view.evaluateJavascript(BootWitness.DOM_TRUTH_JS) { raw ->
+                    if (!bootWitnessArmed.contains(defId)) return@evaluateJavascript
+                    val truth = BootWitness.parseTruth(raw)
+                    if (truth != null && BootWitness.mounted(truth)) {
+                        bootWitnessArmed.remove(defId)
+                    } else if (attempt + 1 >= MAX_BOOT_PROBES) {
+                        bootWitnessArmed.remove(defId)
+                        listener?.onAppNotBooted(
+                            defId,
+                            BootWitness.diagnose(truth ?: last, consoleTails[defId]?.snapshot().orEmpty()),
+                        )
+                    } else {
+                        scheduleBootProbe(defId, attempt + 1, 0, truth ?: last)
+                    }
+                }
+            } catch (_: Throwable) {
+                if (attempt + 1 >= MAX_BOOT_PROBES) {
+                    bootWitnessArmed.remove(defId)
+                    listener?.onAppNotBooted(
+                        defId,
+                        BootWitness.diagnose(last, consoleTails[defId]?.snapshot().orEmpty()),
+                    )
+                } else {
+                    scheduleBootProbe(defId, attempt + 1, 0, last)
+                }
+            }
+        }, POLL_INTERVAL_MS)
     }
 
     private fun schedulePaintProbe(defId: String, attempt: Int, idlePosts: Int = 0) {
@@ -343,6 +423,7 @@ object CompanionWebPool {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
+    @Suppress("DEPRECATION")
     private fun createWebView(context: Context, defId: String, compatRender: Boolean): WebView {
         val webView = WebView(context)
         // Midnight canvas — no white load flash; ALSO the probe's reference
@@ -369,6 +450,25 @@ object CompanionWebPool {
             mediaPlaybackRequiresUserGesture = true
             useWideViewPort = true
             loadWithOverviewMode = true
+            // m4.0.5 — the black-canvas fix, layer 2 of 3: WebView Force
+            // Dark is ACTIVE by default for legacy-target apps (targetSdk 28)
+            // in dark mode, and its algorithmic darkening is a documented
+            // mangler of exactly this state — site shell paints dark, real
+            // content never becomes usable. The site renders as authored.
+            // (Layer 1: the theme flag; layer 3: this tiered runtime call —
+            // API 33+ replaced Force Dark with algorithmic darkening, whose
+            // runtime lever is setAlgorithmicDarkeningAllowed.)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                setAlgorithmicDarkeningAllowed(false)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                forceDark = WebSettings.FORCE_DARK_OFF
+            }
+            // m4.0.5 — layer 4: present this device's exact Chrome-mobile
+            // UA. Google login answers disallowed_useragent to the "; wv"
+            // marker outright, and bot-fronted sites quietly serve degraded
+            // or challenged bundles to embedded clients.
+            val chromeUa = WebCompat.chromeLikeUserAgent(userAgentString)
+            if (chromeUa.isNotBlank()) userAgentString = chromeUa
         }
         webView.setDownloadListener(downloadListener(context))
         webView.webViewClient = client(defId)
@@ -406,6 +506,21 @@ object CompanionWebPool {
             // This also covers the failure-clearing path in recordLastUrl —
             // a tab navigating away from a stall gets a fresh probe budget.
             armRenderWatchdog(defId)
+            // m4.0.5: and the DOM boot-witness rides along (idempotent — a
+            // mounted page stands it down on the first probe).
+            armBootWitness(defId)
+        }
+
+        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+            super.onPageStarted(view, url, favicon)
+            // m4.0.5: fresh document — fresh console testimony, and the
+            // boot-error trap goes in at the earliest main-frame moment so
+            // even first-bundle syntax failures are captured.
+            consoleTails.getOrPut(defId) { ConsoleTail() }.clear()
+            try {
+                view.evaluateJavascript(BootWitness.BOOT_TRAP_JS, null)
+            } catch (_: Throwable) {
+            }
         }
 
         override fun onReceivedError(
@@ -429,6 +544,7 @@ object CompanionWebPool {
                 pool.remove(defId)
             } catch (_: Throwable) {
             }
+            disarmTab(defId)
             try {
                 view.destroy()
             } catch (_: Throwable) {
@@ -485,6 +601,25 @@ object CompanionWebPool {
             if (!title.isNullOrBlank()) listener?.onTitleReceived(defId, title)
         }
 
+        override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
+            // m4.0.5: keep the site's last words — the first console line is
+            // often the whole diagnosis (SyntaxError from an old Chromium,
+            // a refused request, a CSP denial).
+            try {
+                if (message?.message()?.isNotBlank() == true) {
+                    val source = message.sourceId()?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+                    val line = buildString {
+                        append(message.message())
+                        if (source != null) append(" @").append(source)
+                        if (message.lineNumber() > 0) append(":").append(message.lineNumber())
+                    }
+                    consoleTails.getOrPut(defId) { ConsoleTail() }.append(line)
+                }
+            } catch (_: Throwable) {
+            }
+            return super.onConsoleMessage(message)
+        }
+
     }
 
     /** §13: DownloadManager into app-specific storage — no permission, no crash. */
@@ -524,6 +659,7 @@ object CompanionWebPool {
             .toList()
             .forEach { (id, entry) ->
                 evictedStates[id] = Bundle().also { entry.webView.saveState(it) }
+                disarmTab(id)
                 entry.webView.destroyQuietly()
                 pool.remove(id)
             }
@@ -554,4 +690,10 @@ object CompanionWebPool {
 
     /** The documented total budget before the canvas says so honestly. */
     internal const val RENDER_STALL_TIMEOUT_MS = POLL_INTERVAL_MS * MAX_PAINT_PROBES
+
+    /** m4.0.5: boot-witness budget — 8 probes × 2.5s = a 20s window for the
+     *  page's own app to mount before the canvas carries the page's
+     *  testimony. Generous on purpose: a slow carrier must not be told its
+     *  page is broken while it is merely still loading. */
+    internal const val MAX_BOOT_PROBES = 8
 }

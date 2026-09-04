@@ -308,4 +308,149 @@ class CompanionTest {
         assertEquals(3, RenderProbe.mainRegionRows(4))
         assertEquals(99, RenderProbe.mainRegionRows(132))
     }
+
+    // ---- embedded-webview compat (m4.0.5) -----------------------------------
+
+    @Test
+    fun `web compat - webview UA markers stripped to the device's chrome UA`() {
+        val webviewUa =
+            "Mozilla/5.0 (Linux; Android 14; SM-S928B Build/UP1A.231005.007; wv) " +
+                "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 " +
+                "Chrome/124.0.6367.82 Mobile Safari/537.36"
+        assertEquals(
+            "Mozilla/5.0 (Linux; Android 14; SM-S928B Build/UP1A.231005.007) " +
+                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/124.0.6367.82 Mobile Safari/537.36",
+            WebCompat.chromeLikeUserAgent(webviewUa),
+        )
+    }
+
+    @Test
+    fun `web compat - chrome UA passes through unchanged (idempotent)`() {
+        val chromeUa =
+            "Mozilla/5.0 (Linux; Android 14; SM-S928B Build/UP1A.231005.007) " +
+                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/124.0.6367.82 Mobile Safari/537.36"
+        assertEquals(chromeUa, WebCompat.chromeLikeUserAgent(chromeUa))
+        assertEquals(chromeUa, WebCompat.chromeLikeUserAgent(WebCompat.chromeLikeUserAgent(chromeUa)))
+        // Degraded provider answers must never become something worse.
+        assertEquals("", WebCompat.chromeLikeUserAgent(""))
+    }
+
+    // ---- boot witness (m4.0.5) ----------------------------------------------
+
+    @Test
+    fun `boot witness - probe scripts carry the trap and the truth read`() {
+        // Refactor guards: the injection must arm the error trap, and the
+        // probe must read readyState + element count + captured errors.
+        assertTrue(BootWitness.BOOT_TRAP_JS.contains("__psBoot"))
+        assertTrue(BootWitness.BOOT_TRAP_JS.contains("addEventListener('error'"))
+        assertTrue(BootWitness.BOOT_TRAP_JS.contains("unhandledrejection"))
+        assertTrue(BootWitness.DOM_TRUTH_JS.contains("readyState"))
+        assertTrue(BootWitness.DOM_TRUTH_JS.contains("getElementsByTagName"))
+        assertTrue(BootWitness.DOM_TRUTH_JS.contains("__psBoot"))
+    }
+
+    @Test
+    fun `boot witness - element floor separates a real app from a banner-only page`() {
+        fun truth(elements: Int) = BootWitness.Truth("complete", elements, 0, emptyList())
+        // Banner-only shell (the device's captured state): never mounted.
+        assertFalse(BootWitness.mounted(truth(0)))
+        assertFalse(BootWitness.mounted(truth(15)))
+        assertFalse(BootWitness.mounted(truth(BootWitness.MOUNT_ELEMENT_FLOOR - 1)))
+        // Any real app shell is hundreds of nodes.
+        assertTrue(BootWitness.mounted(truth(BootWitness.MOUNT_ELEMENT_FLOOR)))
+        assertTrue(BootWitness.mounted(truth(5_000)))
+        // readyState alone never vouches: a complete document with a tiny
+        // DOM is exactly the dead-shell signature.
+        assertFalse(BootWitness.mounted(BootWitness.Truth("complete", 12, 400, emptyList())))
+    }
+
+    @Test
+    fun `boot witness - parseTruth reads the double-encoded probe answer`() {
+        // evaluateJavascript hands back the JS string value ENCODED as a
+        // JSON string literal — the probe's own JSON rides inside escaped.
+        val inner =
+            """{"rs":"complete","n":412,"t":1337,"e":["SyntaxError: Unexpected token '?"]}"""
+        val raw = "\"" + inner.replace("\"", "\\\"") + "\""
+        val truth = BootWitness.parseTruth(raw)
+        assertEquals("complete", truth?.readyState)
+        assertEquals(412, truth?.elementCount)
+        assertEquals(1337, truth?.textLength)
+        assertEquals(listOf("SyntaxError: Unexpected token '?"), truth?.bootErrors)
+    }
+
+    @Test
+    fun `boot witness - garbage answers never become truth`() {
+        assertNull(BootWitness.parseTruth(null))
+        assertNull(BootWitness.parseTruth(""))
+        assertNull(BootWitness.parseTruth("   "))
+        assertNull(BootWitness.parseTruth("null"))
+        assertNull(BootWitness.parseTruth("not json at all"))
+    }
+
+    @Test
+    fun `boot witness - diagnose carries the page's own testimony`() {
+        val truth = BootWitness.Truth(
+            readyState = "complete",
+            elementCount = 23,
+            textLength = 40,
+            bootErrors = listOf("SyntaxError: Unexpected token"),
+        )
+        val diagnosis = BootWitness.diagnose(truth, listOf("E: boom @app.js:1"))
+        assertTrue(diagnosis.contains("readyState=complete"))
+        assertTrue(diagnosis.contains("23 DOM elements"))
+        assertTrue(diagnosis.contains("error: SyntaxError: Unexpected token"))
+        assertTrue(diagnosis.contains("console: E: boom @app.js:1"))
+        // The cap exists so a chatty page can never blow out the card.
+        assertTrue(diagnosis.length <= BootWitness.MAX_DIAGNOSIS_LENGTH)
+    }
+
+    @Test
+    fun `boot witness - a silent page is reported honestly`() {
+        val diagnosis = BootWitness.diagnose(null, emptyList())
+        assertTrue(diagnosis.contains("never answered"))
+        // An unreadable DOM says so instead of inventing a count.
+        val unreadable = BootWitness.diagnose(
+            BootWitness.Truth("loading", -1, 0, emptyList()),
+            emptyList(),
+        )
+        assertTrue(unreadable.contains("DOM unreadable"))
+    }
+
+    @Test
+    fun `console tail - bounded ring keeps the newest lines`() {
+        val tail = ConsoleTail(cap = 8)
+        repeat(10) { tail.append("line $it") }
+        val snapshot = tail.snapshot()
+        assertEquals(8, snapshot.size)
+        assertEquals("line 2", snapshot.first())
+        assertEquals("line 9", snapshot.last())
+    }
+
+    @Test
+    fun `console tail - lines are cleaned, capped, and clearable`() {
+        val tail = ConsoleTail()
+        tail.append("  ${"x".repeat(200)}  ")
+        assertEquals(160, tail.snapshot().single().length)
+        tail.append("\n  padded \n line \n")
+        assertEquals("padded   line", tail.snapshot().last())
+        tail.clear()
+        assertTrue(tail.snapshot().isEmpty())
+    }
+
+    @Test
+    fun `app-not-booted failure names the real fix and shows the page's testimony`() {
+        val failure = CompanionFailure(
+            CompanionFailureKind.APP_NOT_BOOTED,
+            detail = "readyState=complete · 23 DOM elements · error: SyntaxError",
+            webViewVersion = "124.0.6367.82",
+        )
+        assertEquals("Page won't start", failure.title)
+        assertTrue(failure.body.contains("readyState=complete"))
+        assertTrue(failure.body.contains("Android System WebView 124.0.6367.82"))
+        assertTrue(failure.hint.contains("app never started"))
+        assertTrue(failure.hint.contains("Android System WebView"))
+        assertTrue(failure.hint.contains("browser"))
+    }
 }

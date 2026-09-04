@@ -421,3 +421,28 @@ remote development.
 - [x] versionCode 28. Full suite green: 0 failures (all modules ×
       variants).
 - [ ] Device gate §21 (§17–§20 regressions included).
+
+### Phase 4.0.5 (2026-09-05, v0.7.0-m4.0.5) — The black page, fixed at the root — and the page now testifies
+- [x] Diagnosis completed from the device's own evidence: banner paints
+      + dismisses (pipeline alive), no m4.0.4 card (main region painted
+      the site's darkened body) → the site's app never mounts. Root
+      suspects armed by `targetSdk 28`: WebView Force Dark (default-on
+      for legacy targets in dark mode) + the `; wv` WebView user-agent
+      (second-class client: `disallowed_useragent`, degraded bundles).
+- [x] Force Dark OFF, three layers: theme `forceDarkAllowed=false`;
+      runtime `setForceDark(FORCE_DARK_OFF)` (API 29–32);
+      `setAlgorithmicDarkeningAllowed(false)` via the framework method
+      (API 33+) — no new dependency, no manifest attribute.
+- [x] `WebCompat.chromeLikeUserAgent`: WebView UA minus `; wv` and
+      `Version/4.0` = the device's exact Chrome mobile UA; pure,
+      idempotent, pinned.
+- [x] `BootWitness` + `ConsoleTail`: boot-error trap injected at page
+      start, per-tab console ring (8×160), DOM truth poll (2.5s × 8 =
+      20s; mount floor 60 elements). Health now requires pixels AND a
+      mounted app; failures escalate with the page's own testimony
+      (readyState · element count · first error · first console line)
+      → one silent fresh reload → honest APP_NOT_BOOTED card with the
+      established escapes.
+- [x] +12 unit pins/variant. Full suite: 754 executions / 0 failures.
+- [x] versionCode 29.
+- [ ] Device gate §22 (§17–§21 regressions included).

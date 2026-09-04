@@ -90,12 +90,13 @@ object CompanionValidation {
  * Midnight card with the real detail + the installed WebView version and
  * a Retry action. Pure state + text — unit-pinned, no WebView fakes.
  */
-enum class CompanionFailureKind { LOAD_ERROR, RENDERER_GONE, RENDER_STALLED }
+enum class CompanionFailureKind { LOAD_ERROR, RENDERER_GONE, RENDER_STALLED, APP_NOT_BOOTED }
 
 fun failureTitle(kind: CompanionFailureKind): String = when (kind) {
     CompanionFailureKind.LOAD_ERROR -> "Page didn't load"
     CompanionFailureKind.RENDERER_GONE -> "Page renderer crashed"
     CompanionFailureKind.RENDER_STALLED -> "Page never rendered"
+    CompanionFailureKind.APP_NOT_BOOTED -> "Page won't start"
 }
 
 fun failureHint(kind: CompanionFailureKind): String = when (kind) {
@@ -108,6 +109,10 @@ fun failureHint(kind: CompanionFailureKind): String = when (kind) {
             "it on the compatibility renderer and that stalled too — this WebView build " +
             "looks broken on this device. Update or roll back Android System WebView, " +
             "then Retry (it alternates render modes)."
+    CompanionFailureKind.APP_NOT_BOOTED ->
+        "The site answered — its cookie banner and scripts run — but its own app never " +
+            "started (the line above is read from inside the page). Update Android " +
+            "System WebView and retry, or open the same address in the device browser."
 }
 
 data class CompanionFailure(
