@@ -1,17 +1,1 @@
-[19:05:45] downloading Temurin jdk-21.0.12.1+1
-[19:06:13] extracting JDK
-[19:06:17] javac: javac 21.0.12.1
-[19:06:17] downloading cmdline-tools 11076708
-[19:06:19] extracting cmdline-tools
-[19:06:20] accepting licenses
-[19:06:22] installing platform-tools, platforms;android-36, build-tools;36.0.0, ndk;28.2.13676358 (NDK is ~600MB, be patient)
-
-[19:06:51] DONE. Verification:
-openjdk version "21.0.12.1" 2026-08-18 LTS
-build-tools
-cmdline-tools
-licenses
-ndk
-platform-tools
-platforms
-[19:06:51] NDK 28.2.13676358 present
+[08:07:36] downloading Temurin jdk-21.0.12.1+1

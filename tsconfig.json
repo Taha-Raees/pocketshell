@@ -35,6 +35,16 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "skills",
+    "scripts",
+    "terminal-emulator",
+    "terminal-view",
+    "app/src",
+    "app/build",
+    "tool-results",
+    "dist-master",
+    "public",
+    "download"
   ]
 }

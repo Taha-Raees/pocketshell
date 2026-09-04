@@ -2,9 +2,9 @@ const VERSION = "v0.7.0-m3.4";
 
 const HASHES = {
   apk: "2059d1965957e09a05d1bfa313f24c98030e3df23ed2893397b66d44f0d60dd5",
-  zip: "9b73fe8cfa915b476fde3debed1b413820a1447559aebe7f20c251ebd240c4d6",
-  tgz: "37fd374080fdf74cb84b569434775a19f55acd3555822d0ade004a7c5f74f651",
-  bundle: "b9c53eef35652c553773860e04c3a7f4c365a6c4a8da1e18ecdda9fdcbaabd20",
+  zip: "3b79eaac116e6eddcfb1ec889140f22a96eed6fbc86f1a8447303991b1bc4b6f",
+  tgz: "6de1188b5a2cb775908efe5e03b338f6a72b7228fd2ee21fb686ac3eda1d4522",
+  bundle: "9c2ff19d88078c61fe014cd2d7eb1797fb6de57543ce82f32be42af2063378b9",
 };
 
 function Sha({ text }: { text: string }) {
@@ -187,7 +187,7 @@ export default function Home() {
         <h2>Source (version control)</h2>
         <p>
           Complete buildable source. The zip intentionally contains no
-          dotfiles; full history rides in the git bundle (tip fcbe2f2 —
+          dotfiles; full history rides in the git bundle (tip 41dcf82 —
           includes the complete milestone history, the honest record of the
           discarded UI attempt + rollback, and all four Phase 3 design
           contracts).
