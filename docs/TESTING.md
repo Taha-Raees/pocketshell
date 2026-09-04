@@ -955,3 +955,60 @@ Prereq: install vc26 IN PLACE over vc25 (same cert; data survives).
 - [ ] §18 startup checks still pass (starts 3× with a broken WebView).
 - [ ] §17 spot-check: drag 1:1, tab switch without reload, file upload,
       Back = history → collapse → navigation.
+
+## 20. Manual acceptance — m4.0.3 (keyboard everywhere + render-stall honesty + Companion picker, v0.7.0-m4.0.3) — DEVICE GATE PENDING
+
+Prereq: install vc27 IN PLACE over vc26 (data survives; do not uninstall).
+All prior Companion behavior (§17/§18/§19) must keep working.
+
+### 20.1 Keyboard for BOTH surfaces
+- [ ] Terminal screen, Companion raised (any height): tap a text field in
+      the Companion page, then type on the PocketShell deck — characters
+      appear IN THE PAGE (search box, chat input).
+- [ ] No system keyboard (GBoard) appears while the deck is up.
+- [ ] Tap the terminal canvas above, type — characters go to the SHELL
+      again (routing follows focus; last tap wins).
+- [ ] Deck keys that must work in the page: letters, digits, space,
+      Backspace, Enter, arrows (scroll/caret), Tab (focus move).
+
+### 20.2 Stacking: the keyboard pushes everything up
+- [ ] With the Companion raised AND the deck up: the deck is the
+      bottom-most surface; the Companion panel (handle + tab strip +
+      page) rides ABOVE the deck; NOTHING is hidden under the keyboard.
+- [ ] Toggle the keyboard off ([⌨] button): the WHOLE deck disappears
+      (terminal canvas grows down to the gesture bar) and a small round
+      keyboard icon appears at the bottom-right corner.
+- [ ] Tap the corner icon: the full deck comes back.
+- [ ] Keyboard off + Companion raised + tap a page input: the SYSTEM
+      keyboard opens and the Companion panel lifts above it; dismissing
+      it leaves the layout intact.
+
+### 20.3 Keys
+- [ ] Quick-tap "-" → "-" appears (terminal AND Companion).
+- [ ] Quick-tap each digit → the digit; HOLD a digit ≥350ms → F-key popup
+      + F-key on release.
+- [ ] Arrow keys visibly longer (wider than tall); repeat on hold works.
+
+### 20.4 "+" opens the Companion picker
+- [ ] With the Companion raised, tap "+" on the tab strip: a Midnight
+      sheet lists EVERY Companion; open tabs are check-marked.
+- [ ] Tap a listed Companion → sheet closes, that tab opens/raises.
+- [ ] Tap "+ Add Companion" → the Companions management page opens.
+- [ ] Scrim tap and Back both close the sheet (Back does not collapse
+      the panel while the sheet is open).
+
+### 20.5 White canvas honesty (the m4.0.2 leftover)
+- [ ] Open the previously-white tab: EITHER the page now renders
+      (Activity-context creation fixed it) OR within ~15s a card appears:
+      "Page never rendered" + the WebView version + the compat-retry hint.
+      NEVER a silent white rectangle.
+- [ ] Tap Retry: the tab reloads with SOFTWARE rendering (compatibility
+      mode); tapping Retry again returns to GPU rendering.
+- [ ] If the page renders now — log the installed WebView version.
+
+### 20.6 Regression
+- [ ] §18 startup checks still pass; §17 spot-checks (drag 1:1, frozen
+      height while dragging, tab switch without reload, login persists
+      across app restart, file upload, Back = history → collapse).
+- [ ] §19 spot-check: a real load error still shows "Page didn't load".
+- [ ] Terminal: §4/§8 spot-check (echo while typing, tabs, font pinch).

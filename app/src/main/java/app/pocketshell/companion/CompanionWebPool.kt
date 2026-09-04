@@ -8,6 +8,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.GeolocationPermissions
@@ -21,6 +24,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import app.pocketshell.keyboard.KeyboardInputRouter
 
 /**
  * Phase 4 — the embedded web runtime (docs/PHASE-4-COMPANION-DESIGN.md §8).
@@ -58,6 +62,11 @@ object CompanionWebPool {
          *  broken WebView builds). The pool destroyed the view; the app
          *  stays alive and the UI explains. */
         fun onRendererGone(defId: String) {}
+
+        /** m4.0.3: the page never painted ANYTHING within the watchdog
+         *  window (no error event, no renderer death — the silent-white
+         *  signature the device kept hitting). The UI explains honestly. */
+        fun onRenderStuck(defId: String) {}
     }
 
     private class TabEntry(val webView: WebView) {
@@ -91,6 +100,15 @@ object CompanionWebPool {
 
     private var cookiesConfigured = false
 
+    /**
+     * m4.0.3 render-stall watchdog: armed on every fresh load, disarmed by
+     * the first paint evidence (progress / commit). If neither arrives in
+     * time the page is painting nothing — the silent-white canvas the device
+     * kept showing — and the UI says so instead of leaving a white box.
+     */
+    private val watchdogHandler = Handler(Looper.getMainLooper())
+    private val renderStallArmed = HashSet<String>()
+
     fun init(context: Context) {
         // Context handoff ONLY. This runs in Application.onCreate — it must
         // NEVER touch android.webkit here (see [runtimeFailed] note). Cookie
@@ -118,9 +136,21 @@ object CompanionWebPool {
      * an evicted one from its saved navigation state (contract §8).
      * Returns null before init — or when the WebView provider itself is
      * broken (m4.0.1: [runtimeFailed] then tells the UI why).
+     *
+     * m4.0.3: [context] — the Activity context — is used for creation when
+     * provided. m4.0/m4.0.2 created every WebView with the APPLICATION
+     * context, a documented source of blank-canvas / dead-IME WebViews on
+     * several OEM builds. [compatRender] creates the view with
+     * LAYER_TYPE_SOFTWARE — the Retry escape hatch for devices whose GPU
+     * path inside a broken WebView build never rasterizes.
      */
-    fun acquire(defId: String, url: String): WebView? {
-        val context = appContext ?: return null
+    fun acquire(
+        defId: String,
+        url: String,
+        context: Context? = null,
+        compatRender: Boolean = false,
+    ): WebView? {
+        val creationContext = context ?: appContext ?: return null
         val isNew = !pool.containsKey(defId)
         val entry = pool.getOrPut(defId) {
             // m4.0.1: creation is the ONLY step that loads the provider —
@@ -128,7 +158,7 @@ object CompanionWebPool {
             // UI's "unavailable" notice instead of crashing the process.
             configureCookiesOnce()
             try {
-                val created = TabEntry(createWebView(context, defId))
+                val created = TabEntry(createWebView(creationContext, defId, compatRender))
                 runtimeFailed = false
                 created
             } catch (_: Throwable) {
@@ -138,13 +168,23 @@ object CompanionWebPool {
         }
         entry.lastUsed = System.currentTimeMillis()
         if (isNew) {
-            val saved = evictedStates.remove(defId)
-            if (saved != null) {
-                entry.webView.restoreState(saved)
-                // restoreState may not commit a load when the stack is empty.
-                if (entry.webView.url == null) entry.webView.loadUrl(url)
-            } else {
-                entry.webView.loadUrl(url)
+            // m4.0.3: the load path is guarded too — a provider that loads
+            // but explodes at first load must degrade, never crash.
+            try {
+                val saved = evictedStates.remove(defId)
+                if (saved != null) {
+                    entry.webView.restoreState(saved)
+                    // restoreState may not commit a load when the stack is empty.
+                    if (entry.webView.url == null) entry.webView.loadUrl(url)
+                } else {
+                    entry.webView.loadUrl(url)
+                }
+                armRenderWatchdog(defId)
+            } catch (_: Throwable) {
+                runtimeFailed = true
+                renderStallArmed.remove(defId)
+                pool.remove(defId)?.webView?.destroyQuietly()
+                return null
             }
             enforceCapacity()
         }
@@ -157,6 +197,7 @@ object CompanionWebPool {
     /** Tab closed (or definition deleted): its state is dropped for good. */
     fun forgetTab(defId: String) {
         evictedStates.remove(defId)
+        renderStallArmed.remove(defId)
         pool.remove(defId)?.webView?.destroyQuietly()
     }
 
@@ -164,6 +205,7 @@ object CompanionWebPool {
 
     fun clearAll() {
         evictedStates.clear()
+        renderStallArmed.clear()
         pool.values.toList().forEach { it.webView.destroyQuietly() }
         pool.clear()
     }
@@ -216,8 +258,25 @@ object CompanionWebPool {
 
     // ------------------------------------------------------------------ core
 
+    // ---- render-stall watchdog (m4.0.3) ------------------------------------
+
+    private fun armRenderWatchdog(defId: String) {
+        renderStallArmed.add(defId)
+        watchdogHandler.postDelayed({
+            // Fire only when still armed AND the tab is still alive — a
+            // closed/evicted tab must never raise a ghost failure.
+            if (renderStallArmed.remove(defId) && pool.containsKey(defId)) {
+                listener?.onRenderStuck(defId)
+            }
+        }, RENDER_STALL_TIMEOUT_MS)
+    }
+
+    private fun disarmRenderWatchdog(defId: String) {
+        renderStallArmed.remove(defId)
+    }
+
     /**
-     * m4.0.2 — the installed WebView provider's version, honestly.
+     * m4.0.3 — the installed WebView provider's version, honestly.
      * Surfaced on every failure card so "white canvas" mysteries become a
      * concrete fact the user can act on (update / roll back).
      */
@@ -244,10 +303,21 @@ object CompanionWebPool {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun createWebView(context: Context, defId: String): WebView {
+    private fun createWebView(context: Context, defId: String, compatRender: Boolean): WebView {
         val webView = WebView(context)
         webView.setBackgroundColor(0xFF080F1D.toInt()) // Midnight canvas — no white load flash
+        webView.isFocusable = true
         webView.isFocusableInTouchMode = true
+        if (compatRender) {
+            // m4.0.3 Retry escape hatch: GPU rasterization inside a broken
+            // WebView build can silently paint nothing; software rendering
+            // is the honest second attempt.
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        }
+        // m4.0.3: whichever surface the user taps last owns the shared deck.
+        webView.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) KeyboardInputRouter.webTarget = v
+        }
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -290,6 +360,11 @@ object CompanionWebPool {
 
         override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
             if (url != null) listener?.onVisitStarted(defId, url)
+        }
+
+        override fun onPageCommitVisible(view: WebView, url: String?) {
+            // m4.0.3: first paint evidence — the watchdog can stand down.
+            disarmRenderWatchdog(defId)
         }
 
         override fun onReceivedError(
@@ -368,6 +443,11 @@ object CompanionWebPool {
         override fun onReceivedTitle(view: WebView?, title: String?) {
             if (!title.isNullOrBlank()) listener?.onTitleReceived(defId, title)
         }
+
+        override fun onProgressChanged(view: WebView?, newProgress: Int) {
+            // m4.0.3: real load progress is also paint evidence.
+            if (newProgress >= 15) disarmRenderWatchdog(defId)
+        }
     }
 
     /** §13: DownloadManager into app-specific storage — no permission, no crash. */
@@ -414,6 +494,10 @@ object CompanionWebPool {
 
     private fun WebView.destroyQuietly() {
         try {
+            if (KeyboardInputRouter.webTarget === this) KeyboardInputRouter.webTarget = null
+        } catch (_: Throwable) {
+        }
+        try {
             stopLoading()
             onPause()
             clearHistory()
@@ -421,4 +505,9 @@ object CompanionWebPool {
         } catch (_: Exception) {
         }
     }
+
+    /** m4.0.3: how long a load may paint NOTHING before the canvas says so
+     *  honestly. Generous: a slow first response still usually reports
+     *  progress long before this. */
+    internal const val RENDER_STALL_TIMEOUT_MS = 15_000L
 }

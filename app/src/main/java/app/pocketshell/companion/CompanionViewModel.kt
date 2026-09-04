@@ -200,6 +200,15 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         ))
     }
 
+    /** m4.0.3: the page painted nothing within the watchdog window — the
+     *  silent-white signature; the canvas now says so instead. */
+    fun recordRenderStalled(defId: String) {
+        pageFailures.value = pageFailures.value + (defId to CompanionFailure(
+            kind = CompanionFailureKind.RENDER_STALLED,
+            webViewVersion = CompanionWebPool.webViewVersion(),
+        ))
+    }
+
     /** Retry: drop the failure, destroy the tab's WebView, reload fresh. */
     fun retryTab(defId: String) {
         pageFailures.value = pageFailures.value - defId

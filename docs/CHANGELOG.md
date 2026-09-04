@@ -3,6 +3,82 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.3] — 2026-09-05 — Keyboard everywhere + honest render-stall + Companion picker (device bug batch)
+
+Scope: the m4.0.2 device session's bug list, fixed one by one. No
+data-model or storage change; logins/tabs/height survive the in-place
+update. Follow-up to m4.0.2 on the same device.
+
+### Device findings (2026-09-05, screenshot analyzed)
+1. The keyboard deck served ONLY the terminal; the Companion could not be
+   typed into at all.
+2. The deck rendered UNDER/behind the Companion panel ("between terminal
+   and companion") — the keyboard sat on top of something instead of
+   pushing everything up.
+3. Toggling the keyboard left a stranded accessory bar; no clean way to
+   bring the deck back.
+4. Arrow keys too small; the "-" key (and every long-press-capable key)
+   dispatched NOTHING on a quick tap.
+5. The Companion canvas was STILL pure white (no error card fired), and
+   the tab strip's "+" did nothing visible.
+
+### Fix 1 — one keyboard for both surfaces (routing)
+- New `KeyboardInputRouter`: the terminal canvas AND the active Companion
+  WebView register as dispatch targets; deck presses go to whichever
+  surface currently holds window focus (last tap wins). Tapping the
+  Companion focuses it → the deck types into the page; tapping the
+  terminal hands focus back. Pure decision logic unit-pinned.
+- One-keyboard policy: while the deck is up, the system IME is
+  hard-blocked for the window (FLAG_ALT_FOCUSABLE_IM) — no double
+  keyboard. With the deck toggled off, the block lifts so Companion
+  inputs can still summon the system IME (and the panel rides above it
+  via imePadding). Known honest boundary: Ctrl/Alt state is consumed by
+  the terminal pipeline only; synthetic events reach the WebView WITHOUT
+  meta state (plain chars/arrows/Enter/Tab/Backspace work in-page).
+
+### Fix 2 — the keyboard is the bottom-most surface (stacking)
+- Deck visibility + measured height moved to the ROOT (PocketShellRoot).
+  TerminalScreen reports the deck's height (navigation padding included);
+  the Companion layer (and its picker) pads itself ABOVE the deck — the
+  keyboard never opens on top of anything; nothing is underneath it.
+- Toggling the keyboard now unmounts the WHOLE deck; a small Midnight
+  keyboard icon floats at the bottom-right corner (above every layer) to
+  bring it back; tapping the terminal canvas still re-expands too.
+  With the deck gone the terminal canvas still ends above the gesture bar.
+
+### Fix 3 — every key works
+- ROOT CAUSE of the dead "-": keys with a long-press layer (the whole
+  digit row, "-", tablet -/=/`) took the hold path EXCLUSIVELY — a quick
+  tap dispatched nothing. The primary action now commits on release for
+  short taps; holds still win the threshold race and commit the Fn layer.
+- Arrow keys are 12dp longer horizontally (still in the grouped panel).
+
+### Fix 4 — the white canvas gets an engine AND an explanation
+- WebView creation now uses the ACTIVITY context (m4.0–m4.0.2 used the
+  application context — a documented source of blank-canvas WebViews on
+  OEM builds). The load/restore path is guarded like creation.
+- Render-stall watchdog: every fresh load arms a 15s timer; first paint
+  evidence (onPageCommitVisible or progress ≥ 15) disarms it. A page that
+  paints NOTHING — m4.0.2's unexplained white, no error event, no
+  renderer death — now raises "Page never rendered" + the installed
+  WebView version + guidance, instead of a silent white box.
+- Retry now alternates GPU → SOFTWARE rendering per tab (compatibility
+  mode): a broken WebView build whose GPU path never rasterizes gets a
+  second, honest chance. The card's hint says so.
+
+### Fix 5 — "+" opens the Companion picker
+- The tab strip's "+" now opens a Midnight sheet listing every Companion
+  (open tabs marked, active highlighted): tap to open/raise it,
+  "+ Add Companion" goes to the management page. Scrim tap or Back
+  dismisses (Back wins over the layer's collapse handler).
+
+### Tests + delivery
+- +6 unit pins per variant (5 routing-decision, 1 render-stall failure
+  model). Full suite: 724 executions, 0 failures (both modules × both
+  variants) — no WebView fakes (spec §32).
+- versionCode 27 / 0.7.0-m4.0.3 — in-place update over 16..26, same
+  pinned cert (d96a6f66…8bf659). Device gate: docs/TESTING.md §20.
+
 ## [0.7.0-m4.0.2] — 2026-09-05 — Honest Companion failure surfaces (never a mysteriously white canvas)
 
 Scope: Companion failure reporting only. No feature, storage or contract

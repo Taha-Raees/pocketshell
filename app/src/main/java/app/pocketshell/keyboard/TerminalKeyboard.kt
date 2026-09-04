@@ -205,15 +205,17 @@ private fun TopAccessoryRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Arrows render as Unicode glyphs on the standard key path (one
-            // gesture/repeat engine for every key); 44dp squares stay grouped.
+            // gesture/repeat engine for every key); m4.0.3: wider than tall —
+            // easier to hit horizontally while staying in the grouped panel.
             val arrowSize = density.accessoryHeight - 8.dp
+            val arrowWidth = arrowSize + 12.dp
             KeyLayouts.topRowSpec.drop(2).forEach { arrow ->
                 PSKey(
                     key = arrow,
                     keyboardState = keyboardState,
                     dispatcher = dispatcher,
                     height = arrowSize,
-                    width = arrowSize,
+                    width = arrowWidth,
                     alt = true,
                 )
             }
@@ -364,6 +366,13 @@ private fun PSKey(
         if (armed) {
             armed = false
             key.longPress?.let(dispatcher::press)
+        } else if (key.longPress != null) {
+            // m4.0.3 device fix ("the - key was not working"): a quick tap on
+            // a hold-capable key (the digit row, "-", tablet -/=/`) dispatched
+            // NOTHING — the primary action only existed on the hold path.
+            // The primary action now commits on release for short taps; the
+            // hold layer still wins when the threshold is reached.
+            dispatcher.press(key.action)
         }
     }
 

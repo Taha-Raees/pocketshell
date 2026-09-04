@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.2
+VERSION=v0.7.0-m4.0.3
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,44 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.1) — HONEST COMPANION FAILURE
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.2) — KEYBOARD EVERYWHERE + HONEST
+RENDER-STALL + COMPANION PICKER (device bug batch, screenshot analyzed
+2026-09-05; build requested as "4.0.3"):
+  - ONE KEYBOARD FOR BOTH SURFACES: the PocketShell deck now types into
+    COMPANIONS too, not just the terminal. Deck presses follow FOCUS:
+    tap the Companion page, type — text lands in the page; tap the
+    terminal, type — text lands in the shell. While the deck is up the
+    system keyboard is blocked (no double keyboard); with the deck
+    toggled off, Companion inputs can still summon the system keyboard
+    and the panel lifts above it.
+  - THE KEYBOARD PUSHES EVERYTHING UP: the deck is now the bottom-most
+    surface — the Companion panel (handle + tabs + page) rides ABOVE it,
+    so the keyboard never opens on top of anything and nothing hides
+    underneath it.
+  - TOGGLE = FULL COLLAPSE + CORNER ICON: the keyboard button now removes
+    the WHOLE deck; a small Midnight keyboard icon floats at the
+    bottom-right corner to bring it back whenever you want (tapping the
+    terminal canvas works too).
+  - EVERY KEY WORKS: fixed the dead "-" key (and the whole digit row):
+    keys with a hold-gesture layer dispatched NOTHING on a quick tap —
+    now a quick tap commits the character; holding still gives the Fn
+    layer. Arrow keys are 12dp longer horizontally.
+  - THE WHITE CANVAS, FOR REAL THIS TIME: WebViews are now created with
+    the ACTIVITY context (the application context used so far is a
+    known blank-canvas source on OEM builds), and a 15s watchdog now
+    catches the case where a page paints NOTHING: the canvas shows
+    "Page never rendered" + the installed WebView version instead of a
+    silent white box. Retry alternates GPU → SOFTWARE rendering
+    (compatibility mode) — the honest second attempt for broken builds.
+  - "+" FINALLY DOES SOMETHING: the tab strip's + opens a Midnight sheet
+    listing every Companion (open tabs marked) — tap to open one, or
+    "+ Add Companion" to go to the management page.
+  - +6 unit pins (routing decision + render-stall model). Full suite:
+    724 tests, 0 failures.
+  - versionCode 27 / 0.7.0-m4.0.3 — in-place update over 16..26; same
+    pinned cert. Device gate: docs/TESTING.md §20.
+
+WHAT WAS NEW IN v0.7.0-m4.0.2 (vs v0.7.0-m4.0.1) — HONEST COMPANION FAILURE
 SURFACES: THE CANVAS IS NEVER MYSTERIOUSLY WHITE (device finding 2026-09-05,
 same session as the startup hotfix):
   - THE FINDING: after the m4.0.1 startup fix, PocketShell starts — but

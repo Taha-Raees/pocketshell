@@ -470,3 +470,50 @@ Amendment (binding, extends §8/§9/§15):
 - Honest boundary: a page that commits but renders blank because an old
   WebView cannot run its JavaScript fires NO error — documented; the
   version line + a static-site Companion test identify that case.
+
+## 24. m4.0.3 — The Keyboard Contract + the Render-Stall Watchdog (device-reported 2026-09-05)
+
+Finding: the m4.0.2 session's bug list showed the Companion was a silent
+surface — the shared keyboard never reached it, the deck rendered
+underneath the panel, "-" was dead, and the canvas could STILL go white
+with no event firing.
+
+Amendments (binding, extend §8/§9/§15):
+
+Keyboard contract (extends §7 of the Phase 3.1 deck):
+- The deck is the app-wide keyboard: deck presses are routed by
+  KeyboardInputRouter to whichever typeable surface holds window focus
+  (terminal canvas or the active Companion WebView — last tap wins).
+- The keyboard is the bottom-most surface. While the deck is visible its
+  measured height is reported to the root, and the Companion layer (and
+  any sheet it shows) pads itself ABOVE the deck — the keyboard never
+  opens on top of anything; nothing renders underneath it.
+- Toggling the keyboard unmounts the WHOLE deck; a small floating
+  keyboard icon at the bottom-right corner (above every layer) restores
+  it. With the deck up, the system IME is hard-blocked
+  (FLAG_ALT_FOCUSABLE_IM); with the deck off, Companion inputs may
+  summon the system IME and the panel lifts above it (imePadding).
+- Keys with a long-press layer commit their PRIMARY action on a quick
+  tap (release before the threshold); holds still commit the Fn layer.
+  Known boundary: modifier state (Ctrl/Alt) is not transferred to the
+  WebView (synthetic events carry no meta state); chars, arrows, Enter,
+  Tab and Backspace work in-page.
+
+Canvas honesty (extends §23):
+- WebViews are created with the ACTIVITY context; the load/restore path
+  is guarded exactly like creation.
+- A fresh load arms a 15s render-stall watchdog; first paint evidence
+  (onPageCommitVisible or progress ≥ 15) disarms it. A page that paints
+  nothing raises the "Page never rendered" failure (kind RENDER_STALLED)
+  with the installed WebView version — the canvas can no longer be
+  silently white even when no error event fires.
+- Retry alternates GPU → SOFTWARE layer type per tab (compatibility
+  rendering), the honest second attempt for builds whose GPU path never
+  rasterizes; the card hint says so.
+
+The "+" affordance (extends §11):
+- The tab strip's "+" opens a Midnight picker sheet listing every
+  Companion definition (open tabs marked, active highlighted); tapping a
+  row opens/raises that tab; "+ Add Companion" navigates to the
+  management page; scrim tap or Back dismisses, and Back wins over the
+  layer's collapse handler while the sheet is open.

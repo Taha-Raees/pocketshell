@@ -1,25 +1,43 @@
 package app.pocketshell
 
 import android.app.Activity
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowInsets
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,6 +49,7 @@ import app.pocketshell.ui.home.HomeScreen
 import app.pocketshell.ui.settings.SettingsScreen
 import app.pocketshell.ui.terminal.TerminalScreen
 import app.pocketshell.ui.theme.PocketShellTheme
+import app.pocketshell.ui.theme.TerminalTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,6 +89,22 @@ fun PocketShellRoot(
     val keyboardState = remember { KeyboardState() }
     var screen by rememberSaveable { mutableStateOf("home") }
 
+    // m4.0.3 — the shared keyboard is a root concern: its visibility (the
+    // [⌨] toggle unmounts the WHOLE deck; a small floating icon brings it
+    // back) and its measured height (reported by TerminalScreen so the
+    // Companion layer pushes itself ABOVE the deck — the keyboard never has
+    // anything underneath it).
+    var keyboardExpanded by rememberSaveable { mutableStateOf(true) }
+    var keyboardInsetPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val keyboardInset = with(density) { keyboardInsetPx.toDp() }
+
+    // Leaving the terminal screen unmounts the deck without a size callback
+    // — clear the contributed inset explicitly.
+    LaunchedEffect(screen) {
+        if (screen != "terminal") keyboardInsetPx = 0
+    }
+
     // Phase 4: created once here so Companion state (definitions, tabs,
     // height, the in-process WebView pool's identity) survives screen switches.
     val companionViewModel: app.pocketshell.companion.CompanionViewModel = viewModel()
@@ -105,6 +140,28 @@ fun PocketShellRoot(
         onDispose { }
     }
 
+    // m4.0.3 — one-keyboard policy: while the PocketShell deck is the
+    // keyboard (terminal screen, expanded), the system IME is hard-blocked
+    // for the window; deck presses already reach the focused surface
+    // (terminal canvas OR Companion WebView). With the deck toggled off the
+    // block is lifted so Companion inputs can still summon the system IME.
+    val imeBlocked = screen == "terminal" && keyboardExpanded
+    DisposableEffect(imeBlocked) {
+        val window = (view.context as? Activity)?.window
+        if (imeBlocked) {
+            window?.setFlags(
+                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM,
+                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM,
+            )
+            if (Build.VERSION.SDK_INT >= 30) {
+                window?.insetsController?.hide(WindowInsets.Type.ime())
+            }
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+        }
+        onDispose { }
+    }
+
     BackHandler(enabled = screen != "home") { screen = "home" }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -116,6 +173,9 @@ fun PocketShellRoot(
                 keyboardState = keyboardState,
                 creating = creating,
                 initialFontSize = defaultFontSize,
+                keyboardExpanded = keyboardExpanded,
+                onKeyboardExpandedChange = { keyboardExpanded = it },
+                onKeyboardInsetChanged = { keyboardInsetPx = it },
                 onSelect = terminalViewModel::select,
                 onClose = terminalViewModel::closeSession,
                 onNewSession = terminalViewModel::newSession,
@@ -203,7 +263,37 @@ fun PocketShellRoot(
         app.pocketshell.ui.companion.CompanionLayer(
             viewModel = companionViewModel,
             onOpenCompanionSettings = { screen = "companionSettings" },
+            // m4.0.3: the deck's measured height — the Companion panel and
+            // its picker sheet push themselves ABOVE the keyboard.
+            keyboardBottomInset = keyboardInset,
         )
+
+        // m4.0.3 — the deck's rebirth affordance: with the keyboard toggled
+        // OFF, a small Midnight icon floats at the bottom-right corner —
+        // above the Companion layer — to bring it back at any time.
+        if (screen == "terminal" && !keyboardExpanded) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                        .padding(14.dp)
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(TerminalTheme.deck.copy(alpha = 0.94f))
+                        .border(1.dp, TerminalTheme.divider, CircleShape)
+                        .clickable { keyboardExpanded = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Keyboard,
+                        contentDescription = "Show keyboard",
+                        tint = TerminalTheme.accentBright,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        }
     }
     }
 }

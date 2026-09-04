@@ -8,10 +8,13 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,21 +23,31 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -42,6 +55,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.companion.CompanionBackAction
+import app.pocketshell.companion.CompanionDef
 import app.pocketshell.companion.CompanionFailure
 import app.pocketshell.companion.CompanionHeights
 import app.pocketshell.companion.CompanionWebPool
@@ -73,6 +87,7 @@ import app.pocketshell.ui.theme.TerminalTheme
 fun CompanionLayer(
     viewModel: CompanionViewModel,
     onOpenCompanionSettings: () -> Unit,
+    keyboardBottomInset: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     val defs by viewModel.defs.collectAsStateWithLifecycle()
@@ -85,6 +100,14 @@ fun CompanionLayer(
     // m4.0.2: bumped by Retry — re-keys the web host's remember so acquire()
     // runs again on a freshly created WebView.
     var webRetrySeed by remember { mutableStateOf(0) }
+
+    // m4.0.3: per-tab compatibility-render flag. Retry toggles it — the
+    // second attempt creates the WebView with LAYER_TYPE_SOFTWARE, the
+    // escape hatch for devices whose GPU path paints nothing.
+    val compatRenders = remember { mutableStateMapOf<String, Boolean>() }
+
+    // m4.0.3: the "+" affordance now opens the Companion picker sheet.
+    var pickerOpen by remember { mutableStateOf(false) }
 
     // In-flight drag fraction; null when the pointer is up (settled state).
     var dragFraction by remember { mutableStateOf<Float?>(null) }
@@ -112,6 +135,10 @@ fun CompanionLayer(
 
             override fun onRendererGone(defId: String) {
                 viewModel.recordRendererGone(defId)
+            }
+
+            override fun onRenderStuck(defId: String) {
+                viewModel.recordRenderStalled(defId)
             }
         })
         onDispose { CompanionWebPool.setListener(null) }
@@ -167,12 +194,22 @@ fun CompanionLayer(
         val panelHeightPx = containerHeightPx * currentFraction
         val webHeightPx = (panelHeightPx - stripPx).coerceAtLeast(0f)
 
+        // m4.0.3 (device feedback): the keyboard is the bottom-most surface —
+        // while the shared deck is visible on the terminal screen its measured
+        // height arrives as [keyboardBottomInset] and the panel rides ABOVE
+        // it, so the keyboard never opens on top of anything. Without the
+        // deck the panel keeps its normal system-inset behavior.
+        val bottomModifier = if (keyboardBottomInset > 0.dp) {
+            Modifier.imePadding().padding(bottom = keyboardBottomInset)
+        } else {
+            Modifier.navigationBarsPadding().imePadding()
+        }
+
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding(),
+                .then(bottomModifier),
         ) {
             CompanionHandle(
                 dragging = dragFraction != null,
@@ -202,7 +239,9 @@ fun CompanionLayer(
                         activeId = activeTabId,
                         onSelect = viewModel::selectTab,
                         onClose = viewModel::closeTab,
-                        onAdd = viewModel::openDefault,
+                        // m4.0.3: "+" opens the picker sheet (list + add),
+                        // it no longer silently opens the default tab.
+                        onAdd = { pickerOpen = true },
                     )
                     Box(
                         modifier = Modifier
@@ -219,14 +258,40 @@ fun CompanionLayer(
                             webHeightPx = if (dragFraction != null) settledWebPx else webHeightPx,
                             failure = pageFailures[activeDef.id],
                             retrySeed = webRetrySeed,
+                            compatRender = compatRenders[activeDef.id] ?: false,
                             onRetry = {
                                 viewModel.retryTab(activeDef.id)
+                                // m4.0.3: each Retry alternates GPU → software
+                                // rendering (then back) on the fresh WebView.
+                                compatRenders[activeDef.id] =
+                                    !(compatRenders[activeDef.id] ?: false)
                                 webRetrySeed++
                             },
                         )
                     }
                 }
             }
+        }
+
+        // m4.0.3 — the Companion picker sheet: lists every Companion to open
+        // plus "Add Companion" (the management page). Composed above the
+        // panel with the same keyboard inset, so it too rides above the deck.
+        if (pickerOpen) {
+            CompanionPickerSheet(
+                defs = defs,
+                openDefIds = tabs.map { it.defId }.toSet(),
+                activeId = activeTabId,
+                bottomModifier = bottomModifier,
+                onSelect = { defId ->
+                    pickerOpen = false
+                    viewModel.openCompanion(defId)
+                },
+                onAddNew = {
+                    pickerOpen = false
+                    onOpenCompanionSettings()
+                },
+                onDismiss = { pickerOpen = false },
+            )
         }
 
         // Back policy (§14): web history → collapse → fall through. The
@@ -239,6 +304,9 @@ fun CompanionLayer(
                 CompanionBackAction.PASS_THROUGH -> {}
             }
         }
+
+        // m4.0.3: the picker is the topmost surface — Back closes it first.
+        BackHandler(enabled = pickerOpen) { pickerOpen = false }
     }
 }
 
@@ -288,6 +356,7 @@ private fun CompanionWebHost(
     webHeightPx: Float,
     failure: CompanionFailure?,
     retrySeed: Int,
+    compatRender: Boolean,
     onRetry: () -> Unit,
 ) {
     // m4.0.2: the failure card comes FIRST — a renderer-gone tab has NO
@@ -297,9 +366,14 @@ private fun CompanionWebHost(
         CompanionFailureCard(failure, onRetry)
         return
     }
+    // m4.0.3: creation uses the ACTIVITY context — the application context
+    // used since m4.0 is a documented source of blank-canvas WebViews.
+    val context = LocalContext.current
     // One WebView per definition, owned by the pool; (re)attached here.
     // retrySeed re-keys on Retry so a destroyed WebView is re-created.
-    val webView = remember(defId, retrySeed) { CompanionWebPool.acquire(defId, url) }
+    val webView = remember(defId, retrySeed) {
+        CompanionWebPool.acquire(defId, url, context, compatRender)
+    }
     DisposableEffect(defId) {
         CompanionWebPool.setActive(defId)
         onDispose { }
@@ -318,6 +392,137 @@ private fun CompanionWebHost(
             .fillMaxWidth()
             .height(with(LocalDensity.current) { webHeightPx.toDp() }),
     )
+}
+
+/**
+ * m4.0.3 — the Companion picker sheet behind the "+" button: a Midnight
+ * panel listing every defined Companion (open ones marked), plus the
+ * "Add Companion" entry into the management page. Scrim tap or Back
+ * dismisses; the panel rides above the keyboard inset like the layer.
+ */
+@Composable
+private fun CompanionPickerSheet(
+    defs: List<CompanionDef>,
+    openDefIds: Set<String>,
+    activeId: String?,
+    bottomModifier: Modifier,
+    onSelect: (String) -> Unit,
+    onAddNew: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .then(bottomModifier)
+                .background(
+                    TerminalTheme.deck,
+                    RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+                )
+                .padding(top = 10.dp, bottom = 8.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Companions",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.3.sp,
+                    color = HomeTokens.textPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close",
+                        tint = TerminalTheme.textDim,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+            defs.forEach { def ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(def.id) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(TerminalTheme.keyActive, RoundedCornerShape(9.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = def.name.trim().take(1).uppercase().ifBlank { "?" },
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TerminalTheme.accentBright,
+                        )
+                    }
+                    Text(
+                        text = def.name,
+                        fontSize = 15.sp,
+                        fontWeight = if (def.id == activeId) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (def.id == activeId) HomeTokens.textPrimary else HomeTokens.textDim,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp),
+                    )
+                    if (def.id in openDefIds) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = "Open tab",
+                            tint = TerminalTheme.accent,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onAddNew() }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Add,
+                    contentDescription = null,
+                    tint = TerminalTheme.accentBright,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    text = "Add Companion",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TerminalTheme.accentBright,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+        }
+    }
 }
 
 /**

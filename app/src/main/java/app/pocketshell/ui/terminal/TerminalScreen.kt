@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -49,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,6 +60,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.pocketshell.keyboard.KeyboardInputRouter
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
 import app.pocketshell.keyboard.TerminalKeyboardDeck
@@ -78,7 +81,15 @@ private const val MAX_FONT_SIZE = 40
  *   chrome (back + live session title, under the status bar)
  *   → session tabs (editor-style; the active tab merges into the canvas)
  *   → terminal canvas (deepest blue-black, full-bleed, real TerminalView)
- *   → keyboard deck (Esc/Tab/arrows · collapsible QWERTY · toggle+modifiers)
+ *   → keyboard deck (Esc/Tab/arrows · QWERTY · toggle+modifiers)
+ *
+ * m4.0.3 (device feedback): the deck is the app-wide keyboard, so its
+ * visibility state lives at the ROOT (PocketShellRoot) — toggling it off
+ * unmounts the WHOLE deck (a small floating keyboard icon at the screen
+ * corner brings it back), and its measured height is reported upward so the
+ * Companion layer can push itself ABOVE the deck: the keyboard never has
+ * anything underneath it, and deck presses route to whichever surface
+ * (terminal canvas or Companion WebView) currently holds focus.
  *
  * The screen consumes the status-bar inset itself (MainActivity passes the
  * raw modifier for this branch) so the chrome surface extends edge-to-edge;
@@ -91,19 +102,36 @@ fun TerminalScreen(
     keyboardState: KeyboardState,
     creating: Boolean,
     initialFontSize: Int = DEFAULT_FONT_SIZE,
+    keyboardExpanded: Boolean,
+    onKeyboardExpandedChange: (Boolean) -> Unit,
+    onKeyboardInsetChanged: (Int) -> Unit,
     onSelect: (Long) -> Unit,
     onClose: (Long) -> Unit,
     onNewSession: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var keyboardExpanded by remember { mutableStateOf(true) }
     var textSize by rememberSaveable { mutableIntStateOf(initialFontSize) }
     val selected = sessions.firstOrNull { it.id == selectedId }
     val terminalViewRef = remember { mutableStateOf<TerminalView?>(null) }
 
     // Modifier state must never leak across sessions.
     LaunchedEffect(selectedId) { keyboardState.clearAll() }
+
+    // Deck gone → the inset it contributed disappears immediately.
+    LaunchedEffect(keyboardExpanded) {
+        if (!keyboardExpanded) onKeyboardInsetChanged(0)
+    }
+
+    // The terminal canvas is a dispatch target of the shared deck (m4.0.3);
+    // unregister when the screen leaves composition. (The screen-update
+    // listener is cleared here too — it is installed in the effect below.)
+    DisposableEffect(Unit) {
+        onDispose {
+            KeyboardInputRouter.terminalTarget = null
+            TerminalSessionManager.onScreenUpdateListener = null
+        }
+    }
 
     // Upstream contract: TerminalView does not observe session data — the host
     // must call TerminalView#onScreenUpdated() whenever the session screen
@@ -134,7 +162,14 @@ fun TerminalScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(modifier = modifier.fillMaxSize().background(TerminalTheme.screenBg)) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(TerminalTheme.screenBg)
+            // With the deck toggled off the canvas must still end above the
+            // gesture bar (the deck normally contributes that inset itself).
+            .then(if (!keyboardExpanded) Modifier.navigationBarsPadding() else Modifier),
+    ) {
         ChromeHeader(title = selected?.displayLabel ?: "Terminal", onBack = onBack)
 
         TabStrip(
@@ -165,7 +200,7 @@ fun TerminalScreen(
                     keyboardState = keyboardState,
                     textSize = textSize,
                     onTextSizeChange = { textSize = it },
-                    onSingleTap = { if (!keyboardExpanded) keyboardExpanded = true },
+                    onSingleTap = { if (!keyboardExpanded) onKeyboardExpandedChange(true) },
                     onViewCreated = { terminalViewRef.value = it },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -177,18 +212,28 @@ fun TerminalScreen(
             }
         }
 
-        // Captures the holder, not the view — always dispatches to the live view.
+        // Captures the holder, not the view — always dispatches to the live
+        // surface. m4.0.3: the deck serves BOTH typeable surfaces — the
+        // Companion WebView while it holds focus (last tap wins), otherwise
+        // the terminal canvas.
         val dispatcher = remember {
             TerminalKeyDispatcher(keyboardState) { event ->
-                terminalViewRef.value?.dispatchKeyEvent(event)
+                (KeyboardInputRouter.resolve() ?: terminalViewRef.value)
+                    ?.dispatchKeyEvent(event)
             }
         }
-        TerminalKeyboardDeck(
-            keyboardState = keyboardState,
-            dispatcher = dispatcher,
-            expanded = keyboardExpanded,
-            onToggleExpanded = { keyboardExpanded = !keyboardExpanded },
-        )
+        if (keyboardExpanded) {
+            // The deck reports its height (navigation-bar padding included)
+            // so the Companion layer can push itself above it — the keyboard
+            // must never sit on top of anything (m4.0.3 device feedback).
+            TerminalKeyboardDeck(
+                keyboardState = keyboardState,
+                dispatcher = dispatcher,
+                expanded = true,
+                onToggleExpanded = { onKeyboardExpandedChange(false) },
+                modifier = Modifier.onSizeChanged { onKeyboardInsetChanged(it.height) },
+            )
+        }
     }
 }
 
@@ -456,6 +501,10 @@ private fun TerminalViewHost(
             // Focus is required for hardware (e.g. Bluetooth) keyboard input
             // to reach the terminal; the post defers until the view is attached.
             view.post { view.requestFocus() }
+            // m4.0.3: register as the deck's terminal dispatch target — the
+            // router picks whichever surface (this view or the Companion
+            // WebView) currently holds focus.
+            KeyboardInputRouter.terminalTarget = view
             onViewCreated(view)
             view
         },

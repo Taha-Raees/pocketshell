@@ -368,3 +368,30 @@ remote development.
       blank-string defect). Full suite: 712/0.
 - [ ] Device gate §19 (failure cards, Retry, example.com isolation,
       §17/§18 spot-checks).
+
+### Phase 4.0.3 (2026-09-05, v0.7.0-m4.0.3) — Keyboard everywhere + render-stall honesty + Companion picker
+- [x] Device bug batch from the m4.0.2 session (screenshot analyzed):
+      keyboard terminal-only, keyboard sandwiched under/behind the
+      Companion panel, no clean toggle-off, dead "-" key, tiny arrows,
+      STILL-white canvas, "+" doing nothing.
+- [x] KeyboardInputRouter: deck presses route to the focused surface
+      (terminal canvas OR active Companion WebView; last tap wins) — the
+      Companion is typeable from the same deck. System IME hard-blocked
+      while the deck is up; unblocked (with imePadding lift) when toggled
+      off. Pure routing logic unit-pinned (5 tests).
+- [x] Stacking: deck height reported to the root; Companion panel and its
+      picker ride ABOVE the deck (nothing under the keyboard); toggling
+      off unmounts the WHOLE deck and floats a small Midnight keyboard
+      icon at the bottom-right corner to bring it back.
+- [x] Keys: quick taps on long-press-capable keys (digit row, "-", tablet
+      -/=/`) now commit the primary action on release (root cause of the
+      dead "-"); arrow keys 12dp longer horizontally.
+- [x] White canvas: WebView now created with the ACTIVITY context (was
+      application context — blank-canvas source on OEM builds); load path
+      guarded; 15s render-stall watchdog turns "paints nothing" into the
+      honest "Page never rendered" card (+ WebView version); Retry
+      alternates GPU → SOFTWARE rendering (compatibility mode) per tab.
+- [x] "+": opens a Midnight picker sheet (Companion list, open tabs
+      marked) + "Add Companion" → management page; Back closes the sheet.
+- [x] +6 unit pins per variant. Full suite: 724/0.
+- [ ] Device gate §20 (§17–§19 regressions included).

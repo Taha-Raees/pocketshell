@@ -90,7 +90,24 @@ object CompanionValidation {
  * Midnight card with the real detail + the installed WebView version and
  * a Retry action. Pure state + text — unit-pinned, no WebView fakes.
  */
-enum class CompanionFailureKind { LOAD_ERROR, RENDERER_GONE }
+enum class CompanionFailureKind { LOAD_ERROR, RENDERER_GONE, RENDER_STALLED }
+
+fun failureTitle(kind: CompanionFailureKind): String = when (kind) {
+    CompanionFailureKind.LOAD_ERROR -> "Page didn't load"
+    CompanionFailureKind.RENDERER_GONE -> "Page renderer crashed"
+    CompanionFailureKind.RENDER_STALLED -> "Page never rendered"
+}
+
+fun failureHint(kind: CompanionFailureKind): String = when (kind) {
+    CompanionFailureKind.LOAD_ERROR ->
+        "Check the network/VPN for this site — or update Android System WebView — then retry."
+    CompanionFailureKind.RENDERER_GONE ->
+        "This WebView build looks broken on this device. Update or roll it back, then retry."
+    CompanionFailureKind.RENDER_STALLED ->
+        "The page started loading but never drew anything — this WebView build " +
+            "may be too old or broken. Update Android System WebView, then retry; " +
+            "retry also switches the canvas to a compatibility rendering mode."
+}
 
 data class CompanionFailure(
     val kind: CompanionFailureKind,
@@ -98,10 +115,7 @@ data class CompanionFailure(
     val webViewVersion: String? = null,
 ) {
     val title: String
-        get() = when (kind) {
-            CompanionFailureKind.LOAD_ERROR -> "Page didn't load"
-            CompanionFailureKind.RENDERER_GONE -> "Page renderer crashed"
-        }
+        get() = failureTitle(kind)
 
     val body: String
         get() = listOfNotNull(
@@ -110,12 +124,7 @@ data class CompanionFailure(
         ).joinToString(" · ")
 
     val hint: String
-        get() = when (kind) {
-            CompanionFailureKind.LOAD_ERROR ->
-                "Check the network/VPN for this site — or update Android System WebView — then retry."
-            CompanionFailureKind.RENDERER_GONE ->
-                "This WebView build looks broken on this device. Update or roll it back, then retry."
-        }
+        get() = failureHint(kind)
 }
 
 /**
