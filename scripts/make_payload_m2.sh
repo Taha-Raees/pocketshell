@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.6
+VERSION=v0.7.0-m4.0.7
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,49 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.5) — THE LAST DARK LEVER OFF, THE
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.6) — THE HEALTH SHEET CRACKED IT: THE
+COMPAT RENDERER NEVER REACHED THE SCREEN, AND THE CREATION RECIPE WAS THE
+REGRESSION (still the one job; build numbered "4.0.7" per the naming rule):
+  - WHAT THE REPORT PROVED: your five Page-health screenshots finally
+    separated the suspects. The page is FULLY ALIVE — chat.com answered
+    readyState=complete · 761 elements · 62 interactive · 394 text chars
+    with ZERO boot errors — while pixels were "never painted" on GPU and
+    "unknown" forever on the compatibility renderer. A hydrated app with
+    zero presented frames is a PRESENTATION failure, and two long-hidden
+    code bugs fell out of that fact.
+  - ROOT CAUSE 1 — THE COMPAT RENDERER WAS NEVER ON SCREEN: AndroidView
+    runs its factory exactly once per composed node, so every silently
+    swapped WebView (the first-stall compat swap, the boot retry, AND
+    plain TAB SWITCHING) never attached. On your device: the old view —
+    destroyed on the first stall — stayed attached as the dead black
+    canvas, while the fresh software-mode view sat stranded in the pool
+    loading a perfect DOM it never displayed (that is why pixels read
+    "unknown" forever). The host is now keyed on the view instance:
+    every swap reaches the screen, and software mode gets its first REAL
+    test. Tab switching also stops showing a stale page.
+  - ROOT CAUSE 2 — THE CREATION RECIPE WAS THE REGRESSION: the forced-
+    light createConfigurationContext (m4.0.5/m4.0.6) chased a dark-CSS
+    theory your DOM evidence REFUTES, and the regression line is exact —
+    m4.0.4 (plain activity context) still painted the cookie banner;
+    m4.0.5/6 (config context) painted NOTHING. Creation is rolled back
+    to the m4.0.4 recipe (activity context, no darkening levers); the
+    Chrome-like UA stays (Google login fix, orthogonal to painting).
+  - GLASS-FIRST PIXEL PROBE: the probe now asks PixelCopy — the frame as
+    PRESENTED, cropped to the keyboard-free top half of the canvas —
+    FIRST; the software readback is only the fallback. A hung copy times
+    out after 1.5 s instead of hanging "unknown" forever; a throwing
+    fallback never manufactures a stall.
+  - ATTACH KICK: the pool loads URLs before the view attaches; some
+    Chromium builds never bind the frame sink for such loads (DOM alive,
+    pixels never present — your exact signature). If nothing painted
+    3.5 s after first layout, ONE silent reload rebinds the load to the
+    live surface. Once per view, never a card.
+  - +1 unit pin (glass region arithmetic). Full suite green: 764
+    executions, 0 failures.
+  - versionCode 31 / 0.7.0-m4.0.7 — in-place update over 16..30; same
+    pinned cert. Device gate: docs/TESTING.md §24.
+
+WHAT WAS NEW IN v0.7.0-m4.0.6 (vs v0.7.0-m4.0.5) — THE LAST DARK LEVER OFF, THE
 WITNESS DE-FOOLED, AND THE PAGE CAN NOW TELL US EVERYTHING (still the one
 job; build numbered "4.0.6" per the standing naming rule):
   - WHAT THE SILENT BLACK PROVED: under 4.0.5 the canvas stayed black

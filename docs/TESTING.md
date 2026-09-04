@@ -1155,3 +1155,54 @@ the chat no matter what the canvas does.
 - [ ] §21/§20 spot-checks: keyboard toggle one spot/one shape; deck
       types into Companions; first-stall silent software retry intact.
 - [ ] §17/§18: drag 1:1, login persistence, startup OK.
+
+## 24. Manual acceptance — m4.0.7 (the health sheet's verdict decoded: swap-safe host + creation rollback + glass-first probe + attach kick, v0.7.0-m4.0.7) — DEVICE GATE PENDING
+
+Still the one job. The m4.0.6 health sheet's Copy report answered the
+decisive question: the page is FULLY alive (761 elements · 62 interactive
+· 394 text chars · zero boot errors) while pixels never present. That is
+a presentation failure, and this build fixes its two proven code causes:
+(1) AndroidView's factory never re-ran, so every silently swapped WebView
+(compat retry, boot retry, TAB SWITCH) never reached the screen — the
+compatibility renderer had literally never been tested on the device;
+(2) the forced-light createConfigurationContext creation recipe was the
+painting regression (m4.0.4's plain activity context painted partially;
+m4.0.6's recipe painted nothing).
+
+### 24.1 The main event: does the tab render now?
+- [ ] Install vc31 in place (over vc30); app data must survive
+      (logins, tabs, panel height).
+- [ ] Open the ChatGPT Companion. EXPECT the real page within a few
+      seconds — theme now follows the device (dark Midnight device is
+      fine; the light-forcing experiment is REVERTED). Content visible
+      and interactive: composer, sidebar, text.
+- [ ] The attach kick is silent: at most ONE extra load in the first
+      seconds if the first frame was slow — never a card, never a flash.
+- [ ] Let the tab run 30+ seconds: the "Page never rendered" card must
+      NOT appear while the page is actually visible.
+
+### 24.2 Tab switching (the latent bug this build also fixes)
+- [ ] Open a second Companion (Zai). Switch ChatGPT ⇄ Zai several times.
+      EXPECT: the tab STRIP and the CANVAS always agree — the shown page
+      is always the selected tab's, with its scroll/login state intact.
+- [ ] If a tab ever stalls, the canvas must go to the honest card —
+      never to a black void.
+
+### 24.3 The compat renderer — first REAL device test
+- [ ] Page health → Reload in compatibility mode. EXPECT the tab to
+      RE-CREATE and the page to appear ON SCREEN (previously the compat
+      view loaded invisibly and the screen stayed black until the card).
+      If the page renders in compat mode, the GPU raster path is the
+      device's culprit — say so in the chat; we then consider defaulting
+      to software for this device class.
+- [ ] Page health afterwards: pixels must read "painted" (glass probe)
+      within ~20 s, never "unknown" forever.
+
+### 24.4 Regression
+- [ ] §23.2: the Page health sheet still works (Copy report / Refresh /
+      Reload / Reload-in-compat).
+- [ ] §21/§20 spot-checks: keyboard toggle one spot/one shape; deck
+      types into Companions AND terminal; first-stall silent software
+      retry intact (card only after BOTH modes stall).
+- [ ] §17/§18: drag 1:1 with frozen reflow, login persistence across
+      restart, startup never touches android.webkit.

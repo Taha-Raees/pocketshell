@@ -5,10 +5,8 @@ import android.app.DownloadManager
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
@@ -28,6 +26,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.core.view.doOnLayout
 import app.pocketshell.keyboard.KeyboardInputRouter
 
 /**
@@ -89,6 +88,9 @@ object CompanionWebPool {
         var lastPainted: Boolean? = null
         var renderer: String = "GPU"
         var userAgent: String? = null
+
+        /** m4.0.7 — the attach kick is a once-per-view remedy. */
+        var attachKickDone: Boolean = false
     }
 
     private var appContext: Context? = null
@@ -447,21 +449,23 @@ object CompanionWebPool {
     @SuppressLint("SetJavaScriptEnabled")
     @Suppress("DEPRECATION")
     private fun createWebView(context: Context, defId: String, compatRender: Boolean): WebView {
-        // m4.0.6 — the LAST dark-theme lever, and the one m4.0.5 left armed:
-        // Force Dark off stops the FRAMEWORK from inverting the page, but the
-        // WebView still ANSWERS prefers-color-scheme: dark (it reads the
-        // ambient uiMode — this app is Midnight everywhere), so sites serve
-        // their native dark CSS. A dark shell whose app never hydrates is a
-        // black canvas — the exact device state. The view is therefore
-        // created in a FORCED-LIGHT configuration: the site always sees
-        // prefers-color-scheme: light and renders as authored for daylight.
-        // The context is derived FROM the activity context (m4.0.3's lesson:
-        // the application context breeds blank-canvas WebViews on OEM
-        // builds), so the activity association is preserved.
-        val lightConf = Configuration(context.resources.configuration)
-        lightConf.uiMode = (lightConf.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
-            Configuration.UI_MODE_NIGHT_NO
-        val webView = WebView(context.createConfigurationContext(lightConf))
+        // m4.0.7 — CREATION RECIPE ROLLBACK, evidence-driven (device
+        // 2026-09-05, the health sheet's testimony): the page loads COMPLETE
+        // under every recipe — chatgpt.com answered 761 DOM elements, 62
+        // interactive controls and 394 visible text chars with ZERO boot
+        // errors — so the m4.0.5/m4.0.6 dark-theme theories were solving a
+        // non-problem, and the ONLY observable effect of their levers was
+        // NEGATIVE: m4.0.4 (plain activity context, no darkening calls)
+        // could still paint a partial frame; m4.0.6 (forced-light
+        // createConfigurationContext + setAlgorithmicDarkeningAllowed off)
+        // painted NOTHING. A configuration context is also NOT an Activity:
+        // it silently broke the glass probe's activity lookup on top.
+        // The view is therefore created exactly the m4.0.4 way — the best
+        // presentation state this device has demonstrated — with the one
+        // m4.0.5 change that is provably orthogonal to painting kept (the
+        // Chrome-like UA; Google login answers disallowed_useragent to
+        // the "; wv" marker outright).
+        val webView = WebView(context)
         // Midnight canvas — no white load flash; ALSO the probe's reference
         // color: a canvas uniformly in this exact value never drew a pixel.
         webView.setBackgroundColor(RenderProbe.WEBVIEW_BACKGROUND)
@@ -470,7 +474,10 @@ object CompanionWebPool {
         if (compatRender) {
             // m4.0.3 Retry escape hatch: GPU rasterization inside a broken
             // WebView build can silently paint nothing; software rendering
-            // is the honest second attempt.
+            // is the honest second attempt. m4.0.7 note: this path never
+            // actually ran on the device until now — the swap into the
+            // hierarchy silently failed (see CompanionWebHost's keyed host);
+            // with the swap fixed, compat mode gets its first real test.
             webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
         // m4.0.3: whichever surface the user taps last owns the shared deck.
@@ -486,23 +493,10 @@ object CompanionWebPool {
             mediaPlaybackRequiresUserGesture = true
             useWideViewPort = true
             loadWithOverviewMode = true
-            // m4.0.5 — the black-canvas fix, layer 2 of 3: WebView Force
-            // Dark is ACTIVE by default for legacy-target apps (targetSdk 28)
-            // in dark mode, and its algorithmic darkening is a documented
-            // mangler of exactly this state — site shell paints dark, real
-            // content never becomes usable. The site renders as authored.
-            // (Layer 1: the theme flag; layer 3: this tiered runtime call —
-            // API 33+ replaced Force Dark with algorithmic darkening, whose
-            // runtime lever is setAlgorithmicDarkeningAllowed.)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                setAlgorithmicDarkeningAllowed(false)
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                forceDark = WebSettings.FORCE_DARK_OFF
-            }
-            // m4.0.5 — layer 4: present this device's exact Chrome-mobile
-            // UA. Google login answers disallowed_useragent to the "; wv"
-            // marker outright, and bot-fronted sites quietly serve degraded
-            // or challenged bundles to embedded clients.
+            // m4.0.5 — present this device's exact Chrome-mobile UA. Google
+            // login answers disallowed_useragent to the "; wv" marker
+            // outright, and bot-fronted sites quietly serve degraded or
+            // challenged bundles to embedded clients.
             val chromeUa = WebCompat.chromeLikeUserAgent(userAgentString)
             if (chromeUa.isNotBlank()) userAgentString = chromeUa
         }
@@ -510,6 +504,40 @@ object CompanionWebPool {
         webView.webViewClient = client(defId)
         webView.webChromeClient = chromeClient(defId)
         return webView
+    }
+
+    /**
+     * m4.0.7 — the ATTACH KICK. The pool loads every URL the moment the
+     * WebView is acquired — BEFORE the view is attached to a window and
+     * laid out (the host composable attaches it one composition later).
+     * A load that begins with no live surface can leave the compositor's
+     * frame sink unbound on some Chromium builds: DOM/JS/input all work,
+     * pixels never present — the exact device signature. When the host
+     * attaches a view and it STILL has not painted [KICK_DELAY_MS] after
+     * its first layout, one silent [WebView.reload] re-runs the load on a
+     * live, laid-out, attached surface — the documented rebind remedy.
+     * Once per view, only while the render watchdog is still armed (the
+     * moment pixels paint the probe stands down and the kick is a no-op).
+     * Called from the host's AndroidView factory; main thread.
+     */
+    fun onHostAttached(defId: String, view: WebView) {
+        val entry = pool[defId] ?: return
+        if (entry.webView !== view) return
+        if (entry.attachKickDone) return
+        entry.attachKickDone = true
+        try {
+            view.doOnLayout {
+                watchdogHandler.postDelayed({
+                    if (pool[defId]?.webView !== view) return@postDelayed
+                    if (!renderStallArmed.contains(defId)) return@postDelayed
+                    try {
+                        view.reload()
+                    } catch (_: Throwable) {
+                    }
+                }, KICK_DELAY_MS)
+            }
+        } catch (_: Throwable) {
+        }
     }
 
     /**
@@ -781,4 +809,8 @@ object CompanionWebPool {
      *  testimony. Generous on purpose: a slow carrier must not be told its
      *  page is broken while it is merely still loading. */
     internal const val MAX_BOOT_PROBES = 8
+
+    /** m4.0.7: the attach-kick delay — one layout + one probe cycle worth
+     *  of patience before the silent surface-rebind reload fires. */
+    internal const val KICK_DELAY_MS = 3_500L
 }

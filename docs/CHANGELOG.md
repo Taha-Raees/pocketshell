@@ -3,6 +3,77 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.7] — 2026-09-05 — The health sheet cracked it: the compat renderer never reached the screen, and the creation recipe was the regression (still the one job)
+
+Scope: still exactly one job. The user shipped the m4.0.6 health sheet's
+"Copy report" testimony back — five screenshots (`Screenshot_20260905_
+0026*–0028*`) that finally separate the suspects. The verdict inside
+them: **the page is fully alive** (chat.com: `readyState=complete · 761
+elements · 62 interactive · 394 text chars`, boot errors NONE, console
+empty; chat.z.ai: 240 elements, the site's own JS logging normally) —
+and yet `pixels: never painted` on GPU, `pixels: unknown` forever on the
+compatibility renderer, ending in the "Page never rendered" card. A
+hydrated app with zero presented frames is a PRESENTATION failure — and
+two long-hidden code bugs fell out of that fact.
+
+### Root cause 1 — the compatibility renderer was NEVER on screen (AndroidView factory bug)
+- `AndroidView(factory = { webView })` runs its factory exactly ONCE per
+  composed node. Every silent swap path — the first-stall compat swap
+  (`forgetTab` + re-seed, no card), the boot-retry reload, and plain TAB
+  SWITCHING (`defId` change → `remember` acquires a different view) —
+  swapped the WebView INSTANCE while the host stayed composed. The new
+  view never attached.
+- On the device this was the whole show: after the first stall the OLD
+  (destroyed) view stayed attached — the dead black canvas — while the
+  fresh SOFTWARE view sat stranded in the pool loading a perfect DOM it
+  never displayed; its probes idled to "unknown" and the honest card's
+  claim "already retried it on the compatibility renderer" was FALSE.
+- Fix: the host is now `key(webView) { AndroidView(...) }` — any instance
+  change re-creates the node, the factory re-runs, and the CURRENT view
+  is THE attached view. This also fixes latent wrong-page display on tab
+  switching and lets software mode get its first REAL device test.
+
+### Root cause 2 — the m4.0.5/m4.0.6 creation recipe was the painting regression
+- Since m4.0.5 the WebView was created from a forced-light
+  `createConfigurationContext` (plus `setAlgorithmicDarkeningAllowed(false)`)
+  — chasing the dark-CSS theory the DOM evidence now REFUTES (a fully
+  hydrated page was present all along; nothing presented it).
+- The regression line is exact: m4.0.4 (plain ACTIVITY context, no
+  darkening calls) still painted a partial frame (the cookie banner);
+  m4.0.5/m4.0.6 (config context + levers) painted NOTHING. A
+  configuration context is also not an Activity — it silently broke the
+  glass probe's `(context as? Activity)` lookup on top.
+- Fix: creation rolled back to the m4.0.4 recipe — `WebView(activityContext)`,
+  no darkening levers. Kept: the Chrome-like UA (orthogonal to painting;
+  Google login's `disallowed_useragent` fix) and the Midnight flash-guard
+  background.
+
+### Fix 3 — the pixel probe now judges the GLASS first
+- The old verdict order (software readback first) is unsound on modern
+  composited Chromium: `view.draw(softwareCanvas)` may legitimately
+  answer with only the background color EVEN WHEN THE SCREEN SHOWS
+  CONTENT. The probe now asks [PixelCopy] — the presented window, cropped
+  to the view's keyboard-free top half (`glassRegionRows`, 50%) — FIRST;
+  the software readback is only the fallback when the glass is unreadable.
+- A hung PixelCopy (the device's compat-mode "unknown forever") now times
+  out after 1.5 s into the fallback instead of leaving the chain
+  verdict-less; a THROWING fallback resolves "painted" — a broken probe
+  may never manufacture a stall.
+
+### Fix 4 — the attach kick (surface rebind)
+- The pool loads every URL before the view is attached; a load begun with
+  no live surface can leave the compositor's frame sink unbound on some
+  Chromium builds (DOM/JS/input alive, pixels never present — the exact
+  device signature). Once per view, if the render watchdog is STILL armed
+  3.5 s after first layout, one silent `reload()` re-runs the load on a
+  live, attached, laid-out surface.
+
+### Tests & delivery
+- +1 pin (glass region arithmetic); full suite green: 764 executions,
+  0 failures. Existing m4.0.4/m4.0.5/m4.0.6 pins untouched.
+- versionCode 31 / 0.7.0-m4.0.7 — in-place update over 16..30; same
+  pinned cert. Device gate: docs/TESTING.md §24.
+
 ## [0.7.0-m4.0.6] — 2026-09-05 — The last dark lever off, the witness de-fooled, and the page can now TELL us everything (still the one job)
 
 Scope: still exactly one job. m4.0.5 shipped a root fix (Force Dark off,

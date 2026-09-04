@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -489,12 +490,32 @@ private fun CompanionWebHost(
         else Box(Modifier.fillMaxSize())
         return
     }
-    AndroidView(
-        factory = { webView },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(with(LocalDensity.current) { webHeightPx.toDp() }),
-    )
+    // m4.0.7 — THE SWAP-SAFE HOST. AndroidView runs its factory exactly
+    // ONCE per composed node — and this host stays composed across every
+    // silent retry (the first-stall compat swap, the boot-retry reload;
+    // both forgetTab + re-seed WITHOUT showing a failure card) and across
+    // plain TAB SWITCHING (defId changes → remember acquires a DIFFERENT
+    // view). All of those swaps previously never reached the screen: the
+    // old — on the first stall, DESTROYED — view stayed attached (the
+    // device's dead black canvas), the fresh view sat stranded in the pool
+    // loading a perfect DOM that was never shown, its probes idled to
+    // "unknown" and the honest card lied about "compatibility stalled".
+    // key(webView) re-creates the node whenever the instance changes, so
+    // the factory re-runs and the CURRENT view is THE attached view — for
+    // every swap, every retry, every tab.
+    key(webView) {
+        AndroidView(
+            factory = {
+                // m4.0.7: the attach kick — one silent surface-rebind reload
+                // if the compositor still hasn't presented after attach.
+                CompanionWebPool.onHostAttached(defId, webView)
+                webView
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(with(LocalDensity.current) { webHeightPx.toDp() }),
+        )
+    }
 }
 
 /**

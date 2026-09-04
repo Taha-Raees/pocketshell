@@ -1,4 +1,4 @@
-const VERSION = "v0.7.0-m4.0.6";
+const VERSION = "v0.7.0-m4.0.7";
 
 const HASHES = {
   apk: "5934b41635c06f90c2b2a604215484e3e613050c916ac0849cc6f827d1c54273",
@@ -25,76 +25,77 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          The last dark lever off, the witness de-fooled — and the page can
-          now TELL us everything{" "}
-          <span className="badge">versionCode 30</span>
+          The health sheet cracked it: the compat renderer never reached the
+          screen — and the creation recipe was the regression{" "}
+          <span className="badge">versionCode 31</span>
         </h2>
         <p>
-          <b>4.0.5 stayed black with NO error — and that was the clue.</b> Both
-          safety witnesses stood down: the pixel probe passed because the page
-          painted its own near-black body, and the DOM witness passed because
-          chatgpt.com&apos;s server-rendered shell lands with hundreds of
-          inert nodes <i>before</i> its app hydrates — instantly clearing the
-          60-element &quot;mounted&quot; floor even with a dead script bundle.
-          One dark lever was also still armed: Force-Dark-off stops the
-          framework from inverting pages, but the WebView still{" "}
-          <b>answered</b> <code>prefers-color-scheme: dark</code> (it reads the
-          app&apos;s uiMode — and this app is Midnight everywhere), so sites
-          kept serving dark CSS. This build closes all three holes:
+          <b>Your Copy report answered the question.</b> The health sheet
+          showed the page is <b>fully alive</b> — chat.com answered{" "}
+          <code>readyState=complete · 761 elements · 62 interactive · 394
+          text chars</code> with <b>zero boot errors</b> — while pixels read{" "}
+          <i>“never painted”</i> on GPU and <i>“unknown”</i> forever on the
+          compatibility renderer. A hydrated app with zero presented frames
+          is a <b>presentation</b> failure — and it exposed two real bugs:
         </p>
         <ul className="steps">
           <li>
-            <b>Forced-light scheme:</b> the WebView is now created inside a
-            configuration context pinned to <b>light mode</b>, so every site
-            sees <code>prefers-color-scheme: light</code> and renders as
-            authored for daylight. ChatGPT serves its light theme — the
-            black-shell path is gone at the source. (Direction confirmed by
-            web research: WebView derives prefers-color-scheme from the
-            app&apos;s uiMode.)
+            <b>The compatibility renderer was never on screen:</b> AndroidView
+            runs its factory exactly once per composed node, so every
+            silently swapped WebView — the first-stall compat swap, the boot
+            retry, and <b>plain tab switching</b> — never attached. On your
+            device the old view (destroyed on the first stall) stayed
+            attached as the dead black canvas while the fresh software-mode
+            view sat stranded in the pool loading a perfect DOM it never
+            displayed — that is why pixels read “unknown” forever. The host
+            is now <b>keyed on the view instance</b>: every swap reaches the
+            screen, software mode gets its first real test, and tab switching
+            stops showing a stale page.
           </li>
           <li>
-            <b>SSR-proof witness:</b> a captured boot error is now decisive —
-            an erroring page only counts as alive when it also shows real
-            visible text. A SyntaxError-dead shell with 800 inert nodes now
-            gets the honest <b>&quot;Page won&apos;t start&quot;</b> card WITH
-            the error, instead of silently passing. The probe also reads
-            interactive-element and text counts for sharper testimony.
+            <b>The creation recipe was the painting regression:</b> the
+            forced-light configuration context (m4.0.5/6) chased a dark-CSS
+            theory your DOM evidence refutes — and the regression line is
+            exact: m4.0.4 (plain activity context) still painted the cookie
+            banner; m4.0.5/6 (config context) painted nothing. Creation is
+            rolled back to the proven recipe (activity context, no darkening
+            levers); the Chrome-like UA stays (the Google login fix).
           </li>
           <li>
-            <b>Page health, always one tap away:</b> the tab strip has a new{" "}
-            <b>ⓘ chip</b>. It opens a Midnight sheet with the active tab&apos;s
-            FULL LIVE TESTIMONY — url, WebView version, renderer (GPU/
-            SOFTWARE), pixel verdict, readyState, DOM/interactive/text counts,
-            boot errors, the last console lines, and the exact user-agent.
+            <b>Glass-first pixel probe:</b> the probe now asks PixelCopy —
+            the frame as PRESENTED, cropped to the keyboard-free top half of
+            the canvas — first; the software readback is only the fallback.
+            A hung copy times out after 1.5 s instead of hanging “unknown”
+            forever; a throwing fallback never manufactures a stall.
           </li>
           <li>
-            <b>Copy report — the guess loop is over:</b> if ANYTHING is ever
-            still broken: <b>Page health → Copy report → paste it in the
-            chat</b>. The device names the cause verbatim (a SyntaxError from
-            an old WebView build, a bot-challenge page, zero pixels = a
-            compositor stall…). Plus <b>Refresh</b>, <b>Reload</b>, and{" "}
-            <b>Reload in compatibility mode</b> as standing escapes.
+            <b>Attach kick:</b> the pool loads URLs before the view attaches;
+            some Chromium builds never bind the frame sink for such loads
+            (DOM alive, pixels never present — your exact signature). If
+            nothing painted 3.5 s after first layout, ONE silent reload
+            rebinds the load to the live surface. Once per view, never a
+            card.
           </li>
           <li>
             <b>Nothing else changed:</b> data, logins, tabs and heights
-            survive the in-place update. Full suite green: <b>762 executions
-            / 0 failures</b> (8 new pins: SSR-defeats-floor verdict,
-            interactive parsing, health-report composition).
+            survive the in-place update. Full suite green: <b>764 executions
+            / 0 failures</b> (+1 glass-region pin; all earlier pins intact).
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m4.0.6-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m4.0.7-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.6)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.7)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 30 installs <b>in place over v0.7.0-m4.0.5 (29),
+          versionCode 31 installs <b>in place over v0.7.0-m4.0.6 (30),
+          v0.7.0-m4.0.5 (29),
           v0.7.0-m4.0.4 (28), v0.7.0-m4.0.3 (27), v0.7.0-m4.0.2 (26),
           v0.7.0-m4.0.1 (25), v0.7.0-m4.0 (24) and every earlier
           pinned-cert build</b>. Your Alpine runtime, installed packages,
@@ -146,47 +147,51 @@ export default function Home() {
             testimony.
           </li>
           <li>
-            <b>v0.7.0-m4.0.6 (this build):</b> the last dark lever off
-            (forced-light prefers-color-scheme), the SSR-proof boot witness,
-            and the standing <b>Page health</b> sheet with a one-tap{" "}
-            <b>Copy report</b> — the device can now hand over the exact cause
-            of any failure, verbatim.
+            m4.0.6: the SSR-proof boot witness and the standing{" "}
+            <b>Page health</b> sheet with a one-tap <b>Copy report</b> —
+            your report is what cracked the case this build fixes.
+          </li>
+          <li>
+            <b>v0.7.0-m4.0.7 (this build):</b> the health sheet&apos;s verdict
+            decoded — the swap-safe WebView host (the compat renderer and
+            tab switches finally reach the screen), the creation-recipe
+            rollback to the proven activity context, the glass-first pixel
+            probe with a 1.5 s timeout, and the once-per-view attach kick.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §23 — the m4.0.6 device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §24 — the m4.0.7 device gate)</h2>
         <ol className="steps">
           <li>
             Install {VERSION} in place → open the previously-black Companion
-            tab. EXPECT the real page — most likely in its <b>light</b> theme
-            now (white background): &quot;What can I help with?&quot; /
-            composer / sidebar, all interactive. A dead shell is a failure of
-            this gate.
+            tab. EXPECT the real page within a few seconds (theme now follows
+            the device — the light-forcing experiment is reverted): composer,
+            sidebar, text, all interactive. The &quot;Page never
+            rendered&quot; card must NOT appear while the page is visible.
           </li>
           <li>
-            If the page STILL misbehaves: tap the <b>ⓘ chip</b> at the right
-            end of the tab strip → <b>Copy report</b> → <b>paste the report
-            into the chat</b>. That single paste names the exact cause and
-            ends the guess loop permanently.
+            <b>Tab switching</b> (the latent bug this build fixes): switch
+            ChatGPT ⇄ Zai several times — the canvas must always show the
+            selected tab&apos;s page, with its scroll/login state intact.
           </li>
           <li>
-            Also try <b>Reload in compatibility mode</b> once (the software
-            renderer) and note whether the page then renders.
+            <b>Compat mode — its first real test:</b> Page health → Reload in
+            compatibility mode. The tab must RE-CREATE on screen (never load
+            invisibly again). If the page renders in compat mode, say so —
+            the GPU raster path is then the confirmed culprit.
           </li>
           <li>
-            A page that refuses to start now escalates to the honest card
-            EVEN when its server-rendered shell is huge — if you see
-            &quot;Page won&apos;t start&quot;, the detail line carries the
-            page&apos;s own numbers (readyState · elements · interactive ·
-            text · error). Report it verbatim.
+            If anything is still broken: <b>Page health → Copy report →
+            paste in the chat</b> — pixels should read &quot;painted&quot;
+            (glass probe) within ~20 s, never &quot;unknown&quot; forever.
           </li>
           <li>
-            Regressions: §22 (Force-Dark-off rendering, Chrome-UA logins),
-            §21 (keyboard toggle one spot/one shape), §20 (deck types into
-            Companion AND terminal), §18 startup, §17 spot-checks (drag 1:1,
-            tabs, upload, Back, login persistence).
+            Regressions: §23.2 (health sheet), §21 (keyboard toggle one
+            spot/one shape), §20 (deck types into Companion AND terminal),
+            §18 startup, §17 spot-checks (drag 1:1, tabs, upload, Back,
+            login persistence).
           </li>
         </ol>
       </div>
@@ -200,10 +205,10 @@ export default function Home() {
           procfs contract, and the Phase 4 Companion design contract with
           the §22/§23/§24 amendments.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.6-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.7-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.6-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.7-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -228,8 +233,10 @@ export default function Home() {
         procfs contract · m4.0 Phase 4 Companion · m4.0.1 startup hotfix ·
         m4.0.2 honest failure surfaces · m4.0.3 one keyboard for everything ·
         m4.0.4 pixels over promises · m4.0.5 the black page attacked at the
-        root · <b>v0.7.0-m4.0.6 (this build): the last dark lever off, the
-        witness de-fooled, and Copy report — the page tells us everything</b>.
+        root · m4.0.6 the page tells us everything ·{" "}
+        <b>v0.7.0-m4.0.7 (this build): the health sheet cracked it — the
+        compat renderer finally reaches the screen, creation rolled back,
+        glass-first probe, attach kick</b>.
         Your device keeps doing the QA that matters.
       </footer>
     </main>

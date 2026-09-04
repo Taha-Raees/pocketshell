@@ -471,3 +471,36 @@ remote development.
 - [x] +8 unit pins/variant. Full suite: 762 executions / 0 failures.
 - [x] versionCode 30.
 - [ ] Device gate §23 (§17–§22 regressions included).
+
+### Phase 4.0.7 (2026-09-05, v0.7.0-m4.0.7) — The health sheet cracked it: the compat renderer never reached the screen, and the creation recipe was the regression
+- [x] The m4.0.6 health sheet's Copy report returned the decisive
+      evidence (5 screenshots): the page is FULLY alive — chat.com
+      `readyState=complete · 761 elements · 62 interactive · 394 text
+      chars`, zero boot errors — while pixels read "never painted" (GPU)
+      and "unknown" forever (compat). A hydrated app with zero presented
+      frames is a PRESENTATION failure; the dark-CSS theories are refuted.
+- [x] ROOT CAUSE 1 fixed (swap-safe host): `AndroidView(factory = …)`
+      runs once per node — the silent first-stall compat swap, the boot
+      retry, and plain TAB SWITCHING swapped the WebView instance without
+      ever attaching it (the device showed a DESTROYED view; the fresh
+      SOFTWARE view loaded invisibly; the "compat stalled" card was
+      false). The host is now `key(webView) { AndroidView(...) }`.
+- [x] ROOT CAUSE 2 fixed (creation rollback): the forced-light
+      `createConfigurationContext` + darkening levers were the painting
+      regression (m4.0.4's plain activity context painted partially;
+      m4.0.5/6's recipe painted nothing, and broke the glass probe's
+      Activity lookup). WebView creation restored to the m4.0.4 recipe;
+      the Chrome-like UA stays.
+- [x] Glass-first pixel probe: PixelCopy (presented window, cropped to
+      the keyboard-free top half — `glassRegionRows`) is now the primary
+      verdict; software readback only as fallback; 1.5 s timeout ends the
+      "unknown forever" hang; a throwing fallback resolves "painted"
+      (a broken probe never manufactures a stall).
+- [x] Attach kick: once per view, one silent `reload()` 3.5 s after
+      first layout if the render watchdog is still armed — rebinds the
+      load to the live surface (frame-sink remedy for load-before-attach).
+- [x] +1 unit pin (glass region). Full suite: 764 executions / 0
+      failures.
+- [x] versionCode 31.
+- [ ] Device gate §24 (tab switching, first REAL compat test, health
+      sheet, §17–§23 regressions).

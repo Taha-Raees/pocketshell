@@ -309,6 +309,25 @@ class CompanionTest {
         assertEquals(99, RenderProbe.mainRegionRows(132))
     }
 
+    @Test
+    fun `render probe - glass verdict samples the keyboard-free top half`() {
+        // m4.0.7: the glass probe reads the PRESENTED surface, where the
+        // system keyboard may dock over the canvas's lower part — its
+        // Midnight pixels must never vouch for the page. The judged region
+        // is the top half: keyboard-free whenever the sheet is raised, and
+        // a working page always paints there.
+        assertEquals(48, RenderProbe.glassRegionRows(96))
+        assertEquals(50, RenderProbe.glassRegionRows(100))
+        assertEquals(50, RenderProbe.glassRegionRows(101))
+        // Degenerate samples still judge at least one row — never zero.
+        assertEquals(1, RenderProbe.glassRegionRows(1))
+        assertEquals(1, RenderProbe.glassRegionRows(2))
+        assertEquals(1, RenderProbe.glassRegionRows(3))
+        // And the glass region is never LARGER than the main region it
+        // refines (the banner dock stays excluded in the fallback path).
+        assertTrue(RenderProbe.glassRegionRows(200) <= RenderProbe.mainRegionRows(200))
+    }
+
     // ---- embedded-webview compat (m4.0.5) -----------------------------------
 
     @Test
