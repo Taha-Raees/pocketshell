@@ -1,39 +1,39 @@
 # download/ — delivery masters
 
-Current: v0.7.0-m4.0.3 (payload cut at git tip c7bc60e; the device bug
-batch — keyboard everywhere, keyboard pushes everything up, dead "-"
-fixed, honest render-stall card, "+" Companion picker — versionCode 27)
-- PocketShell-v0.7.0-m4.0.3-debug.apk  sha256 b456160e678b1883ace401903904dd99206e6f4dadfc2241a7b8d671223ce431
-  Installs IN PLACE over v0.7.0-m4.0.2 (26), m4.0.1 (25), m4.0 (24) and
-  every earlier build (vc16..vc23) — same pinned cert d96a6f66…8bf659.
-  App data (Alpine runtime, Kilo, Hermes, packages, Companion logins)
-  survives.
-  WHAT FIXED (from your m4.0.2 bug report, one by one):
-  1. KEYBOARD FOR COMPANIONS TOO: the deck now follows focus — tap the
-     Companion page, type: text lands in the page; tap the terminal,
-     type: text lands in the shell. No system keyboard while the deck
-     is up; deck off → system keyboard allowed for Companion inputs.
-  2. KEYBOARD PUSHES EVERYTHING UP: the deck is the bottom-most
-     surface; the Companion panel rides ABOVE it — nothing is ever
-     under the keyboard anymore.
-  3. TOGGLE = WHOLE KEYBOARD GONE → a small Midnight keyboard icon
-     floats at the bottom-right corner to bring it back anytime.
-  4. "-" (and the whole digit row) works on quick taps now — the
-     hold-gesture layer had swallowed short taps; holding still gives
-     F-keys. Arrow keys are 12dp longer horizontally.
-  5. WHITE CANVAS: WebViews now use the ACTIVITY context (blank-canvas
-     source on OEM builds), and a 15s watchdog turns "paints nothing"
-     into an honest "Page never rendered" card + WebView version.
-     Retry alternates GPU → SOFTWARE rendering (compatibility mode).
-  6. "+" opens a Midnight sheet listing every Companion (open tabs
-     marked); "Add Companion" goes to the management page.
-  · 724 tests green (0 failures; +6 new pins per variant).
-  Device gate: docs/TESTING.md §20. Full record: docs/CHANGELOG
-  [0.7.0-m4.0.3]; contract amendment: docs/PHASE-4-COMPANION-DESIGN §24.
-- PocketShell-v0.7.0-m4.0.3-source.zip sha256 0bcc2312ba0c02b3657c59af90b359dad20093fa03a3e2801b2db972a28d7ea5  (28 MB, 298 files)
-- PocketShell-v0.7.0-m4.0.3-source.tar.gz sha256 b1bdd622ae5661687804829fb900ab50b2d95e0ce1e225762953c7840600faa3  (28 MB)
-- pocketshell-m2.gitbundle           sha256 919c9bcf569f3d1d0244216d960c0f823196df910f2a53b758dcd1ad3755abdd  (full history; ~26 MB — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
+Current: v0.7.0-m4.0.4 (payload cut at git tip d4b19d9; the cookie-banner
+lesson — pixel-truth stall detection, silent software-retry, honest card
+with escape hatches, keyboard toggle in one spot/one shape — versionCode 28)
+- PocketShell-v0.7.0-m4.0.4-debug.apk  sha256 adbdcfe30fa99db486a671c813a1b0bc22f952527767a278bc4e1baa5d52333e
+  Installs IN PLACE over v0.7.0-m4.0.3 (27), m4.0.2 (26), m4.0.1 (25),
+  m4.0 (24) and every earlier build (vc16..vc23) — same pinned cert
+  d96a6f66…8bf659. App data (Alpine runtime, Kilo, Hermes, packages,
+  Companion logins) survives.
+  WHAT FIXED (from your post-m4.0.3 report):
+  1. BLACK PAGE: your cookie-banner screenshot cracked it — the site's
+     own consent bar painted on an otherwise dead canvas, which defeated
+     every event-based check. The watchdog now reads PIXELS (software +
+     glass readback), judges the MAIN region only (above the bottom 25%
+     consent-bar dock), silently retries once on the SOFTWARE renderer,
+     and only then shows the honest "Page never rendered" card with the
+     WebView version.
+  2. THREE WAYS OUT on that card: Retry (alternates GPU/SOFTWARE),
+     "Open in browser" (same address in your real browser — proves
+     whether it's the site or this device's WebView build), and
+     "Continue anyway" (raw canvas — you can tap the site's own Accept;
+     the probe stays quiet and never fights you).
+  3. KEYBOARD TOGGLE IN ONE PLACE: the [⌨] key now sits between Space
+     and Enter in the deck row — and toggled off, the SAME rectangular
+     key box parks at that same right-hand spot (round bubble gone).
+  4. COOKIE BANNER: it belongs to the WEBSITE (ChatGPT/OpenAI's), not
+     PocketShell. Accept/Reject once — the choice persists across
+     launches (cookies flush on every pause).
+  · Full suite green (0 failures; +2 new pins per variant).
+  Device gate: docs/TESTING.md §21. Full record: docs/CHANGELOG
+  [0.7.0-m4.0.4].
+- PocketShell-v0.7.0-m4.0.4-source.zip sha256 5facc45d377f0767db5f7afe8111638242a3df015f58d9d471ec2a58cbe6c54a  (28, 299 files)
+- PocketShell-v0.7.0-m4.0.4-source.tar.gz sha256 722695d7bdb3f85116b01b5488a3311452e20a769072c2160c6f72445cccb7e3  (28 MB)
+- pocketshell-m2.gitbundle           sha256 ff4b449e615e43738a4a273786e4b7bff2a794f7c121beb6b0ab287d8ed42246  (full history; ~26 — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, and docs/PHASE-4-COMPANION-DESIGN.md with the §22/§23/§24 amendments — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m4.0.2 superseded by m4.0.3; its records
+Older builds: withdrawn (v0.7.0-m4.0.3 superseded by m4.0.4; its records
 live in the bundle history — see docs/CHANGELOG for each confirmed fix).

@@ -1,10 +1,10 @@
-const VERSION = "v0.7.0-m4.0.3";
+const VERSION = "v0.7.0-m4.0.4";
 
 const HASHES = {
-  apk: "b456160e678b1883ace401903904dd99206e6f4dadfc2241a7b8d671223ce431",
-  zip: "0bcc2312ba0c02b3657c59af90b359dad20093fa03a3e2801b2db972a28d7ea5",
-  tgz: "b1bdd622ae5661687804829fb900ab50b2d95e0ce1e225762953c7840600faa3",
-  bundle: "919c9bcf569f3d1d0244216d960c0f823196df910f2a53b758dcd1ad3755abdd",
+  apk: "adbdcfe30fa99db486a671c813a1b0bc22f952527767a278bc4e1baa5d52333e",
+  zip: "5facc45d377f0767db5f7afe8111638242a3df015f58d9d471ec2a58cbe6c54a",
+  tgz: "722695d7bdb3f85116b01b5488a3311452e20a769072c2160c6f72445cccb7e3",
+  bundle: "ff4b449e615e43738a4a273786e4b7bff2a794f7c121beb6b0ab287d8ed42246",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,86 +25,92 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Your m4.0.2 bug list — every item fixed{" "}
-          <span className="badge">versionCode 27</span>
+          Your post-m4.0.3 report — and what your screenshot proved{" "}
+          <span className="badge">versionCode 28</span>
         </h2>
         <p>
-          <b>The keyboard now belongs to the whole app.</b> It types into
-          Companions, it pushes everything up instead of stacking on top of
-          anything, it collapses into a small corner icon when toggled off,
-          the dead <b>-</b> key works, the arrows are longer — and the
-          Companion white screen finally gets both an engine fix and an
-          honest explanation. The <b>+</b> button opens a real Companion
-          picker.
+          <b>The cookie banner cracked the black-page case.</b> That banner is
+          the SITE&apos;S OWN (ChatGPT/OpenAI&apos;s) — and it painted at the
+          bottom of an otherwise dead canvas. Translation: the page pipeline
+          fires faithfully on this device&apos;s WebView build while the main
+          content never rasterizes — which is exactly why every event-based
+          watchdog so far stood down. This build stops trusting events and
+          reads pixels. Plus: the keyboard toggle now lives in ONE place, in
+          ONE shape, in both states.
         </p>
         <ul className="steps">
           <li>
-            <b>Keyboard for Companions too:</b> deck presses follow focus.
-            Tap a text field in the Companion page and type — the characters
-            land in the page. Tap the terminal above and type — the shell
-            gets them again. While the deck is up, the system keyboard is
-            blocked (never two keyboards); toggle the deck off and Companion
-            inputs can still summon the system keyboard, with the panel
-            lifting above it.
+            <b>The watchdog reads pixels, not promises:</b> every couple of
+            seconds the canvas is probed twice — a software readback of the
+            WebView, and on modern Android a PixelCopy of the frame exactly as
+            it was PRESENTED. Only real page pixels stand the probe down. A
+            canvas whose main region is still the bare Midnight flash-guard
+            after ~15s IS a stall, whatever the page pipeline claims.
           </li>
           <li>
-            <b>Nothing hides under the keyboard:</b> the deck is now the
-            bottom-most surface. The Companion panel (handle + tabs + page)
-            rides ABOVE it — the keyboard never opens on top of anything.
+            <b>Partial paint is not content:</b> the cookie banner painted a
+            few pixels at the bottom of the dead canvas — an &quot;any
+            differing pixel&quot; check would call that healthy. The verdict
+            now samples the MAIN region only: everything above the bottom 25%
+            of the canvas, where sites dock consent bars. A banner can never
+            vouch for a dead page again.
           </li>
           <li>
-            <b>Toggle = full collapse:</b> the keyboard button now removes
-            the WHOLE deck; a small Midnight keyboard icon floats at the
-            bottom-right corner (above every layer) to bring it back
-            whenever you want.
+            <b>Silent first retry, honest second card:</b> the first detected
+            stall re-creates the tab on the SOFTWARE renderer by itself (the
+            classic fix for GPU paths that rasterize nothing). Only if that
+            stalls too do you see the card: &quot;Page never rendered&quot; +
+            your installed WebView version.
           </li>
           <li>
-            <b>Every key works:</b> the &quot;-&quot; key (and the whole
-            digit row) was dead on quick taps because its hold-gesture layer
-            swallowed them — a quick tap now commits the character, holding
-            still gives the F-key layer. Arrow keys are 12dp longer
-            horizontally.
+            <b>Three ways out on the card:</b> <b>Retry</b> (each press
+            alternates GPU → SOFTWARE rendering), <b>Open in browser</b> (the
+            same address in your real browser — settles whether it&apos;s the
+            site or this device&apos;s WebView build), and{" "}
+            <b>Continue anyway</b> (the raw canvas — you can tap the site&apos;s
+            own Accept button; the probe then stays quiet and never fights you
+            for the canvas).
           </li>
           <li>
-            <b>The white canvas, for real:</b> WebViews are now created with
-            the Activity context (the application context used so far is a
-            known blank-canvas source on OEM builds), and a 15s watchdog
-            catches the case where a page paints nothing: the canvas shows
-            &quot;Page never rendered&quot; + the installed WebView version
-            instead of a silent white box. <b>Retry</b> alternates GPU →
-            SOFTWARE rendering (compatibility mode) — the honest second
-            attempt for broken WebView builds.
+            <b>Keyboard toggle in one place:</b> the [⌨] key now sits in the
+            deck row BETWEEN Space and Enter (Ctrl · Alt · Space · Shift ·
+            [⌨] · Enter) — and with the deck toggled off, the SAME rectangular
+            key box parks at that same right-hand spot. The round bottom-right
+            bubble is gone. One toggle, one shape, one place, both states.
           </li>
           <li>
-            <b>&quot;+&quot; finally does something:</b> it opens a Midnight
-            sheet listing every Companion (open tabs marked) — tap to open
-            one, or &quot;Add Companion&quot; to go to the management page.
+            <b>About that cookie banner:</b> it belongs to the WEBSITE, not to
+            PocketShell. Choose Accept/Reject once — cookies are flushed to
+            storage on every pause, so your choice (and your logins) persist
+            across launches. If it ever reappears every launch, that&apos;s a
+            bug to report.
           </li>
           <li>
             <b>Nothing else changed:</b> data, logins, tabs and heights
-            survive the in-place update. Full suite green: <b>724 tests, 0
-            failures</b> (6 new pins on routing + the render-stall model).
+            survive the in-place update. Full suite green: <b>0 failures</b>{" "}
+            across all modules and variants (2 new pins on the main-region
+            arithmetic).
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.7.0-m4.0.3-debug.apk">
+        <a className="btn" href="/PocketShell-v0.7.0-m4.0.4-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.3)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.7.0-m4.0.4)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 27 installs <b>in place over v0.7.0-m4.0.2 (26),
-          v0.7.0-m4.0.1 (25), v0.7.0-m4.0 (24) and every earlier pinned-cert
-          build</b>. Your Alpine runtime, installed packages, Kilo/Hermes
-          installation, the procfs contract, every Phase 3 behavior and all
-          Companion data (logins included) are untouched. This build also
-          contains the m4.0.1 startup fix — it starts regardless of the
-          WebView package&apos;s state.
+          versionCode 28 installs <b>in place over v0.7.0-m4.0.3 (27),
+          v0.7.0-m4.0.2 (26), v0.7.0-m4.0.1 (25), v0.7.0-m4.0 (24) and every
+          earlier pinned-cert build</b>. Your Alpine runtime, installed
+          packages, Kilo/Hermes installation, the procfs contract, every Phase
+          3 behavior and all Companion data (logins included) are untouched.
+          This build also contains the m4.0.1 startup fix — it starts
+          regardless of the WebView package&apos;s state.
         </p>
       </div>
 
@@ -140,54 +146,50 @@ export default function Home() {
             throughout.
           </li>
           <li>
-            m4.0.1: startup decoupled from WebView provider health (the
-            launch-crash fix). m4.0.2: honest failure cards — the canvas is
-            never mysteriously white.
+            m4.0.1: startup decoupled from WebView provider health. m4.0.2:
+            honest failure cards. m4.0.3: the shared keyboard + render-stall
+            watchdog + the &quot;+&quot; Companion picker.
           </li>
           <li>
-            <b>v0.7.0-m4.0.3 (this build):</b> the shared keyboard —
-            focus-routed into Companions, bottom-most on screen, fully
-            collapsible to a corner icon, every key working — plus the
-            render-stall watchdog with compatibility-mode Retry, and the
-            &quot;+&quot; Companion picker.
+            <b>v0.7.0-m4.0.4 (this build):</b> the cookie-banner lesson — the
+            pixel-truth stall probe (main-region verdict, partial paint never
+            counts), the silent software-render retry, the honest card with
+            three ways out, and the keyboard toggle in one spot/one shape.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §20 — keyboard + honesty device gate)</h2>
+        <h2>Quick checks (docs/TESTING.md §21 — the m4.0.4 device gate)</h2>
         <ol className="steps">
           <li>
-            Install {VERSION} in place over the current build → open the
-            terminal, raise the Companion: the panel now sits ABOVE the
-            keyboard — nothing under it.
+            Install {VERSION} in place → open the previously-black Companion
+            tab. Within ~15s ONE of these must happen: the page renders, OR
+            the &quot;Page never rendered&quot; card appears (it silently
+            retried on the software renderer first). A bare black canvas that
+            just sits there is a failure of this gate — report it.
           </li>
           <li>
-            Tap a text field in the Companion page, type on the PocketShell
-            keyboard → characters appear IN THE PAGE. No GBoard. Tap the
-            terminal and type → back to the shell.
+            On the card, try <b>Open in browser</b> — the same address in your
+            real browser. If it works there, this device&apos;s WebView build
+            is the culprit (the card shows its version — report it).
           </li>
           <li>
-            Tap <b>-</b> → appears instantly. Quick-tap digits → digits.
-            Hold a digit → F-key popup. Toggle the keyboard off → the whole
-            deck vanishes and a small keyboard icon appears at the
-            bottom-right corner; tap it → the deck returns.
+            Try <b>Continue anyway</b>: the raw canvas comes back — if the
+            site&apos;s cookie banner is there, tap Accept/Reject once, then
+            fully close and reopen PocketShell: the banner must NOT return
+            (cookies persist).
           </li>
           <li>
-            Tap <b>+</b> on the Companion tab strip → the picker sheet lists
-            your Companions; &quot;Add Companion&quot; opens the management
-            page.
+            Keyboard: the [⌨] key sits between Space and Enter; tap it → the
+            deck collapses and the SAME rectangular key box appears at that
+            right-hand spot (no round bubble); tap it → the deck returns.
           </li>
           <li>
-            The previously-white tab: EITHER it now renders (Activity-context
-            fix) OR within ~15s you get &quot;Page never rendered&quot; + the
-            WebView version — never a silent white box. Try <b>Retry</b>:
-            the second attempt uses SOFTWARE rendering (compatibility mode).
-            Report the WebView version shown on the card.
-          </li>
-          <li>
-            Regressions: §18 startup, §19 failure cards, §17 spot-checks
-            (drag 1:1, tabs, upload, Back, login persistence).
+            Regressions: §20 (deck types into Companion AND terminal, deck
+            pushes everything up, &quot;-&quot;/digits quick-tap), §18
+            startup, §17 spot-checks (drag 1:1, tabs, upload, Back, login
+            persistence).
           </li>
         </ol>
       </div>
@@ -201,10 +203,10 @@ export default function Home() {
           procfs contract, and the Phase 4 Companion design contract with
           the §22/§23/§24 amendments.
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.3-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.4-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.3-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.7.0-m4.0.4-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -227,10 +229,10 @@ export default function Home() {
         v0.7.0-m3.1 terminal redesign · m3.2 OS launcher · m3.3 flat
         workspace · m3.4 registry expansion · m3.5 command launch fix · m3.6
         procfs contract · m4.0 Phase 4 Companion · m4.0.1 startup hotfix ·
-        m4.0.2 honest failure surfaces ·{" "}
-        <b>v0.7.0-m4.0.3 (this build): one keyboard for everything — and the
-        white canvas can no longer hide</b>. Your device keeps doing the QA
-        that matters.
+        m4.0.2 honest failure surfaces · m4.0.3 one keyboard for everything ·{" "}
+        <b>v0.7.0-m4.0.4 (this build): the cookie-banner lesson — pixels over
+        promises, and one toggle in one place</b>. Your device keeps doing the
+        QA that matters.
       </footer>
     </main>
   );
