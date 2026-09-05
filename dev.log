@@ -331,3 +331,28 @@ $ next dev -p 3000
  GET /PocketShell-v0.9.1-m5.1.0-source.zip 404 in 28ms
  GET /PocketShell-v0.9.1-m5.1.0-source.tar.gz 404 in 28ms
  GET / 200 in 154ms
+ GET / 200 in 380ms
+ GET / 200 in 395ms
+ GET / 200 in 126ms
+ GET / 200 in 151ms
+ GET / 200 in 99ms
+ GET / 200 in 259ms
+ GET / 200 in 129ms
+ GET / 200 in 273ms
+ GET / 200 in 130ms
+ GET / 200 in 360ms
+ GET / 200 in 272ms
+ GET / 200 in 340ms
+ GET / 200 in 714ms
+ GET / 200 in 275ms
+[?25h
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.17.202:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1815ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.8s (539 modules)
+ GET / 200 in 4232ms
