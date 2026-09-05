@@ -102,6 +102,8 @@ fun HomeScreen(
     val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
 
     // Probe availability whenever Home is visible with a READY runtime …
+    // (m5.1: the probe is a real guest spawn — Home revisits inside the
+    // freshness window skip it; forced after operations, which may add apps.)
     LaunchedEffect(runtimeState) {
         if (runtimeState == RuntimeState.READY) terminalViewModel.refreshCommandApps()
     }
@@ -109,7 +111,7 @@ fun HomeScreen(
     LaunchedEffect(operation?.id, operation?.state) {
         val state = operation?.state
         if (state == PackageOperationState.SUCCESS || state == PackageOperationState.FAILED) {
-            if (runtimeState == RuntimeState.READY) terminalViewModel.refreshCommandApps()
+            if (runtimeState == RuntimeState.READY) terminalViewModel.refreshCommandApps(force = true)
         }
     }
 

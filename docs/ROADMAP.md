@@ -732,3 +732,44 @@ remote development.
 - [ ] Device gate §31: workspace-bar layout, compact tabs, near-full
       strip-drag matrix, no-regression ladder (keyboard, themes,
       Companion renderer).
+
+### Phase 5.1.0 (2026-09-06, v0.9.1-m5.1.0) — M5.1: ARM64 Performance & Architecture Optimization
+- [x] Audit-first discipline: the real architecture was measured and read
+      end-to-end before any change — startup path, Companion host/tab
+      lifecycle, terminal session/rendering path, Linux process
+      lifecycle, keyboard composition, memory hooks.
+- [x] Audit verdict — already sound (untouched): lazy startup (no
+      WebView/Linux/package work in Application.onCreate); one WebView
+      per tab, never recreated or reloaded on switch; WebView height
+      frozen during sheet drags (one resize on release); background
+      tabs platform-paused on switch and at Activity pause; terminal
+      scrollback capped (2000 rows), no polling, blinker stopped on
+      pause, repaint hook unregistered off-screen; one Linux process
+      per session, honest FGS that stops itself; keyboard allocations
+      trivial.
+- [x] F1 — minimized Companion pauses ALL WebViews (the active tab used
+      to keep running JS/timers/layout while invisible); raise wakes
+      only the active tab; no reload, no state loss; cookies flushed
+      on collapse.
+- [x] F2 — Home's command-app probe (a real proot login-shell exec)
+      no longer re-runs on every Home visit: 60s freshness window +
+      in-flight guard; operation landings force; failures re-probe.
+- [x] F3 — terminal repaints only on output from the VISIBLE session
+      (background session output storms no longer force full repaints
+      of the unchanged screen); switches remain correct by
+      construction (attachSession → updateSize → invalidate).
+- [x] F4 — onTrimMemory(≥ RUNNING_LOW) flushes cookies while Companion
+      tabs are alive, gated on the provider already being loaded and
+      fully contained (the m4.0.1 startup rule is untouched).
+- [x] Tab resource policy stated and pinned in code comments: active =
+      full; background = platform-paused; minimized = everything
+      paused; tabs live until closed — saveState/restore + LRU eviction
+      stay retired (the m4.0.11 verdict family), so no user state is
+      ever destroyed behind their back.
+- [x] Full suite green: 752 executions / 0 failures. versionCode 39 —
+      in place over 16..38, same pinned cert.
+- [ ] Device measurement gate §32: the A–G scenario matrix (Home /
+      Terminal / Terminal+Linux / Terminal+Companion / multi Companion
+      tabs / multi sessions+Companion / background→return) with
+      before/after observations — memory growth, CPU spikes, lag,
+      reloads, dropped frames, process leaks.

@@ -319,6 +319,14 @@ object CompanionWebHost {
         activeDefId?.let { id -> tabs[id]?.onResume() }
     }
 
+    /**
+     * m5.1 — true when at least one live Companion WebView exists. The ONLY
+     * guarantee this gives: the WebView provider is loaded and it is safe to
+     * touch provider singletons (CookieManager.flush) without risking the
+     * m4.0.1 broken-provider family at an arbitrary moment.
+     */
+    fun hasLiveTabs(): Boolean = tabs.isNotEmpty()
+
     // ------------------------------------------------------------------ core
 
     /**

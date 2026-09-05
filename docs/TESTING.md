@@ -1672,3 +1672,63 @@ untouched — run the §30.7 ladder at the end.
       hard-refresh-keeps-login — untouched.
 - [ ] Session/tab state survives collapse, screen switches, app
       restart as before. No crashes across the whole gate.
+
+## 32. Manual acceptance — m5.1.0 (M5.1: ARM64 performance & architecture optimization, v0.9.1-m5.1.0) — DEVICE GATE PENDING
+
+The audit found the architecture sound in most places and fixed four
+real inefficiencies. This gate VERIFIES the fixes on hardware and
+MEASURES the scenarios the brief named. Where possible, compare against
+vc38 (m5.0.1) behavior — "before" evidence.
+
+### 32.1 The four fixes, behaviorally
+- [ ] **F1 — collapsed Companion is silent:** open ChatGPT in the
+      Companion, note it fully loaded, minimize the sheet, then work in
+      the terminal for several minutes. The device stays cool/quiet
+      compared to vc38 (in vc38 the page kept running JS underneath).
+      Raise the sheet again → the page is EXACTLY as you left it (no
+      reload, no scroll jump, still logged in).
+- [ ] Same for every tab: minimize with 3 tabs open → raise → switch
+      between them → all three are alive and preserved.
+- [ ] **F2 — Home revisits are instant:** with the runtime READY, go
+      Home → Terminal → Home → Terminal → Home repeatedly. Home renders
+      immediately (no tool-grid "checking…" churn); the tools grid keeps
+      its last real answer. After 60s away (or an install), the probe
+      refreshes again.
+- [ ] Install/uninstall something in Packages → return Home → the tools
+      grid reflects the change (the forced post-operation probe).
+- [ ] **F3 — background session output does not shake the foreground:**
+      session 1 runs `yes` (or a build with heavy output); switch to an
+      idle session 2 and type/read. The visible screen is smooth (in
+      vc38 it repainted at session 1's output rate). Switch back to
+      session 1 → its screen is correct and current.
+- [ ] Rapid tab switching A↔B↔C: every switch renders the right session
+      immediately (no stale/wrong content, no flash of the previous
+      session).
+- [ ] **F4 — no new startup risk:** force-stop the app, cold start, use
+      ONLY the terminal (never raise the Companion) — no crash, no
+      provider loading (the m4.0.1 rule). Then a session WITH Companion
+      open while the device is under memory pressure (open many apps) —
+      PocketShell keeps running, Companion logins survive backgrounding.
+
+### 32.2 The A–G scenario matrix (measure with Android Studio memory
+profiler / `adb shell dumpsys meminfo app.pocketshell`, and by feel)
+- [ ] **A — Home only:** starts fast, idle memory stable, no probe churn.
+- [ ] **B — Terminal active:** typing responsive with the deck; no lag
+      on output.
+- [ ] **C — Terminal + Linux:** one guest session; CPU settles when
+      idle at the prompt; apk operations still work.
+- [ ] **D — Terminal + Companion:** sheet drag smooth (GPU, no WebView
+      reload); typing via the deck into the WebView works.
+- [ ] **E — Multiple Companion tabs (3–5):** switching is immediate;
+      memory grows per NEW tab but switching itself does not; minimized
+      sheet → memory/CPU idle (F1).
+- [ ] **F — Multiple terminal sessions + Companion:** background output
+      does not drop frames (F3); all sessions remain manageable.
+- [ ] **G — Background → return:** sessions keep running (FGS), pages
+      keep logins, nothing re-initialized wastefully, no orphan
+      processes (`adb shell ps | grep proot` before/after).
+
+### 32.3 Regression ladder (nothing broke)
+- [ ] Full §30.7/§31.4 ladder: keyboard everywhere, themes sweep,
+      ChatGPT + Z.ai render/scroll/login, refresh/hard-refresh, session
+      persistence, workspace bar + compact tabs from §31.

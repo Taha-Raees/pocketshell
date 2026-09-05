@@ -3,6 +3,76 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.9.1-m5.1.0] — 2026-09-06 — M5.1: ARM64 Performance & Architecture Optimization
+
+The audit-first optimization phase: measure the real architecture, change
+only what the evidence supports, break nothing. The goal — PocketShell
+stays fast and smooth on ARM64 devices with limited RAM as features grow.
+
+### 1. What the audit found already sound (deliberately untouched)
+- **Startup is lazy**: Application.onCreate touches only the palette,
+  shell dirs and state reconciliation — NO WebView provider, NO Linux
+  init, NO package scanning (the m4.0.1 rule held). The terminal
+  initializes when Terminal opens; the Companion when raised.
+- **Companion renderer recipe is already efficient**: one WebView per
+  tab, created once (tab switches never recreate/reload — state, login
+  and scroll survive), attach → layout → load only on first creation,
+  the WebView's measured height is FROZEN during sheet drags (one
+  resize on release — no resize thrashing), present() is idempotent.
+- **Background tabs were already platform-paused** on every tab switch
+  (onPause suspends JS timers/layout/parsing) and at Activity pause,
+  with only the active tab waking on resume.
+- **Terminal**: process-scoped sessions, scrollback capped at 2000 rows,
+  no polling loops, repaint driven only by emulator callbacks, the
+  cursor blinker stops on ON_PAUSE, and the repaint hook is unregistered
+  when the terminal screen leaves composition.
+- **Linux environment**: one real process per session, spawned only by
+  explicit user action; no duplicate daemons; the honest FGS stops
+  itself when the last session closes.
+- **Keyboard**: static layouts, per-key local state, real KeyEvent
+  dispatch, no per-press allocation churn beyond two short-lived
+  coroutine jobs.
+
+### 2. What the audit found and FIXED (four surgical changes)
+- **F1 · Minimized Companion no longer burns CPU**: collapsing the sheet
+  parked background tabs but left the ACTIVE tab running JavaScript,
+  timers and layout at full rate while completely invisible. Now
+  collapse → pause EVERYTHING (reversible; cookies flushed), raise →
+  wake only the active tab. A page that was minimized comes back alive
+  exactly when it becomes visible, with no reload and no state loss.
+- **F2 · Home no longer spawns a guest shell on every visit**: the
+  command-app availability probe is a REAL proot login-shell exec; it
+  re-ran each time Home re-entered composition. A 60s freshness window
+  and an in-flight guard now gate the visibility-triggered probe;
+  package-operation landings still force a fresh probe, and a FAILED
+  probe always re-probes (honesty over caching).
+- **F3 · Background terminal output no longer repaints the screen**: the
+  global screen-update hook fired for every session, repainting the
+  (unchanged) visible view at the background session's output rate —
+  N sessions multiplied the load. The repaint now happens only when
+  the producer IS the visible session; session switches remain
+  correct by construction (attachSession nulls the emulator and
+  invalidates the view).
+- **F4 · Deterministic web-state persistence under memory pressure**:
+  onTrimMemory(≥ RUNNING_LOW) flushes cookies while Companion tabs are
+  alive, strictly gated on the provider already being loaded (the
+  m4.0.1 broken-provider rule is untouched) and fully contained.
+- **The tab resource policy, stated honestly**: active tab = full
+  rendering and interaction; background tabs = platform-paused (state
+  preserved; timers/layout suspended); minimized sheet = everything
+  paused; tabs live until the user closes them — the m4.0.11 verdict
+  REMOVED saveState/restore and LRU eviction as the render-breaking
+  suspect family, so they are deliberately NOT reintroduced. No user
+  state is ever destroyed behind their back.
+
+### 3. Not touched
+- The frozen Companion renderer/pool/recipe, the ONE keyboard, themes,
+  the terminal implementation, the Linux lifecycle contract, providers
+  and logins. Full suite green: 752 executions / 0 failures.
+- versionCode 39 — in-place update over 16..38; same pinned cert.
+- Device measurement gate: docs/TESTING.md §32 (the A–G scenario
+  matrix, before/after evidence).
+
 ## [0.9.0-m5.0.1] — 2026-09-06 — M5.0 Final UI Correction: the Workspace Bar
 
 A surgical pass ordered by the field report — no redesign, no new

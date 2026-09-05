@@ -42,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -131,9 +132,22 @@ fun TerminalScreen(
     // must call TerminalView#onScreenUpdated() whenever the session screen
     // changes, otherwise output stays invisible until a layout pass forces a
     // repaint. The listener is invoked on the main thread.
+    //
+    // m5.1 — IDLE-RENDERING RULE: the hook fires for EVERY session's output,
+    // but the view shows exactly one session. A background session streaming
+    // output (a build, a log tail, `yes`) used to force full repaints of the
+    // UNCHANGED visible screen at the background output rate — N running
+    // sessions multiplied the repaint load while the user read or typed in
+    // the foreground. The repaint now happens only when the producer IS the
+    // selected session. Session switches stay correct without this hook:
+    // attachSession() nulls the emulator, updateSize() invalidates, and the
+    // next frame renders the newly attached session's screen.
+    val visibleSessionId by rememberUpdatedState(selectedId)
     DisposableEffect(Unit) {
-        TerminalSessionManager.onScreenUpdateListener = { _ ->
-            terminalViewRef.value?.onScreenUpdated()
+        TerminalSessionManager.onScreenUpdateListener = { sessionId ->
+            if (sessionId == visibleSessionId) {
+                terminalViewRef.value?.onScreenUpdated()
+            }
         }
         onDispose { TerminalSessionManager.onScreenUpdateListener = null }
     }

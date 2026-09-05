@@ -371,11 +371,25 @@ fun CompanionLayer(
         // Handing focus back explicitly prevents input from continuing to
         // flow to the (now hidden) WebView or the keyboard flickering while
         // ownership is ambiguous.
+        //
+        // m5.1 — TAB RESOURCE POLICY (the idle-CPU rule): a MINIMIZED sheet
+        // must not keep burning CPU. Only Activity-level pause/resume and
+        // tab switches parked WebViews before — minimizing left the ACTIVE
+        // tab running JavaScript, timers and layout at full rate while
+        // completely invisible under the workspace. Now: collapse → pause
+        // EVERYTHING (fully reversible — onPause suspends timers/layout/
+        // parsing and flushes cookies; no state is destroyed, no reload on
+        // raise), raise → wake ONLY the active tab (the same §8 contract a
+        // tab switch already uses). A drag back up crosses isRaised on the
+        // way, so the page is alive again exactly when it becomes visible.
         LaunchedEffect(raised) {
             if (!raised) {
                 KeyboardInputRouter.terminalTarget?.let { terminal ->
                     runCatching { terminal.requestFocus() }
                 }
+                CompanionWebHost.pauseAll()
+            } else {
+                CompanionWebHost.resumeActive()
             }
         }
     }

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.SystemClock
 
 /**
  * UI-side state holder. Sessions themselves live in the process-scoped
@@ -134,9 +135,26 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
      * ONE batched login-shell probe for the whole registry — never a loop of
      * proot startups. Called when Home becomes visible (runtime READY) and
      * after package operations reach a terminal state.
+     *
+     * m5.1 — the probe is a REAL guest spawn (a proot login-shell exec),
+     * so re-running it on EVERY Home visit burned CPU/RAM for an answer
+     * that rarely changed. The visible-Home call site now goes through a
+     * freshness window (a successful answer is trusted for [COMMAND_PROBE_FRESHNESS_MS])
+     * and an in-flight guard; the operation-landing path passes [force] =
+     * true because an install may genuinely add an app, and a FAILED probe
+     * always re-probes (honesty over caching).
      */
-    fun refreshCommandApps() {
+    fun refreshCommandApps(force: Boolean = false) {
         if (!PackageGateway.isRuntimeReady()) return
+        if (commandProbeInFlight) return
+        if (!force) {
+            val state = _commandApps.value
+            val fresh =
+                state.checked && state.probeError == null &&
+                    SystemClock.elapsedRealtime() - lastCommandProbeAt < COMMAND_PROBE_FRESHNESS_MS
+            if (fresh) return
+        }
+        commandProbeInFlight = true
         viewModelScope.launch {
             try {
                 val names = app.pocketshell.apps.CommandAppCatalog.registry
@@ -155,9 +173,20 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                     probeError = e.message,
                     checked = true,
                 )
+            } finally {
+                lastCommandProbeAt = SystemClock.elapsedRealtime()
+                commandProbeInFlight = false
             }
         }
     }
+
+    private companion object {
+        /** A successful probe answer is trusted for this long on Home revisits. */
+        const val COMMAND_PROBE_FRESHNESS_MS = 60_000L
+    }
+
+    private var commandProbeInFlight = false
+    private var lastCommandProbeAt = 0L
 
     /**
      * Launch a command app from the Home launcher — verify-then-launch, the

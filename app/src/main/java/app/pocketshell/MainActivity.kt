@@ -1,6 +1,7 @@
 package app.pocketshell
 
 import android.app.Activity
+import android.content.ComponentCallbacks2
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowInsets
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pocketshell.companion.CompanionWebHost
 import app.pocketshell.keyboard.KeyboardInputRouter
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
@@ -91,6 +93,26 @@ class MainActivity : ComponentActivity() {
                     settingsViewModel = settingsViewModel,
                     defaultFontSize = defaultFontSize,
                 )
+            }
+        }
+    }
+
+    /**
+     * m5.1 — memory-pressure hook: when the system reports real pressure,
+     * cookie/session state is persisted deterministically (the same flush
+     * the Activity ON_PAUSE path already performs). Strictly gated on
+     * [CompanionWebHost.hasLiveTabs] so a device whose WebView provider was
+     * never touched (the m4.0.1 startup rule) is never forced to load it
+     * here; the call itself is contained — a broken provider can slow a
+     * flush, never kill the process.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW &&
+            CompanionWebHost.hasLiveTabs()
+        ) {
+            runCatching {
+                android.webkit.CookieManager.getInstance().flush()
             }
         }
     }
