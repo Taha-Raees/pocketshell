@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.8
+VERSION=v0.7.0-m4.0.9
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,39 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.7) — THE PAINTED-BUT-BLACK DECODE: THE
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.8) — COMPANION RENDERING RESET: THE
+MINIMAL BASELINE WEBVIEW EXPERIMENT (no Companion changes, zero symptom
+patches — the investigation build):
+  - THE BRIEF, HONORED: eight iterations of evidence-backed fixes never
+    proved WHICH architectural layer fails to present a fully loaded page.
+    The m4.0.8 reports sharpened it: ChatGPT paints a blank WHITE canvas
+    (the page's own light background PRESENTS — the scheme lever worked!)
+    while the UI does not; Z.ai paints a blank dark canvas. Page pixels
+    present; page UI absent. So this build changes NOTHING in the
+    Companion render path — it ships the control experiment instead.
+  - RENDER BASELINE (Companion -> i Page health -> "Render baseline"):
+    a plain Activity -> FrameLayout -> ONE WebView(activity) — JS + DOM
+    storage on, everything else Android defaults, URL loaded AFTER first
+    layout. No pool, no Compose, no forced-light context, no custom UA,
+    no watchdog, no attach kick, no boot witness, no retry.
+  - ONE VARIABLE AT A TIME: MODE cycles BASELINE -> +CHROME UA ->
+    +FORCED LIGHT CTX -> +MIDNIGHT BG -> +LOAD BEFORE ATTACH ->
+    +WIDE VIEWPORT (pinned single-variable invariant); URL cycles
+    example.com -> wikipedia.org -> chatgpt.com -> chat.z.ai (gates A-D).
+  - REAL EVIDENCE PER RUN: the status line shows the exact config plus
+    VIEW truth (attached, size, global visible rect, layer type); INSPECT
+    adds the page's own viewport (innerWidth/innerHeight, visualViewport,
+    title — read-only, on demand) for the bogus-viewport theory; COPY
+    hands the whole status over for pasting.
+  - docs/RENDER-RESET-M4.0.9.md: the investigation report — the A/B
+    architecture comparison (15 layers), suspect->variant map, the device
+    gate protocol, and the decision rule (single-variable fix / native
+    ViewGroup host rebuild / Custom Tabs control / GeckoView research).
+  - +8 unit pins. Full suite green: 788 executions, 0 failures.
+  - versionCode 33 / 0.7.0-m4.0.9 — in-place update over 16..32; same
+    pinned cert. Device gate: docs/TESTING.md section 26.
+
+WHAT WAS NEW IN v0.7.0-m4.0.8 (vs v0.7.0-m4.0.7) — THE PAINTED-BUT-BLACK DECODE: THE
 LIGHT PACKAGE RETURNS, ON TOP OF THE FIXED HOST (still the one job):
   - WHAT THE M4.0.7 REPORT PROVED: BOTH tabs — a GPU tab AND a software-layer
     tab — answered "pixels: painted" while you still saw black. A software-
