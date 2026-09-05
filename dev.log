@@ -368,3 +368,18 @@ $ next dev -p 3000
  ○ Compiling /_not-found ...
  ✓ Compiled /_not-found in 563ms (530 modules)
  GET /README.md 404 in 782ms
+ GET / 200 in 410ms
+ GET / 200 in 437ms
+ GET / 200 in 145ms
+ GET / 200 in 364ms
+ GET / 200 in 168ms
+ GET / 200 in 153ms
+ GET / 200 in 234ms
+ GET / 200 in 220ms
+ GET / 200 in 150ms
+ GET / 200 in 145ms
+ ✓ Compiled in 581ms (312 modules)
+ ✓ Compiled in 90ms (312 modules)
+ GET / 200 in 374ms
+ GET / 200 in 430ms
+ GET / 200 in 503ms

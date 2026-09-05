@@ -1296,3 +1296,37 @@ Work Log:
 
 Stage Summary:
 - Delivery chain 100% healthy; the user was in the chat workspace browser, not the app preview. Correct entry: https://preview-chat-af9ee1f3-ca8c-465f-89b3-fb2137e3b7e6.space-z.ai/ (or direct /PocketShell-v0.10.0-m6.0.1-debug.apk). Mission state unchanged: awaiting vc41 §33.1 device gate.
+
+---
+Task ID: m6.0.2-forensics
+Agent: main (Super Z)
+Task: Device gate #2 — 9/15 with stale v1 suite, marker still MISSING, loader still gcompat stub. STOP-AND-DEBUG directive: forensic diagnosis BEFORE code changes.
+
+Work Log (forensics — every claim proven, none inferred):
+- Suite-version triage first: the user's output header (no PREFLIGHT, "cline --help PASS" with loader error text) is the v1 suite. The SERVED tarball is v2 (extracted + inspected: PREFLIGHT block present, cline --help keys on ^Usage). The user's /tmp/kilo/gdrive copy is the stale m6.0.0 download; v1 also defaulted DIR to POCKETSHELL_TESTS_DIR-or-/tmp/pocketshell-tests → 15 "binary missing" rows when run from a custom dir without the env var (user's exact evidence). Even v2 still hardcodes that default — self-location NOT yet fixed (directive #8 partially unimplemented).
+- APK inspection (the final shipped binary, not the source tree): assets/guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar — PLAIN TAR, 17,909,760 B. NO .tar.gz entry exists. aapt2 badging: versionCode 41 / 0.10.0-m6.0.1; shipped download/ APK == gradle output (sha 915677b6… both).
+- ROOT CAUSE reproduced twice: AGP 8.13.2 mergeDebugAssets DECOMPRESSES *.gz assets and strips the .gz suffix. Fresh forced merge (rm -rf intermediates + :app:mergeDebugAssets) on a source dir containing ONLY the pinned .tar.gz produced ONLY ...tar, sha 5be400dd… == sha256(gunzip(release artifact 2242f8ef…)). Repo/git/working tree never contained a plain .tar (git ls-files + status clean); merged file mode (rw-r--r--) matches no source mode (rw-rw-r--) — written by the merge transform, not copied.
+- Failure chain on device, mapped line-by-line to code: every session spawn → TerminalSessionManager.createLinuxSessionInternal (synchronous, BEFORE spawn — no race) → PackageGateway.prepareGuestForSession (same storage.rootfsDir as the proot spec — no path drift) → GuestGlibcRuntime.ensureInstalled → extract() → context.assets.open("guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz") → FileNotFoundException (APK has no such entry) → caught → Result.Failed → vc40: result stored in GuestSessionPreparation.glibcRuntime which has ZERO consumers (grep-proven) — silently discarded; vc41: mirrored to guest /etc/pocketshell/glibc-runtime.status (state=FAILED reason=…) but the user's v1 suite never reads it. The failure fires BEFORE any rootfs touch: marker/loader/doctor logic never reached; "works on existing runtimes" was never exercised, hence never disproven.
+- Every device observation explained: marker MISSING + gcompat stub + doctor absent + Cline loader errors = layer never extracted (gcompat persists from the Antigravity-era rootfs); musl 8/8 PASS = disjoint-by-construction + best-effort held; "restart and re-run" can't help = deterministic FileNotFoundException re-fires each spawn; sandbox 24/24 = rig extracts the layer with system tar, never through the app's asset path; JVM 776 green = in-memory gz archives + a source-tree asset test whose comment claims "(CI packaging test covers it)" — no such test exists (the hole).
+- Payload bytes exonerated: sha chain gunzip(artifact)==APK asset==rig-validated layer (22/22 m6.0.1 incl. contaminated-rootfs repro).
+
+Stage Summary:
+- FORENSIC DIAGNOSIS (pre-code-change, as directed): the APK→runtime seam was never broken — the APK never carried what the code asks for. AGP's silent .gz-asset decompression + the pin declaring the .tar.gz name = FileNotFoundException on every spawn, best-effort-swallowed (vc40) / status-file-only (vc41, unread by the v1 suite the user ran). Fix plan: pin the PACKAGED asset form (plain tar name/size/sha) + gzip-magic auto-detect (robust to future AGP changes) + logcat outcome logs + /etc/pocketshell/app-version stamp per spawn + suite v2.1 (self-locating DIR, app-version + ls -la evidence in PREFLIGHT) + JVM pins incl. a ZipFile check of the BUILT APK asset (assumeTrue when present) + the APK-asset check added to the release mirror checklist.
+
+---
+Task ID: m6.0.2
+Agent: main (Super Z)
+Task: Stop-and-debug directive — diagnose the real-device install failure forensically, fix the actual seam, ship vc42.
+
+Work Log:
+- Diagnosis written to worklog BEFORE code changes (Task m6.0.2-forensics): AGP 8.13.2 asset merge decompresses *.gz assets and strips the suffix; APK carried guest/….tar (plain, 17,909,760 B, sha 5be400dd… = gunzip of artifact) while the pin/code declared guest/….tar.gz → FileNotFoundException on every spawn before the rootfs was ever touched. Proven: fresh forced merge repro ×2, sha chain locked, no custom gradle tasks, merged-file mode forensics, git history clean.
+- Fix (three rails): GlibcRuntimePin now pins the PACKAGED form (ASSET_PATH .tar / ASSET_SHA256 5be400dd… / ASSET_SIZE 17,909,760) beside the unchanged artifact pin; GuestGlibcRuntime format-sniffs gzip magic (either form) + sha-verifies asset bytes BEFORE extraction (mismatch = FAILED, never half-extraction) + logcat logging (tag GuestGlibcRuntime); new JVM pin opens the BUILT APK (ZipFile) and asserts entry name+size+sha.
+- Observability completion: PackageGateway stamps /etc/pocketshell/app-version (versionName + versionCode) on every spawn (best-effort, atomic tmp+rename); GuestEnvironment.APP_VERSION_RELATIVE added.
+- Suite v2.1: self-locating binaries (SELF_DIR default; POCKETSHELL_TESTS_DIR = override), accepts flat AND bin/ layouts (second packaging defect found by this gate — the served tarball ships bin/ while the runner searched flat), suite version in header, PREFLIGHT app-stamp + /etc/pocketshell ls + loader ls/readlink, verdict fix-path → vc42.
+- Validation: full JVM suite 780 executions / 0 failures (4 net-new pins: built-APK asset pin, plain-tar extraction, sha-mismatch refusal, asset-open-failure status); rig validate_suite_v2.sh 3 phases green (20+1skip / 21+1skip / 24/24); custom-dir no-env-var self-location proven in-rig.
+- Release: vc42 / 0.10.0-m6.0.2 (29,950,853 B, sha 832648e5…, cert d96a6f66… re-verified, embedded asset sha 5be400dd… re-verified from the APK itself); payload cut (379 files); mirror_m6002.sh created — three-way MIRROR VERIFIED **plus the new mandatory APK-embedded-asset check**; m6.0.1 artifacts withdrawn explicit-name; page.tsx + download/README.md re-pinned; docs: CHANGELOG 0.10.0-m6.0.2, TESTING §33.1 v2.1 expectations + §33A re-gate, DUAL_LIBC §6.2, ROADMAP. Commit e5b0c93.
+- Live verification: page renders m6.0.2/vc42/832648e5; APK + v2.1 suite tarball HTTP 200 at exact sizes.
+
+Stage Summary:
+- v0.10.0-m6.0.2 (vc42) delivered: the layer install path is finally REAL (pin matches what AGP packages, extraction is format- and tamper-proof, and the guest can prove which build owns it). Layer bytes never changed across all three builds — the architecture was right, the packaging seam was wrong.
+- THE ASK TO THE USER: install vc42 in place (same cert → update), fully close + reopen the app, open ONE fresh session, DELETE the stale /tmp/kilo/gdrive suite copy, re-download the tests tarball, re-run — expect header `suite: v2.1 (m6.0.2)`, PREFLIGHT `app: 0.10.0-m6.0.2 (versionCode 42)`, real loader 2.41, 24/24 ALL GREEN incl. Cline. If not, PREFLIGHT + status file now say exactly why.
