@@ -1068,3 +1068,22 @@ Work Log:
 
 Stage Summary:
 - Dev server healthy on :3000, serving the delivery/download page. Companion 4.0.11 transplant implementation work not yet started (code-side recon still pending).
+
+---
+Task ID: 4.0.11-redelivery
+Agent: Super Z (main)
+Task: Fix 404 on :3000 — restore the full vc35 payload after sandbox reset
+
+Work Log:
+- Diagnosed: page links 4 artifacts (apk/zip/tgz/bundle), public/ + dist-master/ + download/ were wiped by the sandbox recycle; toolchain (JDK/SDK/NDK) also gone.
+- Reinstalled toolchain via scripts/install_toolchain.sh (JDK 21.0.12.1+1, cmdline-tools 11076708, platform-36, build-tools 36.0.0, NDK 28.2.13676358); local.properties rewritten.
+- Build attempt 1+2: gradle daemon OOM-killed by kernel (4GB box; daemon 2GB heap + kotlin daemon 1GB + next-server 490MB). Evidence: dmesg oom-kill on java pid.
+- Fix: stopped dev server + kotlin daemon temporarily (freed ~1.3GB), kept the established build profile untouched. Attempt 3: BUILD SUCCESSFUL (1m45s).
+- APK sha256 = 1afcc7dbe69971e6136c64d033915b56269c7ff2b4e615fb78d22b3011a46335 — BYTE-IDENTICAL to the delivered vc35 build (README pin matched); apksigner cert = d96a6f66…8bf659 (pinned cert re-verified).
+- Placed APK in download/, ran make_payload_m2.sh (re-cut zip/tgz/bundle at tip a391b5d: 334 files, +2 delivery scripts + newer worklog vs original cut) then mirror_m4011.sh — MIRROR VERIFIED three-way.
+- New archive shas: zip a10dbbe4… / tgz 1277d21c… / bundle d617970c… (APK unchanged).
+- Updated app/page.tsx HASHES + download/README.md (new shas, 334 files, provenance: sandbox-reset rebuild, code state identical to f58f02d — zero app/ changes).
+- Restarted dev server (orphan_spawn dev3000); HTTP 200 on all four artifacts + page; full-APK download over HTTP re-hashed = 1afcc7db… (end-to-end OK).
+
+Stage Summary:
+- :3000 delivery fully restored — APK/zip/tgz/bundle all 200, served bytes match the pinned sha256. APK byte-identical to shipped vc35: users can install in place, no README APK-pin change needed. Record committed to git.

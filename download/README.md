@@ -1,6 +1,12 @@
 # download/ — delivery masters
 
-Current: v0.8.0-m4.0.11 (payload cut at git tip f58f02d; REPLACE RENDERER
+Current: v0.8.0-m4.0.11 (payload cut at git tip a391b5d — sandbox-reset
+REBUILD of the vc35 delivery: the code state is identical to fix tip
+f58f02d (zero app/ changes since; only logs/delivery records differ),
+the APK came back BYTE-IDENTICAL (same sha as the original cut, cert
+pin d96a6f66…8bf659 re-verified), and the source zip/tgz/bundle were
+re-cut from the current tip (two delivery scripts + newer worklog
+entries are the only content delta — 334 files vs 332). REPLACE RENDERER
 ONLY — the closing iteration: the winner of the rendering-reset sweep is
 FROZEN (BASELINE — zero deltas from Android defaults; device evidence:
 baseline rendered all four gate sites per your recording, +CHROME UA
@@ -28,9 +34,9 @@ stays behind the ⓘ chip; versionCode 35)
   Device gate: docs/TESTING.md §28 — Gates A–H on the REAL Companion.
   Sweep table + copy map: docs/RENDER-RESET-M4.0.9.md §8. Full record:
   docs/CHANGELOG [0.8.0-m4.0.11].
-- PocketShell-v0.8.0-m4.0.11-source.zip sha256 631f1858627e81fbc01516707f99693161c8fe8b6e007b1303e842334e420867  (32M, 332 files)
-- PocketShell-v0.8.0-m4.0.11-source.tar.gz sha256 72fdb83e2b882a75da2a92aef5f1cc9a6b891ae504210d0076a1dd3890968c22  (32 MB)
-- pocketshell-m2.gitbundle           sha256 d2b419c512d35c864e168946b2cecb3797669aaa4cbf1b564fcca89fdea0f1d5  (full history; ~28M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, docs/PHASE-4-COMPANION-DESIGN.md, and docs/RENDER-RESET-M4.0.9.md §1–§8 (verdict + frozen winner) — honest, no rewrites)
+- PocketShell-v0.8.0-m4.0.11-source.zip sha256 a10dbbe47f87dd5d643ba563da348bb0e2819edc50a493ecfb20f6b588795d2c  (32M, 334 files)
+- PocketShell-v0.8.0-m4.0.11-source.tar.gz sha256 1277d21cccd39df7f05f3f9450258d813503a9f5d7dc2b8c7b30563ade6389be  (32 MB)
+- pocketshell-m2.gitbundle           sha256 d617970ca306482281f013722566666c83ad0c5e8f81957fc9042a1b9c218150  (full history; ~28M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, docs/PHASE-4-COMPANION-DESIGN.md, and docs/RENDER-RESET-M4.0.9.md §1–§8 (verdict + frozen winner) — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.7.0-m4.0.9 and the unannounced v0.8.0-m4.1.0
