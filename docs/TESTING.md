@@ -1421,3 +1421,88 @@ the eight gates — by eye and finger, on the physical device.
       state (ⓘ → Render baseline → COPY) and paste it into the chat —
       the sole remaining delta to the proven baseline is the overlay's
       AndroidView parent chain, and that is the entire investigation.
+
+## 29. Manual acceptance — m4.0.12 (Companion Finalization: cleanup, polish, ONE keyboard, v0.8.0-m4.0.12) — DEVICE GATE PENDING
+
+The finalization gate. The renderer is FROZEN and byte-identical to
+vc35; this build only (1) removes every trace of the diagnostic UI,
+(2) adds refresh + hard refresh, (3) enlarges the drag handle's invisible
+touch zone, (4) makes the PocketShell keyboard the ONE keyboard
+everywhere with the system IME permanently blocked. Install **vc36 in
+place** (over anything) and work the four checklists plus the
+regression ladder — by eye and finger, on the physical device.
+
+### 29.1 Website rendering (the freeze, re-proven)
+- ChatGPT: [ ] page loads [ ] page visible [ ] scrolling works
+  [ ] login works [ ] message input receives focus
+  [ ] PocketShell keyboard appears [ ] typing enters the ChatGPT input
+  [ ] the Android/Samsung keyboard NEVER appears.
+- Z.ai: [ ] page loads [ ] page visible [ ] scrolling works
+  [ ] input receives focus [ ] PocketShell keyboard appears
+  [ ] typing works.
+- One additional normal website: [ ] HTML input [ ] password field
+  [ ] textarea [ ] scrolling.
+- The Companion shows ONLY the real website: no Render-baseline header,
+  no URL/WebView-version/UA/attached-bounds/layer readouts, no
+  URL/MODE/INSPECT/COPY buttons, no ⓘ chip — all of it is GONE (the
+  harness code is deleted, not hidden).
+
+### 29.2 Refresh (normal + hard)
+- Normal refresh (tap the ↻ glyph in the tab strip):
+  [ ] reloads the ACTIVE tab [ ] same URL [ ] same tab
+  [ ] other tabs unaffected (open two tabs, refresh one, switch to the
+      other — still intact, no reload).
+- Hard refresh (LONG-PRESS the ↻ glyph — haptic tick + "Hard reloading…"):
+  [ ] the current URL reloads freshly (e.g. a site's stale banner/counter
+      updates) [ ] session/cookies remain (still logged in) [ ] tab
+      remains [ ] other tabs unaffected.
+
+### 29.3 Drag handle
+- [ ] easy to grab (invisible touch zone now 40dp tall, full width)
+- [ ] still visually the same small 36×4dp bar
+- [ ] never hidden underneath other UI (it is the topmost element of the
+      panel's column)
+- [ ] smooth dragging (1:1, frozen WebView height during drag, one reflow
+      on release, height remembered)
+- [ ] does not interfere with website scrolling (the zone never overlaps
+      the canvas).
+
+### 29.4 The universal keyboard (ONE keyboard, ONE layout)
+- Terminal: [ ] focus terminal → deck opens → type a command → the shell
+  receives it (unchanged behavior).
+- ChatGPT: [ ] open Companion → tap the message box → the PocketShell
+  deck opens by itself → type → the message appears in ChatGPT
+  [ ] no Android keyboard, ever.
+- Z.ai: [ ] tap the prompt → same deck → type → prompt appears.
+- Companion settings: [ ] Add Companion → tap the Name field → the SAME
+  deck opens → letters/numbers/punctuation/space/backspace/enter all
+  reach the field (the universal dispatch fallback) — this replaces the
+  system IME that used to serve these fields.
+- Hide / toggle: [ ] tap [⌨] in the deck row → the deck hides
+  [ ] the small rectangular [⌨] button appears bottom-right — on EVERY
+      screen now (Home, Terminal, Linux, CLI Apps, Companion)
+  [ ] tap it → the same deck reopens.
+- Over every screen: [ ] Terminal → Companion → ChatGPT works
+  [ ] Linux → Companion → Z.ai works [ ] CLI Apps → Companion → GitHub
+  works [ ] Home → Companion → any site works.
+- Focus conflicts: [ ] Terminal underneath + Companion open → tap a
+  ChatGPT input → typing goes to ChatGPT (NOT the terminal)
+  [ ] close the Companion → the terminal receives typing again, cleanly
+  [ ] no keyboard flickering, no double-open, no wrong-target input
+  [ ] hiding the deck and tapping the SAME field does not re-open it
+      (use the [⌨] toggle — by design; a DIFFERENT field or surface
+      auto-opens it again).
+
+### 29.5 Regression
+- [ ] Terminal (PTY output, pinch, F-key long-presses) unchanged — the
+      deck only moved composition scope, nothing else.
+- [ ] Companion Gates A–H of §28 still hold (they are the freeze).
+- [ ] Settings → Companions → Clear web data still wipes cookies/storage
+      + live tabs, keeps definitions (this — and only this — remains the
+      way to clear data; hard refresh is NOT a data reset).
+- [ ] §22 holds: app startup still never touches android.webkit (the IME
+      block is a window flag, not a WebView call).
+- [ ] If ANY gate fails: the renderer is NOT the suspect (it is
+      byte-identical to vc35); capture the failing screen and paste it —
+      the finalization layer (refresh/keyboard/handle) is the search
+      space.

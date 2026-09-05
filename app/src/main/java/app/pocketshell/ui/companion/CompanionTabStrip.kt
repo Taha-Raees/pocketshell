@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +35,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,7 +66,8 @@ fun CompanionTabStrip(
     onSelect: (String) -> Unit,
     onClose: (String) -> Unit,
     onAdd: () -> Unit,
-    onDiagnostics: () -> Unit = {},
+    onRefresh: () -> Unit = {},
+    onHardRefresh: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val defsById = remember(defs) { defs.associateBy { it.id } }
@@ -97,8 +102,9 @@ fun CompanionTabStrip(
                     )
                 }
             }
-            DiagnosticsTabButton(
-                onOpen = onDiagnostics,
+            RefreshTabButton(
+                onRefresh = onRefresh,
+                onHardRefresh = onHardRefresh,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
                     .padding(start = 6.dp),
@@ -221,24 +227,38 @@ private fun AddTabButton(onAdd: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 /**
- * m4.1.0 — the diagnostics chip. One quiet info glyph at the strip's end:
- * it launches the render-baseline harness — the m4.0.9 control experiment
- * that settled the blank-canvas case on the physical device (video: all
- * four gate sites rendered in the plain-Activity baseline). Kept reachable
- * as the standing render diagnostic.
+ * m4.0.12 — the refresh control in the diagnostics chip's old slot.
+ * Tap: a plain reload of the ACTIVE tab (same URL, same tab, nothing else
+ * touched — §3). Long-press: a HARD refresh of the same page — the
+ * freshest possible load that still preserves cookies, sessions and every
+ * other tab (§4). One quiet glyph, the exact strip-button language of its
+ * siblings.
  */
 @Composable
-private fun DiagnosticsTabButton(onOpen: () -> Unit, modifier: Modifier = Modifier) {
+private fun RefreshTabButton(
+    onRefresh: () -> Unit,
+    onHardRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptics = LocalHapticFeedback.current
     Box(
         modifier = modifier
             .size(28.dp)
             .clip(RoundedCornerShape(8.dp))
-            .clickable { onOpen() },
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onRefresh() },
+                    onLongPress = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onHardRefresh()
+                    },
+                )
+            },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Outlined.Info,
-            contentDescription = "Render baseline (diagnostic)",
+            imageVector = Icons.Outlined.Refresh,
+            contentDescription = "Refresh — hold for hard refresh",
             tint = TerminalTheme.textDim,
             modifier = Modifier.size(16.dp),
         )

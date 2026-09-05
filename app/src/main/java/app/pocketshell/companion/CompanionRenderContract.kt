@@ -13,14 +13,14 @@ package app.pocketshell.companion
  *   Companion screen:  Activity → (sheet chrome) → FrameLayout → WebView(activity) → layout → load
  *
  * [CompanionWebHost.createWebView] implements THIS file; if the two ever
- * disagree, this file wins and the host is wrong. The winning mode is
- * BaselineMatrix.WINNER (= BASELINE, zero deltas) — chosen by the device
- * sweep and frozen here, per the directive: "identify the winning mode,
- * freeze its WebView settings, copy those exact settings."
+ * disagree, this file wins and the host is wrong. The winning mode is the
+ * zero-delta BASELINE ("baseline") — selected by the device sweep and
+ * frozen here; the sweep's evidence lives in docs/RENDER-RESET-M4.0.9.md
+ * and the git history (the harness code was retired in m4.0.12).
  *
  * Pure data only (the testing contract forbids fake WebView tests): these
  * pins are enforced by CompanionRenderContractTest, and the on-device
- * truth is gated manually in docs/TESTING.md §28 (Gates A–H).
+ * truth is gated manually in docs/TESTING.md (Gates A–H).
  */
 object CompanionRenderContract {
 
@@ -81,9 +81,10 @@ object CompanionRenderContract {
     /**
      * The m4.0.9 rule, enforced: the RENDER PATH carries zero diagnostics.
      * No pixel probes, no boot witness, no console tail, no health polling,
-     * no evaluateJavascript in the render path. (The render-baseline
-     * harness remains available as a separate diagnostic Activity behind
-     * the tab strip's ⓘ chip — it never touches the canvas.)
+     * no evaluateJavascript in the render path. m4.0.12: the render-baseline
+     * harness was RETIRED COMPLETELY — the ⓘ chip, its launch path, the
+     * diagnostic Activity and its matrix are deleted; the Companion shows
+     * only the real website.
      */
     val DIAGNOSTICS_IN_RENDER_PATH = emptyList<String>()
 
@@ -93,4 +94,21 @@ object CompanionRenderContract {
      * swaps WebViews (the m4.0.7 lesson, kept as law).
      */
     const val TAB_SWITCH_MECHANISM = "native view surgery (removeAllViews + addView), one stable canvas"
+
+    // ---- m4.0.12 — the finalization layer (refresh; NEVER the renderer) ----
+
+    /** §3: Refresh acts on the ACTIVE tab only — one WebView, plain reload(),
+     *  same URL, same tab; other tabs and the session are untouched. */
+    const val REFRESH_SCOPE = "active tab only: reload() on one WebView, same URL, same tab"
+
+    /** §4: Hard refresh is a FRESH RELOAD, not a data reset. For the single
+     *  hard-reloaded page the HTTP cache is bypassed and the mode restored
+     *  on page finish; cookies, login sessions and the other tabs are
+     *  never touched. Pinned as the exact behavioral surface. */
+    val HARD_RELOAD = listOf(
+        "cacheMode = LOAD_NO_CACHE for this one load only",
+        "restored to LOAD_DEFAULT on page finish",
+        "cookies and login sessions preserved",
+        "other tabs untouched",
+    )
 }

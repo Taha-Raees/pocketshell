@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,10 +64,11 @@ import app.pocketshell.companion.CompanionHeights
 import app.pocketshell.companion.CompanionWebHost
 import app.pocketshell.companion.CompanionViewModel
 import app.pocketshell.companion.decideBackAction
-import app.pocketshell.diagnostic.BaselineWebViewActivity
+import app.pocketshell.keyboard.KeyboardInputRouter
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightFilledButton
 import app.pocketshell.ui.theme.TerminalTheme
+import android.widget.Toast
 
 /**
  * Phase 4 — the Companion layer (docs/PHASE-4-COMPANION-DESIGN.md §9–§11).
@@ -238,10 +240,14 @@ fun CompanionLayer(
                         // m4.0.3: "+" opens the picker sheet (list + add),
                         // it no longer silently opens the default tab.
                         onAdd = { pickerOpen = true },
-                        // m4.1.0: the info chip launches the render-baseline
-                        // harness — the control experiment that settled the
-                        // blank-canvas case (docs/RENDER-RESET-M4.0.9.md).
-                        onDiagnostics = { launchRenderBaseline(context) },
+                        // m4.0.12 §3/§4: refresh (tap) and hard refresh
+                        // (long-press) act on the ACTIVE tab only. The hard
+                        // path announces itself once, quietly.
+                        onRefresh = { CompanionWebHost.reload(activeTabId) },
+                        onHardRefresh = {
+                            Toast.makeText(context, "Hard reloading…", Toast.LENGTH_SHORT).show()
+                            CompanionWebHost.reloadHard(activeTabId)
+                        },
                     )
                     Box(
                         modifier = Modifier
@@ -307,10 +313,31 @@ fun CompanionLayer(
 
         // m4.0.3: the picker is the topmost surface — Back closes it first.
         BackHandler(enabled = pickerOpen) { pickerOpen = false }
+
+        // m4.0.12 §14 — clean focus restoration: when the Companion closes,
+        // the terminal underneath becomes the visible typeable surface again.
+        // Handing focus back explicitly prevents input from continuing to
+        // flow to the (now hidden) WebView or the keyboard flickering while
+        // ownership is ambiguous.
+        LaunchedEffect(raised) {
+            if (!raised) {
+                KeyboardInputRouter.terminalTarget?.let { terminal ->
+                    runCatching { terminal.requestFocus() }
+                }
+            }
+        }
     }
 }
 
-/** The single drag affordance — no text, no label (brief R1). */
+/**
+ * The single drag affordance — no text, no label (brief R1).
+ *
+ * m4.0.12 §5 — easier to grab WITHOUT growing the visible design: the bar
+ * stays 36×4dp, but the INVISIBLE full-width touch zone grows from 28dp to
+ * 40dp of vertical drag area. The zone is transparent, sits above the tab
+ * strip in the layer's column (nothing can slide under it), and does not
+ * overlap the web canvas — website scrolling is untouched.
+ */
 @Composable
 private fun CompanionHandle(
     dragging: Boolean,
@@ -413,14 +440,6 @@ private fun CompanionWebCanvas(
             .fillMaxWidth()
             .height(with(LocalDensity.current) { webHeightPx.toDp() }),
     )
-}
-
-/** m4.1.0 — the ⓘ chip's control experiment, one tap away. */
-private fun launchRenderBaseline(context: android.content.Context) {
-    try {
-        context.startActivity(Intent(context, BaselineWebViewActivity::class.java))
-    } catch (_: Throwable) {
-    }
 }
 
 /** The real Activity behind any Compose context (wrappers included). */
@@ -727,5 +746,5 @@ private fun CompanionRuntimeUnavailable() {
     }
 }
 
-private val HANDLE_ZONE = 28.dp
+private val HANDLE_ZONE = 40.dp
 private val STRIP_HEIGHT = 40.dp

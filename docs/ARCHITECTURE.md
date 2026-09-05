@@ -96,23 +96,34 @@ content providers, no background sync, no network layer, no DI framework
 ## 4. Input flow (single pipeline, §9 of brief)
 
 ```
-PocketShell keyboard deck (Compose, custom from scratch — no system IME)
+PocketShell keyboard deck (Compose, custom from scratch — no system IME;
+composed at the app ROOT since m4.0.12 — ONE deck over EVERY screen)
   │  letter/symbol keys  → KeyCharacterMap.VIRTUAL_KEYBOARD.getEvents()
   │  special keys        → synthetic KeyEvent(KEYCODE_*)
   │  long-press actions  → dispatched as ordinary actions (digits → F1–F10)
   │  modifier taps       → KeyboardState (one-shot / LOCKED / off, observable)
   ▼
-TerminalView.dispatchKeyEvent()          [vendored, unmodified]
-  │  uses KeyHandler.getCode(code, keyMode, cursorApp, keypadApplication)
-  │  keyMode ← TerminalViewClient.readCtrl/Alt/Shift/FnKey()
-  │             └─ delegates to KeyboardState ─── the same state the UI shows
+Universal dispatch chain (m4.0.12): KeyboardInputRouter.resolve()
+  │   1. the focused+attached Companion WebView (last tap wins)
+  │   2. the terminal canvas (registered by TerminalViewHost)
+  │   3. fallback: the window's focused view — serves Compose text
+  │      fields (Companion settings, any future app-level input)
   ▼
-TerminalSession.write(bytes)
-  ▼
-PTY master fd (libtermux JNI)
-  ▼
-shell / interactive program (vim, top, tmux, …)
+target.dispatchKeyEvent()               [real KeyEvents — never JS, never IME]
+  ├─ TerminalView → KeyHandler → TerminalSession.write(bytes) → PTY → shell
+  ├─ WebView     → chromium key pipeline → the focused HTML input
+  └─ Compose     → AndroidComposeView → the focused text field
 ```
+
+The system IME is hard-blocked for the app's lifetime (m4.0.12 §11:
+`FLAG_ALT_FOCUSABLE_IM` set once in `MainActivity.onCreate` + the IME
+inset hidden) — the Android/Samsung keyboard can never appear anywhere
+inside PocketShell. Focus follows input: a WebView input gaining focus
+auto-opens the deck (the terminal canvas does the same via its tap
+client); hiding the deck parks the bottom-right [⌨] rebirth button on
+every screen; closing the Companion hands focus back to the terminal
+explicitly. One keyboard, one layout, one experience (§6–§15 of the
+finalization brief).
 
 Output path:
 

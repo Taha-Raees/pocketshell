@@ -51,17 +51,11 @@
         </activity>
 
         <!--
-          Phase 4.0.9 — the minimal baseline WebView experiment (the
-          rendering-reset control). Plain Activity → FrameLayout → one
-          WebView; reached ONLY from the Companion page-health sheet. Not
-          exported; never launched at startup (its WebView is created in
-          onCreate, so §22 holds).
+          m4.0.12: the render-baseline harness Activity was retired with the
+          finalization pass (the frozen renderer needs no control anymore);
+          the sweep's evidence lives in docs/RENDER-RESET-M4.0.9.md and the
+          git history.
         -->
-        <activity
-            android:name=".diagnostic.BaselineWebViewActivity"
-            android:exported="false"
-            android:label="Render baseline"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale" />
 
         <service
             android:name=".terminal.TerminalService"

@@ -15,6 +15,7 @@ import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
+import android.webkit.WebSettings
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -107,6 +108,10 @@ object CompanionWebHost {
     private var listener: Listener? = null
     private var fileChooserHost: FileChooserHost? = null
     private var pendingFileChooser: ValueCallback<Array<Uri>>? = null
+
+    /** m4.0.12 — tabs with a hard reload in flight; [client] restores the
+     *  default cache mode on their next page finish. */
+    private val hardReloadInFlight = HashSet<String>()
 
     /**
      * The single native host container. Compose's AndroidView hands this
@@ -236,6 +241,7 @@ object CompanionWebHost {
     /** Tab closed (or definition deleted): its state is dropped for good. */
     fun forgetTab(defId: String) {
         pendingLoad.remove(defId)
+        hardReloadInFlight.remove(defId)
         val webView = tabs.remove(defId) ?: return
         canvasRef?.get()?.let { canvas -> if (canvas.getChildAt(0) === webView) canvas.removeAllViews() }
         destroyQuietly(webView)
@@ -245,10 +251,46 @@ object CompanionWebHost {
 
     fun clearAll() {
         pendingLoad.clear()
+        hardReloadInFlight.clear()
         canvasRef?.get()?.removeAllViews()
         tabs.values.toList().forEach { destroyQuietly(it) }
         tabs.clear()
         activeDefId = null
+    }
+
+    /**
+     * m4.0.12 §3 — Refresh: a plain reload of ONE tab. The caller passes
+     * the ACTIVE tab id; no other tab, no reset, no navigation — the page
+     * reloads in place at its current URL.
+     */
+    fun reload(defId: String?): Boolean {
+        val webView = defId?.let { tabs[it] } ?: return false
+        return try {
+            webView.reload()
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    /**
+     * m4.0.12 §4 — Hard refresh, NOT a reset: the freshest possible reload
+     * of ONE tab that never touches user data. For this single load the
+     * HTTP cache is bypassed ([WebSettings.LOAD_NO_CACHE]); [client] restores
+     * the default mode on page finish. Cookies, login sessions, DOM storage
+     * and every other tab are untouched — the user stays logged in.
+     */
+    fun reloadHard(defId: String?): Boolean {
+        val webView = defId?.let { tabs[it] } ?: return false
+        return try {
+            webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
+            hardReloadInFlight.add(defId)
+            webView.reload()
+            true
+        } catch (_: Throwable) {
+            hardReloadInFlight.remove(defId)
+            false
+        }
     }
 
     /** Back-navigation probe for the §14 decision (false = no live history). */
@@ -306,7 +348,13 @@ object CompanionWebHost {
         webView.isFocusable = true
         webView.isFocusableInTouchMode = true
         webView.setOnFocusChangeListener { v, hasFocus ->
-            if (hasFocus) KeyboardInputRouter.webTarget = v
+            if (hasFocus) {
+                KeyboardInputRouter.webTarget = v
+                // m4.0.12 §13: a typeable surface appeared — the app root
+                // opens the shared deck so the SAME keyboard serves the
+                // focused input (no system IME is ever involved).
+                KeyboardInputRouter.onWebFocusGained?.invoke()
+            }
         }
         webView.setDownloadListener(downloadListener())
         webView.webViewClient = client(defId)
@@ -342,6 +390,18 @@ object CompanionWebHost {
             if (url != null) listener?.onVisitStarted(defId, url)
         }
 
+        override fun onPageFinished(view: WebView, url: String?) {
+            // m4.0.12: a hard reload bypassed the HTTP cache for THIS load
+            // only — restore the default mode so normal caching resumes for
+            // the tab (and the other tabs never saw anything).
+            if (hardReloadInFlight.remove(defId)) {
+                try {
+                    view.settings.cacheMode = WebSettings.LOAD_DEFAULT
+                } catch (_: Throwable) {
+                }
+            }
+        }
+
         override fun onReceivedError(
             view: WebView,
             request: WebResourceRequest,
@@ -361,6 +421,7 @@ object CompanionWebHost {
             // canvas explain (broken WebView builds do this).
             tabs.remove(defId)
             pendingLoad.remove(defId)
+            hardReloadInFlight.remove(defId)
             canvasRef?.get()?.let { canvas ->
                 if (canvas.getChildAt(0) === view) canvas.removeAllViews()
             }

@@ -602,3 +602,42 @@ remote development.
       acceptance: real UIs on the two hard sites, touch/keyboard, tab
       switch + collapse/reopen persistence, session survival), §28.3
       regression spot-checks.
+
+### Phase 4.0.12 (2026-09-05, v0.8.0-m4.0.12) — Companion Finalization: cleanup, polish, ONE keyboard
+- [x] Surgical cleanup pass executed with the renderer FROZEN (the
+      working baseline implementation untouched — the source of truth):
+      the sheet, drag mechanics, remembered height, tab system, tab
+      state, destination storage and Companion navigation unchanged.
+- [x] ALL baseline diagnostics removed, completely: the ⓘ chip, the
+      launch path, the harness Activity + BaselineMatrix (code DELETED,
+      manifest entry removed) — the Companion shows only the real
+      website. The frozen contract is unchanged in substance; the winner
+      is pinned by VALUE now (evidence lives in RENDER-RESET §1–§8 and
+      the git history).
+- [x] Refresh (§3): the ↻ glyph in the tab strip — tap = plain reload of
+      the ACTIVE tab only (same URL, same tab, others untouched).
+- [x] Hard refresh (§4): long-press = transient LOAD_NO_CACHE around one
+      reload, restored on page finish — session-safe (cookies/logins
+      preserved), NOT a data reset; haptic tick + "Hard reloading…"
+      toast. Pinned: `REFRESH_SCOPE` + `HARD_RELOAD` in the contract.
+- [x] Drag handle (§5): visible bar unchanged (36×4dp); invisible
+      full-width touch zone 28→40dp; above nearby UI by construction;
+      no canvas overlap.
+- [x] ONE keyboard everywhere (§6–§15): the deck moved to the app root —
+      one deck over every screen; system IME permanently blocked
+      (FLAG_ALT_FOCUSABLE_IM in onCreate — no more leak when the deck is
+      hidden); universal dispatch fallback serves focused Compose text
+      fields; WebView-input focus auto-opens the deck; the bottom-right
+      [⌨] toggle works on every screen; Companion collapse restores
+      terminal focus.
+- [x] Pins: contract test reworked (winner by value + refresh layer
+      pins) + 3 universal-dispatch pins. Suite: 750 executions /
+      0 failures.
+- [x] docs: TESTING §29 (finalization gates), CHANGELOG
+      [0.8.0-m4.0.12], ARCHITECTURE §4 (root deck + universal chain).
+- [x] versionCode 36 — the finalization build; in-place over 16..35,
+      same pinned cert.
+- [ ] Device gate §29: website rendering re-proof (ChatGPT/Z.ai/one
+      more), refresh normal + hard, drag handle, universal keyboard
+      (terminal, ChatGPT, Z.ai, settings fields, hide/toggle, over every
+      screen, no focus conflicts), §29.5 regression ladder.

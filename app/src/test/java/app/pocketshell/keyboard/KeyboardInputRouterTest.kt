@@ -54,4 +54,58 @@ class KeyboardInputRouterTest {
             KeyboardInputRouter.pick(web = Surface, webUsable = false, terminal = null),
         )
     }
+
+    // ---- m4.0.12 — the universal dispatch chain (§6/§10: ONE keyboard
+    //      serves every text input, so the router decision falls through to
+    //      the window's focused view for surfaces the two registrations
+    //      cannot know — e.g. Compose text fields) ----------------------------
+
+    @Test
+    fun `fallback keeps the router decision when one exists`() {
+        assertEquals(
+            Surface,
+            KeyboardInputRouter.pickWithFallback(
+                web = Surface,
+                webUsable = true,
+                terminal = Any(),
+                focused = Any(),
+            ),
+        )
+        val terminal = Any()
+        assertEquals(
+            terminal,
+            KeyboardInputRouter.pickWithFallback(
+                web = Surface,
+                webUsable = false,
+                terminal = terminal,
+                focused = Any(),
+            ),
+        )
+    }
+
+    @Test
+    fun `fallback serves the focused view when nothing is registered`() {
+        val focused = Any()
+        assertEquals(
+            focused,
+            KeyboardInputRouter.pickWithFallback<Any>(
+                web = null,
+                webUsable = false,
+                terminal = null,
+                focused = focused,
+            ),
+        )
+    }
+
+    @Test
+    fun `fallback with nothing focused resolves to null (no dispatch)`() {
+        assertNull(
+            KeyboardInputRouter.pickWithFallback<Any>(
+                web = Surface,
+                webUsable = false,
+                terminal = null,
+                focused = null,
+            ),
+        )
+    }
 }

@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.8.0-m4.0.11
+VERSION=v0.8.0-m4.0.12
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,47 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.8.0-m4.1.0) — REPLACE RENDERER ONLY: THE WINNER
+WHAT IS NEW IN $VERSION (vs v0.8.0-m4.0.11) — COMPANION FINALIZATION: CLEANUP,
+POLISH, ONE KEYBOARD (surgical pass; the working renderer is the source of
+truth and was NOT modified):
+  - DIAGNOSTICS GONE, COMPLETELY: the tab strip's i chip, the launch path,
+    the render-baseline harness Activity and its matrix are DELETED (code +
+    manifest). The Companion shows only the real website — no URL / WebView-
+    version / UA / bounds / layer readouts, no URL/MODE/INSPECT/COPY buttons.
+    The frozen render contract is unchanged in substance (the winner is
+    pinned by VALUE now; the sweep evidence lives in
+    docs/RENDER-RESET-M4.0.9.md §1–§8 + the git history).
+  - REFRESH (tap) + HARD REFRESH (long-press) on the new strip glyph: tap =
+    plain reload of the ACTIVE tab only (same URL, same tab, other tabs
+    untouched). Long-press = the freshest possible reload that is NOT a
+    data reset: one transient LOAD_NO_CACHE around the single reload,
+    restored on page finish; cookies, logins and other tabs are preserved;
+    a haptic tick + a "Hard reloading…" toast announce it. Pinned in the
+    contract (REFRESH_SCOPE / HARD_RELOAD).
+  - DRAG HANDLE, EASIER TO GRAB: the visible bar is unchanged (36x4dp); the
+    INVISIBLE full-width touch zone grew 28 -> 40dp; it sits above nearby
+    UI by construction and never overlaps the canvas (site scrolling
+    untouched).
+  - ONE POCKETSHELL KEYBOARD, EVERYWHERE: the deck moved to the app root —
+    ONE keyboard over EVERY screen (Terminal, Linux, CLI Apps, Home, and
+    the Companion over all of them). The system IME is hard-blocked for the
+    app's lifetime (FLAG_ALT_FOCUSABLE_IM in onCreate) — the Android/
+    Samsung keyboard can never appear (it used to leak back whenever the
+    deck was toggled off). Real KeyEvents only (no JavaScript hacks); a
+    universal dispatch fallback serves focused Compose text fields (the
+    Companion settings Name/URL inputs — previously system-IME-only).
+    WebView-input focus auto-opens the deck; the bottom-right keyboard
+    toggle works on every screen; closing the Companion restores terminal
+    focus. One keyboard, one layout, one experience.
+  - NOT TOUCHED (the freeze held): renderer, sheet, drag mechanics,
+    remembered height, tab system, tab state, destination storage,
+    Companion navigation, provider management.
+  - Full suite green: 750 executions, 0 failures. Device gate:
+    docs/TESTING.md §29 (website rendering re-proof, refresh normal +
+    hard, drag handle, universal keyboard, regression ladder).
+    versionCode 36 — in-place update over 16..35; same pinned cert.
+
+WHAT WAS NEW IN v0.8.0-m4.0.11 (vs v0.8.0-m4.1.0) — REPLACE RENDERER ONLY: THE WINNER
 FROZEN AND SHIPPED (the closing iteration of the blank-canvas investigation):
   - THE DIRECTIVE, EXECUTED VERBATIM: do not redesign the Companion, do not
     touch the sheet architecture. The existing drag handle, bottom-sheet
@@ -1148,8 +1188,7 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/companion/CompanionWebHost.kt \
            app/src/main/java/app/pocketshell/companion/CompanionRenderContract.kt \
            app/src/main/java/app/pocketshell/companion/WebCompat.kt \
-           app/src/main/java/app/pocketshell/diagnostic/BaselineWebViewActivity.kt \
-           app/src/main/java/app/pocketshell/diagnostic/BaselineMatrix.kt \
+           app/src/main/java/app/pocketshell/keyboard/KeyboardInputRouter.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionLayer.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionTabStrip.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionSettingsScreen.kt \

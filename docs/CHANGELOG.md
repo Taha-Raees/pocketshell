@@ -3,6 +3,74 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.8.0-m4.0.12] — 2026-09-05 — Companion Finalization: cleanup, polish, ONE keyboard
+
+The directive bounded this iteration as a **surgical cleanup and polish
+pass only**: the working baseline renderer is the source of truth and was
+not modified. Five finalization items were executed around it, and the
+temporary diagnostic/debug UI was retired completely.
+
+### 1. Diagnostics removed — completely
+- The ⓘ chip is gone from the Companion tab strip; the render-baseline
+  harness (`BaselineWebViewActivity`, `BaselineMatrix`), its launch path
+  and its manifest entry are DELETED. The Companion now shows only the
+  real website — no Render-baseline header, no URL/WebView-version/
+  user-agent/attached-bounds/layer readouts, no URL/MODE/INSPECT/COPY
+  buttons, no test controls, anywhere.
+- The frozen render contract (`CompanionRenderContract`) is unchanged in
+  substance; the winner is now pinned by VALUE (the sweep's evidence
+  lives in docs/RENDER-RESET-M4.0.9.md and the git history). The canvas's
+  DIAGNOSTICS_IN_RENDER_PATH list stays empty and pinned.
+- What was NOT touched: the WebView/container implementation — the proven
+  recipe (`WebView(realActivity)`, JS + DOM storage + two §16 denials,
+  plain FrameLayout, attach → first layout → loadUrl) is byte-identical.
+
+### 2. Refresh (tap) and hard refresh (long-press)
+- The refresh glyph sits in the tab strip (the ⓘ chip's old slot). Tap:
+  plain `reload()` of the ACTIVE tab only — same URL, same tab, other
+  tabs and the session untouched.
+- Long-press: HARD refresh of the active page — the freshest possible
+  reload that is NOT a data reset: one transient
+  `cacheMode = LOAD_NO_CACHE` around the single reload, restored to
+  `LOAD_DEFAULT` on page finish. Cookies, login sessions and the other
+  tabs are never touched; a subtle haptic tick + a "Hard reloading…" toast
+  announce it. The behavioral surface is pinned in the contract
+  (`REFRESH_SCOPE`, `HARD_RELOAD`) and unit-tested.
+
+### 3. Drag handle: easier to grab, same design
+- The visible bar stays 36×4dp; the invisible full-width touch zone grew
+  from 28dp to 40dp of vertical drag area. It sits above the tab strip in
+  the layer's column (nothing slides under it) and does not overlap the
+  web canvas — website scrolling is untouched.
+
+### 4. ONE PocketShell keyboard — everywhere (§6–§15)
+- The deck is now composed at the app ROOT (`PocketShellRoot`), not inside
+  the terminal screen: the same keyboard with the same layout exists over
+  Terminal, Linux, CLI Apps, Home, and the Companion over all of them.
+- The system IME is hard-blocked for the app's lifetime
+  (`FLAG_ALT_FOCUSABLE_IM` set once in `onCreate` + the IME inset hidden):
+  the Android/Samsung keyboard can never appear — previously it leaked
+  back whenever the deck was toggled off. No JavaScript typing hacks: the
+  deck dispatches real KeyEvents to the focused view, now with a
+  universal fallback (`KeyboardInputRouter.pickWithFallback`) so focused
+  Compose text fields (Companion settings Name/URL, future app inputs)
+  are served by the same deck too.
+- Focus follows input: a Companion WebView input gaining focus auto-opens
+  the deck (the terminal canvas already did this via its tap client).
+  The bottom-right [⌨] rebirth button now appears on EVERY screen (not
+  just Terminal). Closing the Companion hands focus back to the terminal
+  explicitly — no flicker, no wrong-target input, no double-open.
+
+### 5. Not touched (the freeze held)
+- Renderer, sheet, drag mechanics, remembered height, tab system, tab
+  state, destination storage, Companion navigation, provider management.
+- Full suite green: **750 executions / 0 failures** (the harness's
+  BaselineMatrixTest pins retired with the code; the contract test now
+  pins the winner by value + the refresh layer; +3 universal-dispatch
+  pins). versionCode 36 — in-place update over 16..35; same pinned cert.
+- Device gate: docs/TESTING.md §29 — website rendering, refresh (normal +
+  hard), drag handle, universal keyboard, and the regression ladder.
+
 ## [0.8.0-m4.0.11] — 2026-09-05 — Replace Renderer Only: the winner frozen and shipped
 
 The user's closing directive bounded this iteration precisely: **do not
