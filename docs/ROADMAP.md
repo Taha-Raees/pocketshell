@@ -641,3 +641,55 @@ remote development.
       more), refresh normal + hard, drag handle, universal keyboard
       (terminal, ChatGPT, Z.ai, settings fields, hide/toggle, over every
       screen, no focus conflicts), §29.5 regression ladder.
+
+### Phase 5.0.0 (2026-09-05, v0.9.0-m5.0.0) — UI & Interaction Polish: free-position Companion, decluttered Home, Light Theme done fully
+- [x] A refinement phase — no redesign, no new feature, the working
+      Companion implementation untouched architecturally (renderer,
+      sheet mechanics, tab system, pool, refresh/hard-refresh all
+      preserved).
+- [x] Companion drag bar (§1): visible bar doubled (36→72dp, still
+      4dp slim) in the same 40dp invisible full-width zone; zone stays
+      the column's first child (can never hide behind tabs/content).
+      Single tap ANYWHERE on the bar minimizes the raised sheet at ANY
+      height; restore is drag-up only (no floating button — the bar is
+      the only affordance, as before).
+- [x] Free positioning (§1): HALF/FULL snap windows RETIRED — release
+      settles exactly where the user leaves it, any fraction; height
+      changes only by dragging; collapse threshold (drag to the bar →
+      minimized) is the only special release. Height-math unit pins
+      reworked for the new contract.
+- [x] Home FAB removed (§2): QuickActions.kt deleted, 140dp clearance
+      gone; session creation lives in the Terminal (its "+" and empty
+      state); no floating replacement.
+- [x] Duplicate CLI Apps dropdown removed (§3): it listed the same apps
+      the "Your tools" grid launches — one clear path remains. No
+      functionality removed.
+- [x] Compact chrome (§5–§7): terminal strip 44→40dp, tab min width
+      96→84dp, paddings 12→10dp, gaps 6→4dp; terminal "+" integrated
+      into the strip (no circle plate); app-wide padding trim (Home,
+      MidnightPage kit, Packages, Settings) with touch targets ≥44–48dp
+      preserved; active tab labels ride the pinned onCanvas token.
+- [x] Keyboard toggle corner-anchored (§4): [⌨] rebirth icon at 12dp
+      from the right edge / 8dp above the gesture inset on every
+      screen; safe insets respected. ONE keyboard system untouched (no
+      second layout, no IME, same dispatch chain, same web-input
+      bridging).
+- [x] Light Theme (§8): TerminalTheme tokens became snapshot state —
+      Midnight (dark, historical values) ↔ Daylight Sapphire (light);
+      HomeTokens read-through; token sync before first read (no flash);
+      immediate switch, DataStore persistence; System/Light/Dark/AMOLED
+      all live; AMOLED preserved; dynamic color intact. The terminal
+      CONTENT canvas is PINNED dark (TerminalPalette/OSC authority) and
+      websites keep their own themes — no injection, ever. New pinned
+      onCanvas/onCanvasDim tokens keep canvas-surface text readable in
+      both themes. Status bar follows the theme on every screen.
+- [x] Packages page (§9) + Settings page (§10) polish: compact search
+      row, grouped Settings (Appearance / Terminal / Companion), same
+      honest apk-backed states, nothing invented.
+- [x] Full suite green: 750 executions / 0 failures. versionCode 37 —
+      in place over 16..36, same pinned cert.
+- [ ] Device gate §30: drag-bar behavior matrix (tap-to-minimize at
+      every height, free positioning, restore), FAB/CLI-menu removal,
+      keyboard toggle corner, Light/Dark/System/AMOLED screen sweep
+      (contrast, tabs, keyboard, Companion chrome — websites NOT
+      re-themed), Packages/Settings, keyboard regression ladder.

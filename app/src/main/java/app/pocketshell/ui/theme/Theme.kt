@@ -20,12 +20,35 @@ private val TerminalSurfaceLight = Color(0xFFF7F9F7)
 private val AmoledBlack = Color(0xFF000000)
 private val AmoledSurface = Color(0xFF050505)
 
+// Phase 5 — the M3 schemes now carry the SAME paper/ink structure as the
+// Midnight/Daylight token vocabulary, so every Material surface that leaks
+// through (Scaffold backdrop, DropdownMenu, dialogs) matches the app chrome
+// instead of the stock purple-tinted defaults.
+private val PaperBackground = Color(0xFFEEF2F8)
+private val PaperSurface = Color(0xFFF7F9FC)
+private val PaperInk = Color(0xFF17233B)
+private val PaperDim = Color(0xFF5D6E8C)
+private val MidnightBackground = Color(0xFF0B1424)
+private val MidnightSurface = Color(0xFF101B30)
+private val MidnightInk = Color(0xFFDCE6F8)
+
 private val LightColors = lightColorScheme(
     primary = GreenPrimary,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFB9F0BA),
     onPrimaryContainer = Color(0xFF002105),
-    surface = TerminalSurfaceLight,
+    surface = PaperSurface,
+    onSurface = PaperInk,
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = PaperSurface,
+    surfaceContainer = PaperSurface,
+    surfaceContainerHigh = Color(0xFFFBFCFE),
+    surfaceContainerHighest = Color(0xFFFFFFFF),
+    onSurfaceVariant = PaperDim,
+    background = PaperBackground,
+    onBackground = PaperInk,
+    outline = Color(0xFFD3DCE9),
+    outlineVariant = Color(0xFFD3DCE9),
 )
 
 private val DarkColors = darkColorScheme(
@@ -33,7 +56,13 @@ private val DarkColors = darkColorScheme(
     onPrimary = Color(0xFF003911),
     primaryContainer = Color(0xFF1D5326),
     onPrimaryContainer = Color(0xFFB9F0BA),
-    surface = TerminalSurfaceDark,
+    surface = MidnightSurface,
+    onSurface = MidnightInk,
+    onSurfaceVariant = Color(0xFF7C8DB0),
+    background = MidnightBackground,
+    onBackground = MidnightInk,
+    outline = Color(0xFF1D2C4A),
+    outlineVariant = Color(0xFF1D2C4A),
 )
 
 private val AmoledColors = darkColorScheme(
@@ -48,12 +77,22 @@ private val AmoledColors = darkColorScheme(
     surfaceContainer = AmoledSurface,
     surfaceContainerHigh = Color(0xFF0C0C0C),
     surfaceContainerHighest = Color(0xFF111111),
+    onSurface = MidnightInk,
+    onBackground = MidnightInk,
+    onSurfaceVariant = Color(0xFF7C8DB0),
+    outline = Color(0xFF1D2C4A),
+    outlineVariant = Color(0xFF1D2C4A),
 )
 
 /**
  * PocketShell M3 theme (brief §25): Light / Dark / AMOLED / Dynamic Color on a
  * restrained, serious baseline. Dynamic color requires Android 12+ and falls
  * back to the brand scheme elsewhere.
+ *
+ * Phase 5: this composable is ALSO the sync point for the Midnight/Daylight
+ * token vocabulary — [TerminalTheme.applyTheme] runs during composition,
+ * before any child reads a token, so a Light selection (persisted or just
+ * chosen) never flashes the dark palette first.
  */
 @Composable
 fun PocketShellTheme(
@@ -65,6 +104,11 @@ fun PocketShellTheme(
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK, ThemeMode.AMOLED -> true
+    }
+    // Token sync BEFORE content composes — no first-frame flash.
+    androidx.compose.runtime.remember(themeMode, dark) {
+        TerminalTheme.applyTheme(!dark)
+        true
     }
     val context = LocalContext.current
     val colorScheme = when {

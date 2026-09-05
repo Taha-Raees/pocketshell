@@ -167,33 +167,37 @@ fun ExploreAppsScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             // ---- search --------------------------------------------------
             item {
-                MidnightTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = "Search Alpine packages",
-                    enabled = !packageBusy,
-                    trailing = {
-                        if (packageBusy && operation?.state == PackageOperationState.SEARCHING) {
-                            Text(
-                                "…",
-                                fontFamily = TerminalTheme.mono,
-                                fontSize = 14.sp,
-                                color = HomeTokens.textDim,
-                                modifier = Modifier.padding(start = 10.dp),
-                            )
-                        }
-                    },
-                )
-                Spacer(Modifier.height(8.dp))
+                // Phase 5 §9 — the field and its action share ONE row: the
+                // search control is compact workspace chrome, not a stacked
+                // form. The Search button is the quiet hairline weight.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    MidnightTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = "Search Alpine packages",
+                        enabled = !packageBusy,
+                        modifier = Modifier.weight(1f),
+                        trailing = {
+                            if (packageBusy && operation?.state == PackageOperationState.SEARCHING) {
+                                Text(
+                                    "…",
+                                    fontFamily = TerminalTheme.mono,
+                                    fontSize = 14.sp,
+                                    color = HomeTokens.textDim,
+                                    modifier = Modifier.padding(start = 10.dp),
+                                )
+                            }
+                        },
+                    )
                     MidnightQuietButton(
                         text = "Search",
                         onClick = {
@@ -213,9 +217,10 @@ fun ExploreAppsScreen(
                             }
                         },
                         enabled = !packageBusy,
-                        modifier = Modifier.width(132.dp),
+                        modifier = Modifier.width(108.dp),
                     )
                 }
+                Spacer(Modifier.height(2.dp))
                 searchResults?.let { results ->
                     if (results.isEmpty()) {
                         Text(
@@ -231,7 +236,7 @@ fun ExploreAppsScreen(
                     ranked.take(12).forEachIndexed { index, hit ->
                         val known = CliAppCatalog.entries.firstOrNull { it.apkPackageName == hit.name }
                         val installedVersion = installedVersions[hit.name]
-                        Column(Modifier.padding(vertical = 6.dp)) {
+                        Column(Modifier.padding(vertical = 5.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = hit.name,
@@ -384,7 +389,7 @@ fun ExploreAppsScreen(
 
             // ---- featured catalog ----------------------------------------
             item {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
                 MidnightSectionLabel("Featured")
                 Spacer(Modifier.height(2.dp))
                 MidnightNote(
@@ -495,7 +500,7 @@ private fun CatalogAppCard(
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (installedVersion == null) {
                 // "Install" is honest even when the state is unknown: apk

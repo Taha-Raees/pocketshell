@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -230,7 +228,7 @@ private fun ChromeHeader(title: String, onBack: () -> Unit) {
             modifier = Modifier
                 .statusBarsPadding()
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 6.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
@@ -261,6 +259,10 @@ private fun ChromeHeader(title: String, onBack: () -> Unit) {
  * Session tabs — editor-style, NOT pills (brief §5): rounded TOP corners,
  * inactive tabs recessed and quiet, active tab in the exact canvas color
  * covering the strip's bottom hairline so it opens into the workspace.
+ *
+ * Phase 5 §6 — compacted: a 40dp strip (was 44), tighter gaps and paddings,
+ * narrower minimum tab width; the active label rides the pinned-light
+ * onCanvas token (the active tab is canvas-dark in every theme).
  */
 @Composable
 private fun TabStrip(
@@ -273,7 +275,7 @@ private fun TabStrip(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(40.dp)
             .background(TerminalTheme.tabStrip),
     ) {
         // Hairline under the whole strip; the active tab paints over (cuts) it.
@@ -284,12 +286,12 @@ private fun TabStrip(
                 .height(1.dp)
                 .background(TerminalTheme.divider),
         )
-        Row(modifier = Modifier.fillMaxSize().padding(start = 8.dp)) {
+        Row(modifier = Modifier.fillMaxSize().padding(start = 6.dp)) {
             LazyRow(
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.Bottom,
-                contentPadding = PaddingValues(top = 6.dp),
+                contentPadding = PaddingValues(top = 4.dp),
             ) {
                 items(sessions, key = { it.id }) { entry ->
                     SessionTab(
@@ -304,7 +306,7 @@ private fun TabStrip(
                 onNewSession = onNewSession,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
-                    .padding(start = 6.dp, end = 4.dp),
+                    .padding(start = 4.dp, end = 4.dp),
             )
         }
     }
@@ -318,7 +320,7 @@ private fun SessionTab(
     onClose: (Long) -> Unit,
 ) {
     val height by animateDpAsState(
-        targetValue = if (isSelected) 44.dp else 36.dp,
+        targetValue = if (isSelected) 40.dp else 30.dp,
         animationSpec = tween(140),
         label = "tabHeight",
     )
@@ -332,11 +334,11 @@ private fun SessionTab(
     Box(
         modifier = Modifier
             .height(height)
-            .widthIn(min = 96.dp, max = 168.dp)
+            .widthIn(min = 84.dp, max = 160.dp)
             .clip(shape)
             .background(container)
             .clickable { onSelect(entry.id) }
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 10.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -346,7 +348,9 @@ private fun SessionTab(
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = if (isSelected) TerminalTheme.textPrimary else TerminalTheme.textDim,
+                // Active tab = canvas tone (pinned dark in every theme) →
+                // its label is the pinned-light onCanvas, never theme-swapped.
+                color = if (isSelected) TerminalTheme.onCanvas else TerminalTheme.textDim,
                 modifier = Modifier.weight(1f, fill = false),
             )
             CloseTabButton(
@@ -385,7 +389,7 @@ private fun CloseTabButton(selected: Boolean, onClose: () -> Unit, modifier: Mod
     Box(
         modifier = modifier
             .size(24.dp)
-            .clip(CircleShape)
+            .clip(RoundedCornerShape(6.dp))
             .clickable { onClose() },
         contentAlignment = Alignment.Center,
     ) {
@@ -393,19 +397,24 @@ private fun CloseTabButton(selected: Boolean, onClose: () -> Unit, modifier: Mod
             Icons.Outlined.Close,
             contentDescription = "Close session",
             modifier = Modifier.size(14.dp),
-            tint = if (selected) TerminalTheme.textDim else TerminalTheme.textDim.copy(alpha = 0.6f),
+            tint = if (selected) TerminalTheme.onCanvasDim else TerminalTheme.textDim.copy(alpha = 0.6f),
         )
     }
 }
 
+/**
+ * Phase 5 §7 — the + is INTEGRATED into the strip: a quiet glyph in the
+ * exact slot, the same button language as its Companion-strip sibling —
+ * no circle plate, no border, no floating-control look:
+ *
+ *   [ Tab ] [ Tab ] [ Tab ]          +
+ */
 @Composable
 private fun NewSessionButton(onNewSession: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(TerminalTheme.keyAlt)
-            .border(1.dp, TerminalTheme.divider, CircleShape)
+            .size(28.dp)
+            .clip(RoundedCornerShape(8.dp))
             .clickable { onNewSession() },
         contentAlignment = Alignment.Center,
     ) {

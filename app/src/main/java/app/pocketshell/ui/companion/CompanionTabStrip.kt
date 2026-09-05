@@ -85,10 +85,10 @@ fun CompanionTabStrip(
                 .height(1.dp)
                 .background(TerminalTheme.divider),
         )
-        Row(modifier = Modifier.fillMaxSize().padding(start = 8.dp)) {
+        Row(modifier = Modifier.fillMaxSize().padding(start = 6.dp)) {
             LazyRow(
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.Top,
                 contentPadding = PaddingValues(bottom = 0.dp),
             ) {
@@ -127,7 +127,7 @@ private fun CompanionTab(
     onClose: () -> Unit,
 ) {
     val height by animateDpAsState(
-        targetValue = if (isSelected) 40.dp else 32.dp,
+        targetValue = if (isSelected) 40.dp else 30.dp,
         animationSpec = tween(140),
         label = "companionTabHeight",
     )
@@ -144,11 +144,11 @@ private fun CompanionTab(
     Box(
         modifier = Modifier
             .height(height)
-            .widthIn(min = 96.dp, max = 168.dp)
+            .widthIn(min = 84.dp, max = 160.dp)
             .clip(shape)
             .background(container)
             .clickable { onSelect() }
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -158,7 +158,10 @@ private fun CompanionTab(
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = if (isSelected) TerminalTheme.textPrimary else TerminalTheme.textDim,
+                // The active tab is painted in the canvas tone (pinned dark
+                // in every theme) — its label rides the pinned-light onCanvas
+                // token, never the theme-swapped text colors.
+                color = if (isSelected) TerminalTheme.onCanvas else TerminalTheme.textDim,
                 modifier = Modifier.weight(1f, fill = false),
             )
             if (isSelected) {

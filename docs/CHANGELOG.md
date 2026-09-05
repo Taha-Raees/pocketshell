@@ -3,6 +3,106 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.9.0-m5.0.0] — 2026-09-05 — UI & Interaction Polish: free-position Companion, decluttered Home, one theme system (Light done fully)
+
+The directive bounded Phase 5 as a **refinement phase — no redesign, no
+new features, the working Companion implementation untouched**. Three
+themes run through the iteration: remove redundancy, reduce wasted
+space, finish theming.
+
+### 1. Companion drag bar — exact required behavior
+- The visible bar is TWICE as wide (36→72dp, still 4dp slim) inside the
+  same 40dp invisible full-width touch zone; the zone remains the first
+  child of the layer's column, so it can never hide behind tabs or
+  content (placement guarantee, by construction).
+- **Tap-to-minimize**: a single tap anywhere on the bar IMMEDIATELY
+  collapses the raised sheet — at 25%, 50%, 80%, near-full, any height.
+  No drag-down required. When minimized, the bar is dragged UP to
+  restore (no floating button — the persistent bar remains the only
+  Companion affordance, unchanged).
+- **Free positioning**: the old HALF/FULL snap windows are RETIRED. The
+  height changes ONLY by dragging (up = taller, down = shorter) and a
+  release settles EXACTLY where the user left it — any fraction, no
+  forced 25/50/75/full anchors. The only special release remains the
+  collapse threshold (drag near the bar → minimized). Pinned by the
+  reworked `CompanionHeights` unit tests.
+- What was NOT touched: the renderer, the sheet mechanics, the tab
+  system, refresh/hard-refresh, the pool, session persistence.
+
+### 2. Home decluttered
+- The floating action button (the rotating + quick-action overlay) is
+  REMOVED — code deleted (`QuickActions.kt`), including its 140dp page
+  clearance. Session creation lives where sessions live: the Terminal's
+  own "+" (now integrated into the tab bar) and its empty state. No
+  floating replacement.
+- The duplicate "CLI Apps ▾" dropdown is RETIRED: it listed exactly the
+  apps the "Your tools" grid below already launches through the same
+  pipeline. ONE clear path remains — the tools grid (+ Packages to
+  install more). No functionality lost.
+
+### 3. Compact workspace chrome
+- Tabs: terminal strip 44→40dp, Companion strip tabs compacted, tab
+  minimum width 96→84dp, horizontal padding 12→10dp, gaps 6→4dp. Active
+  labels ride the new pinned `onCanvas` token (the active tab is
+  canvas-dark in every theme — readable in Light too). Horizontal
+  scrolling for overflow was already the LazyRow behavior; unchanged.
+- The terminal "+" is no longer a large bordered circle: it is the same
+  quiet integrated glyph as its Companion-strip sibling —
+  `[ Tab ] [ Tab ] [ Tab ]  +`.
+- App-wide padding trim: Home section rhythm (24/20/16 → 16/14/12),
+  MidnightPage header/cards/buttons/radio rows, Packages search (field
+  and action now share one row), Settings grouping. Touch targets kept
+  ≥44–48dp everywhere; nothing cramped.
+
+### 4. Keyboard toggle anchored to the corner
+- The [⌨] rebirth icon moved from 64dp-inset to the true bottom-right
+  corner: 12dp from the right edge, 8dp above the gesture-bar inset,
+  same 44×36dp key-box design, same slot on every screen; safe insets
+  respected, never clipped, never over system navigation. The ONE
+  keyboard system is otherwise untouched (Task 12: no second layout, no
+  IME, same dispatch chain).
+
+### 5. Light Theme — full application-wide support (System / Light / Dark / AMOLED)
+- The Midnight Sapphire token vocabulary (`TerminalTheme`) became
+  snapshot-state: `applyTheme(light)` swaps the whole chrome palette
+  between **Midnight** (dark — the historical values, byte-for-byte) and
+  **Daylight Sapphire** (light — paper surfaces, deepened sapphire
+  accents). ZERO call-site changes: every screen recomposes on switch;
+  `HomeTokens` became read-through accessors.
+- Sync runs during `PocketShellTheme` composition BEFORE children read
+  tokens — a Light selection (persisted or fresh) never flashes dark.
+  Switching is immediate (no app restart); persistence via the existing
+  DataStore settings (survives process recreation).
+- The **content surface is pinned**: the terminal canvas stays Midnight
+  in every theme (the TerminalView background and the session color
+  scheme — TerminalPalette defaults, OSC authority — are built on it;
+  a terminal is a dark professional surface), and websites keep owning
+  their appearance — NO theme injection into Companion pages ever. The
+  new pinned `onCanvas`/`onCanvasDim` tokens keep text on those dark
+  surfaces readable in both themes (active tabs, failure cards, the
+  Terminal hero tile and its mark).
+- M3 schemes now match the vocabulary (de-purpled light/dark surface
+  stack), so Scaffold/menus/dialogs blend in; AMOLED is preserved as it
+  was (pure-black M3 surfaces + Midnight chrome). Dynamic color intact.
+- Status-bar icons now follow the theme on every screen (dark icons on
+  Daylight, light on Midnight/AMOLED).
+
+### 6. Packages & Settings polish
+- Packages: compacted search (one-row field + action), tighter list
+  rhythm, same honest apk-backed states — every probe/version/action
+  contract preserved verbatim.
+- Settings: regrouped into Appearance (theme + dynamic color) /
+  Terminal (font size) / Companion (websites entry); compact, fully
+  theme-aware, nothing invented.
+
+### 7. Tests + docs
+- Full suite green: 750 executions / 0 failures (app debug+release and
+  terminal modules; the height-math pins reworked for free
+  positioning).
+- docs: TESTING §30 (Phase 5 gates), ROADMAP Phase 5.0.0,
+  CHANGELOG [0.9.0-m5.0.0].
+- versionCode 37 — in place over 16..36, same pinned cert.
+
 ## [0.8.0-m4.0.12] — 2026-09-05 — Companion Finalization: cleanup, polish, ONE keyboard
 
 The directive bounded this iteration as a **surgical cleanup and polish

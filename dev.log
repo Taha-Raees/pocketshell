@@ -191,3 +191,19 @@ $ next dev -p 3000
  ○ Compiling / ...
  ✓ Compiled / in 3.9s (539 modules)
  GET / 200 in 4405ms
+ GET / 200 in 202ms
+ GET / 200 in 272ms
+ GET / 200 in 107ms
+ GET / 200 in 105ms
+ GET / 200 in 263ms
+ GET / 200 in 109ms
+ GET / 200 in 103ms
+ GET / 200 in 159ms
+ GET / 200 in 98ms
+ GET / 200 in 215ms
+ GET / 200 in 128ms
+ GET / 200 in 122ms
+ GET / 200 in 155ms
+ GET / 200 in 125ms
+ GET / 200 in 95ms
+[?25h

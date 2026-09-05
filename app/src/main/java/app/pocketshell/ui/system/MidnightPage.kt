@@ -117,7 +117,7 @@ fun MidnightPageHeader(title: String, onBack: () -> Unit, modifier: Modifier = M
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -249,8 +249,10 @@ fun MidnightFilledButton(
                 fontFamily = TerminalTheme.mono,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (enabled) HomeTokens.accentBright else HomeTokens.textDim,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                // Text rides the dedicated on-accentDeep pair token so the
+                // fill/text contract holds in BOTH themes.
+                color = if (enabled) HomeTokens.onAccentDeep else HomeTokens.textDim,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             )
         }
     }
@@ -289,7 +291,7 @@ fun MidnightQuietButton(
                 fontFamily = TerminalTheme.mono,
                 fontSize = 14.sp,
                 color = if (!enabled) HomeTokens.textDim else tone,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             )
         }
     }
@@ -382,7 +384,7 @@ fun MidnightCard(
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
     ) {
-        Column(Modifier.padding(16.dp), content = content)
+        Column(Modifier.padding(14.dp), content = content)
     }
 }
 
@@ -418,7 +420,7 @@ fun MidnightTextField(
                 if (focused) HomeTokens.accent.copy(alpha = 0.55f) else HomeTokens.hairline,
                 RoundedCornerShape(HomeTokens.chipRadius),
             )
-            .padding(horizontal = 14.dp, vertical = 13.dp)
+            .padding(horizontal = 14.dp, vertical = 11.dp)
             .onFocusChanged { focused = it.isFocused },
         singleLine = true,
         enabled = enabled,
@@ -501,7 +503,7 @@ fun MidnightRadioRow(
                 role = Role.RadioButton,
                 onClickLabel = "Select $label",
             ) { onClick() }
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(

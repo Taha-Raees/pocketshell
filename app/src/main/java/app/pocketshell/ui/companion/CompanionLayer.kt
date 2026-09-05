@@ -211,6 +211,13 @@ fun CompanionLayer(
         ) {
             CompanionHandle(
                 dragging = dragFraction != null,
+                onTap = {
+                    // Phase 5 §1 — a single tap anywhere on the bar IMMEDIATELY
+                    // minimizes the Companion, at every raised height (25%,
+                    // 50%, 80%, near-full — no drag needed). When minimized the
+                    // tap does nothing: the bar is dragged UP to restore.
+                    if (raised) viewModel.collapse()
+                },
                 onDragStart = { dragFraction = settledFraction.takeIf { CompanionHeights.isRaised(it) } ?: 0f },
                 onDrag = { delta ->
                     val base = dragFraction ?: settledFraction
@@ -332,15 +339,20 @@ fun CompanionLayer(
 /**
  * The single drag affordance — no text, no label (brief R1).
  *
- * m4.0.12 §5 — easier to grab WITHOUT growing the visible design: the bar
- * stays 36×4dp, but the INVISIBLE full-width touch zone grows from 28dp to
- * 40dp of vertical drag area. The zone is transparent, sits above the tab
- * strip in the layer's column (nothing can slide under it), and does not
- * overlap the web canvas — website scrolling is untouched.
+ * Phase 5 §1 — the visible bar is TWICE the width (72×4dp, still slim), the
+ * invisible full-width touch zone stays 40dp of vertical drag area. A single
+ * TAP on the bar (anywhere on the zone) minimizes the raised sheet at any
+ * height; the height itself changes ONLY by dragging and settles exactly
+ * where released (free positioning — no snap points).
+ *
+ * Layer placement guarantee: the zone is the FIRST child of the layer's
+ * column — the tab strip and the web canvas sit strictly BELOW it, so no
+ * sibling can ever cover it (it cannot hide behind tabs or content).
  */
 @Composable
 private fun CompanionHandle(
     dragging: Boolean,
+    onTap: () -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
@@ -354,6 +366,10 @@ private fun CompanionHandle(
         modifier = Modifier
             .fillMaxWidth()
             .height(HANDLE_ZONE)
+            // Tap and drag coexist on separate detectors: a gesture without
+            // movement is a tap (minimize), a gesture past the touch slop is
+            // a drag (resize). One clear behavior per gesture, no ambiguity.
+            .pointerInput(Unit) { detectTapGestures(onTap = { onTap() }) }
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onDragStart = { onDragStart() },
@@ -369,7 +385,7 @@ private fun CompanionHandle(
     ) {
         Box(
             modifier = Modifier
-                .size(width = 36.dp, height = 4.dp)
+                .size(width = 72.dp, height = 4.dp)
                 .background(barColor, RoundedCornerShape(2.dp)),
         )
     }
@@ -604,12 +620,12 @@ private fun CompanionEmptyState(
             fontSize = 19.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.4.sp,
-            color = HomeTokens.textPrimary,
+            color = HomeTokens.onHero,
         )
         Text(
             text = "Add a website you use while working.",
             fontSize = 13.sp,
-            color = HomeTokens.textDim,
+            color = HomeTokens.onHeroDim,
             modifier = Modifier.padding(top = 6.dp, bottom = 18.dp),
         )
         MidnightFilledButton(
@@ -648,13 +664,13 @@ private fun CompanionFailureCard(
             fontSize = 19.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.4.sp,
-            color = HomeTokens.textPrimary,
+            color = HomeTokens.onHero,
         )
         if (failure.body.isNotBlank()) {
             Text(
                 text = failure.body,
                 fontSize = 13.sp,
-                color = HomeTokens.textDim,
+                color = HomeTokens.onHeroDim,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier
                     .padding(top = 8.dp)
@@ -664,7 +680,7 @@ private fun CompanionFailureCard(
         Text(
             text = failure.hint,
             fontSize = 13.sp,
-            color = HomeTokens.textDim,
+            color = HomeTokens.onHeroDim,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier
                 .padding(top = 4.dp)
@@ -730,14 +746,14 @@ private fun CompanionRuntimeUnavailable() {
             fontSize = 19.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.4.sp,
-            color = HomeTokens.textPrimary,
+            color = HomeTokens.onHero,
         )
         val webviewVersion = remember { CompanionWebHost.webViewVersion() }
         Text(
             text = "Android System WebView is missing or crashing on this device " +
                 "(installed: $webviewVersion). Update or reinstall it, then reopen PocketShell.",
             fontSize = 13.sp,
-            color = HomeTokens.textDim,
+            color = HomeTokens.onHeroDim,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier
                 .padding(top = 6.dp)

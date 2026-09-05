@@ -158,15 +158,18 @@ class CompanionTest {
         assertEquals(CompanionBackAction.COLLAPSE, decideBackAction(canGoBack = false, raised = true))
     }
 
-    // ---- height math (contract §9) --------------------------------------------
+    // ---- height math (contract §9, Phase 5: FREE POSITIONING) -----------------
 
     @Test
-    fun `release snaps only within the gentle window`() {
-        assertEquals(CompanionHeights.HALF, CompanionHeights.settled(CompanionHeights.HALF + 0.04f))
-        assertEquals(CompanionHeights.FULL, CompanionHeights.settled(CompanionHeights.FULL - 0.05f))
-        // Outside the window: stay exactly where released.
-        val free = CompanionHeights.HALF + 0.12f
-        assertEquals(free, CompanionHeights.settled(free))
+    fun `release stays exactly where the user leaves it - no snap points`() {
+        // Phase 5 §1: the old HALF/FULL snap windows are retired. Every
+        // raised release position settles at itself, at ANY fraction.
+        assertEquals(0.30f, CompanionHeights.settled(0.30f))
+        assertEquals(0.42f, CompanionHeights.settled(0.42f))
+        assertEquals(CompanionHeights.HALF, CompanionHeights.settled(CompanionHeights.HALF))
+        assertEquals(CompanionHeights.HALF + 0.04f, CompanionHeights.settled(CompanionHeights.HALF + 0.04f))
+        assertEquals(CompanionHeights.FULL, CompanionHeights.settled(CompanionHeights.FULL))
+        assertEquals(CompanionHeights.FULL - 0.05f, CompanionHeights.settled(CompanionHeights.FULL - 0.05f))
     }
 
     @Test

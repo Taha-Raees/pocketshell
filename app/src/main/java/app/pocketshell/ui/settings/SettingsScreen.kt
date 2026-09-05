@@ -35,14 +35,16 @@ import app.pocketshell.ui.system.MidnightSwitch
 import app.pocketshell.ui.theme.TerminalTheme
 
 /**
- * Settings (brief §25/§M1.3): theme mode, dynamic color, default font size.
- * Persisted via DataStore; changes apply immediately where sensible.
+ * Settings (brief §25/§M1.3) — Phase 5 §10 polish: the page is a compact,
+ * clearly grouped, fully theme-aware control panel. Groups:
  *
- * Phase 3.5 (docs/PHASE-3.5-DESIGN.md §3): the page joins the Midnight
- * Sapphire system — the same canvas, mono wayfinding and hairline rhythm as
- * Home — while keeping every 3.4 behavior contract: the whole row is the
- * touch target (≥48dp), the radio dot and switch only render state, and the
- * font slider persists on release.
+ *   APPEARANCE  theme (System / Light / Dark / AMOLED) + dynamic color
+ *   TERMINAL    default font size (pinch adjusts per session)
+ *   COMPANION   the Companion websites management entry
+ *
+ * Everything persists via DataStore; theme changes apply immediately (the
+ * token swap runs before the next frame — no restart, no flash). No invented
+ * settings: every control here is real and wired.
  */
 @Composable
 fun SettingsScreen(
@@ -65,10 +67,11 @@ fun SettingsScreen(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState()),
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
 
-            MidnightSectionLabel("Theme")
-            Spacer(Modifier.height(4.dp))
+            // ---- Appearance -------------------------------------------------
+            MidnightSectionLabel("Appearance")
+            Spacer(Modifier.height(2.dp))
             listOf(
                 ThemeMode.SYSTEM to "System (follow device)",
                 ThemeMode.LIGHT to "Light",
@@ -82,25 +85,21 @@ fun SettingsScreen(
                 )
             }
 
-            MidnightSectionDivider()
-            Spacer(Modifier.height(12.dp))
-
-            MidnightSectionLabel("Dynamic color")
-            Spacer(Modifier.height(2.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Use wallpaper-based colors",
+                        "Dynamic color",
                         style = MaterialTheme.typography.bodyLarge,
                         color = HomeTokens.textPrimary,
                     )
                     Text(
-                        "Android 12+; falls back to the PocketShell scheme elsewhere",
+                        "Wallpaper-based colors, Android 12+ — falls back to the " +
+                            "PocketShell scheme elsewhere",
                         style = MaterialTheme.typography.bodySmall,
                         color = HomeTokens.textDim,
                     )
@@ -110,24 +109,31 @@ fun SettingsScreen(
             }
 
             MidnightSectionDivider()
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
-            MidnightSectionLabel("Terminal font size")
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Default: ${fontSizeDraft.toInt()} pt",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 14.sp,
-                color = HomeTokens.accent,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
+            // ---- Terminal ---------------------------------------------------
+            MidnightSectionLabel("Terminal")
             Spacer(Modifier.height(2.dp))
-            Text(
-                text = "Pinch the terminal to adjust per session",
-                style = MaterialTheme.typography.bodySmall,
-                color = HomeTokens.textDim,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "Default font size: ${fontSizeDraft.toInt()} pt",
+                        fontFamily = TerminalTheme.mono,
+                        fontSize = 14.sp,
+                        color = HomeTokens.accent,
+                    )
+                    Text(
+                        text = "Pinch the terminal to adjust per session",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.textDim,
+                    )
+                }
+            }
             Slider(
                 value = fontSizeDraft,
                 onValueChange = { fontSizeDraft = it },
@@ -143,11 +149,10 @@ fun SettingsScreen(
             )
 
             MidnightSectionDivider()
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
-            // Phase 4 — Companion definitions (docs/PHASE-4-COMPANION-DESIGN.md).
+            // ---- Companion ---------------------------------------------------
             MidnightSectionLabel("Companion")
-            Spacer(Modifier.height(4.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -178,7 +183,7 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

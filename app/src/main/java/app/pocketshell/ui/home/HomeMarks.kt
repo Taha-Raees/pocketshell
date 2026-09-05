@@ -69,6 +69,11 @@ fun BrandMark(size: Dp, modifier: Modifier = Modifier) {
 /** The Terminal environment mark: a large prompt chevron + block cursor (no container). */
 @Composable
 fun TerminalMark(size: Dp, modifier: Modifier = Modifier) {
+    // This mark lives ON the canvas tone (the pinned-dark Terminal hero
+    // tile), so it is drawn in the canvas-pinned Sapphire pair — identical
+    // in every app theme, exactly like the tile it sits on.
+    val canvasAccent = Color(0xFF7FA3EF)
+    val canvasAccentBright = Color(0xFFA5C0FF)
     Canvas(modifier = modifier.size(size)) {
         val w = this.size.width
         val h = this.size.height
@@ -78,9 +83,9 @@ fun TerminalMark(size: Dp, modifier: Modifier = Modifier) {
             lineTo(w * 0.46f, h * 0.5f)
             lineTo(w * 0.06f, h * 0.84f)
         }
-        drawPath(chevron, HomeTokens.accent, style = stroke)
+        drawPath(chevron, canvasAccent, style = stroke)
         drawRoundRect(
-            color = HomeTokens.accentBright,
+            color = canvasAccentBright,
             topLeft = Offset(w * 0.60f, h * 0.56f),
             size = Size(w * 0.34f, h * 0.30f),
             cornerRadius = CornerRadius(w * 0.05f, w * 0.05f),
@@ -156,17 +161,6 @@ fun MonogramTile(
             fontSize = (size.value * fontSizeScale).sp,
             color = HomeTokens.accentBright,
         )
-    }
-}
-
-/** Small drawn "+" used by the quick-action control (dark glyph on Sapphire). */
-@Composable
-fun PlusGlyph(size: Dp, color: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.size(size)) {
-        val w = this.size.width
-        val stroke = Stroke(width = w * 0.14f, cap = StrokeCap.Round)
-        drawLine(color, Offset(w * 0.5f, w * 0.18f), Offset(w * 0.5f, w * 0.82f), stroke.width, StrokeCap.Round)
-        drawLine(color, Offset(w * 0.18f, w * 0.5f), Offset(w * 0.82f, w * 0.5f), stroke.width, StrokeCap.Round)
     }
 }
 

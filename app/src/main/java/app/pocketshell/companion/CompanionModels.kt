@@ -142,26 +142,30 @@ fun decideBackAction(canGoBack: Boolean, raised: Boolean): CompanionBackAction =
 /**
  * Panel height anchors + release math (§9) — pure, unit-pinned. Fractions of
  * the full container height.
+ *
+ * Phase 5 (docs/ROADMAP §5): FREE POSITIONING is the contract — the height
+ * changes ONLY through dragging and a release stays EXACTLY where the user
+ * left it. The old HALF/FULL snap windows are gone; the only special
+ * release is the collapse threshold (drag the sheet down near the bar and
+ * it minimizes — the way down to the minimized state).
  */
 object CompanionHeights {
     const val HALF = 0.55f
     const val FULL = 0.94f
-
-    /** Snap to an anchor only within this window; otherwise stay put (R5). */
-    const val SNAP_WINDOW = 0.06f
 
     /** Below this the release collapses (dragging down "closes" the sheet). */
     const val COLLAPSE_THRESHOLD = 0.08f
 
     const val MIN_RAISED = 0.02f
 
-    /** The settled fraction for a released drag position. */
+    /**
+     * The settled fraction for a released drag position: exactly where the
+     * user left it (clamped to the legal band), collapsed only below
+     * [COLLAPSE_THRESHOLD]. No snap points, ever.
+     */
     fun settled(released: Float): Float {
         val clamped = released.coerceIn(0f, FULL)
         if (clamped < COLLAPSE_THRESHOLD) return 0f
-        for (anchor in floatArrayOf(HALF, FULL)) {
-            if (kotlin.math.abs(clamped - anchor) <= SNAP_WINDOW) return anchor
-        }
         return clamped
     }
 

@@ -145,10 +145,10 @@ fun PocketShellRoot(
     val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
 
-    // Phase 3.2 — status-bar icon appearance follows the SURFACE under the
-    // bar: since Phase 3.5 every screen renders the fixed Midnight Sapphire
-    // chrome (Home, Terminal, and the system pages alike), so every screen
-    // takes light icons; the when remains for any future app-themed screen.
+    // Phase 3.2 / Phase 5 §8 — status-bar icon appearance follows the THEME:
+    // light icons on the dark palettes, dark icons on Daylight. The Midnight
+    // chrome no longer owns every screen — the chrome follows the selected
+    // theme now, and the status bar follows the chrome.
     val view = LocalView.current
     val themeDark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -159,10 +159,7 @@ fun PocketShellRoot(
         val window = (view.context as? Activity)?.window
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
         if (controller != null) {
-            controller.isAppearanceLightStatusBars = when (screen) {
-                "home", "terminal", "explore", "settings", "diagnostics" -> false
-                else -> !themeDark
-            }
+            controller.isAppearanceLightStatusBars = !themeDark
         }
         onDispose { }
     }
@@ -290,9 +287,10 @@ fun PocketShellRoot(
         // m4.0.12 §12 (device feedback carried from m4.0.4) — the deck's
         // rebirth affordance, now on EVERY screen: with the keyboard toggled
         // off the [⌨] key parks as the SAME rectangular key box it wears in
-        // the deck row (no round bubble), at the SAME slot — just left of
-        // where Enter sits — bottom-right, above the gesture bar, above
-        // surrounding content, so the ONE keyboard is always one tap away.
+        // the deck row (no round bubble). Phase 5 §4 — it is ANCHORED to the
+        // bottom-right corner: 12dp from the right edge, 8dp above the
+        // gesture-bar inset, still a 44×36dp touch target, never clipped,
+        // never over the system navigation.
         if (!keyboardExpanded) {
             Box(modifier = Modifier.fillMaxSize()) {
                 val haptics = LocalHapticFeedback.current
@@ -300,7 +298,7 @@ fun PocketShellRoot(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .navigationBarsPadding()
-                        .padding(end = 64.dp, bottom = 10.dp)
+                        .padding(end = 12.dp, bottom = 8.dp)
                         .size(width = 44.dp, height = 36.dp)
                         .clip(RoundedCornerShape(TerminalTheme.keyRadius))
                         .background(TerminalTheme.keyAlt)

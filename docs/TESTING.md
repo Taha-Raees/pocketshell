@@ -1506,3 +1506,92 @@ regression ladder — by eye and finger, on the physical device.
       byte-identical to vc35); capture the failing screen and paste it —
       the finalization layer (refresh/keyboard/handle) is the search
       space.
+
+---
+
+## 30. Manual acceptance — Phase 5 (UI & Interaction Polish: free-position Companion, decluttered Home, Light Theme, v0.9.0-m5.0.0) — DEVICE GATE PENDING
+
+The Companion renderer, sheet mechanics, tab system, pool and the ONE
+keyboard dispatch chain are FROZEN — this gate only verifies the polish
+layer around them. Everything here is on the REAL device, in order.
+
+### 30.1 Companion drag bar (the exact required behavior)
+- [ ] The bar is visibly ~2× wider than m4.0.12 (72dp), still slim.
+- [ ] Raise the Companion. Single-tap the bar → it minimizes
+      IMMEDIATELY. Repeat from ~25%, ~50%, ~80%, near-full. No drag
+      required, no snap on the way (the bar just goes down).
+- [ ] Tap the bar while minimized → nothing (no accidental close/open
+      loop).
+- [ ] Drag up/down: height follows the finger 1:1; release at an
+      arbitrary height (e.g. ~33%, ~61%, ~85%) → it STAYS there. No
+      snapping to 25/50/75/full at any release point.
+- [ ] Drag down near the bottom → minimized (only the bar remains).
+- [ ] Drag the bar up from minimized → the Companion restores smoothly
+      (and keeps working: pages still render, scroll, refresh).
+- [ ] The bar is never hidden: raise the Companion over Home, Terminal,
+      Linux, Packages, Settings — the bar always rides on top of the
+      strip and content.
+- [ ] Website scrolling inside the canvas is untouched (ChatGPT/Z.ai
+      scroll normally; the bar zone does not swallow page touches).
+
+### 30.2 Home decluttering
+- [ ] No floating action button anywhere on Home; nothing replaced it.
+- [ ] No "CLI Apps ▾" dropdown; the SAME apps appear in "Your tools" and
+      launch exactly as before (tap → verify → session).
+- [ ] Session creation still exists: Terminal → "+" in the tab bar (and
+      the empty state's "New session").
+- [ ] Home feels tighter but not cramped; all rows/tiles tappable.
+
+### 30.3 Keyboard toggle (§4 of the brief)
+- [ ] Hide the keyboard (deck [⌨] toggle): the rebirth icon sits at the
+      bottom-RIGHT corner — near the right edge and above the gesture
+      bar — on Home, Terminal, Linux, Packages, Settings, Companion.
+- [ ] It is easy to tap, never clipped, never over system navigation.
+- [ ] Tapping it re-opens the SAME one keyboard; Android IME never
+      appears (any screen, any input).
+- [ ] Full keyboard regression ladder from §29.4 still passes (ChatGPT
+      input, Z.ai input, terminal, settings fields, focus follows, no
+      cross-typing).
+
+### 30.4 Theme sweep (System / Light / Dark / AMOLED)
+- [ ] Settings → Appearance → Light: the ENTIRE app switches
+      immediately (no restart, no dark flash): Home, Terminal chrome,
+      Linux chrome, Packages, Settings, Diagnostics, Companion strip +
+      picker + settings, the keyboard deck, dialogs/menus.
+- [ ] The terminal CONTENT canvas stays dark in Light (it is a terminal)
+      and remains fully usable; the Companion WEBSITES keep their own
+      themes — PocketShell never re-themes ChatGPT/Z.ai pages.
+- [ ] Active tab labels are readable on the dark active-tab surface in
+      Light (pinned onCanvas); inactive tabs readable on the light strip.
+- [ ] Text contrast / icons / dividers / cards / switches / slider are
+      legible in Light everywhere; no white-on-white or dark-on-dark.
+- [ ] Status-bar icons flip correctly (dark icons on Light, light on
+      Dark/AMOLED) on every screen.
+- [ ] Dark: identical to the pre-Phase-5 Midnight look (no visual
+      regression vs m4.0.12). AMOLED: pure-black M3 surfaces preserved.
+- [ ] System: follows the device toggle live while the app is open.
+- [ ] Choose Light → kill the app → reopen: Light persisted. Repeat for
+      Dark and AMOLED. (Activity recreation / process death included.)
+
+### 30.5 Tabs & chrome (§6/§7)
+- [ ] Open 5+ terminal sessions and 3+ Companion tabs: tabs stay
+      readable, horizontally scrollable, the ACTIVE tab is always
+      reachable/visible; close buttons work; no crushed tabs.
+- [ ] The terminal "+" reads as part of the strip (no circle plate).
+- [ ] No visual regressions in tab switching, active indicator, or the
+      Companion strip's refresh/hard-refresh buttons.
+
+### 30.6 Packages & Settings
+- [ ] Packages: search field + Search button share one row; search,
+      install, uninstall, honest states all still work (real apk).
+- [ ] Settings groups: Appearance (theme + dynamic color) / Terminal
+      (font size) / Companion (websites entry); font slider persists on
+      release and applies to new sessions.
+
+### 30.7 Regression ladder (the frozen things)
+- [ ] ChatGPT + Z.ai render, scroll, log in, type (the full §29.2/§29.4
+      ladder) — untouched by Phase 5.
+- [ ] Refresh (tap) and hard refresh (long-press) still act on the
+      ACTIVE tab only; hard refresh keeps sessions.
+- [ ] Session/tab state survives collapse, screen switches, and app
+      restart as before.
