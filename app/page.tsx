@@ -1,10 +1,10 @@
-const VERSION = "v0.9.0-m5.0.1";
+const VERSION = "v0.9.1-m5.1.0";
 
 const HASHES = {
-  apk: "9d08e75192b260634ec4515a19bd380c56c77b34d6c804e2621e3d067ae222e3",
-  zip: "32f43824711faaa0eb8cb6950e51e72b30ffd3b7043e1ec58090fb3e1aef71cf",
-  tgz: "78d69db74588693ee3209c7c003d66b7de45fa8be3d946e572ea18972503d832",
-  bundle: "a0f9f8b66eda686781d1204ce6c6f89c3c166b10e52be7d5ef4a571530a401e4",
+  apk: "d8084b49f7af17b55cff643fc41ec0b56484b6830da219c11b4c2f56c3d56482",
+  zip: "1dcee490a87299bb493b016a91782144413d7cc8fe0b5498c11847e092ed8dda",
+  tgz: "f11ff7f3bf5d89f0e3b15ed6876ff0539f8f2f2fd1b3345860cd5f6bb8fa0fa1",
+  bundle: "083253e4230208d8e8bc80883ec1dd42a1866b7533460a48d7d0b338041cba3e",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,63 +25,63 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M5.0 Final UI Correction: the Workspace Bar{" "}
-          <span className="badge">versionCode 38</span>
+          M5.1: ARM64 Performance &amp; Architecture Optimization{" "}
+          <span className="badge">versionCode 39</span>
         </h2>
         <p>
-          <b>A surgical pass — no redesign, no new features, the working
-          Companion implementation untouched.</b> Ordered by the field
-          report:
+          <b>Audit-first: the real architecture was measured and read
+          end-to-end before any change; only what the evidence supports
+          changed; nothing working broke.</b>
         </p>
         <ul className="steps">
           <li>
-            <b>Workspace header removed:</b> the large top title row
-            (back + session title) is GONE — the active session&apos;s name
-            already lives in its tab. The workspace starts directly under
-            the Android status area.
+            <b>The minimized Companion is silent:</b> collapsing the sheet
+            used to leave the active tab running JavaScript, timers and
+            layout at full rate while completely invisible. Now collapse →
+            pause EVERYTHING, raise → wake only the active tab. No reload,
+            no state loss, still logged in.
           </li>
           <li>
-            <b>Back lives in the tab bar:</b> a compact integrated glyph at
-            the far left —{" "}
-            <b>← | Tab 1 | Tab 2 | Tab 3 | +</b> — aligned with the tabs,
-            not a header-sized button in its own row.
+            <b>Home no longer spawns a guest shell on every visit:</b> the
+            command-app probe is a real proot exec; a 60s freshness window +
+            an in-flight guard gate the visibility-triggered probe (installs
+            still force a fresh answer; failures always re-probe).
           </li>
           <li>
-            <b>Compact IDE tabs, both strips:</b> strip 34dp (was 40);
-            active tab 34 / inactive 26 — no more oversized heavy active
-            tab; 2dp gaps, 8dp tab padding, 64–136dp tab width (more tabs
-            fit), 6dp corners, a subtle 2dp active hairline. Long titles
-            truncate with an ellipsis; the close button stays reachable;
-            the ACTIVE tab is always scrolled back into view.
+            <b>Background terminal output no longer repaints the screen:</b>
+            a session streaming output in the background used to force full
+            repaints of the unchanged visible screen — N sessions multiplied
+            the load. Only the VISIBLE session&apos;s output repaints now.
           </li>
           <li>
-            <b>Companion near-full drag surface (≥90%):</b> below 90%
-            height NOTHING changed — the dedicated bar is the only sheet
-            drag control and the tab bar behaves normally. At/above 90%
-            the TAB STRIP also drags the sheet vertically, gated behind
-            the touch slop — tab taps, close, + and refresh are never
-            mistaken for drags, and the strip never minimizes on touch.
+            <b>Web state persisted under memory pressure:</b> cookies flush
+            on system memory-pressure signals while Companion tabs are
+            alive — strictly gated on the provider already being loaded.
           </li>
           <li>
-            <b>Untouched, the freeze held:</b> renderer, sheet mechanics,
-            tab system, pool, refresh/hard-refresh, session persistence,
-            keyboard internals, themes. Free positioning: no snap points,
-            ever. Full suite <b>752 executions / 0 failures</b>.
+            <b>Already sound, deliberately untouched:</b> lazy startup; one
+            WebView per tab (never recreated/reloaded on switch); WebView
+            height frozen during drags; background tabs platform-paused;
+            scrollback capped at 2000 rows; one Linux process per session;
+            honest FGS; keyboard allocations trivial. saveState/restore and
+            LRU eviction stay retired (the m4.0.11 verdict) — no user state
+            is ever destroyed behind their back.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.9.0-m5.0.1-debug.apk">
+        <a className="btn" href="/PocketShell-v0.9.1-m5.1.0-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.9.0-m5.0.1)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.9.1-m5.1.0)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 38 installs <b>in place over v0.9.0-m5.0.0 (37),
+          versionCode 39 installs <b>in place over v0.9.0-m5.0.1 (38),
+          v0.9.0-m5.0.0 (37),
           v0.8.0-m4.0.12 (36), v0.8.0-m4.0.11 (35),
           v0.8.0-m4.1.0 (34, an intermediate that was never announced),
           v0.7.0-m4.0.9 (33), v0.7.0-m4.0.8 (32), v0.7.0-m4.0.7 (31),
@@ -164,42 +164,49 @@ export default function Home() {
             AMOLED) — websites still theme themselves.
           </li>
           <li>
-            <b>v0.9.0-m5.0.1 (this build):</b> M5.0 Final UI Correction —
-            the workspace header is gone, back lives in the tab bar, tabs
-            are significantly more compact (both strips, ellipsis + active
-            tab auto-scroll), and at ≥90% height the Companion tab strip
-            also drags the sheet (touch-slop gated; taps stay taps).
+            <b>v0.9.0-m5.0.1:</b> M5.0 Final UI Correction — the workspace
+            header is gone, back lives in the tab bar, tabs are
+            significantly more compact (both strips, ellipsis + active tab
+            auto-scroll), and at ≥90% height the Companion tab strip also
+            drags the sheet (touch-slop gated; taps stay taps).
+          </li>
+          <li>
+            <b>v0.9.1-m5.1.0 (this build):</b> M5.1 ARM64 Performance &amp;
+            Architecture Optimization — audit-first; the minimized Companion
+            is silent (all WebViews paused, active wakes on raise); Home no
+            longer spawns a guest shell per visit; background terminal
+            output no longer repaints the screen; web state flushes under
+            memory pressure. Nothing working changed.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §31 — the m5.0.1 gates)</h2>
+        <h2>Quick checks (docs/TESTING.md §32 — the m5.1 gates)</h2>
         <ol className="steps">
           <li>
-            <b>Workspace bar:</b> open Terminal — NO title row anymore; the
-            bar (`← tabs +`) sits directly under the status area; back
-            returns to Home from its new slot.
+            <b>Silent minimize:</b> load ChatGPT, minimize the sheet, work
+            in the terminal for a few minutes → raise: the page is exactly
+            as you left it (no reload, still logged in); the device stays
+            cool while minimized.
           </li>
           <li>
-            <b>Compact tabs:</b> open 5+ sessions with one very long title —
-            everything stays dense and readable; long titles ellipsize;
-            switching to an off-screen tab scrolls it back into view.
+            <b>Home revisits:</b> Home ↔ Terminal repeatedly → instant
+            renders, no tool-grid churn; after an install the tools grid
+            still updates (forced probe).
           </li>
           <li>
-            <b>Near-full drag:</b> raise the Companion past ~90% → drag the
-            TAB STRIP vertically → the sheet follows; release mid-way and
-            it STAYS there. Tapping tabs/close/+ still works — nothing on
-            the strip minimizes.
+            <b>Background output:</b> run `yes` in session 1, switch to an
+            idle session 2, type/read → smooth; switch back → correct.
           </li>
           <li>
-            <b>Below 90%:</b> the strip is normal tabs again; ONLY the
-            dedicated bar drags (and its tap still minimizes, as before).
+            <b>Nothing broke:</b> the §31 workspace bar + compact tabs, the
+            keyboard everywhere, themes, ChatGPT + Z.ai render/scroll/login,
+            refresh/hard-refresh — all unchanged.
           </li>
           <li>
-            <b>Regression:</b> keyboard, themes, ChatGPT + Z.ai render/scroll/
-            login — all untouched; refresh (tap) / hard refresh (hold) still
-            act on the active tab only.
+            <b>Startup:</b> force-stop → cold start → use only the terminal:
+            no crash, no provider loading (the m4.0.1 rule holds).
           </li>
         </ol>
       </div>
@@ -213,10 +220,10 @@ export default function Home() {
           procfs contract, the Phase 4 Companion design contract, and the
           rendering-reset report with the final verdict and the frozen-winner sweep (docs/RENDER-RESET-M4.0.9.md §7–§8).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.9.0-m5.0.1-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.9.1-m5.1.0-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.9.0-m5.0.1-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.9.1-m5.1.0-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -245,9 +252,10 @@ export default function Home() {
         bug · m4.0.8 the painted-but-black decode ·{" "}
         m4.0.9 the rendering reset · m4.1.0 the native rebuild · m4.0.11
         replace renderer only — the winner frozen · m4.0.12 companion
-        finalization · m5.0.0 UI &amp; interaction polish ·{" "}
-        <b>v0.9.0-m5.0.1 (this build): M5.0 final UI correction —
-        workspace bar, compact IDE tabs, near-full strip drag</b>.
+        finalization · m5.0.0 UI &amp; interaction polish · m5.0.1 the
+        workspace bar ·{" "}
+        <b>v0.9.1-m5.1.0 (this build): M5.1 ARM64 performance &amp;
+        architecture optimization — audit-first, four surgical fixes</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
