@@ -183,6 +183,68 @@ class GuestGlibcRuntimeTest {
         assertTrue(GuestGlibcRuntime.isCurrent(root))
     }
 
+    // ------------------------------------------------- m6.0.1 observability
+
+    @Test
+    fun `install outcome is mirrored to the guest-visible status file`() {
+        val root = newRootfs()
+        GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        val status = File(root, GuestGlibcRuntime.STATUS_RELATIVE)
+        val line = status.readText()
+        assertTrue("status must record OK extractor, got: $line", line.startsWith("state=OK source=extractor entries="))
+        assertTrue(line.contains("ts="))
+    }
+
+    @Test
+    fun `failed install writes its reason to the status file`() {
+        val root = newRootfs()
+        val truncated = layerTar().copyOfRange(0, layerTar().size / 3)
+        GuestGlibcRuntime.ensureInstalled(root) { gz(truncated) }
+        val line = File(root, GuestGlibcRuntime.STATUS_RELATIVE).readText()
+        assertTrue("status must record FAILED, got: $line", line.startsWith("state=FAILED reason="))
+        assertTrue("reason must be single-line", !line.substringBefore(" ts=").contains('\n'))
+    }
+
+    @Test
+    fun `fast path refreshes the status file`() {
+        val root = newRootfs()
+        GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        File(root, GuestGlibcRuntime.STATUS_RELATIVE).writeText("stale\n")
+        val result = GuestGlibcRuntime.ensureInstalled(root) {
+            throw IllegalStateException("asset must not be re-opened on the fast path")
+        }
+        assertEquals(GuestGlibcRuntime.Result.Current, result)
+        val line = File(root, GuestGlibcRuntime.STATUS_RELATIVE).readText()
+        assertTrue("status must record fastpath, got: $line", line.startsWith("state=OK source=fastpath"))
+    }
+
+    // ------------------------------------- device-condition (gcompat) pin
+
+    @Test
+    fun `gcompat stub at the loader path is replaced by the real loader symlink`() {
+        // The m6.0.0 device gate: the rootfs carries gcompat (installed by an
+        // earlier era, persisted across app updates). Its
+        // /lib/ld-linux-aarch64.so.1 is a REGULAR FILE (the interpreter stub).
+        // The layer extraction must replace it — never skip, never fail.
+        val root = newRootfs()
+        File(root, "lib").mkdirs()
+        File(root, "lib/ld-linux-aarch64.so.1").writeText("GCOMPAT-STUB")
+        File(root, "lib64").mkdirs()
+        File(root, "lib64/ld-linux-aarch64.so.1").writeText("GCOMPAT-STUB")
+
+        val result = GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        assertTrue("expected Installed over the stub, got $result", result is GuestGlibcRuntime.Result.Installed)
+
+        val link = File(root, "lib/ld-linux-aarch64.so.1").toPath()
+        assertTrue("stub must be replaced by the real-loader symlink", Files.isSymbolicLink(link))
+        assertEquals(
+            "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+            Files.readSymbolicLink(link).toString(),
+        )
+        assertEquals("REAL-LOADER", File(root, "usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1").readText())
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+    }
+
     @Test
     fun `pinned asset bytes match the pin`() {
         val candidates = listOf(

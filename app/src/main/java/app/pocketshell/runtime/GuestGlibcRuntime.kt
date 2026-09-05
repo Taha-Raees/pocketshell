@@ -29,6 +29,15 @@ import kotlin.io.path.absolutePathString
  * blocking or breaking a musl session. The marker file is written LAST; a
  * partial extraction is simply re-extracted on the next call.
  *
+ * m6.0.1 (device-gate lesson): best-effort must still be OBSERVABLE. Every
+ * ensure outcome is mirrored to a guest-visible status file
+ * ([STATUS_RELATIVE]) so the on-device suite, pocketshell-doctor and any
+ * human in a terminal can see WHY a layer is (not) present — the failure
+ * mode found at the m6.0.0 device gate was a silently swallowed
+ * [Result.Failed], indistinguishable from "app too old" from inside the
+ * guest. The status file is a diagnostic ONLY — the marker stays the sole
+ * completeness contract.
+ *
  * musl is untouched by construction: the loader name, SONAMEs and directories
  * of the layer are disjoint from musl's (see DUAL_LIBC.md §3).
  */
@@ -45,6 +54,16 @@ object GuestGlibcRuntime {
         data class Failed(val reason: String) : Result
     }
 
+    /**
+     * Guest-relative LAST-OUTCOME diagnostic file (m6.0.1). Machine-parseable
+     * single line, one of:
+     *   state=OK source=extractor entries=<n> ts=<epoch-ms>
+     *   state=OK source=fastpath ts=<epoch-ms>
+     *   state=FAILED reason=<one-line> ts=<epoch-ms>
+     * Written best-effort on every ensure call; never masks the real result.
+     */
+    const val STATUS_RELATIVE = "etc/pocketshell/glibc-runtime.status"
+
     /** Cheap completeness probe: exact marker content, read from the rootfs. */
     fun isCurrent(rootfsDir: File): Boolean = try {
         val marker = File(rootfsDir, GlibcRuntimePin.MARKER_RELATIVE)
@@ -58,14 +77,42 @@ object GuestGlibcRuntime {
      * the pinned tar.gz (production: `context.assets.open(ASSET_PATH)`;
      * tests: an in-memory archive). Never throws.
      */
-    fun ensureInstalled(rootfsDir: File, openArtifact: () -> InputStream): Result = try {
-        if (isCurrent(rootfsDir)) {
-            Result.Current
-        } else {
-            Result.Installed(extract(rootfsDir, openArtifact))
+    fun ensureInstalled(rootfsDir: File, openArtifact: () -> InputStream): Result {
+        val result: Result = try {
+            if (isCurrent(rootfsDir)) {
+                Result.Current
+            } else {
+                Result.Installed(extract(rootfsDir, openArtifact))
+            }
+        } catch (e: Exception) {
+            Result.Failed(e.message ?: e.javaClass.simpleName)
         }
-    } catch (e: Exception) {
-        Result.Failed(e.message ?: e.javaClass.simpleName)
+        // m6.0.1: best-effort observability — the device gate proved a silent
+        // Failed is indistinguishable from "app too old" from inside the
+        // guest. Write the outcome where the guest can read it. Never throws,
+        // never changes the returned result.
+        writeStatus(rootfsDir, result)
+        return result
+    }
+
+    private fun writeStatus(rootfsDir: File, result: Result) {
+        try {
+            val status = File(rootfsDir, STATUS_RELATIVE)
+            status.parentFile?.mkdirs()
+            val body = when (result) {
+                is Result.Current ->
+                    "state=OK source=fastpath ts=${System.currentTimeMillis()}\n"
+                is Result.Installed ->
+                    "state=OK source=extractor entries=${result.entries} ts=${System.currentTimeMillis()}\n"
+                is Result.Failed ->
+                    "state=FAILED reason=${result.reason.replace('\n', ' ').take(200)} ts=${System.currentTimeMillis()}\n"
+            }
+            val tmp = File(status.parentFile, status.name + ".write")
+            tmp.writeText(body)
+            if (!tmp.renameTo(status)) tmp.delete()
+        } catch (_: Exception) {
+            // Diagnostics must never become a failure source.
+        }
     }
 
     // ---------------------------------------------------------------- extraction
