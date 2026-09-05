@@ -38,10 +38,25 @@ import kotlin.io.path.absolutePathString
  * guest. The status file is a diagnostic ONLY — the marker stays the sole
  * completeness contract.
  *
+ * m6.0.2 (device-gate root cause,vc40/vc41): the shipped APK carried the
+ * asset under a different name than the pin declared (AGP decompresses *.gz
+ * assets on merge), so every spawn failed at [android.content.res.AssetManager]
+ * open BEFORE touching the rootfs. Hardenings shipped here:
+ *  - the archive stream is FORMAT-SNIFFED (gzip magic 0x1f8b) — both the
+ *    plain-tar APK form and a gzipped form extract identically;
+ *  - the asset bytes are sha-256 verified against [GlibcRuntimePin.ASSET_SHA256]
+ *    BEFORE extraction (a corrupt/foreign asset is a FAILED result, not a
+ *    half-extraction);
+ *  - every outcome is logged (logcat, tag [TAG]) as well as mirrored to the
+ *    guest status file — visible from `adb logcat` AND from inside the guest.
+ *
  * musl is untouched by construction: the loader name, SONAMEs and directories
  * of the layer are disjoint from musl's (see DUAL_LIBC.md §3).
  */
 object GuestGlibcRuntime {
+
+    /** logcat tag — the adb-side half of the m6.0.1/m6.0.2 observability contract. */
+    private const val TAG = "GuestGlibcRuntime"
 
     sealed interface Result {
         /** Marker present and matching the pin — nothing to do (fast path). */
@@ -73,26 +88,50 @@ object GuestGlibcRuntime {
     }
 
     /**
-     * Ensure the pinned layer is present in [rootfsDir]. [openArtifact] yields
-     * the pinned tar.gz (production: `context.assets.open(ASSET_PATH)`;
-     * tests: an in-memory archive). Never throws.
+     * Ensure the pinned layer is present in [rootfsDir]. [openArtifact] (the
+     * trailing lambda) yields the pinned archive (production:
+     * `context.assets.open(ASSET_PATH)` — the PLAIN tar form AGP packages;
+     * tests: in-memory archives of either form). [assetSha256] — when
+     * non-null, the artifact bytes are verified BEFORE extraction (m6.0.2; a
+     * mismatch is a [Result.Failed], never a half-extraction). Never throws.
      */
-    fun ensureInstalled(rootfsDir: File, openArtifact: () -> InputStream): Result {
+    fun ensureInstalled(
+        rootfsDir: File,
+        assetSha256: String? = null,
+        openArtifact: () -> InputStream,
+    ): Result {
         val result: Result = try {
             if (isCurrent(rootfsDir)) {
                 Result.Current
             } else {
-                Result.Installed(extract(rootfsDir, openArtifact))
+                Result.Installed(extract(rootfsDir, openArtifact, assetSha256))
             }
         } catch (e: Exception) {
             Result.Failed(e.message ?: e.javaClass.simpleName)
         }
         // m6.0.1: best-effort observability — the device gate proved a silent
         // Failed is indistinguishable from "app too old" from inside the
-        // guest. Write the outcome where the guest can read it. Never throws,
-        // never changes the returned result.
+        // guest. Write the outcome where the guest can read it (and, m6.0.2,
+        // where adb logcat can see it too). Never throws, never changes the
+        // returned result.
         writeStatus(rootfsDir, result)
+        logOutcome(result)
         return result
+    }
+
+    private fun logOutcome(result: Result) {
+        try {
+            when (result) {
+                is Result.Current ->
+                    android.util.Log.i(TAG, "glibc layer current (marker fast path)")
+                is Result.Installed ->
+                    android.util.Log.i(TAG, "glibc layer installed (${result.entries} entries)")
+                is Result.Failed ->
+                    android.util.Log.w(TAG, "glibc layer ensure FAILED: ${result.reason}")
+            }
+        } catch (_: Throwable) {
+            // Diagnostics must never become a failure source (JVM tests).
+        }
     }
 
     private fun writeStatus(rootfsDir: File, result: Result) {
@@ -117,9 +156,31 @@ object GuestGlibcRuntime {
 
     // ---------------------------------------------------------------- extraction
 
-    private fun extract(rootfsDir: File, openArtifact: () -> InputStream): Int {
+    /**
+     * m6.0.2: read the archive fully (≤ ~18 MB), verify the pin, then FORMAT-
+     * SNIFF: gzip magic (0x1f 0x8b) → GZIP stream, anything else → plain tar.
+     * Both forms carry identical tar entries; the sniff makes the extractor
+     * immune to which form AGP happens to package (the vc40/vc41 defect).
+     */
+    private fun extract(rootfsDir: File, openArtifact: () -> InputStream, assetSha256: String?): Int {
+        val bytes = openArtifact().use { it.readBytes() }
+        if (assetSha256 != null) {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(bytes).joinToString("") { "%02x".format(it) }
+            if (!digest.equals(assetSha256, ignoreCase = true)) {
+                throw IOException(
+                    "glibc layer asset sha mismatch: expected $assetSha256, got $digest " +
+                        "(${bytes.size} bytes) — asset/package drift",
+                )
+            }
+        }
+        val stream: InputStream = if (bytes.size >= 2 && bytes[0] == 0x1f.toByte() && bytes[1] == 0x8b.toByte()) {
+            GZIPInputStream(bytes.inputStream().buffered())
+        } else {
+            bytes.inputStream().buffered()
+        }
         var count = 0
-        TarArchiveInputStream(GZIPInputStream(openArtifact().buffered())).use { tar ->
+        TarArchiveInputStream(stream).use { tar ->
             while (true) {
                 val entry = tar.nextTarEntry ?: break
                 val target = resolveSecure(rootfsDir, entry.name)

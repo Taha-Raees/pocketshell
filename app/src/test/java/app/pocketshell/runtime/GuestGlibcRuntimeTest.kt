@@ -246,7 +246,7 @@ class GuestGlibcRuntimeTest {
     }
 
     @Test
-    fun `pinned asset bytes match the pin`() {
+    fun `release artifact bytes match the artifact pin`() {
         val candidates = listOf(
             File("src/main/assets/guest"),
             File("app/src/main/assets/guest"),
@@ -258,16 +258,108 @@ class GuestGlibcRuntimeTest {
         )
         val asset = File(dir, GlibcRuntimePin.ARTIFACT_NAME)
         assertEquals(GlibcRuntimePin.SIZE_BYTES, asset.length())
-        val sha = asset.inputStream().use { stream ->
-            val digest = MessageDigest.getInstance("SHA-256")
-            val buf = ByteArray(64 * 1024)
-            while (true) {
-                val r = stream.read(buf)
-                if (r < 0) break
-                digest.update(buf, 0, r)
-            }
-            digest.digest().joinToString("") { "%02x".format(it) }
+        assertEquals(GlibcRuntimePin.SHA256, sha256Hex(asset.inputStream()))
+    }
+
+    /**
+     * m6.0.2 DEVICE-GATE REGRESSION PIN (the vc40/vc41 root cause): the JVM
+     * suite verified the SOURCE-tree .tar.gz while AGP's asset merge silently
+     * repackaged it as a PLAIN tar under a DIFFERENT name — every device spawn
+     * failed with FileNotFoundException and the layer never installed. This
+     * test reads the BUILT APK (when present — run assembleDebug first) and
+     * asserts the packaged asset entry name, size and sha EXACTLY match the
+     * packaged-form pin. This is the check that was missing.
+     */
+    @Test
+    fun `built APK carries the packaged asset under its pinned name and sha`() {
+        val apk = listOf(
+            File("build/outputs/apk/debug/app-debug.apk"),
+            File("app/build/outputs/apk/debug/app-debug.apk"),
+        ).firstOrNull { it.isFile }
+        org.junit.Assume.assumeTrue(
+            "built APK not present on this test runner (run assembleDebug first)",
+            apk != null,
+        )
+        java.util.zip.ZipFile(apk).use { zip ->
+            // AssetManager path "guest/…" maps to the zip entry "assets/guest/…".
+            val entry = zip.getEntry("assets/" + GlibcRuntimePin.ASSET_PATH)
+            assertTrue(
+                "APK is missing the pinned asset ${GlibcRuntimePin.ASSET_PATH} — " +
+                    "this is exactly the vc40/vc41 device-gate defect",
+                entry != null,
+            )
+            assertEquals(
+                "packaged asset size drifted from the pin",
+                GlibcRuntimePin.ASSET_SIZE_BYTES,
+                entry.size,
+            )
+            assertEquals(
+                "packaged asset sha drifted from the pin",
+                GlibcRuntimePin.ASSET_SHA256,
+                sha256Hex(zip.getInputStream(entry)),
+            )
         }
-        assertEquals(GlibcRuntimePin.SHA256, sha)
+    }
+
+    /**
+     * m6.0.2: the PLAIN-tar form (what AGP actually packages from the pinned
+     * .tar.gz) must extract identically through the format-sniffing extractor.
+     */
+    @Test
+    fun `plain-tar asset (the AGP-packaged form) extracts identically`() {
+        val root = newRootfs()
+        val plainTar = layerTar()
+        val result = GuestGlibcRuntime.ensureInstalled(
+            root,
+            assetSha256 = sha256Hex(ByteArrayInputStream(plainTar)),
+        ) { ByteArrayInputStream(plainTar) }
+        assertTrue("expected Installed, got $result", result is GuestGlibcRuntime.Result.Installed)
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+        assertEquals("REAL-GLIBC-LIBC", File(root, "usr/lib/aarch64-linux-gnu/libc.so.6").readText())
+    }
+
+    /** m6.0.2: a sha-pinned asset that does NOT match is a FAILED result — never a half-extraction. */
+    @Test
+    fun `asset sha mismatch is a FAILED result and writes nothing`() {
+        val root = newRootfs()
+        val result = GuestGlibcRuntime.ensureInstalled(
+            root,
+            assetSha256 = "0".repeat(64),
+        ) { tarStream() }
+        assertTrue("expected Failed, got $result", result is GuestGlibcRuntime.Result.Failed)
+        assertFalse("no marker may exist after a sha mismatch", File(root, GlibcRuntimePin.MARKER_RELATIVE).exists())
+        assertFalse("no layer bytes may exist after a sha mismatch", File(root, "usr/lib/aarch64-linux-gnu/libc.so.6").exists())
+    }
+
+    /**
+     * m6.0.2 DEVICE-GATE REGRESSION PIN (the observable half): the vc40/vc41
+     * device condition — the asset open throws (wrong name in the shipped
+     * APK) — must surface as state=FAILED + the reason in the guest-visible
+     * status file, so a missing layer is diagnosable from inside the guest.
+     */
+    @Test
+    fun `asset open failure surfaces its reason in the guest status file`() {
+        val root = newRootfs()
+        val result = GuestGlibcRuntime.ensureInstalled(root) {
+            throw java.io.FileNotFoundException(GlibcRuntimePin.ASSET_PATH)
+        }
+        assertTrue("expected Failed, got $result", result is GuestGlibcRuntime.Result.Failed)
+        val status = File(root, GuestGlibcRuntime.STATUS_RELATIVE).readText()
+        assertTrue("status must record the failure: $status", status.startsWith("state=FAILED"))
+        assertTrue("status must carry the reason: $status", status.contains(GlibcRuntimePin.ASSET_PATH))
+    }
+
+    // ------------------------------------------------------------- sha helper
+
+    private fun sha256Hex(stream: InputStream): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buf = ByteArray(64 * 1024)
+        while (true) {
+            val r = stream.read(buf)
+            if (r < 0) break
+            digest.update(buf, 0, r)
+        }
+        stream.close()
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 }

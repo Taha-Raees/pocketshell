@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.10.0-m6.0.1
+VERSION=v0.10.0-m6.0.2
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,51 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.10.0-m6.0.0) — M6.0.1: INSTALL OBSERVABILITY + SUITE DIAGNOSIS
+WHAT IS NEW IN $VERSION (vs v0.10.0-m6.0.1) — M6.0.2: THE ACTUAL INSTALL-PATH FIX
+(the m6.0.1 gate failed identically to m6.0.0 — forensics located and PROVED the
+real seam this time; nothing about the layer itself was ever wrong):
+  - ROOT CAUSE (proven, not inferred): AGP's asset merge DECOMPRESSES *.gz
+    assets and strips the suffix. The repo committed the pinned .tar.gz, the
+    pin declared asset path guest/….tar.gz — and the SHIPPED APK contained
+    only a PLAIN tar under guest/….tar (reproduced twice from a clean merge;
+    sha chain locked: gunzip(artifact) == the APK's embedded tar). Every
+    session spawn therefore failed at AssetManager.open with
+    FileNotFoundException BEFORE touching the rootfs — best-effort-swallowed
+    on vc40, status-file-only on vc41 (the v1 suite the device ran cannot
+    read it). The sandbox never caught it because the rig extracts the layer
+    with system tar, never through the app's asset path; the JVM suite
+    verified the SOURCE-tree asset, not the BUILT APK.
+  - THE FIX (three independent rails): 1) GlibcRuntimePin now pins the
+    PACKAGED form (guest/….tar, 17,909,760 B, sha256 5be400dd…) beside the
+    release-artifact pin (.tar.gz, 6,761,290 B, 2242f8ef… unchanged);
+    2) the extractor FORMAT-SNIFFS gzip magic so EITHER packaged form works,
+    and sha-verifies the asset bytes BEFORE extraction (a drift is a FAILED
+    status, never a half-extraction); 3) a new JVM regression pin opens the
+    BUILT APK (ZipFile) and asserts the packaged asset name+size+sha — the
+    exact check whose absence let this ship twice.
+  - OBSERVABILITY COMPLETION: every ensure outcome is logged to logcat (tag
+    GuestGlibcRuntime) AND mirrored to /etc/pocketshell/glibc-runtime.status
+    as before; additionally every session prep now stamps the app identity
+    into /etc/pocketshell/app-version — the device suite PREFLIGHT can PROVE
+    which build owns the rootfs ("app too old" vs "install failed" is no
+    longer guessable, it is readable).
+  - SUITE v2.1 (device-gate #2 lesson): the runner SELF-LOCATES its binaries
+    (the old hardcoded /tmp/pocketshell-tests default produced 15 fake
+    "binary missing" rows when the suite lived elsewhere, e.g.
+    /tmp/kilo/gdrive, without POCKETSHELL_TESTS_DIR), accepts BOTH suite
+    layouts (flat staging AND the served tarball's bin/ subdir — a second
+    packaging defect found by this gate), prints its suite version in the
+    header (stale-copy confusion cannot recur silently), and PREFLIGHT now
+    reports the app-version stamp plus raw ls/readlink evidence for the
+    loader path.
+  - VALIDATED: full JVM suite 780 executions, 0 failures (4 new regression
+    pins); rig device-state validation 3 phases green (no-layer verdict,
+    hatch repair incl. gcompat contamination, full 24/24 ALL GREEN incl.
+    Cline 3.0.61); custom-dir + tarball-layout self-location proven in the
+    rig. versionCode 42 — in-place update over 16..41; same pinned cert.
+    Device gate: docs/TESTING.md §33.1 with the FRESH v2.1 suite.
+
+WHAT WAS NEW IN v0.10.0-m6.0.1 (vs v0.10.0-m6.0.0) — M6.0.1: INSTALL OBSERVABILITY + SUITE DIAGNOSIS
 (the m6.0.0 device-gate lesson: the layer's best-effort install was SILENT, so on
 the device "failed to install" and "not installed yet" looked identical):
   - WHAT THE GATE SHOWED: the suite ran before the glibc layer had installed;

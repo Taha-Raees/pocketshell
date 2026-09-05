@@ -1744,10 +1744,15 @@ silently). Then run the automated suite and the manual checks below.
 ### 33.1 Automated suite (paste-ready, in the guest)
 - `mkdir -p /tmp/pocketshell-tests && curl -fsSL <mirror>/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C /tmp/pocketshell-tests`
 - `sh /tmp/pocketshell-tests/run_on_device.sh`
-- EXPECT (vc41 suite v2): PREFLIGHT prints marker/status/loader/disk; every
-  row PASS or honest SKIP; RESULT: 24 passed, 0 failed, 0 skipped; VERDICT:
-  ALL GREEN. Cline rows require Cline installed (npm i -g cline) — if absent
-  they SKIP and the verdict says so.
+- EXPECT (vc42, suite v2.1): header prints `suite: v2.1 (m6.0.2)` and the
+  auto-located binaries dir; PREFLIGHT prints marker/status/app-stamp/
+  loader + ls/readlink/disk; every row PASS or honest SKIP; RESULT: 24 passed,
+  0 failed, 0 skipped; VERDICT: ALL GREEN. Cline rows require Cline installed
+  (npm i -g cline) — if absent they SKIP and the verdict says so.
+- The runner SELF-LOCATES its binaries (flat staging OR the served tarball's
+  `bin/` subdir) — `POCKETSHELL_TESTS_DIR` is now an override, not a
+  requirement. A stale suite copy prints its old version in the header — if
+  it does not say v2.1 (m6.0.2), re-download.
 - If the verdict is LAYER NOT INSTALLED: the PREFLIGHT section says why. Fully
   close + reopen the app (one fresh session installs the layer) and re-run; or
   repair in-guest without the app: put
@@ -1784,8 +1789,40 @@ silently). Then run the automated suite and the manual checks below.
   the marker fast path)
 
 ### 33.6 Honesty checks
+- `cat /etc/pocketshell/app-version` shows the app build that last prepared
+  this rootfs (m6.0.2+: `0.10.0-m6.0.2 (versionCode 42)`; absent = the app is
+  pre-m6.0.2 — that alone is a verdict, install the current APK)
 - `cat /etc/pocketshell/glibc-runtime` shows the layer version line
 - `cat /etc/pocketshell/glibc-runtime.status` shows the last install outcome
   (state=OK source=extractor|fastpath|manual-hatch …, or FAILED + reason)
 - `ls /lib/ld-musl-aarch64.so.1` untouched; `apk` still fully functional
 - Diagnostics: package-environment check unchanged/green
+
+## 33A. m6.0.2 re-gate — the install-path fix (v0.10.0-m6.0.2, vc42) — DEVICE GATE PENDING
+
+Forensic record (why gates 1 and 2 failed identically): AGP's asset merge
+decompresses `*.gz` assets and strips the suffix, so the shipped APK carried
+the layer as `assets/guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar`
+(plain, 17,909,760 B, sha 5be400dd…) while `GlibcRuntimePin.ASSET_PATH`
+declared `…tar.gz` — `AssetManager.open` threw FileNotFoundException on EVERY
+spawn before the rootfs was ever touched. Fixed: the pin describes the
+packaged form, the extractor sniffs gzip magic + sha-verifies the asset
+before extraction, a JVM pin opens the BUILT APK and asserts the packaged
+entry, the release mirror extracts + sha-verifies the embedded asset, and
+every spawn stamps the app identity into the guest.
+
+Preconditions: install vc42 IN PLACE (data preserved). Fully close the app,
+reopen, open ONE fresh session (the layer now really installs — first spawn
+extracts ~18 MB, subsequent spawns are the marker fast path). Then:
+1. §33.1 with a FRESH v2.1 suite download (expect header `suite: v2.1
+   (m6.0.2)`; the old /tmp/kilo/gdrive copy is v1 — delete it).
+2. §33.6 honesty checks: app-version shows `0.10.0-m6.0.2 (versionCode 42)`;
+   marker shows the layer version line; status shows
+   `state=OK source=extractor` (first spawn) then `source=fastpath`.
+3. `/lib/ld-linux-aarch64.so.1 --version` → real GNU loader
+   (`ld.so (Debian GLIBC 2.41-12+deb13u3) stable release version 2.41`),
+   NOT the gcompat stub.
+4. `command -v pocketshell-doctor && pocketshell-doctor /tmp/pocketshell-tests/t_cline_shape`
+   → SUPPORTED.
+5. EXPECT 24 passed, 0 failed, 0 skipped — ALL GREEN incl. Cline 3.0.61.
+   Paste the full output either way.

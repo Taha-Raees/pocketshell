@@ -1,8 +1,8 @@
 #!/bin/sh
 # run_on_device.sh — PocketShell executable compatibility suite (runs INSIDE
 # the Alpine guest terminal). Companion to scripts/runtime/run_sandbox_suite.sh
-# (same matrix, no emulation). Expects the test binaries staged in the same
-# directory as this script (default /tmp/pocketshell-tests).
+# (same matrix, no emulation). The test binaries are auto-located NEXT TO this
+# script (override with POCKETSHELL_TESTS_DIR).
 #
 # Device usage (PocketShell terminal):
 #   curl -fsSL <mirror>/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C /tmp
@@ -14,6 +14,13 @@
 #   - /etc/pocketshell/glibc-runtime          marker (completeness contract)
 #   - /etc/pocketshell/glibc-runtime.status   last app-side install outcome
 #   - what /lib/ld-linux-aarch64.so.1 really is right now
+# v0.10.0-m6.0.2 (device-gate #2): the runner now SELF-LOCATES its binaries
+# (the old hardcoded /tmp/pocketshell-tests default produced 15 fake "binary
+# missing" rows when the suite lived elsewhere — e.g. /tmp/kilo/gdrive —
+# without POCKETSHELL_TESTS_DIR exported), stamps its suite version in the
+# header (stale-copy confusion cannot recur silently), and PREFLIGHT reports
+# the app-identity stamp (/etc/pocketshell/app-version — written by every
+# m6.0.2+ session prep) plus the raw ls/readlink evidence for the loader.
 # Escape hatch (repairs the layer WITHOUT waiting for the app):
 #   POCKETSHELL_INSTALL_LAYER=1 sh run_on_device.sh
 #     uses $POCKETSHELL_LAYER_URL, or a pocketshell-glibc-*.tar.gz placed in
@@ -22,7 +29,17 @@
 #
 # Every claim is probed. Nothing is assumed. Output is a paste-ready table.
 set -u
-DIR="${POCKETSHELL_TESTS_DIR:-/tmp/pocketshell-tests}"
+SUITE_VERSION="v2.1 (m6.0.2)"
+SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || SELF_DIR="."
+DIR="${POCKETSHELL_TESTS_DIR:-$SELF_DIR}"
+# Binary location: the suite ships BOTH layouts over its life (flat staging
+# dirs AND the served tarball's bin/ subdir) — resolve once, prefer flat.
+BIN="$DIR"
+if [ -x "$DIR/t_static" ]; then
+  BIN="$DIR"
+elif [ -x "$DIR/bin/t_static" ]; then
+  BIN="$DIR/bin"
+fi
 CLINE=/usr/local/lib/node_modules/cline/node_modules/@cline/cli-linux-arm64/bin/cline
 MARKER=/etc/pocketshell/glibc-runtime
 STATUS=/etc/pocketshell/glibc-runtime.status
@@ -56,6 +73,7 @@ layer_present() {
 layer_present && layer_ok=1
 
 echo "== POCKETSHELL EXECUTABLE COMPATIBILITY SUITE (device)"
+echo "== suite: $SUITE_VERSION — binaries auto-located from: $BIN"
 echo "== guest: $(cat /etc/alpine-release 2>/dev/null || echo '?') / $(/bin/busybox | head -1 | grep -o 'BusyBox v[0-9.]*')"
 echo
 
@@ -68,8 +86,10 @@ fi
 if [ -f "$STATUS" ]; then
   echo "  status  : $(cat "$STATUS")"
 else
-  echo "  status  : (none — outcome file appears after the first vc40+ session prep)"
+  echo "  status  : (none — outcome file appears after the first vc41+ session prep)"
 fi
+echo "  app     : $(cat /etc/pocketshell/app-version 2>/dev/null || echo '(no stamp — app is pre-m6.0.2, or the rootfs was never prepared by this app)')"
+echo "  /etc/pocketshell: $(ls /etc/pocketshell 2>/dev/null | tr '\n' ' ' || echo '(absent)')"
 loader_line=$(/lib/ld-linux-aarch64.so.1 --version 2>&1 | head -1)
 case "$loader_line" in
   *gcompat*) echo "  loader  : gcompat STUB (shim — no real glibc; C++/Cline will fail)" ;;
@@ -77,6 +97,8 @@ case "$loader_line" in
   '')        echo "  loader  : /lib/ld-linux-aarch64.so.1 absent" ;;
   *)         echo "  loader  : $loader_line" ;;
 esac
+ls -la /lib/ld-linux-aarch64.so.1 2>/dev/null | sed 's/^/  ls      : /'
+echo "  readlink: $(readlink /lib/ld-linux-aarch64.so.1 2>/dev/null || echo '(not a symlink — regular file)')"
 echo "  layer libs: $(ls /usr/lib/aarch64-linux-gnu 2>/dev/null | wc -l) files in /usr/lib/aarch64-linux-gnu"
 apk info -e gcompat >/dev/null 2>&1 && echo "  gcompat : installed in this rootfs (historical; harmless once the layer is in)" || true
 echo "  disk    : $(df -h / | tail -1 | awk '{print $4" free"}')"
@@ -125,7 +147,7 @@ check "apk"               "apk-tools"     /sbin/apk --version
 check "apk install probe" "musl"          /sbin/apk info -e musl
 
 echo "=== TIER 1 — static (no loader needed) ==="
-[ -x "$DIR/t_static" ] && check "static (glibc -static)" "hello-glibc" "$DIR/t_static" \
+[ -x "$BIN/t_static" ] && check "static (glibc -static)" "hello-glibc" "$BIN/t_static" \
                        || bad "static (glibc -static)" "binary missing (download the suite tarball)"
 
 if layer_present; then
@@ -133,17 +155,17 @@ if layer_present; then
   echo "=== TIER 2 — real glibc layer ==="
   check "glibc loader --version" "stable release version" /lib/ld-linux-aarch64.so.1 --version
   for t in t_hello t_pthread t_dlopen t_libm t_cpp t_fork_exec t_getpwnam t_getaddrinfo t_cline_shape; do
-    if [ -x "$DIR/$t" ]; then
+    if [ -x "$BIN/$t" ]; then
       case "$t" in
-        t_hello)      check "glibc hello"       "hello-glibc"   "$DIR/$t" ;;
-        t_pthread)    check "glibc pthread"     "pthread-ok"    "$DIR/$t" ;;
-        t_dlopen)     check "glibc dlopen"      "dlopen-libm-ok" "$DIR/$t" ;;
-        t_libm)       check "glibc libm"        "libm-ok"       "$DIR/$t" ;;
-        t_cpp)        check "glibc C++ exc"     "cpp-ok"        "$DIR/$t" ;;
-        t_fork_exec)  check "glibc fork+exec"   "fork-exec-ok"  "$DIR/$t" ;;
-        t_getpwnam)   check "glibc NSS passwd"  "getpwnam-ok"   "$DIR/$t" ;;
-        t_getaddrinfo) check "glibc NSS dns"    "getaddrinfo-ok" "$DIR/$t" ;;
-        t_cline_shape) check "glibc Cline-shape deps" "pthread-ok" "$DIR/$t" ;;
+        t_hello)      check "glibc hello"       "hello-glibc"   "$BIN/$t" ;;
+        t_pthread)    check "glibc pthread"     "pthread-ok"    "$BIN/$t" ;;
+        t_dlopen)     check "glibc dlopen"      "dlopen-libm-ok" "$BIN/$t" ;;
+        t_libm)       check "glibc libm"        "libm-ok"       "$BIN/$t" ;;
+        t_cpp)        check "glibc C++ exc"     "cpp-ok"        "$BIN/$t" ;;
+        t_fork_exec)  check "glibc fork+exec"   "fork-exec-ok"  "$BIN/$t" ;;
+        t_getpwnam)   check "glibc NSS passwd"  "getpwnam-ok"   "$BIN/$t" ;;
+        t_getaddrinfo) check "glibc NSS dns"    "getaddrinfo-ok" "$BIN/$t" ;;
+        t_cline_shape) check "glibc Cline-shape deps" "pthread-ok" "$BIN/$t" ;;
       esac
     else
       bad "$t" "binary missing (download the suite tarball)"
@@ -152,10 +174,10 @@ if layer_present; then
 
   echo "=== pocketshell-doctor ==="
   if command -v pocketshell-doctor >/dev/null 2>&1; then
-    if pocketshell-doctor "$DIR/t_cline_shape" 2>/dev/null | grep -q "SUPPORTED"; then
+    if pocketshell-doctor "$BIN/t_cline_shape" 2>/dev/null | grep -q "SUPPORTED"; then
       ok "doctor verdict (t_cline_shape)" "SUPPORTED"
     else
-      bad "doctor verdict (t_cline_shape)" "$(pocketshell-doctor "$DIR/t_cline_shape" 2>&1 | tail -1)"
+      bad "doctor verdict (t_cline_shape)" "$(pocketshell-doctor "$BIN/t_cline_shape" 2>&1 | tail -1)"
     fi
   else
     bad "pocketshell-doctor" "in the layer (/usr/local/bin) but not on PATH — check rootfs PATH"
@@ -190,7 +212,8 @@ if [ "$fail" -gt 0 ]; then
   echo "VERDICT: FAILURES PRESENT — paste the full output"
 elif [ "$layer_ok" = 0 ]; then
   echo "VERDICT: LAYER NOT INSTALLED. Fix path:"
-  echo "  1) confirm the app is v0.10.0-m6.0.0 (vc40) or newer — Android Settings > Apps > PocketShell"
+  echo "  1) confirm the app is v0.10.0-m6.0.2 (vc42) or newer — Android Settings > Apps > PocketShell"
+  echo "     (the PREFLIGHT 'app' line above PROVES which build last prepared this rootfs)"
   echo "  2) fully close the app, reopen, open ONE fresh session (installs the layer), re-run"
   echo "  3) or repair NOW without the app: put $LAYER_NAME beside this script (or set"
   echo "     POCKETSHELL_LAYER_URL=<mirror>/$LAYER_NAME) and run: POCKETSHELL_INSTALL_LAYER=1 sh $0"

@@ -118,6 +118,23 @@ presence is a capability probe (the real loader answers `--version` with
 "stable release version"), not marker paperwork. `POCKETSHELL_INSTALL_LAYER=1`
 repairs the layer from a local/URL layer tarball without waiting for the app.
 
+### 6.2 The m6.0.2 install-path fix (device gates #1 and #2, fully explained)
+
+Both gates failed for ONE proven reason: AGP's asset merge decompresses `*.gz`
+assets and strips the suffix, so the APK carried
+`assets/guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar` (plain,
+17,909,760 B, sha 5be400dd...) while `GlibcRuntimePin.ASSET_PATH` declared
+`...tar.gz` — every spawn failed at `AssetManager.open` before touching the
+rootfs. The delivery design in §4 was never wrong; it was never reached.
+Fix (three rails): the pin describes the PACKAGED form beside the unchanged
+artifact pin; the extractor format-sniffs gzip magic and sha-verifies the
+asset bytes BEFORE extraction (a mismatch is FAILED status, never a
+half-extraction); a JVM pin opens the BUILT APK and asserts the packaged
+entry name+size+sha, and the release mirror repeats that check (scripts/
+mirror_m6002.sh). Every spawn additionally stamps the app identity into
+`/etc/pocketshell/app-version`, so the device suite PREFLIGHT proves WHICH
+build owns the rootfs. Layer bytes unchanged throughout (2242f8ef...).
+
 ## 7. Success criteria (delivery standard)
 
 installed AND launches AND executes correctly AND survives a fresh session AND does

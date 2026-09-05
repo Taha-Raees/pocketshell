@@ -204,13 +204,20 @@ object PackageGateway {
         // layer is present — idempotent marker fast path (one small read on
         // warm starts), self-healing re-extraction otherwise, best-effort by
         // contract: musl sessions NEVER depend on this result.
+        // m6.0.2: the artifact bytes are sha-verified against the PACKAGED
+        // asset pin BEFORE extraction — the vc40/vc41 device gate (AGP
+        // repackages the .tar.gz into a plain .tar; the code asked for the
+        // wrong name and failed silently) can never repeat undetected.
         val glibcRuntime = runCatching {
-            GuestGlibcRuntime.ensureInstalled(rootfsDir) {
+            GuestGlibcRuntime.ensureInstalled(rootfsDir, GlibcRuntimePin.ASSET_SHA256) {
                 context.assets.open(GlibcRuntimePin.ASSET_PATH)
             }
         }.getOrElse {
             GuestGlibcRuntime.Result.Failed("glibc layer check failed: ${it.message ?: it.javaClass.simpleName}")
         }
+        // m6.0.2: prove WHICH app build owns this rootfs, from inside the
+        // guest (suite PREFLIGHT reads it). Best-effort; never blocks a spawn.
+        runCatching { stampAppVersion(context, rootfsDir) }
         // M2.6.12: sysdata dir is the rootfs's SIBLING (upstream layout:
         // dirname(rootfs)/sysdata), inside the app's private storage.
         val sysData = runCatching {
@@ -226,6 +233,22 @@ object PackageGateway {
             GuestEnvironment.ensureApkWorkspace(rootfsDir)
         }
         return GuestSessionPreparation(compat, sysData, glibcRuntime)
+    }
+
+    /**
+     * m6.0.2: rewrite [GuestEnvironment.APP_VERSION_RELATIVE] on every spawn
+     * so the guest can prove which build last prepared it. Atomic-ish (tmp +
+     * rename), silent on any failure — a stamp is evidence, never a dependency.
+     */
+    private fun stampAppVersion(context: Context, rootfsDir: File) {
+        @Suppress("DEPRECATION")
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        val text = "${info.versionName} (versionCode ${info.versionCode})\n"
+        val target = File(rootfsDir, GuestEnvironment.APP_VERSION_RELATIVE)
+        target.parentFile?.mkdirs()
+        val tmp = File(target.parentFile, target.name + ".write")
+        tmp.writeText(text)
+        if (!tmp.renameTo(target)) tmp.delete()
     }
 
     /**

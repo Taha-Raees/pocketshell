@@ -815,5 +815,16 @@ Decision record: docs/runtime/DUAL_LIBC.md. Suite: docs/runtime/TESTING.md.
 - [x] Other forensic findings documented for LATER phases (no scope creep):
       /proc/net + /proc/stat-family overlays, sysdata liveness, PID-namespace
       visibility — tracked in the Runtime Forensic Audit roadmap (P1/P3).
-- [ ] Device gate docs/TESTING.md §33: run the suite in a real PocketShell
-      session (musl regression + glibc matrix + doctor + Cline end-to-end).
+- [x] Device gate #1 (§33): 18 PASS / 6 FAIL — layer absent; response m6.0.1
+      (status file, suite v2 PREFLIGHT, hatch). Device gate #2: 9/15 on a
+      STALE v1 suite — layer still absent.
+- [x] m6.0.2 FORENSICS: both gates had ONE proven root cause — AGP's asset
+      merge decompresses .gz assets and strips the suffix, so the APK never
+      carried the name the pin declared (FileNotFoundException on every
+      spawn, before the rootfs was ever touched). Fixed on three rails
+      (packaged-form pin + sniffing/sha-verified extraction + built-APK JVM
+      pin and release-mirror asset check); app-version stamp + suite v2.1
+      (self-locating, layout-agnostic). 780 JVM executions / 0 failures;
+      rig 3-phase validation green.
+- [ ] Device gate #3 (docs/TESTING.md §33A, vc42): fresh v2.1 suite download,
+      one fresh session, expect 24/24 ALL GREEN incl. Cline 3.0.61.

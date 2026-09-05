@@ -3,6 +3,54 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.10.0-m6.0.2] — 2026-09-06 — M6.0.2: the actual install-path fix (proven root cause)
+
+Device gate #2 failed identically to #1 — this time the failure was traced to
+a single proven seam, reproduced, and closed. No layer bytes changed
+(2242f8ef… then, 2242f8ef… now); what changed is everything that stood
+between the layer and the rootfs.
+
+- **Root cause (proven, not inferred)**: AGP's asset merge DECOMPRESSES
+  `*.gz` assets and strips the suffix — reproduced twice from a clean
+  `mergeDebugAssets` run on a source tree containing only the pinned
+  `.tar.gz`. The shipped APK (vc40 AND vc41) therefore carried
+  `assets/guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar` (plain,
+  17,909,760 B, sha 5be400dd… = gunzip of the artifact) while
+  `GlibcRuntimePin.ASSET_PATH` declared `…tar.gz`. Every session spawn threw
+  FileNotFoundException at `AssetManager.open` BEFORE touching the rootfs:
+  best-effort-swallowed on vc40 (no consumer of
+  `GuestSessionPreparation.glibcRuntime`), status-file-only on vc41 (the v1
+  suite the device ran cannot read it). The sandbox rig never caught it —
+  it extracts the layer with system tar, never through the app's asset path;
+  the JVM suite verified the SOURCE-tree asset, not the BUILT APK.
+- **GlibcRuntimePin: two explicit pins** — the release artifact
+  (`.tar.gz`, 6,761,290 B, 2242f8ef…, for mirror/hatch/provenance) and the
+  PACKAGED asset form (`guest/….tar`, 17,909,760 B, `ASSET_SHA256`
+  5be400dd…), the latter now passed to `ensureInstalled` and verified at
+  every extraction.
+- **GuestGlibcRuntime: format sniffing + pre-extraction sha verify** — gzip
+  magic (0x1f8b) selects GZIP vs plain tar (immune to which form AGP
+  packages); a sha mismatch is a FAILED result, never a half-extraction;
+  every outcome additionally logged to logcat (tag `GuestGlibcRuntime`).
+- **App identity stamp** (`/etc/pocketshell/app-version`, best-effort on
+  every `prepareGuestForSession`): the guest can now PROVE which build owns
+  the rootfs — "app too old" vs "install failed" is readable, not guessable.
+- **Built-APK regression pin**: a JVM test opens the assembled APK
+  (ZipFile) and asserts the packaged asset entry name+size+sha — the exact
+  check whose absence let this ship twice. Plus pins for plain-tar
+  extraction, sha-mismatch refusal, and asset-open-failure status mirroring.
+- **Release checklist**: `scripts/mirror_m6002.sh` extracts the embedded
+  asset from the APK and sha-verifies it (three-way mirror + APK asset
+  check) — mandatory on every future release.
+- **Suite v2.1** (device-gate #2 lessons): self-locating binaries (flat AND
+  the served tarball's `bin/` layout — a second packaging defect found by
+  this gate), suite version printed in the header, PREFLIGHT extended with
+  the app-version stamp + `/etc/pocketshell` listing + loader `ls`/readlink
+  evidence; verdict fix-path updated to vc42.
+- Full JVM suite: 780 executions, 0 failures (4 net-new pins). Rig
+  device-state validation: 3 phases green (20+1 skip / 21+1 skip / 24-24
+  ALL GREEN) + custom-dir self-location proven. versionCode 42.
+
 ## [0.10.0-m6.0.1] — 2026-09-06 — M6.0.1: install observability + suite diagnosis (device-gate lesson)
 
 The m6.0.0 device gate (§33.1) ran the suite before the glibc layer had

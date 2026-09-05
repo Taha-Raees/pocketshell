@@ -74,6 +74,16 @@ object GuestEnvironment {
     const val APK_TMP_RELATIVE = "tmp"
 
     /**
+     * Guest-relative app-identity stamp (m6.0.2 device-gate lesson), rewritten
+     * best-effort on EVERY session spawn: "<versionName> (versionCode N)".
+     * The on-device suite PREFLIGHT reads it to prove WHICH app build owns
+     * this rootfs — "the layer should have installed" claims become checkable
+     * from inside the guest, where "app too old" and "install failed" were
+     * previously indistinguishable (the vc40/vc41 gate lesson).
+     */
+    const val APP_VERSION_RELATIVE = "etc/pocketshell/app-version"
+
+    /**
      * A nameserver entry musl can actually parse and use: a numeric IPv4/
      * IPv6 literal, no zone suffix ("fe80::1%wlan0" is LinkProperties scope
      * syntax — inet_pton rejects it, so the line would be dead weight), no

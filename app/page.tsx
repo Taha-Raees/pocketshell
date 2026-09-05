@@ -1,11 +1,11 @@
-const VERSION = "v0.10.0-m6.0.1";
+const VERSION = "v0.10.0-m6.0.2";
 
 const HASHES = {
-  apk: "915677b6d60383324ed208d8e58b84a1794d16f2748256b35bd7cec79e768388",
-  zip: "62eafc420d267d363f1c6f50079b76056a6a2de5e9817a30f2454e4c5c5efcc3",
-  tgz: "6b58ab445ceaa0375398f40ec0c147687749a4ab4fb212378cb1202f14d0b2bf",
-  bundle: "3a5992644e899f22fa7791dc198af410685a3051c34a4a582870dd62f607ae94",
-  tests: "b203fa58488411a6a32cc2dfce18f1a657209f81b330258c30a4dcd74c5e6b21",
+  apk: "832648e5e6d89554bf11e786c9bb9d1a48b7054815502791d91175fcf31da6d0",
+  zip: "82875abeef54932afe7c2829e37b27a4304e170b228d81eed472515ecb7c411e",
+  tgz: "a77cece3378cebc95003a0f672df96cf114048d7ec521e2a43d74d7858ce48eb",
+  bundle: "73d6bd4d844883b7ab72917afb4a3539fe1e4d86ec289ffc9393c92f5629b6b3",
+  tests: "22e283ef07e2984942e8f6e40b4cb43b9b6d8ef240105285b4d30bb1873c0b1e",
   glibc: "2242f8ef8f18df06c6bf37d55f6ae526cccb6d835f76bc048b877266d252ad11",
   report: "0e0a2bf8363647aece215f4f0a00b658debb3d42a443b480d564b01cd7d17c0d",
 };
@@ -28,16 +28,18 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M6.0.1: Universal Runtime Compatibility — now with install
-          observability{" "}
-          <span className="badge">versionCode 41</span>
+          M6.0.2: the actual install-path fix — the layer now REALLY installs
+          on your device{" "}
+          <span className="badge">versionCode 42</span>
         </h2>
         <p>
           <b>
-            ONE Alpine distribution — now running musl AND glibc AND static
-            ARM64 software side by side. The glibc blocker the two forensic
-            reports identified is closed as architecture, not as a per-tool
-            hack.
+            The m6.0.0/m6.0.1 device gates failed for one proven root cause:
+            Android&apos;s build pipeline silently repackaged the glibc layer
+            asset inside the APK under a different name than the app asked
+            for — so the install never ran. This build pins what the APK
+            ACTUALLY carries, verifies it at every extraction, and proves
+            which app build owns your runtime. Forensics first, then the fix.
           </b>
         </p>
         <ul className="steps">
@@ -75,23 +77,31 @@ export default function Home() {
             ELF to the right runtime.
           </li>
           <li>
-            <b>New in m6.0.1 — the device-gate lesson:</b> the layer&apos;s
-            best-effort install is now OBSERVABLE. Every install outcome is
-            mirrored to the guest (<code>/etc/pocketshell/glibc-runtime.status</code>),
-            the suite prints a PREFLIGHT diagnosis and treats a missing layer
-            as SKIP-with-fix-path (not FAIL noise), and
-            <code> POCKETSHELL_INSTALL_LAYER=1</code> repairs the layer
-            in-guest without waiting for the app. Validated in 4 device
-            states under emulation, including repair of a gcompat-
-            contaminated rootfs — the exact state found at the gate.
+            <b>The m6.0.2 fix (proven root cause):</b> the build pipeline
+            decompresses <code>.gz</code> assets and renames them — the shipped
+            APK carried a plain <code>.tar</code> while the code opened
+            <code> .tar.gz</code>, so every spawn failed before touching your
+            runtime. The pin now describes the packaged form exactly, the
+            extractor accepts either form (gzip-magic sniff) and SHA-verifies
+            the asset BEFORE extracting, and a new regression test opens the
+            built APK itself so this class of defect can never ship again.
+          </li>
+          <li>
+            <b>Provable installs:</b> every session prep stamps the app
+            identity into <code>/etc/pocketshell/app-version</code> — the
+            suite PREFLIGHT shows WHICH build owns your runtime; install
+            outcomes stay mirrored to <code>/etc/pocketshell/glibc-runtime.status</code>
+            and logcat. Suite v2.1 self-locates its binaries (both flat and
+            <code> bin/</code> layouts) and prints its version — stale-copy
+            confusion is over.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.10.0-m6.0.1-debug.apk">
-          Download APK (debug, 29 MB)
+        <a className="btn" href="/PocketShell-v0.10.0-m6.0.2-debug.apk">
+          Download APK (debug, 30 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.1)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.2)
         </p>
       </div>
 
@@ -135,7 +145,8 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 41 installs <b>in place over v0.10.0-m6.0.0 (40),
+          versionCode 42 installs <b>in place over v0.10.0-m6.0.1 (41),
+          v0.10.0-m6.0.0 (40),
           v0.9.1-m5.1.0 (39),
           v0.9.0-m5.0.1 (38), v0.9.0-m5.0.0 (37),
           v0.8.0-m4.0.12 (36), v0.8.0-m4.0.11 (35),
@@ -191,10 +202,17 @@ export default function Home() {
             Cline-class loader failure is closed.
           </li>
           <li>
-            <b>v0.10.0-m6.0.1 (this build):</b> install observability + suite
-            diagnosis — guest-visible install status, suite PREFLIGHT with
-            honest SKIPs, in-guest repair hatch; validated on a
-            gcompat-contaminated rootfs (the exact device-gate condition).
+            <b>v0.10.0-m6.0.1:</b> install observability + suite diagnosis —
+            guest-visible install status, suite PREFLIGHT with honest SKIPs,
+            in-guest repair hatch; validated on a gcompat-contaminated
+            rootfs (the exact device-gate condition).
+          </li>
+          <li>
+            <b>v0.10.0-m6.0.2 (this build):</b> the actual install-path fix —
+            the packaged-asset pin, format-sniffing + sha-verified extraction,
+            the built-APK regression pin, the app-version stamp, and suite
+            v2.1 (self-locating, layout-agnostic). The layer installs itself
+            for real this time — or says exactly why not.
           </li>
         </ul>
       </div>
@@ -235,10 +253,10 @@ export default function Home() {
           contract, the rendering-reset report, and the new runtime
           documentation (docs/runtime/ + runtime-tests/ + scripts/runtime/).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.1-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.2-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.1-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.2-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -273,9 +291,11 @@ export default function Home() {
         winner frozen · m4.0.12 companion finalization · m5.0.0 UI &amp;
         interaction polish · m5.0.1 the workspace bar · m5.1.0 audit-first
         performance · m6.0.0 universal runtime compatibility — real glibc
-        inside Alpine, musl untouched, Cline runs ·{" "}
-        <b>v0.10.0-m6.0.1 (this build): install observability + suite
-        diagnosis — the device-gate lesson turned into instrumentation</b>.
+        inside Alpine, musl untouched, Cline runs · m6.0.1 install
+        observability + suite diagnosis ·{" "}
+        <b>v0.10.0-m6.0.2 (this build): the actual install-path fix — the
+        packaged-asset pin, verified extraction, and a suite that proves
+        which build owns your runtime</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
