@@ -1189,3 +1189,23 @@ Work Log:
 Stage Summary:
 - v0.9.1-m5.1.0 (vc39) delivered end-to-end in the exact order the user set: M5.0 final UI correction FIRST (vc38, delivered this session after sandbox reset #11 recovery), THEN the M5.1 audit and its four evidence-driven fixes. The audit explicitly refused to rewrite working systems: the renderer, terminal, keyboard, Linux lifecycle and lazy startup were left untouched; the fixes target real measured waste (invisible-WebView CPU, per-visit proot spawns, background-output repaint storms, persistence timing).
 - THE ASK TO THE USER: install vc39 in place and run docs/TESTING.md §32 — especially 32.1 F1 (silent minimize: page preserved, no reload) and F3 (background `yes` storm does not shake the visible session), plus the A–G matrix.
+
+
+---
+Task ID: audit-runtime-2026-09-06
+Agent: main (Super Z)
+Task: PocketShell Platform / Runtime Forensic Audit - read-only host-side engineering audit (Phases A-R), deliverable = PDF report; NO code changes, NO installs, NO builds.
+
+Work Log:
+- Verified repo state first-hand: branch main @ 7364452 (code tip afdf37a), 205 commits, v0.9.1-m5.1.0 / vc39; read app/build.gradle.kts (targetSdk 28 rationale, useLegacyPackaging), AndroidManifest, settings.gradle.kts, docs/{ARCHITECTURE,PROCFS-CONTRACT,THIRD_PARTY,M2-RESEARCH}.md.
+- Read RuntimeProcessLauncher.kt in full (launch chain, both profiles, argv/env/binds, require-guards) for the Phase C sequence diagram.
+- Launched 4 parallel Explore agents (read-only): terminal/PTY/keyboard/multi-session; Companion WebView model; packages/storage/payload/diagnostics; worklog+docs+git history mining. All findings cite file:line.
+- Key verified facts: vendored Termux @ 3b66f879 (unmodified, GPLv3); proot termux/proot v5.1.107.92 @ 7266fb3e built into jniLibs; Alpine 3.24.1 pin f55a90f6.../4,023,732 B -> 9.3 MB extracted; APK 22,573,575 B sha d8084b49... (vc39); /proc unconditional-interactive + no-/proc package ops + 5 sysdata overlays + pattern-based libapk fd-link self-repair; M5.1 = F1-F4 audit fixes; Companion = one WebView per open tab, no cap, saveState/LRU retired; ctrl/alt onCodePoint deviation found; no "Cline" on record (documented incidents: Antigravity musl 404/gcompat SIGSEGV, Kilo Bun realpath).
+- Generated deliverable via pdf skill Report route: scripts/gen_audit_report.py (ReportLab body, TocDocTemplate+multiBuild, Template 07 fixed palette, install_font_fallback) + scripts/audit_cover.html (Template 07, html2poster.js, poster_validate + cover_validate PASS) + scripts/merge_audit_report.py (pypdf, exact-A4 normalize).
+- Fixed during build: sandbox lacks static NotoSansSC (aliased fallback slot to NotoSerifSC); SimpleDocTemplate.build() overrides custom PageTemplates after page 1 (footers now passed via multiBuild(onFirstPage/onLaterPages)); CONTENT_W compensates 6pt Frame padding; TOC entries aligned to printed body numbering; appendix added for last-page fill.
+- QA chain all green: meta.brand, pages.clean (0 blank), font.check (0 issues), toc.check PASS, pdf_qa.py PASS (34 pages).
+
+Stage Summary:
+- Deliverable: download/PocketShell-Runtime-Forensic-Audit.pdf (34 pages, ~294 KB) - 19 chapters: exec summary, repo/provenance, launch-chain sequence diagram, Termux/PRoot audits, targetSdk-28 exec model, /proc classification, ELF/libc strategy (glibc sidecar recommended; gcompat rejected on evidence), tool matrix, storage, session model, Companion capacity (inference pending TESTING 32.2E), perf risk register, security (uid=0 illusion bounds), 30 explicit answers, KEEP/MODIFY/ADD/REPLACE, Runtime 2.0 proposal + prebuilt payload strategy, roadmap (P0 evidence -> P1 sidecar MVP -> P2 resource policy), device-experiment unknowns.
+- Headline recommendations: biggest architectural risk = musl-only guest (glibc sidecar prefix /pocketshell/runtime/glibc-aarch64 via existing pinned pipeline); keep proot (measure overhead, do not rewrite); keep Alpine; targetSdk 28 is load-bearing; Companion policy stays (measure first, no silent eviction); two small terminal fixes queued (ctrl map, cursor blinker).
+- Cross-report note: "Cline ARM64 musl failure" in the tasking maps to the recorded Antigravity CLI (glibc) + Kilo Code (Bun/procfs) incidents; reconcile with the Kilo guest-side report before Runtime 2.0 decisions.

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;700;900&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    @page { size: 794px 1123px; margin: 0; }
+    :root {
+      --c-bg: #0a1628;      /* deep blue night sky */
+      --c-accent: #4da8da;  /* luminous bright blue */
+      --c-text: #e8f0f8;    /* cool white */
+      --c-muted: #7a9bb8;   /* blue-gray */
+      --c-glow: #2d7ab3;    /* mid blue */
+    }
+    html, body {
+      margin: 0; padding: 0;
+      width: 794px; height: 1123px;
+      background: var(--c-bg);
+      color: var(--c-text);
+      font-family: 'Inter', 'Noto Sans SC', sans-serif;
+    }
+    @media screen {
+      html { height: auto; display: flex; justify-content: center; min-height: 100vh; background: var(--c-bg); }
+      body { transform-origin: top center; scale: min(1, calc(100vw / 794), calc(100vh / 1123)); margin: 0 auto; box-shadow: 0 0 60px rgba(0,0,0,0.35); }
+    }
+    .cover { width: 794px; height: 1123px; position: relative; box-sizing: border-box;
+             border: none; outline: none; box-shadow: none; }
+    /* Layer 1 - background glows (clipped) */
+    .bg-layer { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+    .glow-a { position: absolute; left: 0; top: 0; width: 420px; height: 420px;
+              background: radial-gradient(circle at 30% 30%, rgba(45,122,179,0.08), rgba(45,122,179,0) 70%); }
+    .glow-b { position: absolute; right: 0; bottom: 0; width: 480px; height: 480px;
+              background: radial-gradient(circle at 70% 70%, rgba(45,122,179,0.07), rgba(45,122,179,0) 70%); }
+    /* Layer 2 - structure: luminous rectangular frame */
+    .frame { position: absolute; left: 60px; right: 60px; top: 80px; bottom: 80px;
+             border: 2px solid var(--c-accent); z-index: 2; }
+    /* Layer 3 - content */
+    .content { position: absolute; inset: 0; z-index: 3; }
+    .kicker {
+      position: absolute; left: 90px; top: 135px;
+      font-size: 11pt; font-weight: 300; color: var(--c-accent);
+      letter-spacing: 5px; text-transform: uppercase;
+    }
+    .title {
+      position: absolute; left: 90px; top: 236px;
+      font-size: 56pt; font-weight: 900; line-height: 1.15;
+      font-family: 'Playfair Display', 'Noto Serif SC', serif;
+      color: var(--c-text); max-width: 600px;
+      text-shadow: 0 0 26px rgba(77,168,218,0.25);
+    }
+    .subtitle {
+      position: absolute; left: 90px; top: 372px;
+      font-size: 15pt; font-weight: 400; color: var(--c-accent);
+      letter-spacing: 1px; max-width: 560px;
+    }
+    .summary {
+      position: absolute; left: 90px; top: 505px;
+      font-size: 15px; line-height: 1.7; color: var(--c-muted);
+      max-width: 520px;
+    }
+    .org {
+      position: absolute; left: 90px; top: 719px;
+      font-size: 18pt; font-weight: 500; color: var(--c-text);
+    }
+    .meta {
+      position: absolute; left: 90px; top: 768px;
+      font-size: 11pt; color: var(--c-muted); line-height: 1.6; max-width: 540px;
+    }
+    .footer {
+      position: absolute; left: 90px; right: 90px; bottom: 112px;
+      display: flex; justify-content: space-between;
+      font-size: 10pt; color: var(--c-muted); letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <div class="bg-layer">
+      <div class="glow-a"></div>
+      <div class="glow-b"></div>
+    </div>
+    <div class="frame"></div>
+    <div class="content">
+      <div class="kicker">Platform / Runtime Forensic Audit</div>
+      <div class="title">PocketShell</div>
+      <div class="subtitle">Android terminal &middot; PRoot / Alpine runtime &middot; Companion web runtime</div>
+      <div class="summary">
+        Read-only engineering audit of the shipped Linux runtime: the vendored Termux terminal
+        stack and PTY architecture, the PRoot guest and its procfs contract, Android execution
+        policy at targetSdk 28, ELF/libc compatibility strategy, the Companion resource model,
+        and the proposed Runtime 2.0 glibc sidecar. Prepared to be merged with the independent
+        Kilo/MiniMax guest-side forensic report.
+      </div>
+      <div class="org">PocketShell Engineering</div>
+      <div class="meta">
+        Audited release: v0.9.1-m5.1.0 (versionCode 39) &middot; branch main @ 7364452 (code tip afdf37a)<br>
+        205 commits reviewed &middot; 752 tests green &middot; no code modified during this audit
+      </div>
+      <div class="footer">
+        <span>2026-09-06</span>
+        <span>Runtime 2.0 Pre-Work</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
