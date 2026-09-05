@@ -84,3 +84,36 @@ https://nextjs.org/telemetry
  ✓ Compiled / in 3.9s (539 modules)
  GET / 200 in 4400ms
  GET / 200 in 69ms
+ GET / 200 in 120ms
+ GET / 200 in 112ms
+ GET / 200 in 56ms
+ GET / 200 in 55ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 531ms (530 modules)
+ GET /PocketShell-v0.8.0-m4.0.11-debug.apk 404 in 725ms
+ GET / 200 in 62ms
+ GET / 200 in 46ms
+ GET / 200 in 47ms
+ GET /PocketShell-v0.8.0-m4.0.11-debug.apk 404 in 55ms
+ GET / 200 in 56ms
+ GET /PocketShell-v0.8.0-m4.0.11-source.zip 404 in 30ms
+ GET / 200 in 73ms
+ GET / 200 in 56ms
+ GET / 200 in 50ms
+ GET /PocketShell-v0.8.0-m4.0.11-debug.apk 404 in 45ms
+ GET / 200 in 53ms
+ GET / 200 in 48ms
+ GET / 200 in 137ms
+ GET / 200 in 48ms
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.16.37:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1846ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.8s (539 modules)
+ GET / 200 in 4225ms
