@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.8.0-m4.1.0
+VERSION=v0.8.0-m4.0.11
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,38 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.9) — COMPANION NATIVE REBUILD: THE PROVEN
+WHAT IS NEW IN $VERSION (vs v0.8.0-m4.1.0) — REPLACE RENDERER ONLY: THE WINNER
+FROZEN AND SHIPPED (the closing iteration of the blank-canvas investigation):
+  - THE DIRECTIVE, EXECUTED VERBATIM: do not redesign the Companion, do not
+    touch the sheet architecture. The existing drag handle, bottom-sheet
+    behavior, remembered height, tab strip, tab system (+/close/picker), tab
+    state and destination storage are UNTOUCHED. Only the tab content area is
+    the winning baseline renderer, diagnostics stripped.
+  - THE WINNER (device sweep complete): BASELINE rendered all four gate sites
+    (your recording); +CHROME UA rendered chat.z.ai COMPLETELY (screenshot);
+    +MIDNIGHT BG rendered chatgpt.com COMPLETELY (screenshot). The winner is
+    BASELINE — the most stable and least invasive mode BY CONSTRUCTION (zero
+    deltas from Android defaults). Frozen as BaselineMatrix.WINNER and in the
+    new CompanionRenderContract, both unit-pinned.
+  - THE COPY, AS A UNIT: the production tab content renderer is the exact
+    proven implementation — WebView(real Activity), JS + DOM storage only,
+    plain FrameLayout host, attach -> first layout -> THEN loadUrl. No UA
+    spoof, no background override, no config context, no viewport overrides,
+    no layer type, no pre-attach load. The visible diagnostic wrapper (URL /
+    MODE / INSPECT / COPY chrome, status header, health sheet) exists ONLY in
+    the separate render-baseline harness behind the tab strip's i chip — the
+    production canvas carries zero diagnostics.
+  - SAME ARCHITECTURE AS m4.1.0, NOW UNDER ITS FINAL NAME: this build
+    finalizes the native-rebuild work (committed as the m4.1.0 intermediate,
+    vc34, never fully delivered) and ships it as versionCode 35 / 0.8.0-
+    m4.0.11 — in-place update over 16..34; same pinned cert.
+  - Full suite green: 758 executions, 0 failures (new: the frozen-contract
+    pins). Device gate: docs/TESTING.md §28 — Gates A–H on the REAL Companion
+    (real ChatGPT + Z.ai UIs in the panel, touch/keyboard, tab switch,
+    collapse/reopen, session survival). Sweep table + copy map:
+    docs/RENDER-RESET-M4.0.9.md §8.
+
+WHAT WAS NEW IN v0.8.0-m4.1.0 (vs v0.7.0-m4.0.9) — COMPANION NATIVE REBUILD: THE PROVEN
 BASELINE BECOMES THE ARCHITECTURE (decision B, executed — the fix the reset
 experiment was built to find):
   - THE VERDICT (your m4.0.9 screen recording): the render baseline rendered
@@ -1115,6 +1146,7 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            docs/PROCFS-CONTRACT.md docs/PHASE-4-COMPANION-DESIGN.md \
            app/src/main/java/app/pocketshell/companion/CompanionModels.kt \
            app/src/main/java/app/pocketshell/companion/CompanionWebHost.kt \
+           app/src/main/java/app/pocketshell/companion/CompanionRenderContract.kt \
            app/src/main/java/app/pocketshell/companion/WebCompat.kt \
            app/src/main/java/app/pocketshell/diagnostic/BaselineWebViewActivity.kt \
            app/src/main/java/app/pocketshell/diagnostic/BaselineMatrix.kt \
