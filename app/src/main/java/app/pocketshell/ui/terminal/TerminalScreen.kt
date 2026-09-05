@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,9 +27,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -71,11 +69,20 @@ private const val MIN_FONT_SIZE = 12
 private const val MAX_FONT_SIZE = 40
 
 /**
+ * m5.0 final correction — the compact IDE-strip height. The strip IS the
+ * workspace's top chrome: the old back+title header row is gone, so the
+ * terminal canvas starts directly under the Android status area.
+ */
+private val WORKSPACE_BAR_HEIGHT = 34.dp
+private val TAB_INACTIVE_HEIGHT = 26.dp
+
+/**
  * Terminal screen — Phase 3.1 "Midnight Sapphire" (docs/PHASE-3.1-DESIGN.md).
  *
- * One intentional composition, top to bottom:
- *   chrome (back + live session title, under the status bar)
- *   → session tabs (editor-style; the active tab merges into the canvas)
+ * One intentional composition, top to bottom (m5.0 final correction):
+ *   workspace bar (back glyph + session tabs + "+", under the status bar —
+ *   the separate title/header row was REMOVED; the active session's name
+ *   already lives in its tab)
  *   → terminal canvas (deepest blue-black, full-bleed, real TerminalView)
  *
  * m4.0.12: the keyboard deck is NOT part of this screen anymore — it lives
@@ -163,14 +170,13 @@ fun TerminalScreen(
                 else Modifier.padding(bottom = keyboardBottomInset),
             ),
     ) {
-        ChromeHeader(title = selected?.displayLabel ?: "Terminal", onBack = onBack)
-
-        TabStrip(
+        WorkspaceBar(
             sessions = sessions,
             selectedId = selectedId,
             onSelect = onSelect,
             onClose = onClose,
             onNewSession = onNewSession,
+            onBack = onBack,
         )
 
         Box(
@@ -212,71 +218,44 @@ fun TerminalScreen(
     }
 }
 
-/** Top chrome: back + the live session title, under a barely-there depth gradient. */
-@Composable
-private fun ChromeHeader(title: String, onBack: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    listOf(TerminalTheme.chromeGradientTop, TerminalTheme.chromeGradientBottom),
-                ),
-            ),
-    ) {
-        Row(
-            modifier = Modifier
-                .statusBarsPadding()
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Back to Home",
-                    tint = TerminalTheme.textPrimary,
-                )
-            }
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = TerminalTheme.textPrimary,
-                modifier = Modifier
-                    .padding(start = 2.dp)
-                    .weight(1f),
-            )
-            // Honest expansion slot — deliberately empty, never a fake control.
-            Spacer(Modifier.width(12.dp))
-        }
-    }
-}
-
 /**
- * Session tabs — editor-style, NOT pills (brief §5): rounded TOP corners,
- * inactive tabs recessed and quiet, active tab in the exact canvas color
- * covering the strip's bottom hairline so it opens into the workspace.
+ * m5.0 final correction — the workspace bar IS the top chrome: back at the
+ * far LEFT, then the session tabs, then "+" at the right end:
  *
- * Phase 5 §6 — compacted: a 40dp strip (was 44), tighter gaps and paddings,
- * narrower minimum tab width; the active label rides the pinned-light
- * onCanvas token (the active tab is canvas-dark in every theme).
+ *   ←   [ Tab ] [ Tab ] [ Tab ]        +
+ *
+ * The back control is an integrated strip glyph (not a header-sized
+ * IconButton), and the strip consumes the status-bar inset itself so the
+ * workspace starts directly under the Android status area. Geometry is the
+ * compact IDE language: a 34dp strip, active tab 34 / inactive 26, 2dp
+ * gaps, 8dp horizontal tab padding, no per-tab borders.
  */
 @Composable
-private fun TabStrip(
+private fun WorkspaceBar(
     sessions: List<TerminalSessionManager.SessionEntry>,
     selectedId: Long?,
     onSelect: (Long) -> Unit,
     onClose: (Long) -> Unit,
     onNewSession: () -> Unit,
+    onBack: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    // Long session lists overflow into a horizontal scroll; whenever a
+    // switch lands outside the visible window, bring the ACTIVE tab back
+    // into view — one tab must never own the bar, and the active one must
+    // never hide off-screen.
+    LaunchedEffect(selectedId, sessions.size) {
+        val idx = sessions.indexOfFirst { it.id == selectedId }
+        if (idx >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == idx }) {
+            listState.animateScrollToItem(idx)
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(40.dp)
-            .background(TerminalTheme.tabStrip),
+            .background(TerminalTheme.tabStrip)
+            .statusBarsPadding()
+            .height(WORKSPACE_BAR_HEIGHT),
     ) {
         // Hairline under the whole strip; the active tab paints over (cuts) it.
         Box(
@@ -286,12 +265,31 @@ private fun TabStrip(
                 .height(1.dp)
                 .background(TerminalTheme.divider),
         )
-        Row(modifier = Modifier.fillMaxSize().padding(start = 6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Back, integrated: a quiet glyph in the exact strip language.
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(36.dp)
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back to Home",
+                    modifier = Modifier.size(18.dp),
+                    tint = TerminalTheme.textDim,
+                )
+            }
             LazyRow(
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                state = listState,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.Bottom,
-                contentPadding = PaddingValues(top = 4.dp),
+                contentPadding = PaddingValues(top = 2.dp),
             ) {
                 items(sessions, key = { it.id }) { entry ->
                     SessionTab(
@@ -306,12 +304,25 @@ private fun TabStrip(
                 onNewSession = onNewSession,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
-                    .padding(start = 4.dp, end = 4.dp),
+                    .padding(start = 4.dp, end = 2.dp),
             )
         }
     }
 }
 
+/**
+ * Session tabs — editor-style, NOT pills (brief §5): rounded TOP corners,
+ * inactive tabs recessed and quiet, active tab in the exact canvas color
+ * covering the strip's bottom hairline so it opens into the workspace.
+ *
+ * m5.0 final correction — significantly compacted IDE language: active tab
+ * 34 / inactive 26 (the old 40/30 step felt oversized), 8dp horizontal
+ * padding (was 10), tab width 64–136dp (was 84–160), 6dp corner radius
+ * (was 10), and a 2dp accent hairline (was 2.5). Readability and touch
+ * targets stay intact; the visual language is untouched — only its density
+ * changes. Long titles truncate with an ellipsis and the close button
+ * always stays reachable.
+ */
 @Composable
 private fun SessionTab(
     entry: TerminalSessionManager.SessionEntry,
@@ -320,7 +331,7 @@ private fun SessionTab(
     onClose: (Long) -> Unit,
 ) {
     val height by animateDpAsState(
-        targetValue = if (isSelected) 40.dp else 30.dp,
+        targetValue = if (isSelected) WORKSPACE_BAR_HEIGHT else TAB_INACTIVE_HEIGHT,
         animationSpec = tween(140),
         label = "tabHeight",
     )
@@ -334,11 +345,11 @@ private fun SessionTab(
     Box(
         modifier = Modifier
             .height(height)
-            .widthIn(min = 84.dp, max = 160.dp)
+            .widthIn(min = 64.dp, max = 136.dp)
             .clip(shape)
             .background(container)
             .clickable { onSelect(entry.id) }
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 8.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -371,13 +382,14 @@ private fun SessionTab(
             )
         }
         if (isSelected) {
-            // The structured top edge: one 2.5dp Sapphire hairline.
+            // The structured top edge: one 2dp Sapphire hairline — subtle,
+            // clean, never a heavy border.
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(horizontal = 8.dp)
+                    .padding(horizontal = 6.dp)
                     .fillMaxWidth()
-                    .height(2.5.dp)
+                    .height(2.dp)
                     .background(TerminalTheme.accent, RoundedCornerShape(2.dp)),
             )
         }
@@ -388,7 +400,7 @@ private fun SessionTab(
 private fun CloseTabButton(selected: Boolean, onClose: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .size(24.dp)
+            .size(22.dp)
             .clip(RoundedCornerShape(6.dp))
             .clickable { onClose() },
         contentAlignment = Alignment.Center,
@@ -396,7 +408,7 @@ private fun CloseTabButton(selected: Boolean, onClose: () -> Unit, modifier: Mod
         Icon(
             Icons.Outlined.Close,
             contentDescription = "Close session",
-            modifier = Modifier.size(14.dp),
+            modifier = Modifier.size(13.dp),
             tint = if (selected) TerminalTheme.onCanvasDim else TerminalTheme.textDim.copy(alpha = 0.6f),
         )
     }

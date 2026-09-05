@@ -693,3 +693,42 @@ remote development.
       keyboard toggle corner, Light/Dark/System/AMOLED screen sweep
       (contrast, tabs, keyboard, Companion chrome — websites NOT
       re-themed), Packages/Settings, keyboard regression ladder.
+
+### Phase 5.0.1 (2026-09-06, v0.9.0-m5.0.1) — M5.0 Final UI Correction: the Workspace Bar
+- [x] A surgical pass — no redesign, no new features, the working
+      Companion implementation untouched architecturally.
+- [x] Workspace header REMOVED: the terminal screen's large top title
+      row (back + live session title) is gone — the active session's
+      name already lives in its tab; the workspace starts directly
+      under the Android status area (the strip consumes the status-bar
+      inset itself; the chrome-gradient header block is deleted).
+- [x] Back lives IN the tab bar: a compact integrated glyph at the far
+      left of the workspace bar (`← [Tab] [Tab] [Tab] +`), vertically
+      aligned with the tabs, not a header-sized button in its own row.
+- [x] Compact IDE tabs, BOTH strips (terminal + Companion): strip
+      34dp (was 40); active tab 34 / inactive 26 (was 40/30); 2dp gaps
+      (was 4); 8dp horizontal tab padding (was 10); tab width 64–136dp
+      (was 84–160); 6dp corner radius (was 10, shared token); the
+      active indicator is a subtle 2dp hairline (was 2.5). The editor
+      language is untouched — only density changed.
+- [x] Tab text: long titles truncate with an ellipsis, close buttons
+      stay reachable, tabs share the bar intelligently (narrower
+      minimum width + horizontal scroll + the ACTIVE tab is always
+      scrolled back into view when a switch lands off-screen).
+- [x] Companion near-full drag surface: below 90% height NOTHING
+      changed (dedicated bar = the only sheet drag control; tab bar =
+      normal tabs). At/above 90% of the available height the TAB STRIP
+      also drags the sheet vertically, gated behind the vertical touch
+      slop — tab taps, close, + and refresh are never mistaken for
+      drags, and the strip NEVER minimizes on touch (tap-to-minimize
+      stays the dedicated bar's exclusive duty). The drag math is
+      shared verbatim by both surfaces; free positioning preserved
+      (no snap points); the surface stays attached while a drag is in
+      flight so a drag crossing below the threshold is not cut
+      mid-gesture.
+- [x] Full suite green: 752 executions / 0 failures (new pure pins for
+      the 90% gate). versionCode 38 — in place over 16..37, same
+      pinned cert.
+- [ ] Device gate §31: workspace-bar layout, compact tabs, near-full
+      strip-drag matrix, no-regression ladder (keyboard, themes,
+      Companion renderer).

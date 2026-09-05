@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.9.0-m5.0.0
+VERSION=v0.9.0-m5.0.1
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,46 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.8.0-m4.0.12) — UI & INTERACTION POLISH: FREE-POSITION
+WHAT IS NEW IN $VERSION (vs v0.9.0-m5.0.0) — M5.0 FINAL UI CORRECTION: THE WORKSPACE
+BAR (a surgical pass — no redesign, no new features, the working Companion
+implementation untouched architecturally):
+  - WORKSPACE HEADER REMOVED: the terminal workspace's large top title row
+    (back + live session title) is GONE — the active session's name already
+    lives in its tab, and the workspace now starts directly under the
+    Android status area (the strip consumes the status-bar inset itself).
+  - BACK LIVES IN THE TAB BAR: the back control is a compact integrated
+    glyph at the far LEFT of the workspace bar — aligned with the tabs,
+    not a header-sized button in its own row:
+
+        ←   [ Tab ] [ Tab ] [ Tab ]        +
+
+  - COMPACT IDE TABS, BOTH STRIPS: strip 34dp (was 40); active tab 34 /
+    inactive 26 (was 40/30 — the active tab no longer looks oversized);
+    2dp gaps (was 4); 8dp horizontal tab padding (was 10); tab width
+    64–136dp (was 84–160 — more tabs fit on screen); 6dp corner radius
+    (was 10); the active indicator is a 2dp hairline (was 2.5). The editor
+    language (active tab opens into the canvas, quiet separators, no pill
+    outlines) is untouched — only the density changed.
+  - TAB TEXT: long titles truncate with an ellipsis and the close button
+    always stays reachable; both strips scroll horizontally and the ACTIVE
+    tab is always brought back into view when a switch lands off-screen.
+  - COMPANION NEAR-FULL DRAG SURFACE: below 90% height NOTHING changed —
+    the dedicated drag bar is the only sheet drag control and the tab bar
+    behaves normally (taps switch tabs, close/+ /refresh work). At/above
+    90% of the available height the Companion TAB STRIP also becomes a
+    vertical drag surface (the tiny handle is hard to reach at near-full):
+    dragging the strip up/down moves the whole sheet, gated behind the
+    touch slop so tab taps, close, + and refresh are NEVER mistaken for
+    drags — and the strip never minimizes on touch (that stays the
+    handle's exclusive tap duty). Free positioning math is shared verbatim
+    by both surfaces; no snap points, ever.
+  - NOT TOUCHED: renderer, sheet mechanics, tab system, pool,
+    refresh/hard-refresh, session persistence, keyboard internals, themes.
+  - Full suite green: 752 executions, 0 failures (new pure pins for the
+    90% drag-surface gate). Device gate: docs/TESTING.md §31.
+    versionCode 38 — in-place update over 16..37; same pinned cert.
+
+WHAT WAS NEW IN v0.9.0-m5.0.0 (vs v0.8.0-m4.0.12) — UI & INTERACTION POLISH: FREE-POSITION
 COMPANION, DECLUTTERED HOME, LIGHT THEME DONE FULLY (a refinement phase — no
 redesign, no new features, the working Companion implementation untouched
 architecturally):
@@ -1245,6 +1284,7 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/ui/companion/CompanionLayer.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionTabStrip.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionSettingsScreen.kt \
+           app/src/main/java/app/pocketshell/ui/terminal/TerminalScreen.kt \
            docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md docs/PHASE-3.3-DESIGN.md \
            docs/PHASE-3.4-DESIGN.md docs/PHASE-3.5-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \

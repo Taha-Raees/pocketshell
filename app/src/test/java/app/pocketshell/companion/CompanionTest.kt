@@ -193,6 +193,22 @@ class CompanionTest {
         assertTrue(CompanionHeights.isRaised(0.5f))
     }
 
+    // ---- m5.0 final correction: near-full tab-bar drag surface ---------------
+
+    @Test
+    fun `tab strip becomes a drag surface only at or above ninety percent`() {
+        // Below the threshold (everyday heights — HALF, 80%, just under the
+        // line): the tab strip is NOT a drag surface; only the handle drags.
+        assertFalse(CompanionHeights.tabBarDragSurface(0f))
+        assertFalse(CompanionHeights.tabBarDragSurface(CompanionHeights.HALF))
+        assertFalse(CompanionHeights.tabBarDragSurface(0.80f))
+        assertFalse(CompanionHeights.tabBarDragSurface(0.899f))
+        // At/above the threshold (near-fullscreen, up to FULL): it is.
+        assertTrue(CompanionHeights.tabBarDragSurface(0.90f))
+        assertTrue(CompanionHeights.tabBarDragSurface(0.93f))
+        assertTrue(CompanionHeights.tabBarDragSurface(CompanionHeights.FULL))
+    }
+
     // ---- failure surfaces (m4.0.2) ------------------------------------------
 
     @Test

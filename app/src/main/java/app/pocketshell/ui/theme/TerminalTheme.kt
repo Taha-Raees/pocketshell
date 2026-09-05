@@ -91,7 +91,9 @@ object TerminalTheme {
 
     // ---- geometry ----------------------------------------------------------------
     val keyRadius: Dp = 8.dp
-    val tabTopRadius: Dp = 10.dp
+
+    /** m5.0 final correction: tightened for the compact IDE-tab language. */
+    val tabTopRadius: Dp = 6.dp
     val canvasBottomRadius: Dp = 16.dp
 
     /**

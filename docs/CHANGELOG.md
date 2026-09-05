@@ -3,6 +3,65 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.9.0-m5.0.1] — 2026-09-06 — M5.0 Final UI Correction: the Workspace Bar
+
+A surgical pass ordered by the field report — no redesign, no new
+features, the working Companion implementation untouched
+architecturally (renderer, sheet mechanics, tab system, pool,
+refresh/hard-refresh all preserved).
+
+### 1. Workspace header removed; back lives in the tab bar
+- The terminal workspace's large top title row (`← Kilo CLI | …`) is
+  GONE — the active session's name already lives in its tab, and the
+  row wasted vertical space. The `ChromeHeader` composable (and its
+  gradient) is deleted outright.
+- The workspace bar IS the top chrome now: `← [Tab] [Tab] [Tab] +`,
+  with the back control as a compact integrated glyph (36×34dp strip
+  slot, 18dp icon) at the far LEFT — aligned with the tabs, not a
+  header-sized button in its own row.
+- The strip consumes the status-bar inset itself, so the workspace
+  starts directly under the Android status area.
+
+### 2. Compact IDE tabs — both strips
+- Strip 40 → 34dp; active tab 34 / inactive 26 (was 40/30 — the
+  active tab no longer looks oversized and heavy); gaps 4 → 2dp;
+  horizontal tab padding 10 → 8dp; tab width 84–160 → 64–136dp (more
+  tabs fit on screen); corner radius 10 → 6dp (shared token); the
+  active indicator is a subtle 2dp hairline (was 2.5dp).
+- The editor language is untouched: the active tab still opens into
+  the canvas color and cuts the hairline, inactive tabs keep the
+  quiet right separator, no pill outlines anywhere.
+- Long titles truncate with an ellipsis and the close button always
+  stays reachable; both strips scroll horizontally and the ACTIVE tab
+  is always scrolled back into view when a switch lands off-screen.
+
+### 3. Companion near-full drag surface (the ≥90% rule)
+- Below 90% height NOTHING changed: the dedicated drag bar is the
+  only sheet drag control; the tab bar behaves normally (taps switch
+  tabs, close/+ /refresh work, horizontal scroll scrolls).
+- At/above 90% of the available height (`CompanionHeights.
+  TAB_BAR_DRAG_THRESHOLD = 0.90`, pure-pinned) the Companion TAB
+  STRIP also becomes a vertical drag surface — the tiny handle is
+  hard to reach when the sheet is near-fullscreen.
+- The gesture is gated behind the vertical touch slop
+  (`detectVerticalDragGestures`): a genuine vertical drag moves the
+  whole sheet (up = taller, down = shorter, release = stay exactly
+  there); tab taps, close, + and refresh are NEVER mistaken for
+  drags; the strip NEVER minimizes on touch — tap-to-minimize stays
+  the dedicated bar's exclusive duty.
+- The strip drag math is the handle's math, shared verbatim
+  (`startSheetDrag`/`dragSheetBy`/`endSheetDrag`); no snap points,
+  ever. The drag surface also stays attached while any drag is in
+  flight, so a tab-bar drag travelling below the threshold is not cut
+  mid-gesture.
+
+### 4. Not touched
+- The frozen Companion renderer/pool/sheet mechanics, the ONE
+  keyboard system, themes, packages, settings, session persistence.
+- Full suite green: 752 executions, 0 failures (new pure pins for the
+  90% drag-surface gate). versionCode 38 — in-place update over
+  16..37; same pinned cert. Device gate: docs/TESTING.md §31.
+
 ## [0.9.0-m5.0.0] — 2026-09-05 — UI & Interaction Polish: free-position Companion, decluttered Home, one theme system (Light done fully)
 
 The directive bounded Phase 5 as a **refinement phase — no redesign, no

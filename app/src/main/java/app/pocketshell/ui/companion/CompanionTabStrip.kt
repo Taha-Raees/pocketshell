@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -53,10 +55,16 @@ import app.pocketshell.ui.theme.TerminalTheme
  * The Phase 3.1 editor-tab language, INVERTED for a top strip: tabs hang
  * DOWN with rounded bottom corners; the active tab is painted in the exact
  * canvas color and CUTS the strip's bottom hairline so it opens into the
- * web content; the active tab carries the 2.5dp Sapphire hairline at its
- * bottom edge (the mirror of the terminal's top edge). NOT pills, no
- * per-tab outlines — inactive tabs are transparent with a quiet right
- * separator, exactly like their terminal siblings.
+ * web content; the active tab carries the accent hairline at its bottom
+ * edge (the mirror of the terminal's top edge). NOT pills, no per-tab
+ * outlines — inactive tabs are transparent with a quiet right separator,
+ * exactly like their terminal siblings.
+ *
+ * m5.0 final correction — the terminal strip's compact IDE language,
+ * mirrored: a 34dp strip, active tab 34 / inactive 26, 2dp gaps, 8dp
+ * horizontal tab padding, 64–136dp tab width. Long titles truncate with
+ * an ellipsis; the strip scrolls horizontally and the ACTIVE tab is always
+ * brought back into view.
  */
 @Composable
 fun CompanionTabStrip(
@@ -71,10 +79,19 @@ fun CompanionTabStrip(
     modifier: Modifier = Modifier,
 ) {
     val defsById = remember(defs) { defs.associateBy { it.id } }
+    val listState = rememberLazyListState()
+    // Keep the ACTIVE tab in view when a switch lands outside the visible
+    // window — the strip scrolls horizontally, the active tab never hides.
+    LaunchedEffect(activeId, tabs.size) {
+        val idx = tabs.indexOfFirst { it.defId == activeId }
+        if (idx >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == idx }) {
+            listState.animateScrollToItem(idx)
+        }
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(34.dp)
             .background(TerminalTheme.tabStrip),
     ) {
         // Hairline under the strip; the active tab paints over (cuts) it.
@@ -85,10 +102,11 @@ fun CompanionTabStrip(
                 .height(1.dp)
                 .background(TerminalTheme.divider),
         )
-        Row(modifier = Modifier.fillMaxSize().padding(start = 6.dp)) {
+        Row(modifier = Modifier.fillMaxSize().padding(start = 2.dp)) {
             LazyRow(
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                state = listState,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.Top,
                 contentPadding = PaddingValues(bottom = 0.dp),
             ) {
@@ -127,7 +145,7 @@ private fun CompanionTab(
     onClose: () -> Unit,
 ) {
     val height by animateDpAsState(
-        targetValue = if (isSelected) 40.dp else 30.dp,
+        targetValue = if (isSelected) 34.dp else 26.dp,
         animationSpec = tween(140),
         label = "companionTabHeight",
     )
@@ -144,11 +162,11 @@ private fun CompanionTab(
     Box(
         modifier = Modifier
             .height(height)
-            .widthIn(min = 84.dp, max = 160.dp)
+            .widthIn(min = 64.dp, max = 136.dp)
             .clip(shape)
             .background(container)
             .clickable { onSelect() }
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -179,14 +197,14 @@ private fun CompanionTab(
             )
         }
         if (isSelected) {
-            // The structured bottom edge: one 2.5dp Sapphire hairline —
-            // the mirror of the terminal tab's top edge.
+            // The structured bottom edge: one 2dp Sapphire hairline —
+            // the mirror of the terminal tab's top edge. Subtle and clean.
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(horizontal = 8.dp)
+                    .padding(horizontal = 6.dp)
                     .fillMaxWidth()
-                    .height(2.5.dp)
+                    .height(2.dp)
                     .background(TerminalTheme.accent, RoundedCornerShape(2.dp)),
             )
         }

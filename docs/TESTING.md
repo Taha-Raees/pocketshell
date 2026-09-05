@@ -1595,3 +1595,80 @@ layer around them. Everything here is on the REAL device, in order.
       ACTIVE tab only; hard refresh keeps sessions.
 - [ ] Session/tab state survives collapse, screen switches, and app
       restart as before.
+
+## 31. Manual acceptance — m5.0.1 (M5.0 Final UI Correction: the Workspace Bar, v0.9.0-m5.0.1) — DEVICE GATE PENDING
+
+Everything here is on the REAL device, in order. The frozen things
+(renderer, pool, sheet mechanics, ONE keyboard, themes) must survive
+untouched — run the §30.7 ladder at the end.
+
+### 31.1 Workspace bar layout (the header is gone)
+- [ ] Open Terminal (and a Kilo CLI session): there is NO large title
+      row anymore — no `← Kilo CLI | …` header line. The workspace bar
+      (`← [Tab] [Tab] +`) is the FIRST thing under the Android status
+      area; the terminal canvas gained its vertical space back.
+- [ ] The back arrow sits at the FAR LEFT of the tab bar, vertically
+      aligned with the tabs, visually integrated (not a big header
+      button, no separate row, no unnecessary rounding).
+- [ ] Tapping the back arrow returns to Home — exactly once, no
+      double-fire; from Home, re-entering Terminal restores the bar.
+- [ ] With NO sessions: the bar shows `←` and `+`; the empty state's
+      "New session" still works and fills the bar with a tab.
+
+### 31.2 Compact tabs (both strips)
+- [ ] Terminal: open 5+ sessions (rename one to a VERY long title by
+      running something that sets the terminal title). Tabs are
+      noticeably more compact than m5.0.0; the active tab is NOT a
+      giant floating card — its accent indicator is a subtle hairline;
+      inactive tabs are small, readable, borderless (quiet separator
+      only).
+- [ ] Long titles truncate with `…` and never stretch the bar; the
+      close (×) button on every tab stays tappable.
+- [ ] Scroll the tabs horizontally; switch to a tab that was scrolled
+      off-screen → the strip brings the ACTIVE tab back into view.
+- [ ] More tabs fit on screen than in m5.0.0 (narrower min width,
+      2dp gaps); nothing is crushed or unreadable; no mis-taps caused
+      by the tighter geometry (tabs still ≥ ~26–34dp tall).
+- [ ] Companion raised: its strip mirrors the same compact language
+      (34dp strip, smaller tabs); the + and refresh glyphs behave as
+      before (+ opens the picker; tap refresh reloads the active tab;
+      long-press hard-reloads with the toast).
+
+### 31.3 Companion near-full drag surface (the ≥90% rule)
+- [ ] Below 90%: raise the Companion to ~50% and ~80%. Vertical drags
+      on the TAB STRIP do NOT move the sheet (only the dedicated bar
+      drags); tapping tabs switches, × closes, + opens the picker,
+      refresh works. The strip behaves 100% normally.
+- [ ] At/above 90%: drag the sheet to near-full (past ~90% — e.g.
+      release it at ~93%). Now press on the TAB STRIP (empty space
+      between tabs or on the bar itself) and drag DOWN → the whole
+      sheet follows the finger smoothly; release mid-way → it stays
+      exactly there (free positioning, no snap).
+- [ ] From ~93%, drag the strip UP → the sheet expands toward max and
+      stops at FULL (0.94) — same clamp as the handle.
+- [ ] While near-full, drag the strip DOWN continuously past 90%
+      (e.g. release at ~70%): the drag must NOT cut out when crossing
+      the threshold — it follows until the finger lifts.
+- [ ] TAP discipline at ≥90%: tapping a tab still SWITCHES tabs (never
+      minimizes); × still closes its tab; + still opens the picker;
+      refresh still reloads. NOTHING on the strip minimizes the sheet
+      — only the dedicated bar's tap does.
+- [ ] Horizontal tab scroll at ≥90% still scrolls the tabs (it must
+      not be hijacked as a sheet drag).
+- [ ] The dedicated bar below/above 90% behaves exactly as §30.1
+      (tap-to-minimize at any height, drag 1:1, release stays, drag-up
+      restore when minimized).
+
+### 31.4 No-regression ladder
+- [ ] Keyboard: canvas tap opens the deck; typing lands in the
+      terminal; ChatGPT + Z.ai input via the deck (§29.4 ladder); the
+      [⌨] toggle is still corner-anchored on every screen; the Android
+      IME never appears.
+- [ ] Themes: Light / Dark / AMOLED / System sweep on the NEW bar —
+      strip, tabs, back arrow, active indicator all legible in every
+      theme (active tab label pinned light on the canvas-dark surface);
+      no light-on-light anywhere.
+- [ ] Companion renderer: ChatGPT + Z.ai render, scroll, refresh,
+      hard-refresh-keeps-login — untouched.
+- [ ] Session/tab state survives collapse, screen switches, app
+      restart as before. No crashes across the whole gate.

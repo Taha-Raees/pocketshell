@@ -156,6 +156,16 @@ object CompanionHeights {
     /** Below this the release collapses (dragging down "closes" the sheet). */
     const val COLLAPSE_THRESHOLD = 0.08f
 
+    /**
+     * m5.0 final correction: at/above this settled fraction the sheet is
+     * near-fullscreen and the dedicated handle becomes a small target at the
+     * very top edge — so the TAB STRIP joins it as an ADDITIONAL vertical
+     * drag surface. Strictly a drag surface: the strip's taps (tab switch,
+     * close, +, refresh) are never touched, and the sheet only starts
+     * moving once a genuine vertical drag crosses the touch slop.
+     */
+    const val TAB_BAR_DRAG_THRESHOLD = 0.90f
+
     const val MIN_RAISED = 0.02f
 
     /**
@@ -174,4 +184,12 @@ object CompanionHeights {
 
     /** True when a fraction means the panel is raised (handle always exists). */
     fun isRaised(fraction: Float): Boolean = fraction >= MIN_RAISED
+
+    /**
+     * m5.0 final correction — pure pin for the tab-strip drag-surface gate:
+     * at/above [TAB_BAR_DRAG_THRESHOLD] the Companion tab strip becomes an
+     * additional vertical drag surface (below it, only the dedicated handle
+     * drags the sheet).
+     */
+    fun tabBarDragSurface(fraction: Float): Boolean = fraction >= TAB_BAR_DRAG_THRESHOLD
 }

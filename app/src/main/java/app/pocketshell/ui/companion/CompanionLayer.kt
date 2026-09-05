@@ -203,6 +203,24 @@ fun CompanionLayer(
             Modifier.navigationBarsPadding().imePadding()
         }
 
+        // m5.0 final correction — the sheet's drag math, shared VERBATIM by
+        // both vertical drag surfaces (the dedicated handle, and — near full
+        // height — the tab strip). Up = taller, down = shorter, release =
+        // stay exactly there; only a release below the collapse threshold
+        // minimizes. No snap points, ever.
+        fun startSheetDrag() {
+            dragFraction = settledFraction.takeIf { CompanionHeights.isRaised(it) } ?: 0f
+        }
+        fun dragSheetBy(deltaPx: Float) {
+            val base = dragFraction ?: settledFraction
+            dragFraction = (base - deltaPx / containerHeightPx).coerceIn(0f, CompanionHeights.FULL)
+        }
+        fun endSheetDrag() {
+            val released = dragFraction
+            dragFraction = null
+            if (released != null) viewModel.settleHeight(released)
+        }
+
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -218,16 +236,9 @@ fun CompanionLayer(
                     // tap does nothing: the bar is dragged UP to restore.
                     if (raised) viewModel.collapse()
                 },
-                onDragStart = { dragFraction = settledFraction.takeIf { CompanionHeights.isRaised(it) } ?: 0f },
-                onDrag = { delta ->
-                    val base = dragFraction ?: settledFraction
-                    dragFraction = (base - delta / containerHeightPx).coerceIn(0f, CompanionHeights.FULL)
-                },
-                onDragEnd = {
-                    val released = dragFraction
-                    dragFraction = null
-                    if (released != null) viewModel.settleHeight(released)
-                },
+                onDragStart = { startSheetDrag() },
+                onDrag = { delta -> dragSheetBy(delta) },
+                onDragEnd = { endSheetDrag() },
             )
             if (raised) {
                 if (activeDef == null) {
@@ -238,24 +249,58 @@ fun CompanionLayer(
                         onOpenSettings = onOpenCompanionSettings,
                     )
                 } else {
-                    CompanionTabStrip(
-                        tabs = tabs,
-                        defs = defs,
-                        activeId = activeTabId,
-                        onSelect = viewModel::selectTab,
-                        onClose = viewModel::closeTab,
-                        // m4.0.3: "+" opens the picker sheet (list + add),
-                        // it no longer silently opens the default tab.
-                        onAdd = { pickerOpen = true },
-                        // m4.0.12 §3/§4: refresh (tap) and hard refresh
-                        // (long-press) act on the ACTIVE tab only. The hard
-                        // path announces itself once, quietly.
-                        onRefresh = { CompanionWebHost.reload(activeTabId) },
-                        onHardRefresh = {
-                            Toast.makeText(context, "Hard reloading…", Toast.LENGTH_SHORT).show()
-                            CompanionWebHost.reloadHard(activeTabId)
+                    // m5.0 final correction — NEAR-FULL DRAG SURFACE. Once
+                    // the sheet sits at/above 90% of the container, the tiny
+                    // handle at the very top edge is hard to reach, so the
+                    // TAB STRIP joins it as an ADDITIONAL vertical drag
+                    // surface. Strictly a drag surface:
+                    //   • detectVerticalDragGestures claims a gesture only
+                    //     AFTER the vertical touch slop is crossed — tab
+                    //     taps, close buttons, +, refresh and horizontal
+                    //     tab scrolling behave exactly as before;
+                    //   • NOTHING here minimizes on touch (tap-to-minimize
+                    //     stays the dedicated handle's exclusive duty);
+                    //   • the surface also stays attached while ANY drag is
+                    //     in flight, so a tab-bar drag travelling below the
+                    //     threshold is not cut mid-gesture.
+                    val tabDragArmed =
+                        CompanionHeights.tabBarDragSurface(settledFraction) || dragFraction != null
+                    Box(
+                        modifier = if (tabDragArmed) {
+                            Modifier.pointerInput(Unit) {
+                                detectVerticalDragGestures(
+                                    onDragStart = { startSheetDrag() },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragSheetBy(dragAmount)
+                                    },
+                                    onDragEnd = { endSheetDrag() },
+                                    onDragCancel = { endSheetDrag() },
+                                )
+                            }
+                        } else {
+                            Modifier
                         },
-                    )
+                    ) {
+                        CompanionTabStrip(
+                            tabs = tabs,
+                            defs = defs,
+                            activeId = activeTabId,
+                            onSelect = viewModel::selectTab,
+                            onClose = viewModel::closeTab,
+                            // m4.0.3: "+" opens the picker sheet (list + add),
+                            // it no longer silently opens the default tab.
+                            onAdd = { pickerOpen = true },
+                            // m4.0.12 §3/§4: refresh (tap) and hard refresh
+                            // (long-press) act on the ACTIVE tab only. The hard
+                            // path announces itself once, quietly.
+                            onRefresh = { CompanionWebHost.reload(activeTabId) },
+                            onHardRefresh = {
+                                Toast.makeText(context, "Hard reloading…", Toast.LENGTH_SHORT).show()
+                                CompanionWebHost.reloadHard(activeTabId)
+                            },
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
