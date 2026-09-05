@@ -5,6 +5,8 @@ import android.net.ConnectivityManager
 import app.pocketshell.runtime.GuestApkCompat
 import app.pocketshell.runtime.GuestEnvironment
 import app.pocketshell.runtime.GuestExecutionProfile
+import app.pocketshell.runtime.GuestGlibcRuntime
+import app.pocketshell.runtime.GlibcRuntimePin
 import app.pocketshell.runtime.GuestSysDataCompat
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
@@ -198,6 +200,17 @@ object PackageGateway {
         }.getOrElse {
             GuestApkCompat.Result.Failed("apk fd-link repair check failed: ${it.message ?: it.javaClass.simpleName}")
         }
+        // M6.0 (docs/runtime/DUAL_LIBC.md): ensure the pinned glibc runtime
+        // layer is present — idempotent marker fast path (one small read on
+        // warm starts), self-healing re-extraction otherwise, best-effort by
+        // contract: musl sessions NEVER depend on this result.
+        val glibcRuntime = runCatching {
+            GuestGlibcRuntime.ensureInstalled(rootfsDir) {
+                context.assets.open(GlibcRuntimePin.ASSET_PATH)
+            }
+        }.getOrElse {
+            GuestGlibcRuntime.Result.Failed("glibc layer check failed: ${it.message ?: it.javaClass.simpleName}")
+        }
         // M2.6.12: sysdata dir is the rootfs's SIBLING (upstream layout:
         // dirname(rootfs)/sysdata), inside the app's private storage.
         val sysData = runCatching {
@@ -212,7 +225,7 @@ object PackageGateway {
             GuestEnvironment.ensureDnsResolvers(rootfsDir, deviceDnsServers(context))
             GuestEnvironment.ensureApkWorkspace(rootfsDir)
         }
-        return GuestSessionPreparation(compat, sysData)
+        return GuestSessionPreparation(compat, sysData, glibcRuntime)
     }
 
     /**
@@ -437,4 +450,5 @@ data class PackageEnvironmentReport(
 data class GuestSessionPreparation(
     val apkCompat: GuestApkCompat.Result,
     val sysData: GuestSysDataCompat.Result,
+    val glibcRuntime: GuestGlibcRuntime.Result? = null,
 )

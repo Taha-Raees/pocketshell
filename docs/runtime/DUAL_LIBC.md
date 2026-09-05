@@ -63,15 +63,15 @@ in `GlibcRuntimePin`. glibc 2.41 runs binaries built against any older glibc
   input; output pinned in `GlibcRuntimePin`), shipped **inside the APK** as
   `assets/guest/<artifact>` — atomic with the app update, works offline, no new
   trust root, no user action.
-- Fresh installs: extracted into the staging rootfs by `RuntimeInstaller.configure`
-  before atomic promotion.
-- Existing installs: `GuestGlibcRuntime.ensureInstalled(rootfsDir)` — idempotent,
-  marker-file gated (`etc/pocketshell/glibc-runtime`, written last), self-healing
-  (a partial layer is re-extracted), called from the existing per-session prep seam
-  (`PackageGateway.prepareGuestForSession`, the GuestApkCompat self-repair pattern).
-  musl behavior is independent of its success; failures surface in Diagnostics.
-- Never downloaded from a loose URL at runtime; the rootfs pin stays the pristine
-  upstream Alpine minirootfs.
+- ONE convergence seam for every install state (fresh rootfs, rootfs installed by
+  an older PocketShell build): `GuestGlibcRuntime.ensureInstalled(rootfsDir)` —
+  idempotent, marker-file gated (`etc/pocketshell/glibc-runtime`, written last),
+  self-healing (a partial layer is re-extracted), called from the existing
+  per-session prep seam (`PackageGateway.prepareGuestForSession`, the
+  GuestApkCompat self-repair pattern). The marker fast path costs one small read
+  on warm starts. musl behavior is independent of its success; failures surface
+  in Diagnostics. Never downloaded from a loose URL at runtime; the rootfs pin
+  stays the pristine upstream Alpine minirootfs.
 
 ## 5. Rejected options (and why)
 
