@@ -5,6 +5,7 @@ const HASHES = {
   zip: "1dcee490a87299bb493b016a91782144413d7cc8fe0b5498c11847e092ed8dda",
   tgz: "f11ff7f3bf5d89f0e3b15ed6876ff0539f8f2f2fd1b3345860cd5f6bb8fa0fa1",
   bundle: "083253e4230208d8e8bc80883ec1dd42a1866b7533460a48d7d0b338041cba3e",
+  report: "0e0a2bf8363647aece215f4f0a00b658debb3d42a443b480d564b01cd7d17c0d",
 };
 
 function Sha({ text }: { text: string }) {
@@ -75,6 +76,28 @@ export default function Home() {
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
           signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.9.1-m5.1.0)
         </p>
+      </div>
+
+      <div className="card">
+        <h2>
+          Platform / Runtime Forensic Audit <span className="badge">PDF · 34 pages</span>
+        </h2>
+        <p>
+          The complete read-only engineering audit of the real architecture:
+          repository provenance (vendored Termux @ 3b66f879, proot
+          v5.1.107.92, pinned Alpine 3.24.1), the full Linux launch chain as
+          a sequence diagram, the targetSdk-28 exec model, /proc permission
+          attribution, the ELF/libc strategy (glibc sidecar recommended,
+          gcompat rejected on evidence), the developer-tool compatibility
+          matrix, storage, the session model, the Companion resource policy,
+          the ARM64 performance risk register, the security model, answers
+          to all 30 audit questions, KEEP/MODIFY/ADD/REPLACE, the PocketShell
+          Runtime 2.0 proposal and the prioritized roadmap.
+        </p>
+        <a className="btn secondary" href="/PocketShell-Runtime-Forensic-Audit.pdf">
+          Download audit report (PDF, 300 KB)
+        </a>
+        <Sha text={HASHES.report} />
       </div>
 
       <div className="card">

@@ -52,6 +52,7 @@ versionCode 39)
 - PocketShell-v0.9.1-m5.1.0-source.zip sha256 1dcee490a87299bb493b016a91782144413d7cc8fe0b5498c11847e092ed8dda  (33M, 332 files)
 - PocketShell-v0.9.1-m5.1.0-source.tar.gz sha256 f11ff7f3bf5d89f0e3b15ed6876ff0539f8f2f2fd1b3345860cd5f6bb8fa0fa1  (32 MB)
 - pocketshell-m2.gitbundle           sha256 083253e4230208d8e8bc80883ec1dd42a1866b7533460a48d7d0b338041cba3e  (full history; ~28M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, docs/PHASE-4-COMPANION-DESIGN.md, and docs/RENDER-RESET-M4.0.9.md §1–§8 (verdict + frozen winner) — honest, no rewrites)
+- PocketShell-Runtime-Forensic-Audit.pdf sha256 0e0a2bf8363647aece215f4f0a00b658debb3d42a443b480d564b01cd7d17c0d  (34 pages, ~300 KB — the complete read-only platform/runtime forensic audit: repo provenance, launch-chain sequence diagram, Termux/proot deep dives, targetSdk-28 exec model, /proc attribution, ELF/libc strategy, tool matrix, storage, session model, Companion policy, perf risk register, security, all 30 answers, KEEP/MODIFY/ADD/REPLACE, Runtime 2.0 proposal, roadmap)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.9.0-m5.0.1 superseded by m5.1.0; its
