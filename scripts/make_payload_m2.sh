@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.9.0-m5.0.1
+VERSION=v0.9.1-m5.1.0
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,51 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.9.0-m5.0.0) — M5.0 FINAL UI CORRECTION: THE WORKSPACE
+WHAT IS NEW IN $VERSION (vs v0.9.0-m5.0.1) — M5.1: ARM64 PERFORMANCE & ARCHITECTURE
+OPTIMIZATION (audit-first: the real architecture was measured and read end-to-end
+before any change; only what the evidence supports changed; nothing working broke):
+  - ALREADY SOUND, DELIBERATELY UNTOUCHED: lazy startup (Application.onCreate
+    touches NO WebView provider, NO Linux init, NO package scanning — the m4.0.1
+    rule held); one WebView per tab, never recreated or reloaded on switch;
+    WebView height FROZEN during sheet drags (one resize on release); background
+    tabs platform-paused on switch and at Activity pause; terminal scrollback
+    capped (2000 rows), no polling loops, cursor blinker stops on pause, repaint
+    hook unregistered off-screen; one Linux process per session; honest FGS;
+    keyboard allocations trivial.
+  - F1, THE MINIMIZED COMPANION IS SILENT: collapsing the sheet used to leave
+    the ACTIVE tab running JavaScript, timers and layout at full rate while
+    completely invisible. Now collapse -> pause EVERYTHING (reversible; cookies
+    flushed), raise -> wake ONLY the active tab. No reload, no state loss; a
+    minimized page comes back alive exactly when it becomes visible.
+  - F2, HOME NO LONGER SPAWNS A GUEST SHELL ON EVERY VISIT: the command-app
+    availability probe is a REAL proot login-shell exec; it re-ran each time
+    Home re-entered composition. A 60s freshness window + an in-flight guard
+    now gate the visibility-triggered probe; package-operation landings still
+    force a fresh probe; a FAILED probe always re-probes (honesty over caching).
+  - F3, BACKGROUND TERMINAL OUTPUT NO LONGER REPAINTS THE SCREEN: the global
+    screen-update hook fired for every session, repainting the (unchanged)
+    visible view at the background session's output rate — N sessions
+    multiplied the load. The repaint now happens only when the producer IS the
+    visible session; switches stay correct by construction (attachSession ->
+    updateSize -> invalidate).
+  - F4, WEB STATE PERSISTED UNDER MEMORY PRESSURE: onTrimMemory(>= RUNNING_LOW)
+    flushes cookies while Companion tabs are alive, strictly gated on the
+    provider already being loaded (the m4.0.1 broken-provider rule untouched)
+    and fully contained.
+  - THE TAB RESOURCE POLICY, STATED HONESTLY: active tab = full rendering;
+    background tabs = platform-paused (state preserved); minimized sheet =
+    everything paused; tabs live until the user closes them. The m4.0.11
+    verdict REMOVED saveState/restore and LRU eviction as the render-breaking
+    suspect family — deliberately NOT reintroduced. No user state is ever
+    destroyed behind their back.
+  - NOT TOUCHED: renderer, pool, sheet mechanics, tab system, keyboard,
+    themes, terminal implementation, Linux lifecycle contract, providers,
+    logins.
+  - Full suite green: 752 executions, 0 failures. Device measurement gate:
+    docs/TESTING.md §32 (the A–G scenario matrix).
+    versionCode 39 — in-place update over 16..38; same pinned cert.
+
+WHAT WAS NEW IN v0.9.0-m5.0.1 (vs v0.9.0-m5.0.0) — M5.0 FINAL UI CORRECTION: THE WORKSPACE
 BAR (a surgical pass — no redesign, no new features, the working Companion
 implementation untouched architecturally):
   - WORKSPACE HEADER REMOVED: the terminal workspace's large top title row
@@ -1285,6 +1329,10 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/ui/companion/CompanionTabStrip.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionSettingsScreen.kt \
            app/src/main/java/app/pocketshell/ui/terminal/TerminalScreen.kt \
+           app/src/main/java/app/pocketshell/MainActivity.kt \
+           app/src/main/java/app/pocketshell/TerminalViewModel.kt \
+           app/src/main/java/app/pocketshell/ui/home/HomeScreen.kt \
+           app/src/main/java/app/pocketshell/companion/CompanionWebHost.kt \
            docs/PHASE-3.1-DESIGN.md docs/PHASE-3.2-DESIGN.md docs/PHASE-3.3-DESIGN.md \
            docs/PHASE-3.4-DESIGN.md docs/PHASE-3.5-DESIGN.md \
            app/src/main/java/app/pocketshell/runtime/GuestApkCompat.kt \

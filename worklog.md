@@ -1150,3 +1150,42 @@ Work Log:
 Stage Summary:
 - v0.9.0-m5.0.0 (vc37) delivered end-to-end: the refinement phase executed exactly as directed — tap-to-minimize 2x drag bar, free height positioning with zero snap points, FAB + duplicate CLI menu gone, compact integrated chrome, corner-anchored keyboard toggle, and the Light Theme finished app-wide WITHOUT touching the frozen Companion renderer or re-theming a single website.
 - THE ASK TO THE USER: install vc37 in place and run docs/TESTING.md §30 — especially 30.1 (tap the bar at every height -> instant minimize; release at arbitrary heights -> stays), 30.4 (Light sweep: whole app flips instantly, terminal canvas stays dark, websites keep their own themes), 30.3 (toggle at the corner) and 30.7 (ChatGPT/Z.ai + refresh regression ladder).
+
+---
+Task ID: 5.0.1
+Agent: Super Z (main)
+Task: PocketShell M5.0 Final UI Correction (workspace bar) — then begin M5.1
+
+Work Log:
+- Sandbox reset #11 discovered on first build attempt (tools/ + android-sdk/ gone): toolchain reinstalled via install_toolchain.sh (~40s); local.properties intact.
+- Part 1 (workspace): ChromeHeader (back + live title row) DELETED from TerminalScreen.kt; new WorkspaceBar = the top chrome: back glyph far-left (36x34dp slot, 18dp icon), tabs, "+" right; strip consumes statusBarsPadding itself (workspace starts under the status area).
+- Part 1 (tabs, both strips): strip 40->34dp; active 34/inactive 26 (was 40/30); gaps 4->2dp; h-padding 10->8dp; width 84-160->64-136dp; tabTopRadius 10->6dp (shared token); accent hairline 2.5->2dp; terminal close button 24->22dp. Ellipsis truncation already present; NEW active-tab auto-scroll (LaunchedEffect + animateScrollToItem when the selected index is off-screen) on both strips.
+- Part 2 (Companion >=90%): CompanionHeights.TAB_BAR_DRAG_THRESHOLD = 0.90f + tabBarDragSurface() pure helper (unit-pinned). CompanionLayer: drag math hoisted into shared startSheetDrag/dragSheetBy/endSheetDrag (handle + strip use verbatim identical math); CompanionTabStrip wrapped in a Box whose pointerInput(detectVerticalDragGestures) is attached only when settled >= 0.90 OR a drag is in flight (a drag crossing below the threshold is not cut mid-gesture). Taps untouched (no tap detector on the strip) — no minimize-on-tab-touch; touch slop gates drags; horizontal LazyRow scroll unaffected (orthogonal axes).
+- Part 3: dedicated drag bar behavior verified unchanged (tap-to-minimize any height, 1:1 drag, free release, drag-up restore).
+- Test suite: 752 executions / 0 failures (751 prior pins + new threshold test). Note: count is 752 total across modules.
+- Build attempt 1: gradle daemon OOM-killed (4GB box); attempt 2 BUILD SUCCESSFUL. vc38 / 0.9.0-m5.0.1; cert d96a6f66…8bf659 re-verified via apksigner; APK sha 9d08e75192b260634ec4515a19bd380c56c77b34d6c804e2621e3d067ae222e3.
+- Docs: CHANGELOG [0.9.0-m5.0.1], ROADMAP Phase 5.0.1, TESTING §31 (device gate PENDING).
+- Cutter: VERSION bumped, new WHAT-IS-NEW (m5.0.0 demoted), must-carry += TerminalScreen.kt. New scripts/mirror_m5011.sh (withdraws m5.0.0 explicit names).
+- Delivery: commit e7772cf (code+docs) -> payload cut AT that tip: 331 files (zip 32f43824…, tgz 78d69db7…, bundle a0f9f8b6…) -> mirror MIRROR VERIFIED three-way -> page.tsx + download/README.md re-pinned -> commit a9869d2 -> server restarted -> page + all 4 artifacts HTTP 200, served APK re-hashed = 9d08e751… (end-to-end OK).
+
+Stage Summary:
+- v0.9.0-m5.0.1 (vc38) delivered end-to-end: the M5.0 final correction executed exactly as ordered — header gone, back in the bar, dense IDE tabs on both strips, and the >=90% Companion tab-strip drag surface with strict tap discipline. Frozen things untouched.
+- THE ASK TO THE USER: install vc38 in place and run docs/TESTING.md §31 — especially 31.3 (near-full strip drag: sheet follows, taps still tap, no minimize) and 31.1/31.2 (bar layout + compact tabs).
+- NEXT: M5.1 ARM64 performance & architecture optimization — audit first (WebViews/tabs lifecycle, terminal rendering, Linux processes, keyboard, startup, leaks), optimize from findings, no redesigns, no broken functionality.
+
+---
+Task ID: 5.1.0
+Agent: Super Z (main)
+Task: PocketShell M5.1 — ARM64 Performance & Architecture Optimization (audit-first)
+
+Work Log:
+- AUDIT (read end-to-end before any change): PocketShellApp.onCreate (lazy: palette+dirs+state reconciliation, NO WebView/Linux/package work — §22 held); CompanionWebHost (one WebView per open tab, prepare() returns existing — no recreation/reload on switch, present() idempotent, WebView height frozen during drag; background tabs onPause on switch; Activity pause=pauseAll+cookie flush; resume wakes only active); TerminalSessionManager/TerminalScreen (process-scoped sessions, TRANSCRIPT_ROWS=2000, no polling, blinker stopped on ON_PAUSE, repaint hook unregistered off-screen); TerminalService (honest FGS, self-stops at zero sessions); TerminalViewModel/HomeScreen/ExploreAppsScreen (probes = REAL proot execs); keyboard package (static layouts, local per-key state, trivial allocations); RuntimeManager/PackageGateway (no startup work, one process per user action).
+- FINDINGS F1–F4 (fixed): F1 minimized Companion left the ACTIVE WebView running JS/timers/layout while invisible → LaunchedEffect(raised) now pauseAll() on collapse / resumeActive() on raise (reversible, cookies flushed, no reload). F2 Home's refreshCommandApps re-ran a proot login-shell exec on EVERY Home revisit → 60s freshness window + in-flight guard + force param (operation landings force=true; failures re-probe). F3 TerminalScreen repainted the visible view for ANY session's output → repaint only when producer == visibleSessionId (rememberUpdatedState); switches stay correct (attachSession nulls emulator → updateSize → invalidate — verified in vendored TerminalView.java). F4 onTrimMemory(≥RUNNING_LOW) cookie flush, gated on CompanionWebHost.hasLiveTabs() (provider already loaded — m4.0.1 rule untouched) + runCatching.
+- RESTRAINT (documented, not code): background tabs = platform-paused (state preserved); saveState/restore + LRU eviction stay RETIRED per the m4.0.11 verdict — no user state destroyed behind their back. Tab resource policy pinned in code comments + CHANGELOG.
+- Version 39 / 0.9.1-m5.1.0. Suite: 752 executions / 0 failures. Build: server stopped first; BUILD SUCCESSFUL; aapt2 vc39 OK; cert d96a6f66…8bf659 re-verified; APK sha d8084b49f7af17b55cff643fc41ec0b56484b6830da219c11b4c2f56c3d56482.
+- Docs: CHANGELOG [0.9.1-m5.1.0], ROADMAP Phase 5.1.0, TESTING §32 (A–G scenario measurement matrix). Cutter: VERSION + WHAT-IS-NEW (m5.0.1 demoted), must-carry += MainActivity/TerminalViewModel/HomeScreen/CompanionWebHost. New scripts/mirror_m5110.sh.
+- Delivery: commit afdf37a (code+docs) → payload cut AT tip (332 files; zip 1dcee490…/tgz f11ff7f3…/bundle 083253e4…) → mirror_m5110.sh MIRROR VERIFIED (m5.0.1 withdrawn explicit-name) → page.tsx + download/README.md re-pinned → commit → server restarted → page + all 4 artifacts HTTP 200, served APK re-hashed = d8084b49… (end-to-end OK).
+
+Stage Summary:
+- v0.9.1-m5.1.0 (vc39) delivered end-to-end in the exact order the user set: M5.0 final UI correction FIRST (vc38, delivered this session after sandbox reset #11 recovery), THEN the M5.1 audit and its four evidence-driven fixes. The audit explicitly refused to rewrite working systems: the renderer, terminal, keyboard, Linux lifecycle and lazy startup were left untouched; the fixes target real measured waste (invisible-WebView CPU, per-visit proot spawns, background-output repaint storms, persistence timing).
+- THE ASK TO THE USER: install vc39 in place and run docs/TESTING.md §32 — especially 32.1 F1 (silent minimize: page preserved, no reload) and F3 (background `yes` storm does not shake the visible session), plus the A–G matrix.
