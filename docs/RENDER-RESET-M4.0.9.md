@@ -1,9 +1,10 @@
 # Phase 4.0.9 — Companion Rendering Reset (investigation report)
 
-Status: **investigation build shipped — device rows PENDING**. This build
-(v0.7.0-m4.0.9, vc33) changes NOTHING in the Companion render path. It
-ships the mandated minimal baseline harness and this report. The device
-run fills the pending rows; only then is the final architecture chosen.
+Status: **SETTLED — device verdict in §7**. The m4.0.9 build (v0.7.0-m4.0.9,
+vc33) changed NOTHING in the Companion render path; the device run passed
+all four baseline gates (video evidence) and the verdict triggered decision
+B: the Companion was rebuilt around the proven baseline in **v0.8.0-m4.1.0
+(vc34)**. Sections 1–6 are the pre-registered experiment; §7 is the result.
 
 ## 0. The case so far (facts, not theories)
 
@@ -127,3 +128,52 @@ Success definition (unchanged, per the brief): a real website visibly
 displays its actual UI on the physical device and is usable by touch and
 keyboard. DOM counts, readyState, "pixels painted" — none of these are
 success.
+
+## 7. DEVICE VERDICT — 2026-09-05, m4.0.9 (vc33), screen recording
+
+**(1) Baseline result: PASS on every gate.** One 19-second recording
+(3:01–3:02) shows, in order:
+
+| Gate | Site | Result | Evidence in the recording |
+|---|---|---|---|
+| A | example.com | **VISIBLE** | "Example Domain" + body + Learn more link |
+| B | wikipedia.org | **VISIBLE + scrolled** | full portal: logo, search, language grid |
+| C | chatgpt.com | **VISIBLE** | complete real UI: "What are you working on?", composer |
+| D | chat.z.ai | **VISIBLE** | complete real UI: GLM header, Z logo, composer, Sign in |
+
+Status line (all four): `attached=true 1080x2061px … layer=none`,
+WebView 151.0.7922.199, the DEFAULT `; wv)` user agent, BASELINE mode
+(Android defaults) — in the same app, process, Midnight theme and WebView
+package. **Seconds earlier, the same recording shows the real Companion
+tab still blank: ChatGPT = white canvas, Z.ai = dark canvas.**
+
+**(2) The architecture that works** (proven, video): `Activity →
+LinearLayout → FrameLayout → WebView(activity)`, JS + DOM storage only,
+attach in onCreate, load after first layout, Android defaults everywhere
+else.
+
+**(3) The architecture that fails** (frozen in vc33, unchanged):
+Compose bottom sheet → Box → `key(webView) { AndroidView(WebView) }` fed
+by a pooled, forced-light, UA-spoofed, watchdogged creation recipe that
+loads before attachment and re-kicks after it.
+
+**(4) The first variable that causes failure.** The device run exercised
+the BASELINE row (all four sites) — the variant rows were not needed:
+per the pre-agreed decision rule, baseline-pass with Companion-fail
+locates the failure in the **hosting-stack family** (the Compose keyed
+host / pool / pre-attach load / config-context combination), because the
+baseline removed ALL of those variables at once and rendered perfectly.
+Instead of naming one culprit variable, the rebuild removes the entire
+family — which is the stronger fix the rule anticipated.
+
+**(5) Decision: B — executed in v0.8.0-m4.1.0 (vc34).** The Companion is
+rebuilt around the proven baseline:
+`PocketShell Activity → Companion overlay (Compose chrome) → ONE stable
+plain FrameLayout → one WebView per tab, baseline recipe, load after
+first layout`. The old engine (CompanionWebPool) and the entire witness
+family (RenderProbe, BootWitness, CompanionHealth, ConsoleTail) are
+deleted from the codebase. The one remaining delta to the proven baseline
+is the parent chain (the overlay's AndroidView node instead of the
+activity content view) — unavoidable by product definition and the only
+suspect left if anything should still blank. The harness stays in the
+build (Companion → ⓘ) as the standing render diagnostic.

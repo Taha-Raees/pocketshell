@@ -22,13 +22,15 @@ android {
         // exact tradeoff Termux makes. Side-load distribution; Play rules do
         // not apply (and Android 14+ still installs targetSdk >= 23).
         targetSdk = 28
-        versionCode = 33
-        versionName = "0.7.0-m4.0.9"
+        versionCode = 34
+        versionName = "0.8.0-m4.1.0"
     }
 
-    // m4.0.8: the render-probe pins exercise RenderProbe.findActivity's
-    // ContextWrapper unwrapping — ContextWrapper.getBaseContext() must
-    // answer null (default) in JVM tests instead of throwing "not mocked".
+    // JVM tests exercise pure logic that touches android.* types only in
+    // passing (ContextWrapper chains, UI bit flags) — getBaseContext() and
+    // similar must answer defaults in JVM tests instead of throwing
+    // "not mocked". (Kept from m4.0.8; the render-probe pins it served are
+    // retired with the probe, but the harness and remaining pins rely on it.)
     testOptions {
         unitTests {
             isReturnDefaultValues = true

@@ -1,11 +1,9 @@
 package app.pocketshell.ui.companion
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
+import android.app.Activity
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,14 +21,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
@@ -39,10 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,11 +59,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.companion.CompanionBackAction
 import app.pocketshell.companion.CompanionDef
 import app.pocketshell.companion.CompanionFailure
-import app.pocketshell.companion.CompanionHealth
 import app.pocketshell.companion.CompanionHeights
-import app.pocketshell.companion.CompanionWebPool
+import app.pocketshell.companion.CompanionWebHost
 import app.pocketshell.companion.CompanionViewModel
 import app.pocketshell.companion.decideBackAction
+import app.pocketshell.diagnostic.BaselineWebViewActivity
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightFilledButton
 import app.pocketshell.ui.theme.TerminalTheme
@@ -108,35 +100,14 @@ fun CompanionLayer(
     val pageTitles by viewModel.pageTitles.collectAsStateWithLifecycle()
     val pageFailures by viewModel.pageFailures.collectAsStateWithLifecycle()
 
-    // m4.0.2: bumped by Retry — re-keys the web host's remember so acquire()
-    // runs again on a freshly created WebView.
+    // m4.0.2 (kept): bumped by Retry — re-keys the canvas's remember so
+    // prepare() runs again on a freshly created WebView.
     var webRetrySeed by remember { mutableStateOf(0) }
-
-    // m4.0.3: per-tab compatibility-render flag. Retry toggles it — the
-    // second attempt creates the WebView with LAYER_TYPE_SOFTWARE, the
-    // escape hatch for devices whose GPU path paints nothing.
-    val compatRenders = remember { mutableStateMapOf<String, Boolean>() }
-
-    // m4.0.4: tabs whose failure card the user dismissed ("Continue
-    // anyway") — the pixel probe stays quiet for these until a Retry (or a
-    // fresh navigation the USER initiates from the raw canvas) re-opens
-    // the question, so the card never fights the user for the canvas.
-    val stallSuppressed = remember { mutableSetOf<String>() }
-
-    // m4.0.5: tabs that already received one SILENT fresh reload after the
-    // DOM boot-witness said the page's app never mounted. A software
-    // renderer cannot fix a script boot, so the silent first response is a
-    // plain reload; only a SECOND boot failure becomes the honest card.
-    // Cleared by Retry (the user asking again) — never by navigation,
-    // because the silent reload itself navigates.
-    val bootRetried = remember { mutableStateMapOf<String, Boolean>() }
 
     // m4.0.3: the "+" affordance now opens the Companion picker sheet.
     var pickerOpen by remember { mutableStateOf(false) }
 
-    // m4.0.6: the page-health sheet — the standing window into everything
-    // the runtime knows about the active tab, with a copy button.
-    var healthOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     // In-flight drag fraction; null when the pointer is up (settled state).
     var dragFraction by remember { mutableStateOf<Float?>(null) }
@@ -149,7 +120,7 @@ fun CompanionLayer(
     // ---- pool wiring (listener + file chooser + lifecycle) -----------------
 
     DisposableEffect(viewModel) {
-        CompanionWebPool.setListener(object : CompanionWebPool.Listener {
+        CompanionWebHost.setListener(object : CompanionWebHost.Listener {
             override fun onVisitStarted(defId: String, url: String) {
                 viewModel.recordLastUrl(defId, url)
             }
@@ -165,43 +136,8 @@ fun CompanionLayer(
             override fun onRendererGone(defId: String) {
                 viewModel.recordRendererGone(defId)
             }
-
-            override fun onRenderStuck(defId: String) {
-                // m4.0.4: a user who dismissed the card owns the canvas —
-                // the probe never fights them for it.
-                if (defId in stallSuppressed) return
-                // m4.0.4: the pixel probe confirmed NOTHING ever drew. The
-                // FIRST stall never bothers the user — the tab silently
-                // re-creates itself on the software renderer (the classic
-                // fix for GPU paths that rasterize nothing on broken
-                // WebView builds). Only a SECOND stall — compatibility
-                // mode already tried — becomes the honest card.
-                if (compatRenders[defId] == true) {
-                    viewModel.recordRenderStalled(defId)
-                } else {
-                    CompanionWebPool.forgetTab(defId)
-                    compatRenders[defId] = true
-                    webRetrySeed++
-                }
-            }
-
-            override fun onAppNotBooted(defId: String, diagnostics: String) {
-                // m4.0.5: same user-owns-the-canvas rule as onRenderStuck.
-                if (defId in stallSuppressed) return
-                if (bootRetried[defId] != true) {
-                    // FIRST boot failure: one silent fresh reload (a flaky
-                    // bundle fetch can starve a page's boot too). A fresh
-                    // load re-arms the witness; the flag survives it on
-                    // purpose so a persistent failure escalates to the card.
-                    bootRetried[defId] = true
-                    CompanionWebPool.forgetTab(defId)
-                    webRetrySeed++
-                } else {
-                    viewModel.recordAppNotBooted(defId, diagnostics)
-                }
-            }
         })
-        onDispose { CompanionWebPool.setListener(null) }
+        onDispose { CompanionWebHost.setListener(null) }
     }
 
     var chooserCallback by remember { mutableStateOf<((Uri?) -> Unit)?>(null) }
@@ -212,7 +148,7 @@ fun CompanionLayer(
         chooserCallback = null
     }
     DisposableEffect(Unit) {
-        CompanionWebPool.setFileChooserHost(object : CompanionWebPool.FileChooserHost {
+        CompanionWebHost.setFileChooserHost(object : CompanionWebHost.FileChooserHost {
             override fun launch(acceptType: String?, onResult: (Uri?) -> Unit) {
                 chooserCallback = onResult
                 // acceptTypes may carry extensions ("​.pdf") — GetContent wants a mime.
@@ -223,7 +159,7 @@ fun CompanionLayer(
                 filePicker.launch(mime)
             }
         })
-        onDispose { CompanionWebPool.setFileChooserHost(null) }
+        onDispose { CompanionWebHost.setFileChooserHost(null) }
     }
 
     // Activity pause/resume: park everything / wake the active tab (§8).
@@ -231,8 +167,8 @@ fun CompanionLayer(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> CompanionWebPool.pauseAll()
-                Lifecycle.Event.ON_RESUME -> CompanionWebPool.resumeActive()
+                Lifecycle.Event.ON_PAUSE -> CompanionWebHost.pauseAll()
+                Lifecycle.Event.ON_RESUME -> CompanionWebHost.resumeActive()
                 else -> {}
             }
         }
@@ -302,8 +238,10 @@ fun CompanionLayer(
                         // m4.0.3: "+" opens the picker sheet (list + add),
                         // it no longer silently opens the default tab.
                         onAdd = { pickerOpen = true },
-                        // m4.0.6: the info chip opens the page-health sheet.
-                        onHealth = { healthOpen = true },
+                        // m4.1.0: the info chip launches the render-baseline
+                        // harness — the control experiment that settled the
+                        // blank-canvas case (docs/RENDER-RESET-M4.0.9.md).
+                        onDiagnostics = { launchRenderBaseline(context) },
                     )
                     Box(
                         modifier = Modifier
@@ -313,32 +251,22 @@ fun CompanionLayer(
                             .background(TerminalTheme.canvas),
                         contentAlignment = Alignment.BottomCenter,
                     ) {
-                        CompanionWebHost(
+                        CompanionWebCanvas(
                             defId = activeDef.id,
                             url = activeTab?.lastUrl ?: activeDef.url,
                             // Frozen measured height during drag (§9).
                             webHeightPx = if (dragFraction != null) settledWebPx else webHeightPx,
                             failure = pageFailures[activeDef.id],
                             retrySeed = webRetrySeed,
-                            compatRender = compatRenders[activeDef.id] ?: false,
                             onRetry = {
                                 // A Retry is the user asking the question again —
-                                // lift any dismissal so the probe may answer.
-                                stallSuppressed.remove(activeDef.id)
-                                bootRetried.remove(activeDef.id)
+                                // a fresh WebView on the proven recipe.
                                 viewModel.retryTab(activeDef.id)
-                                // m4.0.3: each Retry alternates GPU → software
-                                // rendering (then back) on the fresh WebView.
-                                compatRenders[activeDef.id] =
-                                    !(compatRenders[activeDef.id] ?: false)
                                 webRetrySeed++
                             },
-                            // m4.0.4: the raw canvas as-is — the site's own
-                            // consent banner lives there and may still work.
-                            onDismiss = {
-                                stallSuppressed.add(activeDef.id)
-                                viewModel.dismissFailure(activeDef.id)
-                            },
+                            // m4.0.4 (kept): the raw canvas as-is — the site's
+                            // own consent banner lives there and may still work.
+                            onDismiss = { viewModel.dismissFailure(activeDef.id) },
                         )
                     }
                 }
@@ -366,40 +294,12 @@ fun CompanionLayer(
             )
         }
 
-        // m4.0.6 — the page-health sheet: the tab's own testimony (DOM
-        // truth, boot errors, console, probe verdict, WebView version, UA)
-        // plus one-tap COPY REPORT and the two reload escapes. Composed
-        // above the panel with the same keyboard inset as the picker.
-        if (healthOpen && activeDef != null) {
-            CompanionHealthSheet(
-                defId = activeDef.id,
-                name = activeDef.name,
-                bottomModifier = bottomModifier,
-                onReload = {
-                    healthOpen = false
-                    stallSuppressed.remove(activeDef.id)
-                    bootRetried.remove(activeDef.id)
-                    viewModel.retryTab(activeDef.id)
-                    webRetrySeed++
-                },
-                onReloadCompat = {
-                    healthOpen = false
-                    stallSuppressed.remove(activeDef.id)
-                    bootRetried.remove(activeDef.id)
-                    compatRenders[activeDef.id] = true
-                    viewModel.retryTab(activeDef.id)
-                    webRetrySeed++
-                },
-                onDismiss = { healthOpen = false },
-            )
-        }
-
         // Back policy (§14): web history → collapse → fall through. The
         // handler is composed AFTER the screens' handlers, so while raised
         // it wins; when collapsed it disables itself (PASS_THROUGH).
         BackHandler(enabled = raised) {
-            when (decideBackAction(CompanionWebPool.canGoBack(activeTabId), raised)) {
-                CompanionBackAction.WEB_BACK -> CompanionWebPool.goBack(activeTabId)
+            when (decideBackAction(CompanionWebHost.canGoBack(activeTabId), raised)) {
+                CompanionBackAction.WEB_BACK -> CompanionWebHost.goBack(activeTabId)
                 CompanionBackAction.COLLAPSE -> viewModel.collapse()
                 CompanionBackAction.PASS_THROUGH -> {}
             }
@@ -407,9 +307,6 @@ fun CompanionLayer(
 
         // m4.0.3: the picker is the topmost surface — Back closes it first.
         BackHandler(enabled = pickerOpen) { pickerOpen = false }
-
-        // m4.0.6: the health sheet is topmost while open — Back closes it.
-        BackHandler(enabled = healthOpen) { healthOpen = false }
     }
 }
 
@@ -451,71 +348,86 @@ private fun CompanionHandle(
     }
 }
 
-/** The live WebView host — the invisible engine (brief R3). */
+/**
+ * m4.1.0 — the live web canvas, the Phase 4.1 native host. The WebViews
+ * live in ONE process-scoped plain FrameLayout ([CompanionWebHost.canvas]);
+ * this composable never creates, swaps or destroys views itself — it hands
+ * Compose the stable container and asks the host to put the active tab on
+ * top. Exactly the proven baseline's shape, one layer down:
+ *
+ *   Activity → (Compose panel chrome) → plain FrameLayout → WebView(activity)
+ *     → attach → first layout → loadUrl
+ *
+ * Everything the m4.0.9 control experiment proved unnecessary — config
+ * contexts, UA spoofs, background overrides, keyed swap hosts, attach
+ * kicks, watchdogs, retry ladders — simply does not exist here.
+ */
 @Composable
-private fun CompanionWebHost(
+private fun CompanionWebCanvas(
     defId: String,
     url: String,
     webHeightPx: Float,
     failure: CompanionFailure?,
     retrySeed: Int,
-    compatRender: Boolean,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // m4.0.2: the failure card comes FIRST — a renderer-gone tab has NO
-    // WebView in the pool, and acquire() below would instantly re-create
-    // one behind the card.
+    // The failure card comes FIRST — a renderer-gone tab has NO WebView,
+    // and prepare() below would instantly re-create one behind the card.
     if (failure != null) {
         CompanionFailureCard(failure, url, onRetry, onDismiss)
         return
     }
-    // m4.0.3: creation uses the ACTIVITY context — the application context
-    // used since m4.0 is a documented source of blank-canvas WebViews.
     val context = LocalContext.current
-    // One WebView per definition, owned by the pool; (re)attached here.
-    // retrySeed re-keys on Retry so a destroyed WebView is re-created.
-    val webView = remember(defId, retrySeed) {
-        CompanionWebPool.acquire(defId, url, context, compatRender)
+    // The PROVEN constructor takes the real Activity — never a wrapper.
+    val activity = remember(context) { context.activityOrNull() }
+    if (activity == null) {
+        Box(Modifier.fillMaxSize())
+        return
     }
-    DisposableEffect(defId) {
-        CompanionWebPool.setActive(defId)
-        onDispose { }
+    // One WebView per tab, created with the baseline recipe (guarded; null
+    // only when the provider itself is broken). retrySeed re-keys on Retry
+    // so a destroyed WebView is re-created.
+    val webView = remember(defId, retrySeed) {
+        CompanionWebHost.prepare(defId, url, activity)
     }
     if (webView == null) {
-        // m4.0.1: the provider itself is broken (missing/crashing WebView
-        // package) — say so honestly; the terminal keeps working. Blank
-        // only for the not-yet-initialized case.
-        if (CompanionWebPool.runtimeFailed) CompanionRuntimeUnavailable()
+        // m4.0.1 (kept): the provider itself is broken — say so honestly;
+        // the terminal keeps working. Blank only while not yet initialized.
+        if (CompanionWebHost.runtimeFailed) CompanionRuntimeUnavailable()
         else Box(Modifier.fillMaxSize())
         return
     }
-    // m4.0.7 — THE SWAP-SAFE HOST. AndroidView runs its factory exactly
-    // ONCE per composed node — and this host stays composed across every
-    // silent retry (the first-stall compat swap, the boot-retry reload;
-    // both forgetTab + re-seed WITHOUT showing a failure card) and across
-    // plain TAB SWITCHING (defId changes → remember acquires a DIFFERENT
-    // view). All of those swaps previously never reached the screen: the
-    // old — on the first stall, DESTROYED — view stayed attached (the
-    // device's dead black canvas), the fresh view sat stranded in the pool
-    // loading a perfect DOM that was never shown, its probes idled to
-    // "unknown" and the honest card lied about "compatibility stalled".
-    // key(webView) re-creates the node whenever the instance changes, so
-    // the factory re-runs and the CURRENT view is THE attached view — for
-    // every swap, every retry, every tab.
-    key(webView) {
-        AndroidView(
-            factory = {
-                // m4.0.7: the attach kick — one silent surface-rebind reload
-                // if the compositor still hasn't presented after attach.
-                CompanionWebPool.onHostAttached(defId, webView)
-                webView
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(with(LocalDensity.current) { webHeightPx.toDp() }),
-        )
+    DisposableEffect(defId) {
+        CompanionWebHost.setActive(defId)
+        onDispose { }
     }
+    AndroidView(
+        // The SAME stable native container every time — panel collapse,
+        // tab switches and retries never re-create or swap WebViews.
+        factory = { CompanionWebHost.canvas(activity) },
+        // Native view surgery (idempotent): puts this tab on top and
+        // schedules its URL AFTER first layout — the proven sequence.
+        update = { CompanionWebHost.present(defId, webView) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(with(LocalDensity.current) { webHeightPx.toDp() }),
+    )
+}
+
+/** m4.1.0 — the ⓘ chip's control experiment, one tap away. */
+private fun launchRenderBaseline(context: android.content.Context) {
+    try {
+        context.startActivity(Intent(context, BaselineWebViewActivity::class.java))
+    } catch (_: Throwable) {
+    }
+}
+
+/** The real Activity behind any Compose context (wrappers included). */
+private tailrec fun android.content.Context.activityOrNull(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.activityOrNull()
+    else -> null
 }
 
 /**
@@ -643,187 +555,6 @@ private fun CompanionPickerSheet(
                     fontWeight = FontWeight.Medium,
                     color = TerminalTheme.accentBright,
                     modifier = Modifier.padding(start = 12.dp),
-                )
-            }
-        }
-    }
-}
-
-/**
- * m4.0.6 — the page-health sheet: everything the runtime knows about the
- * active tab's page, live (a fresh DOM reading is taken on open), with
- * one-tap COPY REPORT so the device's testimony lands in the chat verbatim,
- * plus the two honest reload escapes (GPU again, or the software
- * compatibility renderer). Midnight language, identical to the picker.
- */
-@Composable
-private fun CompanionHealthSheet(
-    defId: String,
-    name: String,
-    bottomModifier: Modifier,
-    onReload: () -> Unit,
-    onReloadCompat: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-    // The composed report; null while the first probe is in flight and when
-    // the tab has no live WebView (an honest "nothing to report" then).
-    var report by remember(defId) { mutableStateOf<String?>(null) }
-    var refreshTick by remember(defId) { mutableStateOf(0) }
-
-    LaunchedEffect(defId, refreshTick) {
-        // Fresh reading first — the callback (main thread) then re-composes
-        // the report from the pool's updated facts.
-        CompanionWebPool.probeHealth(defId) { _ ->
-            report = CompanionWebPool.healthFacts(defId, name)
-                ?.let { CompanionHealth.compose(it) }
-        }
-    }
-
-    fun copyReport() {
-        val text = report ?: return
-        try {
-            val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            clip?.setPrimaryClip(ClipData.newPlainText("PocketShell page health", text))
-            Toast.makeText(context, "Health report copied — paste it in the chat", Toast.LENGTH_SHORT).show()
-        } catch (_: Throwable) {
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(Color.Black.copy(alpha = 0.45f))
-                .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .then(bottomModifier)
-                .background(
-                    TerminalTheme.deck,
-                    RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
-                )
-                .padding(top = 10.dp, bottom = 8.dp),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Page health",
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.3.sp,
-                    color = HomeTokens.textPrimary,
-                    modifier = Modifier.weight(1f),
-                )
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onDismiss() },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = "Close",
-                        tint = TerminalTheme.textDim,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 260.dp)
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(TerminalTheme.canvas)
-                    .verticalScroll(rememberScrollState())
-                    .padding(12.dp),
-            ) {
-                Text(
-                    text = report
-                        ?: "No reading yet — the tab may not have a live page. Reload, then reopen this sheet.",
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    color = if (report == null) HomeTokens.textDim else HomeTokens.textPrimary,
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                MidnightFilledButton(
-                    text = "Copy report",
-                    onClick = { copyReport() },
-                    modifier = Modifier.weight(1f),
-                )
-                MidnightFilledButton(
-                    text = "Refresh",
-                    onClick = { refreshTick++ },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = "Reload",
-                    fontSize = 13.sp,
-                    color = HomeTokens.textDim,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onReload() }
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
-                )
-                Text(
-                    text = "Reload in compatibility mode",
-                    fontSize = 13.sp,
-                    color = HomeTokens.textDim,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onReloadCompat() }
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
-                )
-            }
-            // m4.0.9 — the rendering-reset CONTROL (the ONLY Companion-side
-            // change this build): a plain-Activity baseline harness, one
-            // variable at a time, to prove exactly which layer breaks the
-            // visible presentation. No Companion behavior is touched.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
-            ) {
-                Text(
-                    text = "Render baseline (diagnostic)",
-                    fontSize = 13.sp,
-                    color = HomeTokens.textDim,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            try {
-                                context.startActivity(
-                                    Intent(context, app.pocketshell.diagnostic.BaselineWebViewActivity::class.java),
-                                )
-                            } catch (_: Throwable) {
-                            }
-                        }
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
                 )
             }
         }
@@ -982,7 +713,7 @@ private fun CompanionRuntimeUnavailable() {
             letterSpacing = 0.4.sp,
             color = HomeTokens.textPrimary,
         )
-        val webviewVersion = remember { CompanionWebPool.webViewVersion() }
+        val webviewVersion = remember { CompanionWebHost.webViewVersion() }
         Text(
             text = "Android System WebView is missing or crashing on this device " +
                 "(installed: $webviewVersion). Update or reinstall it, then reopen PocketShell.",

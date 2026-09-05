@@ -62,7 +62,7 @@ fun CompanionTabStrip(
     onSelect: (String) -> Unit,
     onClose: (String) -> Unit,
     onAdd: () -> Unit,
-    onHealth: () -> Unit = {},
+    onDiagnostics: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val defsById = remember(defs) { defs.associateBy { it.id } }
@@ -97,8 +97,8 @@ fun CompanionTabStrip(
                     )
                 }
             }
-            HealthTabButton(
-                onOpen = onHealth,
+            DiagnosticsTabButton(
+                onOpen = onDiagnostics,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
                     .padding(start = 6.dp),
@@ -221,13 +221,14 @@ private fun AddTabButton(onAdd: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 /**
- * m4.0.6 — the standing page-health chip. One quiet info glyph at the
- * strip's end, always reachable: whatever the canvas is doing (even a
- * mystery black), the page's own testimony is two taps away, with a copy
- * button — the device can now TELL us what a broken page did.
+ * m4.1.0 — the diagnostics chip. One quiet info glyph at the strip's end:
+ * it launches the render-baseline harness — the m4.0.9 control experiment
+ * that settled the blank-canvas case on the physical device (video: all
+ * four gate sites rendered in the plain-Activity baseline). Kept reachable
+ * as the standing render diagnostic.
  */
 @Composable
-private fun HealthTabButton(onOpen: () -> Unit, modifier: Modifier = Modifier) {
+private fun DiagnosticsTabButton(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(28.dp)
@@ -237,7 +238,7 @@ private fun HealthTabButton(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         Icon(
             imageVector = Icons.Outlined.Info,
-            contentDescription = "Page health report",
+            contentDescription = "Render baseline (diagnostic)",
             tint = TerminalTheme.textDim,
             modifier = Modifier.size(16.dp),
         )

@@ -1303,3 +1303,71 @@ painted" are NOT success.
       health sheet, escapes — plus the new "Render baseline" button.
 - [ ] Terminal/Home/runtime untouched; §17–§25 spot-checks on the
       Companion paths that existed before this build.
+
+> **RESULT (2026-09-05): §26.1 PASSED — all four gates visible in one
+> screen recording** (example.com, wikipedia.org, chatgpt.com, chat.z.ai
+> fully rendered; status `attached=true 1080x2061px layer=none`, default
+> UA, WebView 151.0.7922.199). §26.2 was not needed: per the decision
+> rule, baseline-pass + Companion-fail (the same recording shows both
+> ChatGPT-white and Z.ai-dark blank canvases in the real panel) triggered
+> decision B — the rebuild of §27.
+
+## 27. Manual acceptance — m4.1.0 (Companion Native Rebuild: the proven baseline becomes the architecture, v0.8.0-m4.1.0) — DEVICE GATE PENDING
+
+The verdict build. The Companion render path is now the m4.0.9 baseline
+recipe verbatim, hosted natively: `Activity → Compose panel → ONE stable
+plain FrameLayout → one WebView per tab → attach → first layout → load`.
+Every former lever (config context, UA spoof, background override,
+software layer, wide viewport, pre-attach load, attach kick, pixel
+watchdog, boot witness, retry ladders, health sheet) is DELETED. The
+only remaining delta to the proven baseline is the parent chain (the
+overlay's AndroidView node). Success = Gates A–H below, on the physical
+device, by eye and finger.
+
+### 27.1 The four render gates (same sites, new architecture)
+- [ ] Install vc34 in place (over vc33). Open a Companion tab (ChatGPT).
+      **Gate E:** the REAL ChatGPT UI must be visible in the panel (this
+      exact state was blank-white on every build since m4.0).
+- [ ] Switch to the Z.ai tab. **Gate F:** the REAL Z.ai UI visible (was
+      blank-dark before).
+- [ ] ⓘ chip still launches the render-baseline harness; a BASELINE run
+      still passes gates A–D as before (regression of the control).
+- [ ] example.com as a new tab renders; scrolling works.
+
+### 27.2 Touch, tabs, panel
+- [ ] **Gate G (touch):** tap focus into the page's input field; type
+      with the Phase 3.1 keyboard (shared deck routes to the web target);
+      links respond; scrolling is smooth.
+- [ ] Tab switch ChatGPT → Z.ai → back: each tab still displays its page
+      (no reload, no blank).
+- [ ] Drag the handle: 1:1 tracking, frozen page height during drag, one
+      reflow on release; settled height persists across collapse/reopen.
+- [ ] Collapse (drag down) and reopen: the page is STILL displayed
+      (the stable native container survives the panel leaving composition).
+- [ ] Back gesture with in-page history goes back; without it, collapses.
+
+### 27.3 Sessions, uploads, downloads
+- [ ] Log into a site (cookies incl. third-party accepted). Kill
+      PocketShell, reopen, reopen the tab: **Gate H** — the session
+      SURVIVES (cookie flush on pause).
+- [ ] A site file-attachment control opens the system picker and the
+      chosen file reaches the page (upload bridge).
+- [ ] A download link enqueues into DownloadManager → app-specific
+      storage, with the toast; no crash.
+
+### 27.4 Honest failure states (kept, now rare)
+- [ ] Airplane mode + open a tab → "Page didn't load" card with the real
+      error; Retry restores when the network returns; "Continue anyway"
+      and "Open in browser" work.
+- [ ] The renderer-death path (if a broken WebView build ever triggers
+      it) still shows "Page renderer crashed" and kills NEITHER the app
+      NOR the terminal.
+
+### 27.5 Regression
+- [ ] Terminal (PTY output, keyboard, pinch), Linux runtime install,
+      packages, Home, Settings, Diagnostics untouched: §4–§16 spot-checks.
+- [ ] Clear web data (Settings → Companions) wipes cookies/storage and
+      live tabs without touching definitions.
+- [ ] If ANY gate still blank: do NOT reinstate removed levers — copy the
+      ⓘ → Render baseline status + this tab's state into the chat; the
+      one remaining delta (panel parent chain) is the investigation.

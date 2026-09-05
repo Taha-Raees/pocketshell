@@ -550,6 +550,29 @@ remote development.
       suspect→variant map, decision rule.
 - [x] +8 unit pins. Full suite: 788 executions / 0 failures.
 - [x] versionCode 33.
-- [ ] Device gate §26: baseline result, first failing variable, final
-      architecture decision (single-variable fix / native ViewGroup host /
-      Custom Tabs control / GeckoView research).
+- [x] Device gate §26: **baseline PASSED all four gates** (video,
+      2026-09-05) — decision B triggered: rebuild the host natively.
+
+### Phase 4.1.0 (2026-09-05, v0.8.0-m4.1.0) — Companion Native Rebuild: the proven baseline becomes the architecture (decision B, executed)
+- [x] The verdict executed: the Companion is rebuilt around what
+      physically works — `Activity → Compose overlay → ONE stable plain
+      FrameLayout → one WebView per tab (baseline recipe) → attach →
+      first layout → load` (new CompanionWebHost engine).
+- [x] Deleted permanently: CompanionWebPool (pool/LRU/saveState,
+      forced-light context, UA spoof, flash-guard background, compat
+      software layer, wide-viewport overrides, pre-attach loads),
+      RenderProbe, BootWitness + ConsoleTail, CompanionHealth, the keyed
+      swap host, the attach kick, the retry ladders, the health sheet;
+      failure kinds reduced to LOAD_ERROR + RENDERER_GONE (retirement
+      unit-pinned).
+- [x] Kept product contract: definitions, tabs, persistence, cookies +
+      flush, upload bridge, downloads, drag handle + remembered height,
+      back nav, §15/§16 policy, m4.0.1 degradation + renderer-death
+      guard, Phase 3.1 focus bridge; ⓘ now launches the retained harness.
+- [x] docs/RENDER-RESET-M4.0.9.md §7 (device verdict + decision),
+      PHASE-4-COMPANION-DESIGN §25 (the binding amendment), TESTING §27
+      (Gates E–H device gate), CHANGELOG.
+- [x] Suite: 744 executions / 0 failures. versionCode 34.
+- [ ] Device gate §27: Gates E–H on the physical device (real UIs in the
+      panel, touch/keyboard, tab-switch + collapse/reopen persistence,
+      session survival), §27.5 regression spot-checks.

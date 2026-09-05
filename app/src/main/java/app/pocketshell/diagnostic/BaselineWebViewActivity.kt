@@ -18,7 +18,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import app.pocketshell.companion.CompanionWebPool
+import app.pocketshell.companion.CompanionWebHost
 import app.pocketshell.companion.WebCompat
 import org.json.JSONObject
 
@@ -286,7 +286,7 @@ class BaselineWebViewActivity : Activity() {
         statusView.text = BaselineMatrix.status(
             variant = variant,
             url = url,
-            webviewVersion = CompanionWebPool.webViewVersion(),
+            webviewVersion = CompanionWebHost.webViewVersion(),
             userAgent = try {
                 webView?.settings?.userAgentString.orEmpty()
             } catch (_: Throwable) {

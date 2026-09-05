@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.7.0-m4.0.9
+VERSION=v0.8.0-m4.1.0
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,9 +40,43 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.8) — COMPANION RENDERING RESET: THE
+WHAT IS NEW IN $VERSION (vs v0.7.0-m4.0.9) — COMPANION NATIVE REBUILD: THE PROVEN
+BASELINE BECOMES THE ARCHITECTURE (decision B, executed — the fix the reset
+experiment was built to find):
+  - THE VERDICT (your m4.0.9 screen recording): the render baseline rendered
+    example.com, wikipedia.org, chatgpt.com AND chat.z.ai COMPLETELY — same
+    app, same process, same theme, same WebView 151.0.7922.199, default UA —
+    seconds after the real Companion blanked on the same two sites. WebView,
+    the device and the sites are exonerated; the old hosting stack was the
+    failure. So the Companion is REBUILT around what physically works.
+  - THE NEW ARCHITECTURE: PocketShell Activity -> Compose overlay chrome ->
+    ONE stable plain FrameLayout -> one WebView per tab, created exactly like
+    the winning baseline (real Activity, JS + DOM storage, Android defaults)
+    and loaded AFTER first layout. Tab switches/retries/panel collapse are
+    plain native view surgery — Compose never re-creates or swaps WebViews.
+  - DELETED PERMANENTLY: the WebView pool + LRU/saveState, the forced-light
+    configuration context, the Chrome-UA spoof in the render path, the
+    flash-guard background, the software-layer compat swaps, the wide-
+    viewport overrides, the pre-attach loads, the keyed swap host, the
+    attach kick, the pixel watchdog, the boot witness + console tails, the
+    health sheet, the retry ladders, and the RENDER_STALLED / APP_NOT_BOOTED
+    failure kinds (retirement pinned by a test).
+  - KEPT PRODUCT CONTRACT: Name+URL definitions, multiple tabs, persistence,
+    cookies (incl. third-party, flushed on pause — logins survive restarts),
+    upload picker, DownloadManager, drag handle + remembered height, back
+    navigation, navigation allowlist + permission denial, guarded creation
+    (a broken WebView package still degrades only the Companion, never the
+    app), renderer-death guard, Phase 3.1 keyboard focus bridge.
+  - HONEST FAILURE SURFACES: exactly two remain — "Page didn't load" (real
+    main-frame error) and "Page renderer crashed". The i chip now launches
+    the retained render-baseline harness as the standing diagnostic.
+  - Full suite green: 744 executions, 0 failures. versionCode 34 / 0.8.0-
+    m4.1.0 — in-place update over 16..33; same pinned cert. Device gate:
+    docs/TESTING.md §27 (Gates E–H).
+
+WHAT WAS NEW IN v0.7.0-m4.0.9 (vs v0.7.0-m4.0.8) — COMPANION RENDERING RESET: THE
 MINIMAL BASELINE WEBVIEW EXPERIMENT (no Companion changes, zero symptom
-patches — the investigation build):
+patches — the investigation build; VERDICT in §7 of the report):
   - THE BRIEF, HONORED: eight iterations of evidence-backed fixes never
     proved WHICH architectural layer fails to present a fully loaded page.
     The m4.0.8 reports sharpened it: ChatGPT paints a blank WHITE canvas
@@ -1080,11 +1114,10 @@ echo "real node_modules dirs : $(echo "$LIST" | rg -c '/node_modules/' || echo 0
 for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            docs/PROCFS-CONTRACT.md docs/PHASE-4-COMPANION-DESIGN.md \
            app/src/main/java/app/pocketshell/companion/CompanionModels.kt \
-           app/src/main/java/app/pocketshell/companion/RenderProbe.kt \
-           app/src/main/java/app/pocketshell/companion/BootWitness.kt \
+           app/src/main/java/app/pocketshell/companion/CompanionWebHost.kt \
            app/src/main/java/app/pocketshell/companion/WebCompat.kt \
-           app/src/main/java/app/pocketshell/companion/CompanionHealth.kt \
-           app/src/main/java/app/pocketshell/companion/CompanionWebPool.kt \
+           app/src/main/java/app/pocketshell/diagnostic/BaselineWebViewActivity.kt \
+           app/src/main/java/app/pocketshell/diagnostic/BaselineMatrix.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionLayer.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionTabStrip.kt \
            app/src/main/java/app/pocketshell/ui/companion/CompanionSettingsScreen.kt \

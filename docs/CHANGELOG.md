@@ -3,6 +3,68 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.8.0-m4.1.0] — 2026-09-05 — Companion Native Rebuild: the Companion is rebuilt around the proven baseline (decision B, executed)
+
+The m4.0.9 control experiment settled the blank-canvas case on the
+physical device (screen recording, full verdict in
+docs/RENDER-RESET-M4.0.9.md §7): the minimal baseline — `WebView(activity)`
+in a plain FrameLayout, JS + DOM storage only, Android defaults, URL
+loaded after first layout — rendered **example.com, wikipedia.org,
+chatgpt.com AND chat.z.ai with their complete real UIs**, in this same
+app/process/theme/WebView package, seconds after the real Companion
+blanked on the same two sites. Android WebView, the device and the sites
+are exonerated; the old Companion hosting stack was the failure. Per the
+pre-agreed decision rule, the architecture is REBUILT around what
+physically works — complexity is not preserved merely because it was
+written.
+
+### The new architecture (CompanionWebHost)
+- **One stable native container**: a plain `FrameLayout` owned by the
+  process-scoped `CompanionWebHost`, handed to Compose's `AndroidView`
+  once. Panel collapse, tab switches and retries never re-create or swap
+  WebViews — they are plain `addView`/`removeAllViews` view surgery.
+- **One WebView per tab**, created with the EXACT proven recipe:
+  `WebView(realActivity)`, JavaScript + DOM storage, §16 file/content
+  hardening, nothing else — no configuration context, no UA spoof, no
+  background override, no layer type, no darkening levers, no viewport
+  overrides.
+- **The proven load sequence**: attach → first layout → THEN `loadUrl`
+  (the sequence the device video verified on all four gate sites).
+- Kept product contract, none of it render-path: Name+URL definitions,
+  multiple tabs, persistence, cookies (incl. third-party + flush on
+  pause), upload bridge, DownloadManager, drag handle + remembered
+  height, back navigation, §15 navigation allowlist, §16 permission
+  denial, the m4.0.1 guarded-creation degradation, the renderer-death
+  guard, the Phase 3.1 shared-deck focus bridge.
+
+### Deleted, permanently (the suspect + witness family)
+- `CompanionWebPool` (pooled acquire, LRU eviction, saveState/restore,
+  forced-light config context, Chrome UA, flash-guard background, compat
+  software layer, wide-viewport overrides, pre-attach loads).
+- `RenderProbe` (software + glass pixel probes), `BootWitness`
+  (+ `ConsoleTail`), `CompanionHealth` — the watchdogs that watched a
+  render path that was never the problem.
+- The keyed-swap Compose host, the attach kick, the silent-retry ladders
+  (compat-render alternation, boot-retry), the page-health sheet, and the
+  `RENDER_STALLED` / `APP_NOT_BOOTED` failure kinds (pinned retired).
+- Failure surfaces reduced to the two honest states that remain real:
+  main-frame load errors and renderer death.
+
+### Diagnostics kept
+- The render-baseline harness stays (Companion → ⓘ), now the standing
+  render diagnostic; `WebCompat.chromeLikeUserAgent` survives solely for
+  its `+CHROME UA` harness variant.
+
+### Tests
+- 744 executions / 0 failures (both modules × debug+release). Retired
+  machinery pins removed; one new pin locks the watchdog failure kinds'
+  retirement. No WebView fakes (project rule) — device behavior stays
+  gated by TESTING.md §27.
+
+### Version
+- versionCode 34 (in-place update chain intact, same pinned debug key
+  d96a6f66…8bf659).
+
 ## [0.7.0-m4.0.9] — 2026-09-05 — Companion Rendering Reset: the minimal baseline WebView experiment (no Companion changes, zero symptom patches)
 
 Scope: the user's hard reset, honored exactly. Eight iterations of

@@ -51,8 +51,15 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M0–M1.3 implemented and building** (see `docs/ROADMAP.md`).
-All automated tests pass and `assembleDebug` produces a working APK; the
-**manual on-device acceptance checklists** in `docs/TESTING.md` are the
-remaining gate before M2 (Linux userspace + real package management) — a green
-build alone never completes a milestone.
+Current state: **Phase 4.1.0 (v0.8.0-m4.1.0, versionCode 34) — Companion
+Native Rebuild** (see `docs/ROADMAP.md`). The stack: native PTY terminal
+(M1), Linux Alpine runtime via proot with real package management (M2),
+keyboard + Home 3.x design system (M3), and the Companion embedded-web
+layer (Phase 4) — rebuilt in m4.1.0 around the m4.0.9 control
+experiment's physically proven baseline (`WebView(activity)` in a plain
+FrameLayout, Android defaults, load after first layout) after the device
+verdict exonerated WebView itself (docs/RENDER-RESET-M4.0.9.md §7).
+All automated tests pass (744 executions) and `assembleDebug` produces a
+working APK; the **manual on-device acceptance checklists** in
+`docs/TESTING.md` (currently §27, Gates E–H) are the remaining gate — a
+green build alone never completes a milestone.

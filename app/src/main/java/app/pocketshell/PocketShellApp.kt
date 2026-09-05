@@ -26,9 +26,11 @@ class PocketShellApp : Application() {
         // start, so it must NEVER load the WebView provider — m4.0's eager
         // CookieManager.getInstance() here made a broken/updated WebView
         // package crash every PocketShell launch before any UI. All
-        // provider touches now happen lazily inside the pool, guarded;
+        // provider touches now happen lazily inside the web host, guarded;
         // failure degrades only the Companion surface (runtimeFailed).
-        app.pocketshell.companion.CompanionWebPool.init(this)
+        // m4.1.0: the host is the REBUILT CompanionWebHost (the proven
+        // baseline recipe; docs/RENDER-RESET-M4.0.9.md verdict).
+        app.pocketshell.companion.CompanionWebHost.init(this)
     }
 }
 

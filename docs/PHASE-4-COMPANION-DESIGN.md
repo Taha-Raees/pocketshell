@@ -517,3 +517,48 @@ The "+" affordance (extends §11):
   row opens/raises that tab; "+ Add Companion" navigates to the
   management page; scrim tap or Back dismisses, and Back wins over the
   layer's collapse handler while the sheet is open.
+
+## 25. Amendment m4.1.0 — The Companion Native Rebuild (decision B, executed; supersedes the render-path clauses above)
+
+The m4.0.9 control experiment (docs/RENDER-RESET-M4.0.9.md) SETTLED the
+blank-canvas case on the physical device: the plain-Activity baseline
+rendered all four gate sites completely while the real Companion blanked
+on the same sites in the same session. Verdict: the hosting stack was the
+failure. This amendment is the binding contract for what the Companion
+render path IS from m4.1.0 on — and what it must NEVER be again:
+
+The architecture (binding):
+- `PocketShell Activity → Companion overlay (Compose chrome: handle,
+  strip, cards) → ONE stable plain FrameLayout (CompanionWebHost.canvas)
+  → one WebView per tab → attach → first layout → loadUrl`.
+- WebViews are created with the REAL Activity, JavaScript + DOM storage,
+  §16 file/content hardening — nothing else. Android defaults are the
+  contract: no configuration contexts, no UA overrides, no background
+  overrides, no layer-type overrides, no darkening levers, no viewport
+  overrides, no load before attachment.
+- Tab switching, retries and panel collapse are native view surgery on
+  the one container; Compose never creates, keys, swaps or destroys
+  WebViews.
+
+Retired, permanently (do not reinstate without new physical-device
+evidence): forced-light `createConfigurationContext`,
+`setAlgorithmicDarkeningAllowed`/`setForceDark` manipulation,
+Chrome-like UA in the render path, the flash-guard background,
+`LAYER_TYPE_SOFTWARE` compat swaps, `useWideViewPort` overrides, the
+attach kick, the pixel watchdog (RenderProbe), the DOM boot witness
+(BootWitness) + console tails, the health sheet (CompanionHealth),
+LRU eviction/saveState-restore, and the `RENDER_STALLED` /
+`APP_NOT_BOOTED` failure kinds.
+
+Kept (unchanged contract): §15 navigation allowlist, §16 permission
+denial, §12 upload bridge, §13 DownloadManager, §7 cookies (+ flush),
+§9 drag/height mechanics, §14 back policy, the m4.0.1 startup-decoupling
+rule (§22), the m4.0.1 guarded-creation degradation, the renderer-death
+guard, and the Phase 3.1 shared-deck focus bridge. Failure surfaces are
+exactly two: main-frame load errors and renderer death.
+
+The ⓘ chip now launches the retained render-baseline harness — the
+standing diagnostic if this contract is ever suspected again. If any
+gate of TESTING.md §27 should still blank, the ONLY remaining delta to
+the proven baseline is the panel parent chain (the overlay's AndroidView
+node vs the activity content view); investigate there, not in WebSettings.

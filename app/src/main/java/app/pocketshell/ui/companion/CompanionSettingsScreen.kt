@@ -27,7 +27,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.companion.CompanionDef
 import app.pocketshell.companion.CompanionTemplates
 import app.pocketshell.companion.CompanionViewModel
-import app.pocketshell.companion.CompanionWebPool
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightCard
 import app.pocketshell.ui.system.MidnightFilledButton

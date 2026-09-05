@@ -98,7 +98,7 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
             // A URL edit re-anchors the tab: the live page is dropped and the
             // next open loads the new address. The login session survives —
             // it lives in cookies, not in the tab.
-            CompanionWebPool.forgetDefinition(id)
+            CompanionWebHost.forgetDefinition(id)
             onResult(true)
         }
     }
@@ -115,7 +115,7 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
             repo.setActiveTabId(nextActive)
             if (repo.defaultId.first() == id) repo.setDefaultId(remainingDefs.firstOrNull()?.id)
             // Destroy any live WebView of the removed definition + its tabs.
-            CompanionWebPool.forgetDefinition(id)
+            CompanionWebHost.forgetDefinition(id)
         }
     }
 
@@ -160,7 +160,7 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
             )
             repo.setTabs(surviving)
             repo.setActiveTabId(nextActive)
-            CompanionWebPool.forgetTab(defId)
+            CompanionWebHost.forgetTab(defId)
         }
     }
 
@@ -189,44 +189,21 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         pageFailures.value = pageFailures.value + (defId to CompanionFailure(
             kind = CompanionFailureKind.LOAD_ERROR,
             detail = description,
-            webViewVersion = CompanionWebPool.webViewVersion(),
+            webViewVersion = CompanionWebHost.webViewVersion(),
         ))
     }
 
     fun recordRendererGone(defId: String) {
         pageFailures.value = pageFailures.value + (defId to CompanionFailure(
             kind = CompanionFailureKind.RENDERER_GONE,
-            webViewVersion = CompanionWebPool.webViewVersion(),
-        ))
-    }
-
-    /** m4.0.3: the page painted nothing within the watchdog window — the
-     *  silent-white signature; the canvas now says so instead. */
-    fun recordRenderStalled(defId: String) {
-        pageFailures.value = pageFailures.value + (defId to CompanionFailure(
-            kind = CompanionFailureKind.RENDER_STALLED,
-            webViewVersion = CompanionWebPool.webViewVersion(),
-        ))
-    }
-
-    /**
-     * m4.0.5: pixels painted but the page's own app never started — the
-     * device's cookie-banner state. The card carries the page's OWN
-     * testimony ([diagnostics]: readyState, DOM element count, first
-     * script error, first console line) so the mystery ends here.
-     */
-    fun recordAppNotBooted(defId: String, diagnostics: String) {
-        pageFailures.value = pageFailures.value + (defId to CompanionFailure(
-            kind = CompanionFailureKind.APP_NOT_BOOTED,
-            detail = diagnostics.takeIf { it.isNotBlank() },
-            webViewVersion = CompanionWebPool.webViewVersion(),
+            webViewVersion = CompanionWebHost.webViewVersion(),
         ))
     }
 
     /** Retry: drop the failure, destroy the tab's WebView, reload fresh. */
     fun retryTab(defId: String) {
         pageFailures.value = pageFailures.value - defId
-        CompanionWebPool.forgetTab(defId)
+        CompanionWebHost.forgetTab(defId)
     }
 
     /**
@@ -246,7 +223,7 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
      */
     fun clearWebData() {
         viewModelScope.launch {
-            CompanionWebPool.clearAll()
+            CompanionWebHost.clearAll()
             // m4.0.1: all three calls load provider components — a broken
             // WebView package must not crash the Settings screen either.
             runCatching {

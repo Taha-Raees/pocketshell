@@ -89,14 +89,16 @@ object CompanionValidation {
  * a failed main-frame load or a dead page renderer becomes a labeled
  * Midnight card with the real detail + the installed WebView version and
  * a Retry action. Pure state + text — unit-pinned, no WebView fakes.
+ *
+ * m4.1.0: the RENDER_STALLED / APP_NOT_BOOTED kinds are RETIRED with the
+ * watchdog family that produced them — the m4.0.9 control experiment
+ * proved the render path they policed was never the problem.
  */
-enum class CompanionFailureKind { LOAD_ERROR, RENDERER_GONE, RENDER_STALLED, APP_NOT_BOOTED }
+enum class CompanionFailureKind { LOAD_ERROR, RENDERER_GONE }
 
 fun failureTitle(kind: CompanionFailureKind): String = when (kind) {
     CompanionFailureKind.LOAD_ERROR -> "Page didn't load"
     CompanionFailureKind.RENDERER_GONE -> "Page renderer crashed"
-    CompanionFailureKind.RENDER_STALLED -> "Page never rendered"
-    CompanionFailureKind.APP_NOT_BOOTED -> "Page won't start"
 }
 
 fun failureHint(kind: CompanionFailureKind): String = when (kind) {
@@ -104,15 +106,6 @@ fun failureHint(kind: CompanionFailureKind): String = when (kind) {
         "Check the network/VPN for this site — or update Android System WebView — then retry."
     CompanionFailureKind.RENDERER_GONE ->
         "This WebView build looks broken on this device. Update or roll it back, then retry."
-    CompanionFailureKind.RENDER_STALLED ->
-        "The page loaded but never drew a single frame. PocketShell already retried " +
-            "it on the compatibility renderer and that stalled too — this WebView build " +
-            "looks broken on this device. Update or roll back Android System WebView, " +
-            "then Retry (it alternates render modes)."
-    CompanionFailureKind.APP_NOT_BOOTED ->
-        "The site answered — its cookie banner and scripts run — but its own app never " +
-            "started (the line above is read from inside the page). Update Android " +
-            "System WebView and retry, or open the same address in the device browser."
 }
 
 data class CompanionFailure(
