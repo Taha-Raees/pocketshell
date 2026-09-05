@@ -1225,3 +1225,26 @@ Work Log:
 
 Stage Summary:
 - The forensic audit report is now live on the Next.js download app next to the v0.9.1-m5.1.0 artifacts: preview page -> "Platform / Runtime Forensic Audit" card, or direct path /PocketShell-Runtime-Forensic-Audit.pdf. Release artifacts untouched; repo re-pinned at 7f29406.
+
+---
+Task ID: m6.0.0
+Agent: main (Super Z)
+Task: PocketShell M6.0 — Universal Runtime Compatibility (musl + glibc + static in ONE Alpine guest); deliverable vc40.
+
+Work Log:
+- Inputs: Kilo/M3 in-guest forensic report (upload/, 22 sections) reconciled with the GLM audit; the Cline failure mechanism confirmed at loader level (gcompat shims only libc.so.6; Cline 3.0.61 needs libpthread.so.0/libdl.so.2/libm.so.6).
+- Phase A/B decision record: docs/runtime/DUAL_LIBC.md — REAL Debian trixie glibc 2.41 at canonical multiarch paths inside the Alpine rootfs; gcompat/sgerrand/patchelf/LD_LIBRARY_PATH/second-distro rejected on evidence.
+- Sandbox rig rebuilt after reset #11 losses: host proot (same pin 7266fb3e, scripts/build_proot_host_only.sh), qemu-aarch64-static (Debian trixie, static), pinned Alpine minirootfs (same pin f55a90f6…), aarch64 cross gcc 14 (Debian cross debs, sysroot alias fix).
+- Sidecar: scripts/runtime/build_glibc_sidecar.sh — 15 pinned Debian pool packages (per-input SHA256 committed), canonical layout (loader symlink chain + merged-usr dir symlink + lib64 alias + nsswitch.conf), gconv excluded (documented), deterministic tar; artifact 6,761,290 B sha 2242f8ef…; guest tools pocketshell-exec + pocketshell-doctor ride the layer.
+- Test binaries: runtime-tests/src/*.c(pp) cross-compiled (t_hello/pthread/dlopen/libm/cpp/fork_exec/getpwnam/getaddrinfo/static + t_cline_shape replicating Cline's exact DT_NEEDED class); REAL Cline 3.0.61 native binary fetched from npm (151,062,848 B — byte-identical size to the device report).
+- Sandbox suite: scripts/runtime/run_sandbox_suite.sh — 20/20 PASS (musl regression incl. apk, static, full glibc matrix, Cline direct + node-spawn chain). Device runner runtime-tests/run_on_device.sh validated under emulation: 24/24 ALL GREEN.
+- App integration: GlibcRuntimePin (artifact/asset pins), GuestGlibcRuntime.ensureInstalled (marker fast path, self-healing re-extraction, marker LAST, zip-slip guards, best-effort) wired at PackageGateway.prepareGuestForSession (the single seam, GuestApkCompat pattern); asset in APK; NO launcher/proot/rootfs-pin changes.
+- Tests: 8 new GuestGlibcRuntimeTest pins (extraction, marker contract, fast path, healing, musl sentinel untouched, zip-slip/absolute guards, truncated-archive honesty, pinned-asset integrity). Full JVM suite 768 executions / 0 failures. (Gradle lesson: JAVA_HOME=/home/z/tools/jdk-21.0.12.1+1 — system JRE lacks javac.)
+- APK vc40 / 0.10.0-m6.0.0: cert d96a6f66…8bf659 re-verified, 29,816,099 B, sha 16fc63ed….
+- Delivery: cutter updated (VERSION, WHAT-IS-NEW M6.0 + m5.1.0 demoted, must-carry += layer asset/runtime sources/docs/suite, tar-exclude bug fixed: './*.tar.gz' crossed directories and ate the APK asset — narrowed to './PocketShell-*.tar.gz'); payload cut (6 artifacts); mirror_m6000.sh MIRROR VERIFIED three-way (audit PDF restored from the /tmp verification copy after an over-eager STALE list — sha intact 0e0a2bf8…); page.tsx + download/README.md re-pinned; commits: 27a5b1d, f06fd6a, 7772987, 85dcf04 (+ tool commits).
+- Verified in-call: page renders M6.0 content; APK/source/tests/glibc-layer/report all HTTP 200; served APK re-hash byte-identical (16fc63ed…); old m5.1.0 APK 404.
+
+Stage Summary:
+- v0.10.0-m6.0.0 (vc40) delivered end-to-end: ONE Alpine guest now runs musl + glibc + static ARM64 software transparently; the Cline-class loader failure is closed and permanently guarded by runtime-tests/. The forensic audit's Runtime 2.0 headline (glibc sidecar) is implemented exactly as recommended, with zero changes to the terminal, keyboard, Companion, session model, procfs contract or rootfs pin.
+- THE ASK TO THE USER: install vc40 in place, open ONE fresh session (the layer self-installs), run the suite per docs/TESTING.md §33: curl -fsSL <mirror>/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C /tmp && sh /tmp/pocketshell-tests/run_on_device.sh — expect 24 PASS / ALL GREEN incl. Cline 3.0.61; then CLINE_DEEP_TEST=1 with credentials.
+- NEXT (per audit roadmap, after this gate): /proc-net sysdata overlays, sysdata liveness, Companion capacity measurements from TESTING §32 — never all at once.

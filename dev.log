@@ -306,3 +306,11 @@ $ next dev -p 3000
  GET / 200 in 316ms
  GET / 200 in 125ms
  GET / 200 in 169ms
+ GET / 200 in 158ms
+ GET / 200 in 133ms
+ GET / 200 in 117ms
+ GET / 200 in 342ms
+ GET / 200 in 120ms
+ GET / 200 in 170ms
+ GET / 200 in 147ms
+[?25h
