@@ -1,10 +1,10 @@
-const VERSION = "v0.9.0-m5.0.0";
+const VERSION = "v0.9.0-m5.0.1";
 
 const HASHES = {
-  apk: "b6b9d121c98a7367de6ee9d767dcab99ef438920f233aa21da9dde8edca3efc5",
-  zip: "82a435ad5a61dd6d03ff7ad86c1788ef8543b0cff753f57230c68f0efeeba896",
-  tgz: "994c8ef2df8baf73f0598d95255ebd3cc88ea071249e9accd0309e9bf5840051",
-  bundle: "643fd905d74eb4311ccb5f14116ac4d139f55e9bc94ee33c1002215fa83fb5f3",
+  apk: "9d08e75192b260634ec4515a19bd380c56c77b34d6c804e2621e3d067ae222e3",
+  zip: "32f43824711faaa0eb8cb6950e51e72b30ffd3b7043e1ec58090fb3e1aef71cf",
+  tgz: "78d69db74588693ee3209c7c003d66b7de45fa8be3d946e572ea18972503d832",
+  bundle: "a0f9f8b66eda686781d1204ce6c6f89c3c166b10e52be7d5ef4a571530a401e4",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,70 +25,64 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          UI &amp; Interaction Polish: free-position Companion, decluttered
-          Home, Light Theme done fully{" "}
-          <span className="badge">versionCode 37</span>
+          M5.0 Final UI Correction: the Workspace Bar{" "}
+          <span className="badge">versionCode 38</span>
         </h2>
         <p>
-          <b>A refinement phase — no redesign, no new features, the working
-          Companion implementation untouched.</b> Remove redundancy, reduce
-          wasted space, improve interaction, finish theming:
+          <b>A surgical pass — no redesign, no new features, the working
+          Companion implementation untouched.</b> Ordered by the field
+          report:
         </p>
         <ul className="steps">
           <li>
-            <b>Companion drag bar, exact behavior:</b> the visible bar is
-            <b> 2× wider</b> (72×4dp, still slim) in the same 40dp invisible
-            full-width touch zone — and a <b>single tap minimizes</b> the
-            raised Companion at ANY height (25%, 50%, 80%, near-full).
-            Restore is drag-up only; no floating button.
+            <b>Workspace header removed:</b> the large top title row
+            (back + session title) is GONE — the active session&apos;s name
+            already lives in its tab. The workspace starts directly under
+            the Android status area.
           </li>
           <li>
-            <b>Free positioning:</b> the snap windows are retired. Height
-            changes ONLY by dragging; release stays EXACTLY where you leave
-            it — any fraction, no forced 25/50/75/full anchors. Drag to the
-            bar → minimized (unchanged).
+            <b>Back lives in the tab bar:</b> a compact integrated glyph at
+            the far left —{" "}
+            <b>← | Tab 1 | Tab 2 | Tab 3 | +</b> — aligned with the tabs,
+            not a header-sized button in its own row.
           </li>
           <li>
-            <b>Home decluttered:</b> the floating action button is REMOVED
-            (sessions are created in the Terminal&apos;s own "+"), and the
-            duplicate CLI Apps dropdown is retired — the “Your tools” grid
-            is the one path. Nothing functional lost.
+            <b>Compact IDE tabs, both strips:</b> strip 34dp (was 40);
+            active tab 34 / inactive 26 — no more oversized heavy active
+            tab; 2dp gaps, 8dp tab padding, 64–136dp tab width (more tabs
+            fit), 6dp corners, a subtle 2dp active hairline. Long titles
+            truncate with an ellipsis; the close button stays reachable;
+            the ACTIVE tab is always scrolled back into view.
           </li>
           <li>
-            <b>Compact workspace chrome:</b> tabs and strips slimmed (40dp
-            strip, tighter gaps/paddings, horizontally scrollable as
-            before); the terminal “+” is integrated into the strip (no
-            circle plate); padding trimmed app-wide — Home, Packages,
-            Settings, the system-page kit — touch targets kept ≥44dp.
-          </li>
-          <li>
-            <b>Light Theme, full:</b> System / Light / Dark / AMOLED, all
-            live. Switching is immediate and persisted (no restart). The
-            terminal canvas stays dark (it is a terminal) and websites keep
-            their own themes — PocketShell never injects a theme into
-            Companion pages. The ONE keyboard is untouched; its [⌨] toggle
-            now sits anchored at the bottom-right corner on every screen.
+            <b>Companion near-full drag surface (≥90%):</b> below 90%
+            height NOTHING changed — the dedicated bar is the only sheet
+            drag control and the tab bar behaves normally. At/above 90%
+            the TAB STRIP also drags the sheet vertically, gated behind
+            the touch slop — tab taps, close, + and refresh are never
+            mistaken for drags, and the strip never minimizes on touch.
           </li>
           <li>
             <b>Untouched, the freeze held:</b> renderer, sheet mechanics,
             tab system, pool, refresh/hard-refresh, session persistence,
-            keyboard internals. Full suite <b>750 executions / 0
-            failures</b>.
+            keyboard internals, themes. Free positioning: no snap points,
+            ever. Full suite <b>752 executions / 0 failures</b>.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.9.0-m5.0.0-debug.apk">
+        <a className="btn" href="/PocketShell-v0.9.0-m5.0.1-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.9.0-m5.0.0)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.9.0-m5.0.1)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 36 installs <b>in place over v0.8.0-m4.0.11 (35),
+          versionCode 38 installs <b>in place over v0.9.0-m5.0.0 (37),
+          v0.8.0-m4.0.12 (36), v0.8.0-m4.0.11 (35),
           v0.8.0-m4.1.0 (34, an intermediate that was never announced),
           v0.7.0-m4.0.9 (33), v0.7.0-m4.0.8 (32), v0.7.0-m4.0.7 (31),
           v0.7.0-m4.0.6 (30), v0.7.0-m4.0.5 (29), v0.7.0-m4.0.4 (28),
@@ -161,48 +155,51 @@ export default function Home() {
             stripped.
           </li>
           <li>
-            <b>v0.9.0-m5.0.0 (this build):</b> UI &amp; Interaction Polish —
-            the drag bar is 2× wider and a single TAP minimizes the Companion
-            at any height; heights are FREE (no snap points); the Home FAB and
-            the duplicate CLI Apps menu are gone; compact tabs with an
+            <b>v0.9.0-m5.0.0:</b> UI &amp; Interaction Polish — the drag bar
+            is 2× wider and a single TAP minimizes the Companion at any
+            height; heights are FREE (no snap points); the Home FAB and the
+            duplicate CLI Apps menu are gone; compact tabs with an
             integrated “+”; the keyboard toggle sits in the bottom-right
             corner; and the full Light Theme shipped (System/Light/Dark/
-            AMOLED) — websites still theme themselves. The Companion
-            implementation: untouched.
+            AMOLED) — websites still theme themselves.
+          </li>
+          <li>
+            <b>v0.9.0-m5.0.1 (this build):</b> M5.0 Final UI Correction —
+            the workspace header is gone, back lives in the tab bar, tabs
+            are significantly more compact (both strips, ellipsis + active
+            tab auto-scroll), and at ≥90% height the Companion tab strip
+            also drags the sheet (touch-slop gated; taps stay taps).
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §30 — the Phase 5 gates)</h2>
+        <h2>Quick checks (docs/TESTING.md §31 — the m5.0.1 gates)</h2>
         <ol className="steps">
           <li>
-            <b>Drag bar:</b> raise the Companion → tap the 2× bar → it
-            minimizes IMMEDIATELY at any height; drag up to restore; drag
-            and release at ~33% / ~61% / ~85% — it STAYS exactly there
-            (no snap points).
+            <b>Workspace bar:</b> open Terminal — NO title row anymore; the
+            bar (`← tabs +`) sits directly under the status area; back
+            returns to Home from its new slot.
           </li>
           <li>
-            <b>Home:</b> no floating button, no CLI Apps dropdown — the
-            tools grid launches the same apps; sessions are created from
-            the Terminal’s own “+”. Nothing else changed.
+            <b>Compact tabs:</b> open 5+ sessions with one very long title —
+            everything stays dense and readable; long titles ellipsize;
+            switching to an off-screen tab scrolls it back into view.
           </li>
           <li>
-            <b>Light theme:</b> Settings → Appearance → Light — the whole
-            app flips instantly and stays Light after a restart. The
-            terminal canvas stays dark (it is a terminal) and ChatGPT/Z.ai
-            keep their own themes.
+            <b>Near-full drag:</b> raise the Companion past ~90% → drag the
+            TAB STRIP vertically → the sheet follows; release mid-way and
+            it STAYS there. Tapping tabs/close/+ still works — nothing on
+            the strip minimizes.
           </li>
           <li>
-            <b>Keyboard toggle:</b> hide the deck — the [⌨] icon now sits
-            anchored at the bottom-right corner on every screen; tap it to
-            bring the ONE keyboard back (the Android keyboard never
-            appears).
+            <b>Below 90%:</b> the strip is normal tabs again; ONLY the
+            dedicated bar drags (and its tap still minimizes, as before).
           </li>
           <li>
-            <b>Regression:</b> ChatGPT + Z.ai still render their real UIs;
-            refresh (tap) / hard refresh (hold) still act on the active tab
-            only and keep you logged in.
+            <b>Regression:</b> keyboard, themes, ChatGPT + Z.ai render/scroll/
+            login — all untouched; refresh (tap) / hard refresh (hold) still
+            act on the active tab only.
           </li>
         </ol>
       </div>
@@ -216,10 +213,10 @@ export default function Home() {
           procfs contract, the Phase 4 Companion design contract, and the
           rendering-reset report with the final verdict and the frozen-winner sweep (docs/RENDER-RESET-M4.0.9.md §7–§8).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.9.0-m5.0.0-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.9.0-m5.0.1-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.9.0-m5.0.0-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.9.0-m5.0.1-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -248,10 +245,9 @@ export default function Home() {
         bug · m4.0.8 the painted-but-black decode ·{" "}
         m4.0.9 the rendering reset · m4.1.0 the native rebuild · m4.0.11
         replace renderer only — the winner frozen · m4.0.12 companion
-        finalization ·{" "}
-        <b>v0.9.0-m5.0.0 (this build): UI &amp; interaction polish —
-        free-position Companion, tap-to-minimize drag bar, decluttered
-        Home, compact chrome, Light Theme done fully</b>.
+        finalization · m5.0.0 UI &amp; interaction polish ·{" "}
+        <b>v0.9.0-m5.0.1 (this build): M5.0 final UI correction —
+        workspace bar, compact IDE tabs, near-full strip drag</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
