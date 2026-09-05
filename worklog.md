@@ -1263,3 +1263,21 @@ Work Log:
 
 Stage Summary:
 - :3000 restored and sha-verified for v0.10.0-m6.0.0 (vc40) + glibc sidecar + runtime-tests + audit PDF. Mission state unchanged: M6.0.0 delivered; awaiting the user's device gate per docs/TESTING.md §33 (fresh session -> layer self-installs -> run_on_device.sh expect 24/24 incl. Cline 3.0.61; CLINE_DEEP_TEST=1 optional with credentials).
+
+---
+Task ID: m6.0.1
+Agent: main (Super Z)
+Task: Device gate §33 came back 18 PASS / 6 FAIL (glibc layer marker MISSING) — diagnose, instrument, ship vc41.
+
+Work Log:
+- Verified the delivery chain first: the vc40 APK carries the layer asset (unzip -l, 17,909,760 B uncompressed tar), sha pins intact, seam wiring correct (TerminalSessionManager.createLinuxSessionInternal -> PackageGateway.prepareGuestForSession -> GuestGlibcRuntime.ensureInstalled on EVERY session spawn). Device failure = layer simply absent: either app < vc40 on the device, or vc40's best-effort install failed silently — and the code showed Failed results go NOWHERE (no consumer of GuestSessionPreparation.glibcRuntime). That silence was the real defect.
+- Root-cause context established: the device rootfs carries gcompat (the stub answered the suite) — apk-installed rootfs state persists across app updates (Antigravity era). Payload does NOT ship gcompat (make_payload_m2.sh mentions it only in docs).
+- Reproduced the device EXACTLY under the qemu rig (scripts/runtime/repro_gcompat_device.sh): fresh Alpine 3.24.1 clone + apk add gcompat -> loader stub "This is the gcompat ELF interpreter stub." + t_cpp "arc4random: symbol not found" (the device's exact errors) -> tar -xzf layer over the contaminated rootfs -> full tier-2 matrix green + Cline 3.0.61 runs + musl untouched: 22/22.
+- App-side fix (1b24946): GuestGlibcRuntime mirrors every ensure outcome to /etc/pocketshell/glibc-runtime.status (state=OK source=extractor|fastpath / state=FAILED reason=..., diagnostics only, marker stays the completeness contract). 5 new JVM pins incl. the gcompat-stub-replacement device condition. Full JVM suite 776 executions / 0 failures.
+- Suite v2 (e80e207): PREFLIGHT diagnosis (marker/status/loader identity/layer count/gcompat/disk); tier 1 musl+static run regardless; missing layer = SKIP-with-fix-path; layer presence = capability probe (real loader --version), not marker paperwork; verdict keys off layer state not skip count; cline --help false-PASS fixed (was grepping 'cline' — matched the error path); POCKETSHELL_INSTALL_LAYER=1 hatch repairs in-guest from local tarball or POCKETSHELL_LAYER_URL and writes the exact app marker + manual-hatch status. Validated in 4 device states under the rig (scripts/runtime/validate_suite_v2.sh); two suite bugs found and fixed by this validation (marker-only detection missed a working layer; verdict mislabeled optional skips).
+- Release (4a7adde): vc41 / 0.10.0-m6.0.1, cert d96a6f66… re-verified, APK sha 915677b6…; cutter WHAT-IS-NEW rewritten (M6.0 demoted); payload cut (377 files); mirror_m6001.sh MIRROR VERIFIED three-way (m6.0.0 APK/zip/tgz withdrawn explicit-name); page.tsx + download/README.md re-pinned; docs: CHANGELOG, ROADMAP 6.0.1, TESTING §33 (v2 expectations + hatch + status honesty check), DUAL_LIBC §6.1.
+
+Stage Summary:
+- v0.10.0-m6.0.1 (vc41) delivered end-to-end: the layer install is now OBSERVABLE from inside the guest, the suite diagnoses instead of failing noisily, and a user can self-repair without waiting for the app. The m6.0.0 layer bytes are unchanged — the gate's 6 FAILs were absence + silence, not a broken layer (proven by the contaminated-rootfs reproduction).
+- THE ASK TO THE USER: install vc41 in place, fully close + reopen the app, open ONE fresh session, re-run §33.1 — expect 24 PASS / ALL GREEN incl. Cline. If the verdict is still LAYER NOT INSTALLED, the PREFLIGHT block now says exactly why (status file line = app-side failure reason) — paste it. Escape hatch: POCKETSHELL_INSTALL_LAYER=1 sh run_on_device.sh with the layer tarball beside the suite.
+- NEXT (per audit roadmap, after this gate): /proc-net sysdata overlays, sysdata liveness, Companion capacity measurements — never all at once.
