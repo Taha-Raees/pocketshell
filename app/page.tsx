@@ -1,10 +1,10 @@
-const VERSION = "v0.8.0-m4.0.11";
+const VERSION = "v0.8.0-m4.0.12";
 
 const HASHES = {
-  apk: "1afcc7dbe69971e6136c64d033915b56269c7ff2b4e615fb78d22b3011a46335",
-  zip: "a10dbbe47f87dd5d643ba563da348bb0e2819edc50a493ecfb20f6b588795d2c",
-  tgz: "1277d21cccd39df7f05f3f9450258d813503a9f5d7dc2b8c7b30563ade6389be",
-  bundle: "d617970ca306482281f013722566666c83ad0c5e8f81957fc9042a1b9c218150",
+  apk: "679dff59a5290260dbf543209bf0eb5c9df7b1cc062b0d743c69f50c7e62f990",
+  zip: "2752f2ff8cf653904e6c0957042b9f2134276823714ddbaffe7fca80d0c88db9",
+  tgz: "3ffe35e4db2ed3d713ba8329bfba66d47688d749affc6a214d8494d961347988",
+  bundle: "ed44868d4d83188facf761bef975d591d748d7f12348d3ea9fe0c06437a4baaa",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,70 +25,76 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Replace Renderer Only: the winner frozen and shipped{" "}
-          <span className="badge">versionCode 35</span>
+          Companion Finalization: cleanup, polish, ONE keyboard{" "}
+          <span className="badge">versionCode 36</span>
         </h2>
         <p>
-          <b>The investigation is closed; the winner ships.</b> Your device
-          evidence settled everything: the baseline harness rendered
-          complete pages on all four gate sites (recording),{" "}
-          <b>+CHROME UA rendered chat.z.ai completely</b> (screenshot) and{" "}
-          <b>+MIDNIGHT BG rendered chatgpt.com completely</b> (screenshot).
-          The winner is <b>BASELINE</b> — the most stable and least invasive
-          mode by construction (zero deltas from Android defaults). Per the
-          directive, this build is a surgical replacement, not a redesign:
+          <b>A surgical cleanup and polish pass — the working renderer was
+          not modified.</b> The proven baseline renderer stays byte-identical
+          to m4.0.11. Five finalization items executed around it:
         </p>
         <ul className="steps">
           <li>
-            <b>Untouched, by directive:</b> the Companion bottom sheet, drag
-            handle, remembered height, tab strip, tabs (close + “+” +
-            picker), tab state and destination storage — exactly as they
-            were.
+            <b>All diagnostics removed, completely:</b> the ⓘ chip, its
+            launch path, the harness Activity and its matrix are DELETED
+            (code + manifest). The Companion shows only the real website —
+            no headers, readouts or test buttons anywhere. The frozen render
+            contract is unchanged; the winner is pinned by value.
           </li>
           <li>
-            <b>Replaced, only the renderer:</b> the tab content area now
-            hosts the exact copied baseline unit — one stable plain
-            <code> </code><code>FrameLayout</code>, one{" "}
-            <code>WebView(realActivity)</code> per tab, JS + DOM storage
-            only, <b>attach → first layout → then loadUrl</b>. No UA spoof,
-            no background override, no config context, no pre-attach load.
+            <b>Refresh + hard refresh:</b> the ↻ glyph in the tab strip.
+            Tap = plain reload of the <b>active tab only</b> (same URL, same
+            tab, other tabs untouched). Long-press = <b>hard refresh</b> —
+            the freshest possible reload that is NOT a data reset (one
+            transient cache-bypass, restored on page finish; cookies,
+            logins and other tabs preserved; haptic + “Hard reloading…”).
           </li>
           <li>
-            <b>Diagnostics stripped from the canvas:</b> no URL ▸ / MODE ▸ /
-            INSPECT / COPY chrome, no status header, no health sheet in the
-            render path — only the page. The harness stays reachable as a
-            separate diagnostic (tab strip → ⓘ).
+            <b>Drag handle, easier to grab:</b> the visible bar is unchanged
+            (36×4dp); the invisible full-width touch zone grew 28→40dp.
           </li>
           <li>
-            <b>The winner is frozen in code:</b>{" "}
-            <code>BaselineMatrix.WINNER</code> + the new pure{" "}
-            <code>CompanionRenderContract</code> (settings surface, load
-            sequence, host container, empty diagnostics list) — unit-pinned;
-            full suite <b>758 executions / 0 failures</b>.
+            <b>ONE PocketShell keyboard, everywhere:</b> the deck now lives
+            at the app root — the same keyboard over Terminal, Linux, CLI
+            Apps, Home, and the Companion over all of them. The
+            Android/Samsung keyboard is hard-blocked for the app&apos;s
+            lifetime (it used to leak back when the deck was hidden). Real
+            KeyEvents only — no JavaScript hacks; even the Companion
+            settings Name/URL fields are served by the same deck.
+            WebView-input focus auto-opens it; the bottom-right [⌨] toggle
+            works on every screen; closing the Companion restores the
+            terminal&apos;s focus cleanly.
+          </li>
+          <li>
+            <b>Untouched, the freeze held:</b> renderer, sheet, drag
+            mechanics, remembered height, tab system, tab state,
+            destination storage, navigation, provider management. Full
+            suite <b>750 executions / 0 failures</b>.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.8.0-m4.0.11-debug.apk">
+        <a className="btn" href="/PocketShell-v0.8.0-m4.0.12-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.8.0-m4.0.11)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.8.0-m4.0.12)
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 35 installs <b>in place over v0.8.0-m4.1.0 (34, an
-          intermediate that was never announced), v0.7.0-m4.0.9 (33),
-          v0.7.0-m4.0.8 (32), v0.7.0-m4.0.7 (31), v0.7.0-m4.0.6 (30),
-          v0.7.0-m4.0.5 (29), v0.7.0-m4.0.4 (28), v0.7.0-m4.0.3 (27),
-          v0.7.0-m4.0.2 (26), v0.7.0-m4.0.1 (25), v0.7.0-m4.0 (24) and
-          every earlier pinned-cert build</b>. Your Alpine runtime, installed packages,
-          Kilo/Hermes installation, the procfs contract, every Phase 3
-          behavior and all Companion data (logins included) are untouched.
-          This build also contains the m4.0.1 startup fix — it starts
-          regardless of the WebView package&apos;s state.
+          versionCode 36 installs <b>in place over v0.8.0-m4.0.11 (35),
+          v0.8.0-m4.1.0 (34, an intermediate that was never announced),
+          v0.7.0-m4.0.9 (33), v0.7.0-m4.0.8 (32), v0.7.0-m4.0.7 (31),
+          v0.7.0-m4.0.6 (30), v0.7.0-m4.0.5 (29), v0.7.0-m4.0.4 (28),
+          v0.7.0-m4.0.3 (27), v0.7.0-m4.0.2 (26), v0.7.0-m4.0.1 (25),
+          v0.7.0-m4.0 (24) and every earlier pinned-cert build</b>. Your
+          Alpine runtime, installed packages, Kilo/Hermes installation, the
+          procfs contract, every Phase 3 behavior and all Companion data
+          (logins included) are untouched. This build also contains the
+          m4.0.1 startup fix — it starts regardless of the WebView
+          package&apos;s state.
         </p>
       </div>
 
@@ -145,41 +151,48 @@ export default function Home() {
             pool, probes, witnesses and health sheet deleted permanently.
           </li>
           <li>
-            <b>v0.8.0-m4.0.11 (this build):</b> Replace Renderer Only — the
-            winner (BASELINE) frozen and pinned; sheet/tabs/handle/heights
-            untouched; the tab content renderer is the exact baseline copy,
-            diagnostics stripped.
+            v0.8.0-m4.0.11: Replace Renderer Only — the winner (BASELINE)
+            frozen and pinned; sheet/tabs/handle/heights untouched; the tab
+            content renderer is the exact baseline copy, diagnostics
+            stripped.
+          </li>
+          <li>
+            <b>v0.8.0-m4.0.12 (this build):</b> Companion Finalization —
+            diagnostics retired completely (harness deleted), refresh +
+            long-press hard refresh, bigger invisible drag-handle touch
+            zone, and ONE PocketShell keyboard over every screen with the
+            system IME permanently blocked. The renderer: byte-identical.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §28 — Gates A–H on the REAL Companion)</h2>
+        <h2>Quick checks (docs/TESTING.md §29 — the finalization gates)</h2>
         <ol className="steps">
           <li>
-            Install {VERSION} in place → open the ChatGPT tab:{" "}
-            <b>Gate C</b> — the REAL ChatGPT UI (composer, header), not a
-            blank canvas. Z.ai tab: <b>Gate D</b> — the REAL Z.ai UI.
+            Install {VERSION} in place → the Companion shows ONLY the real
+            website: no ⓘ chip, no harness — the diagnostics are gone.
+            ChatGPT + Z.ai still render their REAL UIs (the freeze).
           </li>
           <li>
-            example.com (<b>Gate A</b>: visible) and wikipedia.org{" "}
-            (<b>Gate B</b>: visible + scroll) as tabs.
+            <b>Refresh:</b> tap ↻ — the active tab reloads, same URL, other
+            tabs intact. <b>Hard refresh:</b> hold ↻ (haptic + "Hard
+            reloading…") — fresh load, still logged in, session kept.
           </li>
           <li>
-            <b>Gate E:</b> tap the page&apos;s input — the keyboard opens and
-            typing reaches the page. <b>Gate F:</b> ChatGPT → Z.ai → back —
-            both still display.
+            <b>ONE keyboard:</b> tap the ChatGPT message box → the
+            PocketShell deck opens by itself and typing reaches the page;
+            the Samsung keyboard never appears. Same over Z.ai, and in the
+            Companion settings Name/URL fields.
           </li>
           <li>
-            <b>Gate G:</b> collapse (drag down) and reopen — the page is
-            STILL displayed; height remembered. <b>Gate H:</b> log in, kill
-            the app, reopen — the session survives.
+            <b>Handle:</b> drag the bar — easier to grab (invisible 40dp
+            zone), same small look, smooth 1:1 drag, height remembered.
           </li>
           <li>
-            If ANY gate fails: do NOT reinstate removed levers — ⓘ → Render
-            baseline → COPY, and paste the status into the chat. The sole
-            remaining delta to the proven baseline is the overlay&apos;s
-            parent chain.
+            <b>Toggle + focus:</b> hide the deck via [⌨] → the bottom-right
+            button brings it back on EVERY screen; close the Companion →
+            the terminal receives typing again, cleanly.
           </li>
         </ol>
       </div>
@@ -193,10 +206,10 @@ export default function Home() {
           procfs contract, the Phase 4 Companion design contract, and the
           rendering-reset report with the final verdict and the frozen-winner sweep (docs/RENDER-RESET-M4.0.9.md §7–§8).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.8.0-m4.0.11-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.8.0-m4.0.12-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.8.0-m4.0.11-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.8.0-m4.0.12-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -223,10 +236,11 @@ export default function Home() {
         m4.0.4 pixels over promises · m4.0.5 the black page attacked at the
         root · m4.0.6 the page tells us everything · m4.0.7 the host was the
         bug · m4.0.8 the painted-but-black decode ·{" "}
-        m4.0.9 the rendering reset · m4.1.0 the native rebuild ·{" "}
-        <b>v0.8.0-m4.0.11 (this build): replace renderer only — the winner
-        frozen, the baseline renderer copied into the existing sheet,
-        diagnostics stripped</b>.
+        m4.0.9 the rendering reset · m4.1.0 the native rebuild · m4.0.11
+        replace renderer only — the winner frozen ·{" "}
+        <b>v0.8.0-m4.0.12 (this build): companion finalization —
+        diagnostics retired, refresh + hard refresh, easier drag handle,
+        ONE keyboard everywhere, system IME blocked</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>

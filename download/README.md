@@ -1,44 +1,50 @@
 # download/ — delivery masters
 
-Current: v0.8.0-m4.0.11 (payload cut at git tip a391b5d — sandbox-reset
-REBUILD of the vc35 delivery: the code state is identical to fix tip
-f58f02d (zero app/ changes since; only logs/delivery records differ),
-the APK came back BYTE-IDENTICAL (same sha as the original cut, cert
-pin d96a6f66…8bf659 re-verified), and the source zip/tgz/bundle were
-re-cut from the current tip (two delivery scripts + newer worklog
-entries are the only content delta — 334 files vs 332). REPLACE RENDERER
-ONLY — the closing iteration: the winner of the rendering-reset sweep is
-FROZEN (BASELINE — zero deltas from Android defaults; device evidence:
-baseline rendered all four gate sites per your recording, +CHROME UA
-rendered chat.z.ai completely, +MIDNIGHT BG rendered chatgpt.com
-completely) and the existing Companion sheet keeps its drag handle,
-remembered height, tab strip, tab system and destinations — ONLY the tab
-content renderer is the exact copied baseline implementation
-(WebView(realActivity), JS + DOM storage, plain FrameLayout, attach →
-first layout → loadUrl), diagnostics stripped from the canvas; harness
-stays behind the ⓘ chip; versionCode 35)
-- PocketShell-v0.8.0-m4.0.11-debug.apk  sha256 1afcc7dbe69971e6136c64d033915b56269c7ff2b4e615fb78d22b3011a46335
-  Installs IN PLACE over v0.8.0-m4.1.0 (34, unannounced intermediate),
-  v0.7.0-m4.0.9 (33), m4.0.8 (32), m4.0.7 (31), m4.0.6 (30), m4.0.5 (29),
-  m4.0.4 (28), m4.0.3 (27), m4.0.2 (26), m4.0.1 (25), m4.0 (24) and every
-  earlier build (vc16..23) — same pinned cert d96a6f66…8bf659. App data
-  (Alpine runtime, Kilo, Hermes, packages, Companion logins) survives.
-  WHAT THIS BUILD IS: existing Companion sheet + existing tabs + the
-  proven baseline renderer = final Companion. The frozen configuration
-  is pinned by CompanionRenderContractTest (settings surface = JS + DOM
-  storage + two §16 denials, nothing else; create → attach → first
-  layout → loadUrl; plain FrameLayout; real Activity; empty
-  diagnostics-in-render-path). Failure surfaces: exactly "Page didn't
-  load" and "Page renderer crashed" — nothing else exists.
-  · Full suite green: 758 executions / 0 failures (+7 pins).
-  Device gate: docs/TESTING.md §28 — Gates A–H on the REAL Companion.
-  Sweep table + copy map: docs/RENDER-RESET-M4.0.9.md §8. Full record:
-  docs/CHANGELOG [0.8.0-m4.0.11].
-- PocketShell-v0.8.0-m4.0.11-source.zip sha256 a10dbbe47f87dd5d643ba563da348bb0e2819edc50a493ecfb20f6b588795d2c  (32M, 334 files)
-- PocketShell-v0.8.0-m4.0.11-source.tar.gz sha256 1277d21cccd39df7f05f3f9450258d813503a9f5d7dc2b8c7b30563ade6389be  (32 MB)
-- pocketshell-m2.gitbundle           sha256 d617970ca306482281f013722566666c83ad0c5e8f81957fc9042a1b9c218150  (full history; ~28M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, docs/PHASE-4-COMPANION-DESIGN.md, and docs/RENDER-RESET-M4.0.9.md §1–§8 (verdict + frozen winner) — honest, no rewrites)
+Current: v0.8.0-m4.0.12 (payload cut at git tip 1e59c00 — COMPANION
+FINALIZATION, a surgical cleanup-and-polish pass with the working
+renderer FROZEN and byte-identical to m4.0.11: (1) ALL baseline
+diagnostics retired completely — the ⓘ chip, the launch path, the
+harness Activity + BaselineMatrix DELETED, code + manifest; the
+Companion shows only the real website; (2) refresh on the new ↻ strip
+glyph — tap = plain reload of the ACTIVE tab only; long-press = HARD
+refresh, the freshest possible reload that is NOT a data reset (one
+transient LOAD_NO_CACHE restored on page finish; cookies, logins and
+other tabs preserved; haptic + "Hard reloading…" toast); (3) drag
+handle: invisible full-width touch zone 28→40dp, visible bar unchanged
+36×4dp; (4) ONE PocketShell keyboard everywhere — the deck moved to the
+app root over every screen, the system IME permanently blocked
+(FLAG_ALT_FOCUSABLE_IM), universal dispatch fallback serves Compose
+text fields, WebView-input focus auto-opens the deck, bottom-right [⌨]
+toggle on every screen, Companion collapse restores terminal focus;
+(5) untouched: renderer recipe, sheet, drag mechanics, remembered
+height, tab system, tab state, destination storage, navigation,
+provider management. Frozen configuration pinned by
+CompanionRenderContractTest — winner pinned by VALUE. Failure surfaces:
+exactly "Page didn't load" and "Page renderer crashed" — nothing else.
+versionCode 36)
+- PocketShell-v0.8.0-m4.0.12-debug.apk  sha256 679dff59a5290260dbf543209bf0eb5c9df7b1cc062b0d743c69f50c7e62f990
+  Installs IN PLACE over v0.8.0-m4.0.11 (35), v0.8.0-m4.1.0 (34,
+  unannounced intermediate), v0.7.0-m4.0.9 (33), m4.0.8 (32), m4.0.7
+  (31), m4.0.6 (30), m4.0.5 (29), m4.0.4 (28), m4.0.3 (27), m4.0.2 (26),
+  m4.0.1 (25), m4.0 (24) and every earlier build (vc16..23) — same
+  pinned cert d96a6f66…8bf659. App data (Alpine runtime, Kilo, Hermes,
+  packages, Companion logins) survives.
+  WHAT THIS BUILD IS: the finalization pass the Phase 4 brief asked
+  for — diagnostics gone, refresh + hard refresh, easier drag handle,
+  ONE keyboard everywhere, no Android keyboard, no second layout, and
+  NOT ONE LINE changed in the working renderer.
+  · Full suite green: 750 executions / 0 failures (contract re-pinned
+    by value + refresh-layer pins; harness test retired with the code).
+  Device gate: docs/TESTING.md §29 — the finalization gates
+  (rendering re-proof, refresh normal + hard, drag handle, universal
+  keyboard, regression ladder).
+  Sweep evidence + frozen winner: docs/RENDER-RESET-M4.0.9.md §1–§8.
+  Full record: docs/CHANGELOG [0.8.0-m4.0.12].
+- PocketShell-v0.8.0-m4.0.12-source.zip sha256 2752f2ff8cf653904e6c0957042b9f2134276823714ddbaffe7fca80d0c88db9  (32M, 330 files)
+- PocketShell-v0.8.0-m4.0.12-source.tar.gz sha256 3ffe35e4db2ed3d713ba8329bfba66d47688d749affc6a214d8494d961347988  (32 MB)
+- pocketshell-m2.gitbundle           sha256 ed44868d4d83188facf761bef975d591d748d7f12348d3ea9fe0c06437a4baaa  (full history; ~28M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, docs/PHASE-4-COMPANION-DESIGN.md, and docs/RENDER-RESET-M4.0.9.md §1–§8 (verdict + frozen winner) — honest, no rewrites)
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
-Older builds: withdrawn (v0.7.0-m4.0.9 and the unannounced v0.8.0-m4.1.0
-intermediate superseded by m4.0.11; their records live in the bundle
-history — see docs/CHANGELOG for each confirmed fix).
+Older builds: withdrawn (v0.8.0-m4.0.11 superseded by m4.0.12; its
+record lives in the bundle history — see docs/CHANGELOG for each
+confirmed fix).

@@ -1087,3 +1087,25 @@ Work Log:
 
 Stage Summary:
 - :3000 delivery fully restored — APK/zip/tgz/bundle all 200, served bytes match the pinned sha256. APK byte-identical to shipped vc35: users can install in place, no README APK-pin change needed. Record committed to git.
+
+---
+Task ID: 4.0.12
+Agent: Super Z (main)
+Task: Phase 4 Companion Finalization — surgical cleanup + polish (renderer FROZEN)
+
+Work Log:
+- Recon: mapped the whole stack — CompanionWebHost (frozen baseline renderer), CompanionLayer (sheet/handle/strip/canvas), CompanionTabStrip (ⓘ chip), TerminalKeyboard/TerminalKeyDispatcher/KeyboardInputRouter (the ONE keyboard), MainActivity (root state + conditional IME block), TerminalScreen (deck host). Found the m4.0.3 focus bridge (webTarget/terminalTarget, dispatchKeyEvent — real KeyEvents, no JS) already proven on device.
+- (1) Diagnostics retired COMPLETELY: ⓘ chip → removed; DiagnosticsTabButton → replaced by refresh; launchRenderBaseline + BaselineWebViewActivity import removed; diagnostic/ package (BaselineWebViewActivity.kt, BaselineMatrix.kt) + BaselineMatrixTest DELETED; manifest entry removed. CompanionRenderContract unchanged in substance — winner pinned by VALUE; kdoc updated.
+- (2) Refresh: CompanionWebHost.reload(defId) = plain reload of the ACTIVE tab; reloadHard(defId) = transient WebSettings.LOAD_NO_CACHE around one reload, restored to LOAD_DEFAULT in onPageFinished (per-tab; other tabs never touched; cookies/sessions preserved; hardReloadInFlight cleaned on forget/clear/renderer-gone). RefreshTabButton in the strip (28dp, strip language): tap = reload, long-press = haptic LongPress + toast "Hard reloading…" + hard reload. Contract: REFRESH_SCOPE + HARD_RELOAD pinned.
+- (3) Drag handle: HANDLE_ZONE 28→40dp (invisible full-width touch zone; bar unchanged 36×4dp); above the strip in the column, no canvas overlap.
+- (4) ONE keyboard everywhere: TerminalKeyboardDeck + dispatcher moved from TerminalScreen → PocketShellRoot (deck over EVERY screen; terminal pads above the inset). System IME permanently blocked: FLAG_ALT_FOCUSABLE_IM + SOFT_INPUT_STATE_ALWAYS_HIDDEN + ime inset hidden in MainActivity.onCreate (was conditional — leaked back when the deck was hidden). Universal dispatch chain: KeyboardInputRouter.resolve() ?: activity.currentFocus (pickWithFallback, unit-pinned) — serves Compose text fields (Companion settings Name/URL). Focus-follows: KeyboardInputRouter.onWebFocusGained fired on WebView focus → root auto-opens the deck. [⌨] rebirth button now on every screen (same rectangular key-box design, same slot). Companion collapse → terminal focus restored (LaunchedEffect in CompanionLayer). §22 untouched (window flag only, no webkit at startup).
+- Renderer/sheet/tabs/tab system/destination storage: ZERO changes.
+- Tests: contract test reworked (winner by value + 4-touch creation surface + no-cacheMode + refresh pins); router +3 fallback pins. Suite: 750 executions / 0 failures (BaselineMatrixTest's 13 pins retired with the harness).
+- Version 36 / 0.8.0-m4.0.12. Docs: TESTING §29 (finalization gates), CHANGELOG [0.8.0-m4.0.12], ROADMAP Phase 4.0.12, ARCHITECTURE §4 (universal chain + permanent IME block). Cutter: VERSION + new WHAT-IS-NEW, m4.0.11 demoted; must-carry: -2 diagnostic files, +KeyboardInputRouter.kt. New scripts/mirror_m4012.sh (explicit stale names only).
+- Build: vc36 (aapt2 badging OK: versionCode 36 / 0.8.0-m4.0.12; cert d96a6f66…8bf659 re-verified). Fix commit at tip 1e59c00 → payload cut AT that tip → mirror three-way VERIFIED.
+- shas: apk 679dff59… / zip 2752f2ff… / tgz 3ffe35e4… / bundle ed44868d… (330 files). page.tsx + download/README.md updated with cut shas; server restarted; all four artifacts HTTP 200; served APK re-hashed = 679dff59… (end-to-end OK).
+
+Stage Summary:
+- v0.8.0-m4.0.12 (vc36) delivered end-to-end: the finalization pass executed exactly as directed — diagnostics GONE (deleted, not hidden), refresh/hard-refresh in, handle easier to grab, ONE keyboard over every screen with the system IME never appearing — and the proven renderer untouched (byte-identical recipe).
+- THE ASK TO THE USER: install vc36 in place and run docs/TESTING.md §29 — especially 29.4 (universal keyboard: ChatGPT input → deck auto-opens → typing lands in the page; settings Name/URL fields via the same deck; toggle on every screen) and 29.2 (hard refresh keeps you logged in). Known honest edge: hiding the deck and re-tapping the SAME field does not auto-reopen it (use the [⌨] toggle) — a different field/surface does.
+- Carried deferred (unchanged): Kilo tile direct launch; CommandApps.kt de-hardcoding; Diagnostics/Package Manager/Settings redesign to Home 3.3/3.4 language.
