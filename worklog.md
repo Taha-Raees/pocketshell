@@ -1209,3 +1209,19 @@ Stage Summary:
 - Deliverable: download/PocketShell-Runtime-Forensic-Audit.pdf (34 pages, ~294 KB) - 19 chapters: exec summary, repo/provenance, launch-chain sequence diagram, Termux/PRoot audits, targetSdk-28 exec model, /proc classification, ELF/libc strategy (glibc sidecar recommended; gcompat rejected on evidence), tool matrix, storage, session model, Companion capacity (inference pending TESTING 32.2E), perf risk register, security (uid=0 illusion bounds), 30 explicit answers, KEEP/MODIFY/ADD/REPLACE, Runtime 2.0 proposal + prebuilt payload strategy, roadmap (P0 evidence -> P1 sidecar MVP -> P2 resource policy), device-experiment unknowns.
 - Headline recommendations: biggest architectural risk = musl-only guest (glibc sidecar prefix /pocketshell/runtime/glibc-aarch64 via existing pinned pipeline); keep proot (measure overhead, do not rewrite); keep Alpine; targetSdk 28 is load-bearing; Companion policy stays (measure first, no silent eviction); two small terminal fixes queued (ctrl map, cursor blinker).
 - Cross-report note: "Cline ARM64 musl failure" in the tasking maps to the recorded Antigravity CLI (glibc) + Kilo Code (Bun/procfs) incidents; reconcile with the Kilo guest-side report before Runtime 2.0 decisions.
+
+---
+Task ID: audit-report-upload
+Agent: main (Super Z)
+Task: Upload the completed Runtime Forensic Audit PDF onto the Next.js download app so the user can download it.
+
+Work Log:
+- Re-verified post-compaction state: worklog confirms Task audit-runtime-2026-09-06 already produced download/PocketShell-Runtime-Forensic-Audit.pdf (34 pages, QA chain green); dev server platform-managed on :3000 (HTTP 200); PDF sha256 0e0a2bf8363647aece215f4f0a00b658debb3d42a443b480d564b01cd7d17c0d (300,658 B).
+- Uploaded: copied the PDF into public/ (Next.js static serving root) — byte-identical copy.
+- page.tsx: added HASHES.report pin + a new "Platform / Runtime Forensic Audit" card (PDF · 34 pages badge, summary of the 19 chapters, "Download audit report" secondary button) placed directly after the primary release card.
+- download/README.md: added the report entry with its sha256 pin (force-added per convention).
+- Verification: page HTML contains the new card and href; /PocketShell-Runtime-Forensic-Audit.pdf -> HTTP 200 Content-Type application/pdf; served bytes re-hashed byte-identical (0e0a2bf8...); all 4 existing artifacts still HTTP 200 at exact sizes (APK 22,573,575 / zip 33,602,989 / tgz 33,469,561 / bundle 29,126,612).
+- Committed the re-pin: 7f29406 (page.tsx + download/README.md via git add -f). No other code touched.
+
+Stage Summary:
+- The forensic audit report is now live on the Next.js download app next to the v0.9.1-m5.1.0 artifacts: preview page -> "Platform / Runtime Forensic Audit" card, or direct path /PocketShell-Runtime-Forensic-Audit.pdf. Release artifacts untouched; repo re-pinned at 7f29406.

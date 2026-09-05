@@ -284,3 +284,25 @@ $ next dev -p 3000
  GET / 200 in 310ms
  GET / 200 in 343ms
  GET / 200 in 123ms
+ GET / 200 in 361ms
+ GET / 200 in 403ms
+ GET / 200 in 195ms
+ GET / 200 in 122ms
+ GET / 200 in 122ms
+ GET / 200 in 376ms
+ GET / 200 in 334ms
+ GET / 200 in 153ms
+ GET / 200 in 125ms
+ GET / 200 in 128ms
+ GET / 200 in 234ms
+ GET / 200 in 111ms
+ GET / 200 in 158ms
+ GET / 200 in 144ms
+ GET / 200 in 131ms
+ GET / 200 in 148ms
+ GET / 200 in 173ms
+ ✓ Compiled in 454ms (312 modules)
+ ✓ Compiled in 93ms (312 modules)
+ GET / 200 in 316ms
+ GET / 200 in 125ms
+ GET / 200 in 169ms
