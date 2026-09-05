@@ -37,6 +37,18 @@ object BaselineMatrix {
     /** The control: everything Android default, load after first layout. */
     val BASELINE = Variant("baseline", "BASELINE (Android defaults)")
 
+    /**
+     * m4.0.11 — THE FROZEN WINNER ("Replace Renderer Only"). The device
+     * sweep settled it: BASELINE rendered complete real pages on all four
+     * gate sites (user recording); +CHROME UA (chat.z.ai, full UI) and
+     * +MIDNIGHT BG (chatgpt.com, full UI) also rendered complete — both
+     * exonerated as suspects. The winner is the mode with ZERO deltas:
+     * the most stable and least invasive BY CONSTRUCTION, and the exact
+     * configuration the production host copies — pinned in
+     * app.pocketshell.companion.CompanionRenderContract.
+     */
+    val WINNER = BASELINE
+
     /** One variable at a time, against [BASELINE] — the A/B discipline. */
     val VARIANTS = listOf(
         BASELINE,

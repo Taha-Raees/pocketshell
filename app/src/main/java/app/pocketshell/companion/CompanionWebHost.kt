@@ -64,6 +64,14 @@ import java.lang.ref.WeakReference
  * the parent chain (the overlay's AndroidView node instead of the
  * activity's content view) — unavoidable by product definition, and now
  * the only suspect left if anything should still blank.
+ *
+ * m4.0.11 — FROZEN as the shipped renderer ("Replace Renderer Only"):
+ * the sheet, drag handle, remembered height, tab strip, tab system,
+ * picker and destination storage above this file are untouched; the only
+ * change across the iterations was swapping the tab content renderer for
+ * the exact baseline implementation below, diagnostics stripped. The
+ * frozen configuration is specified in [CompanionRenderContract] and
+ * unit-pinned; this file must implement that contract verbatim.
  */
 object CompanionWebHost {
 

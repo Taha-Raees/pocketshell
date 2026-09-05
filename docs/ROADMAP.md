@@ -576,3 +576,29 @@ remote development.
 - [ ] Device gate §27: Gates E–H on the physical device (real UIs in the
       panel, touch/keyboard, tab-switch + collapse/reopen persistence,
       session survival), §27.5 regression spot-checks.
+
+### Phase 4.0.11 (2026-09-05, v0.8.0-m4.0.11) — Replace Renderer Only: the winner frozen and shipped
+- [x] The user's closing directive executed verbatim: no Companion
+      redesign, no sheet-architecture changes — the existing drag
+      handle, sheet behavior, remembered height, tab strip, tab system,
+      picker and destination storage untouched; ONLY the tab content
+      renderer was (already) replaced with the exact winning baseline
+      implementation, diagnostics stripped.
+- [x] Mode sweep completed from device evidence: BASELINE (all four
+      gates, recording) + +CHROME UA (chat.z.ai full UI, screenshot) +
+      +MIDNIGHT BG (chatgpt.com full UI, screenshot). Winner = BASELINE
+      — most stable and least invasive by construction.
+- [x] Winner frozen in code: `BaselineMatrix.WINNER` + new pure
+      `CompanionRenderContract` (settings surface, load sequence, host
+      container, creation context, empty diagnostics-in-render-path);
+      the m4.1.0 host header now names the freeze.
+- [x] Pins: `CompanionRenderContractTest` (6) + winner pin in
+      `BaselineMatrixTest`. Suite: 758 executions / 0 failures.
+- [x] docs/RENDER-RESET-M4.0.9.md §8 (sweep table + copy map + case
+      closed), TESTING §28 (final Gates A–H), CHANGELOG.
+- [x] versionCode 35 — the delivery of the m4.1.0 architecture under
+      its final, user-named iteration.
+- [ ] Device gate §28: Gates A–H on the physical device (the complete
+      acceptance: real UIs on the two hard sites, touch/keyboard, tab
+      switch + collapse/reopen persistence, session survival), §28.3
+      regression spot-checks.

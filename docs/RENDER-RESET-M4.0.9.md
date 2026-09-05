@@ -177,3 +177,74 @@ is the parent chain (the overlay's AndroidView node instead of the
 activity content view) — unavoidable by product definition and the only
 suspect left if anything should still blank. The harness stays in the
 build (Companion → ⓘ) as the standing render diagnostic.
+
+## 8. m4.0.11 — THE FROZEN WINNER, SHIPPED ("Replace Renderer Only") — 2026-09-05, vc35
+
+The user's closing directive bounded the final iteration: **do not
+redesign the Companion, do not touch the sheet architecture — copy the
+winning baseline WebView container/view implementation as the actual
+content renderer inside the existing sheet, and strip the diagnostics
+around it.** This section records the completed mode sweep, the winner
+selection, and the copy execution.
+
+### 8.1 The completed mode sweep (device, 2026-09-05)
+
+| Mode | Site shown | Result | Evidence |
+|---|---|---|---|
+| **BASELINE** | all four gate sites | **complete real UIs** | user recording (§7) |
+| **+CHROME UA** | chat.z.ai | **complete real UI** | screenshot 03:00 — GLM-5.3-Flash picker, "What can I build for you?", composer, Deep Think Max |
+| **+MIDNIGHT BG** | chatgpt.com | **complete real UI** | screenshot 03:25 — header, "What are you working on?", composer, suggestion chip |
+| +FORCED LIGHT CTX | — | not needed | moot for the decision below |
+| +LOAD BEFORE ATTACH | — | not needed | moot for the decision below |
+| +WIDE VIEWPORT | — | not needed | moot for the decision below |
+
+All statuses read healthy geometry (`attached=true 1080x2021px
+visible=0,580-1080,2601 layer=none`), WebView 151.0.7922.199. The two
+variant screenshots additionally exonerate the Chrome-UA spoof and the
+background override as *suspects* — neither can blank a page by itself.
+
+### 8.2 The winner: BASELINE (zero deltas)
+
+Per the directive — "select the most stable and least invasive winner" —
+the winner is **BASELINE**: it is the only mode that touches nothing
+(zero deltas from Android defaults BY CONSTRUCTION), and it is the mode
+with the strongest evidence (all four gate sites, complete UIs). The
+declaration is frozen in code: `BaselineMatrix.WINNER` (pinned by
+`BaselineMatrixTest`) and `CompanionRenderContract` (pinned by
+`CompanionRenderContractTest`) — the exact settings surface, the
+`create -> attach -> first layout -> loadUrl` sequence, the plain
+`FrameLayout` host, the real-Activity constructor context, and an empty
+diagnostics-in-render-path list.
+
+### 8.3 The copy, executed (what production now is)
+
+```
+Harness (proven)                    Companion (shipped, m4.0.11)
+─────────────────────────────       ─────────────────────────────────
+Activity                            PocketShell Activity
+  LinearLayout (status + buttons)     Compose sheet chrome (untouched:
+  FrameLayout #0B0F1A canvas          handle, strip, picker, heights)
+    WebView(activity)                   FrameLayout (CompanionWebHost.canvas)
+      JS + DOM storage only               WebView(activity) — same recipe
+      attach                              attach (view surgery)
+      doOnLayout { loadUrl }              doOnLayout { loadUrl }
+```
+
+Removed from production around the copied renderer (diagnostics only —
+the WebView setup byte-identical in spirit): the harness status header
+and its URL ▸ / MODE ▸ / INSPECT / COPY buttons live ONLY in the
+diagnostic Activity behind the tab strip's ⓘ chip; the render path
+carries no probes, no witnesses, no console capture, no health polling,
+no evaluateJavascript. The four kept non-render touches on the settings
+object are pinned in `CompanionRenderContract.SETTINGS_TOUCHES` (the two
+baseline settings + two §16 hardening denials that cannot affect https).
+
+### 8.4 Case status
+
+INVESTIGATION CLOSED. Eight iterations (m4.0.3–m4.1.0), one control
+experiment, one architecture decision, one surgical copy. The remaining
+unknown is not a code question but a device question: Gates A–H on the
+shipped build (docs/TESTING.md §28). If anything still blanks, the one
+remaining delta (the overlay's AndroidView parent chain) is the entire
+investigation — every other variable is now identical to the proven
+baseline.

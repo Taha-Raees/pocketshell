@@ -1371,3 +1371,53 @@ device, by eye and finger.
 - [ ] If ANY gate still blank: do NOT reinstate removed levers — copy the
       ⓘ → Render baseline status + this tab's state into the chat; the
       one remaining delta (panel parent chain) is the investigation.
+
+---
+
+## 28. Manual acceptance — m4.0.11 (Replace Renderer Only: the winner frozen and shipped, v0.8.0-m4.0.11) — DEVICE GATE PENDING
+
+The closing gate of the whole investigation. The winner of the m4.0.9
+mode sweep is FROZEN (BASELINE — zero deltas; the sweep table lives in
+docs/RENDER-RESET-M4.0.9.md §8) and the production tab content renderer
+is the exact copy of the proven baseline implementation, diagnostics
+stripped (`CompanionRenderContract`, unit-pinned). The sheet, drag
+handle, remembered height, tab strip, tab system, picker and destination
+storage are untouched. Install **vc35 in place** (over anything) and run
+the eight gates — by eye and finger, on the physical device.
+
+### 28.1 The eight gates (A–H, on the REAL Companion)
+- [ ] **Gate A:** add/open an example.com Companion → the page is visible.
+- [ ] **Gate B:** a "modern site" tab (wikipedia.org) renders and scrolls.
+- [ ] **Gate C:** the ChatGPT tab shows the REAL ChatGPT UI (composer,
+      header — not a blank white/dark canvas).
+- [ ] **Gate D:** the Z.ai tab shows the REAL Z.ai UI (GLM header, Z
+      logo, composer).
+- [ ] **Gate E (touch):** tap into the page's input; the Phase 3.1
+      keyboard opens and typing reaches the page; links respond.
+- [ ] **Gate F:** switch ChatGPT → Z.ai → back — each tab still displays
+      its page (no reload, no blank).
+- [ ] **Gate G:** drag the panel down (collapse) and raise it again —
+      the page is STILL displayed; drag is 1:1, one reflow on release,
+      height remembered.
+- [ ] **Gate H:** log into a site, kill PocketShell, reopen, reopen the
+      tab — the session SURVIVES (cookie flush on pause).
+
+### 28.2 The frozen contract, spot-checked
+- [ ] The canvas shows NO diagnostics: no URL/MODE/INSPECT/COPY buttons,
+      no status header, no health chip sheet — only the page (ⓘ in the
+      strip still launches the separate render-baseline harness; the
+      canvas itself is clean).
+- [ ] The failure states are the only cards: airplane mode → "Page
+      didn't load" (Retry / Open in browser / Continue anyway); no
+      watchdog, no stall, no boot cards exist anywhere.
+- [ ] ⓘ → Render baseline still works (regression of the control).
+
+### 28.3 Regression
+- [ ] Terminal (PTY output, keyboard, pinch), Linux runtime install,
+      packages, Home, Settings, Diagnostics: §4–§16 spot-checks.
+- [ ] Settings → Companions → Clear web data still wipes cookies/storage
+      + live tabs, keeps definitions.
+- [ ] If ANY gate fails: do NOT reinstate removed levers. Capture the
+      state (ⓘ → Render baseline → COPY) and paste it into the chat —
+      the sole remaining delta to the proven baseline is the overlay's
+      AndroidView parent chain, and that is the entire investigation.

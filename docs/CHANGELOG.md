@@ -3,6 +3,57 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.8.0-m4.0.11] — 2026-09-05 — Replace Renderer Only: the winner frozen and shipped
+
+The user's closing directive bounded this iteration precisely: **do not
+redesign the Companion, do not touch the sheet architecture — copy the
+winning baseline WebView container/view implementation as the actual
+content renderer inside the existing sheet, then remove the diagnostics
+around it.** This is the delivery build of that directive, finalizing the
+m4.1.0 intermediate (vc34, committed but never fully delivered) under its
+final name. Nothing new was designed; the winning renderer was frozen,
+pinned and shipped.
+
+### The winner, selected and frozen
+- Mode-sweep evidence completed: BASELINE rendered all four gate sites
+  (user recording, m4.0.9); **+CHROME UA rendered chat.z.ai completely**
+  (device screenshot 03:00) and **+MIDNIGHT BG rendered chatgpt.com
+  completely** (device screenshot 03:25) — both exonerated as suspects.
+  The remaining three variants are moot for the decision.
+- The winner is **BASELINE** — the most stable and least invasive mode
+  BY CONSTRUCTION (zero deltas from Android defaults). Frozen as
+  `BaselineMatrix.WINNER` and specified in the new pure
+  `CompanionRenderContract`: the exact settings surface (JS + DOM
+  storage + the two §16 denials — nothing else), the
+  `create -> attach -> first layout -> loadUrl` sequence, the plain
+  `FrameLayout` host, the real-Activity constructor context, and an
+  EMPTY diagnostics-in-render-path list.
+
+### The surgical replacement (what shipped)
+- Companion sheet, drag handle, remembered height, tab strip, tab
+  system (+/close/picker), destination storage, provider management:
+  **UNTOUCHED** — by directive.
+- The tab content area renders through the copied baseline unit:
+  `Activity → (sheet chrome) → ONE stable plain FrameLayout → one
+  WebView(realActivity) per tab → attach → first layout → loadUrl`.
+- The visible diagnostic wrapper is gone from production: no URL ▸ /
+  MODE ▸ / INSPECT / COPY chrome, no status header, no health sheet in
+  the render path — only the page. The harness survives as the
+  diagnostic Activity behind the tab strip's ⓘ chip.
+
+### Tests
+- 758 executions / 0 failures (both modules × debug+release). New:
+  `CompanionRenderContractTest` (6 pins — winner identity, flag
+  equivalence with the baseline, the exact four-touch settings surface,
+  the load sequence, the host structure, the diagnostic-free render
+  path) + the winner pin in `BaselineMatrixTest`.
+
+### Build
+- versionCode 35 (`0.8.0-m4.0.11`), pinned debug cert (installs in
+  place). Device gate: docs/TESTING.md §28 — Gates A–H on the real
+  Companion; full sweep table and copy map in
+  docs/RENDER-RESET-M4.0.9.md §8.
+
 ## [0.8.0-m4.1.0] — 2026-09-05 — Companion Native Rebuild: the Companion is rebuilt around the proven baseline (decision B, executed)
 
 The m4.0.9 control experiment settled the blank-canvas case on the

@@ -25,6 +25,18 @@ class BaselineMatrixTest {
     }
 
     @Test
+    fun `m4_0_11 the declared winner is the baseline and stays single-variable`() {
+        // The device sweep (2026-09-05) rendered complete pages on BASELINE
+        // (all four gate sites, user recording), +CHROME UA and +MIDNIGHT BG
+        // (device screenshots). The winner is the zero-delta control — the
+        // most stable and least invasive by construction — and the copy
+        // source for the production renderer (CompanionRenderContract).
+        assertEquals(BaselineMatrix.BASELINE, BaselineMatrix.WINNER)
+        assertEquals(0, BaselineMatrix.VARIANTS.indexOfFirst { it.key == BaselineMatrix.WINNER.key })
+        assertTrue(BaselineMatrix.isSingleVariable(BaselineMatrix.WINNER))
+    }
+
+    @Test
     fun `every other variant differs from the baseline by exactly one variable`() {
         // The A/B discipline: a device result can name the breaking layer
         // only if no variant confounds two variables.
