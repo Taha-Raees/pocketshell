@@ -1248,3 +1248,18 @@ Stage Summary:
 - v0.10.0-m6.0.0 (vc40) delivered end-to-end: ONE Alpine guest now runs musl + glibc + static ARM64 software transparently; the Cline-class loader failure is closed and permanently guarded by runtime-tests/. The forensic audit's Runtime 2.0 headline (glibc sidecar) is implemented exactly as recommended, with zero changes to the terminal, keyboard, Companion, session model, procfs contract or rootfs pin.
 - THE ASK TO THE USER: install vc40 in place, open ONE fresh session (the layer self-installs), run the suite per docs/TESTING.md §33: curl -fsSL <mirror>/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C /tmp && sh /tmp/pocketshell-tests/run_on_device.sh — expect 24 PASS / ALL GREEN incl. Cline 3.0.61; then CLINE_DEEP_TEST=1 with credentials.
 - NEXT (per audit roadmap, after this gate): /proc-net sysdata overlays, sysdata liveness, Companion capacity measurements from TESTING §32 — never all at once.
+
+---
+Task ID: m6000-server-restore
+Agent: main (Super Z)
+Task: "Download server not running" — restore :3000 delivery chain (post-M6.0.0)
+
+Work Log:
+- User reported server down; confirmed no node/next process, :3000 not listening (only caddy + Gradle/Kotlin daemons from the vc39-era build were resident, ~2.2 GB RSS combined on the 4 GB box).
+- Freed memory first: gradlew --stop + KotlinCompileDaemon kill (used 2635 MB -> 427 MB), since a dev-server spawn under memory pressure risks OOM.
+- First nohup attempt died silently (orphaned process reaped); second attempt via setsid + node direct entrypoint (node node_modules/next/dist/bin/next dev -p 3000) is stable: Ready in 1.7 s, next-server v15.5.25.
+- Verified the full M6.0.0 (vc40) delivery chain end-to-end: page 200 with M6.0 content; all 7 artifacts HTTP 200; served bytes re-hashed byte-identical to every pin in page.tsx HASHES — apk 16fc63ed…, zip 50f80df9…, tgz 0c9f92ee…, bundle 00ec6d1c…, tests deac812b…, glibc 2242f8ef…, audit report 0e0a2bf8…. Old v0.9.1-m5.1.0 names correctly 404 (withdrawn at the M6 cut).
+- Git tree clean (only dev.log churn); HEAD 5633388 on top of the M6.0.0 re-pin 85dcf04. No code changes needed — the delivery chain itself was intact; only the process was gone.
+
+Stage Summary:
+- :3000 restored and sha-verified for v0.10.0-m6.0.0 (vc40) + glibc sidecar + runtime-tests + audit PDF. Mission state unchanged: M6.0.0 delivered; awaiting the user's device gate per docs/TESTING.md §33 (fresh session -> layer self-installs -> run_on_device.sh expect 24/24 incl. Cline 3.0.61; CLINE_DEEP_TEST=1 optional with credentials).
