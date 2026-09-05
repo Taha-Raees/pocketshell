@@ -1109,3 +1109,22 @@ Stage Summary:
 - v0.8.0-m4.0.12 (vc36) delivered end-to-end: the finalization pass executed exactly as directed — diagnostics GONE (deleted, not hidden), refresh/hard-refresh in, handle easier to grab, ONE keyboard over every screen with the system IME never appearing — and the proven renderer untouched (byte-identical recipe).
 - THE ASK TO THE USER: install vc36 in place and run docs/TESTING.md §29 — especially 29.4 (universal keyboard: ChatGPT input → deck auto-opens → typing lands in the page; settings Name/URL fields via the same deck; toggle on every screen) and 29.2 (hard refresh keeps you logged in). Known honest edge: hiding the deck and re-tapping the SAME field does not auto-reopen it (use the [⌨] toggle) — a different field/surface does.
 - Carried deferred (unchanged): Kilo tile direct launch; CommandApps.kt de-hardcoding; Diagnostics/Package Manager/Settings redesign to Home 3.3/3.4 language.
+
+---
+Task ID: 4.0.12-redelivery
+Agent: Super Z (main)
+Task: "Server not running" — restore :3000 delivery chain after sandbox reset #10
+
+Work Log:
+- User reported server down; confirmed no listener on :3000, no bun/next processes. Project tree intact (no recycle at first probe) -> spawned dev server via orphan_spawn dev3000; page HTTP 200.
+- All four artifact links 404 -> deeper check revealed sandbox reset #10: /home/z/tools (JDK), /home/z/android-sdk, public/, dist-master/, download/ binaries ALL wiped; only download/README.md survived. Git tip 6640d11 (IM-gateway auto-commit touching only dev.log, on top of 395cc59/1e59c00 — the m4.0.12 finalization delivery).
+- Reinstalled toolchain via scripts/install_toolchain.sh (~40s: JDK 21.0.12.1+1, cmdline-tools 11076708, platform-36, build-tools 36.0.0, NDK 28.2.13676358); local.properties rewritten.
+- Build attempt 1: gradle daemon OOM-killed by kernel (dmesg: java pid 2332, anon-rss 2.7GB) even with dev server stopped. Attempt 2 (same profile): BUILD SUCCESSFUL in 1m30s (53 tasks up-to-date from attempt 1's work).
+- APK sha256 = 679dff59a5290260dbf543209bf0eb5c9df7b1cc062b0d743c69f50c7e62f990 — BYTE-IDENTICAL to the delivered vc36 pin; cert d96a6f66…8bf659 re-verified; aapt2: versionCode 36 / 0.8.0-m4.0.12.
+- Placed APK in download/, ran make_payload_m2.sh (cut at recovery tip): all must-carry checks pass, 330 files (same count as original cut). New archive shas: zip c2bf5980… / tgz b42c2dbc… / bundle 86648801… (archives differ from original pins because the tree now carries the final page/README/worklog commits that postdated the original cut at 1e59c00; code state identical). APK pin unchanged.
+- mirror_m4012.sh: stale withdrawal (no-op, nothing stale on disk), distribution to dist-master/ + download/, MIRROR VERIFIED three-way.
+- Updated app/page.tsx HASHES + download/README.md (new archive shas + honest provenance paragraph). Committed 8137c91 (git add -f download/README.md).
+- Restarted dev server (orphan_spawn dev3000): page 200, all four artifacts HTTP 200, served APK re-hashed over HTTP = 679dff59… (end-to-end OK).
+
+Stage Summary:
+- :3000 delivery fully restored after reset #10 — v0.8.0-m4.0.12 (vc36) artifacts all served and sha-verified; APK byte-identical so the shipped pin and install-in-place story are untouched. m4.0.12 scope itself unchanged: the finalization build awaiting the user's device gate (docs/TESTING.md §29).
