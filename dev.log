@@ -356,3 +356,15 @@ $ next dev -p 3000
  ○ Compiling / ...
  ✓ Compiled / in 3.8s (539 modules)
  GET / 200 in 4232ms
+ GET / 200 in 353ms
+ GET / 200 in 340ms
+ GET / 200 in 148ms
+ GET / 200 in 135ms
+ GET / 200 in 153ms
+ GET / 200 in 136ms
+ GET / 200 in 142ms
+ GET / 200 in 279ms
+ GET / 200 in 146ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 563ms (530 modules)
+ GET /README.md 404 in 782ms

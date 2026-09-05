@@ -1281,3 +1281,18 @@ Stage Summary:
 - v0.10.0-m6.0.1 (vc41) delivered end-to-end: the layer install is now OBSERVABLE from inside the guest, the suite diagnoses instead of failing noisily, and a user can self-repair without waiting for the app. The m6.0.0 layer bytes are unchanged — the gate's 6 FAILs were absence + silence, not a broken layer (proven by the contaminated-rootfs reproduction).
 - THE ASK TO THE USER: install vc41 in place, fully close + reopen the app, open ONE fresh session, re-run §33.1 — expect 24 PASS / ALL GREEN incl. Cline. If the verdict is still LAYER NOT INSTALLED, the PREFLIGHT block now says exactly why (status file line = app-side failure reason) — paste it. Escape hatch: POCKETSHELL_INSTALL_LAYER=1 sh run_on_device.sh with the layer tarball beside the suite.
 - NEXT (per audit roadmap, after this gate): /proc-net sysdata overlays, sysdata liveness, Companion capacity measurements — never all at once.
+
+---
+Task ID: preview-url-troubleshoot
+Agent: main (Super Z)
+Task: "This what I am seeing instead of downloading page" (screenshot: chat.z.ai workspace file browser, right pane "No content")
+
+Work Log:
+- Screenshot diagnosis: user tapped the workspace/download icon in the chat message header, which opens the chat platform's raw workspace file browser (project root tree: app/docs/gradle/... + "No content" right pane) — NOT the Next.js download app. Nothing is selected in that tree, hence "No content". Platform UI confusion, not a server fault.
+- Verified delivery chain end-to-end: next-server (v15.5.25, pid 28821) alive on :3000 since 21:53; page 200 and renders v0.10.0-m6.0.1 content.
+- All 7 served artifacts HTTP 200 at exact pinned sizes: APK 29,816,643 / source.zip 48,758,021 / source.tar.gz 48,612,334 / git bundle 36,705,116 / runtime-tests 720,991 / glibc sidecar 6,761,290 / audit PDF 300,658. README.md 404 is by design (local manifest only, not a page item).
+- Recovered the public preview domain from dev.log cross-origin warning: preview-chat-af9ee1f3-ca8c-465f-89b3-fb2137e3b7e6.space-z.ai (chat_id matches IM gateway metadata) — proves the platform gateway already proxies this domain to :3000.
+- No code or config changes made.
+
+Stage Summary:
+- Delivery chain 100% healthy; the user was in the chat workspace browser, not the app preview. Correct entry: https://preview-chat-af9ee1f3-ca8c-465f-89b3-fb2137e3b7e6.space-z.ai/ (or direct /PocketShell-v0.10.0-m6.0.1-debug.apk). Mission state unchanged: awaiting vc41 §33.1 device gate.
