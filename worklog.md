@@ -1054,3 +1054,17 @@ Stage Summary:
 - v0.8.0-m4.0.11 (vc35) delivered end-to-end: the surgical replacement the user directed — Existing Companion Sheet + Existing Tabs + Proven Baseline Renderer — with the winner FROZEN in pinned code (BASELINE, zero deltas) and the canvas carrying zero diagnostics.
 - THE ASK TO THE USER: install vc35 in place and run TESTING §28 Gates A–H on the REAL Companion (ChatGPT + Z.ai real UIs, touch/keyboard, tab switch, collapse/reopen, session survival). This closes the investigation; if ANY gate fails, the ⓘ harness status paste is the next (and only remaining) lead.
 - Carried tasks unchanged: Kilo tile direct launch; CommandApps.kt registry de-hardcoding; Diagnostics/Package Manager/Settings redesign to Home 3.3/3.4 language; deferred keyboard-toggle Bug 2.
+
+---
+Task ID: 4.0.11-ops
+Agent: Super Z (main)
+Task: Re-run dev server on :3000 (user request)
+
+Work Log:
+- Verified no listener on :3000 and no orphan_spawn process alive (sandbox had recycled).
+- Spawned dev server via `python3 scripts/orphan_spawn.py dev3000` (bun run dev, orphaned to PID 1, logs -> dev.log).
+- Verified: next-server (v1) pid 1033 listening on *:3000; HTTP 200 on / (first compile 3.9s, Ready in 1545ms); second probe HTTP 200.
+- Noted dev.log shows as ` M` in git (expected during server run; `git checkout -- dev.log` reserved for pre-commit pipeline step, not while server is live).
+
+Stage Summary:
+- Dev server healthy on :3000, serving the delivery/download page. Companion 4.0.11 transplant implementation work not yet started (code-side recon still pending).
