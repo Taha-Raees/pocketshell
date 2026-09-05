@@ -776,6 +776,20 @@ remote development.
 
 ---
 
+## Phase 6.0.1 — Install observability + suite diagnosis (v0.10.0-m6.0.1, versionCode 41)
+
+Device-gate lesson from §33.1: the layer's best-effort install was silent, so
+"failed to install" and "not installed yet" were indistinguishable on device.
+
+- [x] GuestGlibcRuntime: every ensure outcome mirrored to guest-visible
+      `/etc/pocketshell/glibc-runtime.status` (diagnostics only; marker
+      contract unchanged; never blocks a session)
+- [x] Suite v2: PREFLIGHT diagnosis, SKIP-with-fix-path for a missing layer,
+      capability-probe layer detection, `cline --help` false-PASS fix,
+      POCKETSHELL_INSTALL_LAYER=1 in-guest repair hatch
+- [x] Validated under emulation in 4 device states (stub/repair/unmarked/full)
+- [ ] Device gate: §33 re-run on vc41 (expect 24/24 after one fresh session)
+
 ## Phase 6.0.0 — Universal Runtime Compatibility (v0.10.0-m6.0.0, versionCode 40)
 
 ONE Alpine distribution; musl + glibc + static + Node tooling coexist.

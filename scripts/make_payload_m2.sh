@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.10.0-m6.0.0
+VERSION=v0.10.0-m6.0.1
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,40 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.9.1-m5.1.0) — M6.0: UNIVERSAL RUNTIME COMPATIBILITY
+WHAT IS NEW IN $VERSION (vs v0.10.0-m6.0.0) — M6.0.1: INSTALL OBSERVABILITY + SUITE DIAGNOSIS
+(the m6.0.0 device-gate lesson: the layer's best-effort install was SILENT, so on
+the device "failed to install" and "not installed yet" looked identical):
+  - WHAT THE GATE SHOWED: the suite ran before the glibc layer had installed;
+    the rootfs carries gcompat from the Antigravity era (apk-installed rootfs
+    state PERSISTS across app updates), so /lib/ld-linux-aarch64.so.1 was the
+    gcompat stub and Tier 2/3 reported 6 FAILs that were one root cause. The
+    m6.0.0 layer itself was correct — reproduced and repaired end-to-end under
+    emulation on a gcompat-contaminated rootfs (22/22).
+  - GUEST-VISIBLE INSTALL STATUS: every GuestGlibcRuntime.ensureInstalled
+    outcome is now mirrored to /etc/pocketshell/glibc-runtime.status —
+    state=OK source=extractor|fastpath entries=<n> or state=FAILED
+    reason=<one-line> + ts. Diagnostics only: the marker stays the sole
+    completeness contract; never throws, never blocks a musl session.
+  - SUITE v2 (runtime-tests/run_on_device.sh): PREFLIGHT diagnosis (marker,
+    status, real loader identity, layer file count, gcompat, disk); missing
+    layer = SKIP-with-fix-path, never a wall of FAILs (tier 1 musl/static
+    still runs — base-guest health is layer-independent); layer presence is a
+    CAPABILITY probe (real loader answers --version), not marker paperwork;
+    cline --help no longer false-PASSes on an error line; verdict keys off
+    layer state, not skip count.
+  - ESCAPE HATCH: POCKETSHELL_INSTALL_LAYER=1 repairs the layer in-guest from
+    a layer tarball beside the suite or POCKETSHELL_LAYER_URL — writes the
+    exact app marker + source=manual-hatch status, so the app's fast path
+    recognizes the repair and self-healing still guards drift.
+  - VALIDATED in 4 device states under emulation: no layer (gcompat stub) →
+    musl green + honest SKIPs + fix path; hatch repair on a gcompat-
+    contaminated rootfs → full matrix green incl. Cline 3.0.61; working layer
+    without marker → runs; full install → 24/24 ALL GREEN.
+  - Full JVM suite: 776 executions, 0 failures (4 new status-file pins + the
+    gcompat-stub-replacement pin). Device gate: docs/TESTING.md §33 (vc41).
+    versionCode 41 — in-place update over 16..40; same pinned cert.
+
+WHAT WAS NEW IN v0.10.0-m6.0.0 (vs v0.9.1-m5.1.0) — M6.0: UNIVERSAL RUNTIME COMPATIBILITY
 (musl + glibc + static + Node tooling in ONE Alpine guest; ONE distribution,
 Alpine, forever — the compatibility problem solved as architecture, not per-tool):
   - THE BLOCKER CLOSED: glibc-linked ARM64 binaries failed at the loader stage

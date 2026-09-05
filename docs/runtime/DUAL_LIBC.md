@@ -104,6 +104,20 @@ paths make this transparent) with loader-explicit fallback
 symbol version, which runtime will load it, and a SUPPORTED/UNSUPPORTED verdict with
 the reason (Phase F of the mandate; no more guessing).
 
+### 6.1 Install observability (m6.0.1 — device-gate lesson)
+
+Best-effort must still be diagnosable. Every `GuestGlibcRuntime.ensureInstalled`
+outcome is mirrored to `/etc/pocketshell/glibc-runtime.status` (guest-visible):
+`state=OK source=extractor|fastpath|manual-hatch entries=<n> ts=<ms>` or
+`state=FAILED reason=<one-line> ts=<ms>`. The marker stays the sole completeness
+contract; the status file is diagnostics only and never blocks or fails a session.
+The device suite (`run_on_device.sh`) prints a PREFLIGHT section (marker, status,
+real loader identity, layer file count, gcompat presence, disk) and treats a
+missing layer as SKIP-with-fix-path, never as a wall of FAILs. The layer's
+presence is a capability probe (the real loader answers `--version` with
+"stable release version"), not marker paperwork. `POCKETSHELL_INSTALL_LAYER=1`
+repairs the layer from a local/URL layer tarball without waiting for the app.
+
 ## 7. Success criteria (delivery standard)
 
 installed AND launches AND executes correctly AND survives a fresh session AND does

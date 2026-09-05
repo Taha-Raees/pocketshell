@@ -1742,11 +1742,20 @@ Linux Shell (one fresh session — this also installs the glibc layer
 silently). Then run the automated suite and the manual checks below.
 
 ### 33.1 Automated suite (paste-ready, in the guest)
-- `curl -fsSL <mirror>/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C /tmp`
+- `mkdir -p /tmp/pocketshell-tests && curl -fsSL <mirror>/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C /tmp/pocketshell-tests`
 - `sh /tmp/pocketshell-tests/run_on_device.sh`
-- EXPECT: every row PASS; RESULT: 24 passed, 0 failed; VERDICT: ALL GREEN.
-- The Cline section requires Cline installed (npm i -g cline) — if absent,
-  that section reports honestly and the rest still stands.
+- EXPECT (vc41 suite v2): PREFLIGHT prints marker/status/loader/disk; every
+  row PASS or honest SKIP; RESULT: 24 passed, 0 failed, 0 skipped; VERDICT:
+  ALL GREEN. Cline rows require Cline installed (npm i -g cline) — if absent
+  they SKIP and the verdict says so.
+- If the verdict is LAYER NOT INSTALLED: the PREFLIGHT section says why. Fully
+  close + reopen the app (one fresh session installs the layer) and re-run; or
+  repair in-guest without the app: put
+  `pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz` beside the suite (or
+  `export POCKETSHELL_LAYER_URL=<mirror>/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz`)
+  and run `POCKETSHELL_INSTALL_LAYER=1 sh /tmp/pocketshell-tests/run_on_device.sh`.
+  A `status: state=FAILED reason=…` line in PREFLIGHT is an app-side install
+  failure — paste it.
 
 ### 33.2 pocketshell-doctor (no more guessing)
 - `pocketshell-doctor /tmp/pocketshell-tests/t_cline_shape` → ELF64 AArch64,
@@ -1776,5 +1785,7 @@ silently). Then run the automated suite and the manual checks below.
 
 ### 33.6 Honesty checks
 - `cat /etc/pocketshell/glibc-runtime` shows the layer version line
+- `cat /etc/pocketshell/glibc-runtime.status` shows the last install outcome
+  (state=OK source=extractor|fastpath|manual-hatch …, or FAILED + reason)
 - `ls /lib/ld-musl-aarch64.so.1` untouched; `apk` still fully functional
 - Diagnostics: package-environment check unchanged/green

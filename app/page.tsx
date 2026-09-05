@@ -1,11 +1,11 @@
-const VERSION = "v0.10.0-m6.0.0";
+const VERSION = "v0.10.0-m6.0.1";
 
 const HASHES = {
-  apk: "16fc63edde2809c88d29ec7a0dcae4b29a2012078bb3bea98f16ed8ed1dc8aac",
-  zip: "50f80df94147dee960ba6df818443c19bbe437a0dd8664b421354a7980b5c2ff",
-  tgz: "0c9f92ee1c3ece4ecba5be53ef5aa6d690d06287b9a90f5e1a72d13e42ec4ea3",
-  bundle: "00ec6d1cd4db5941c82437873c88965ab52755f931a23dc951d46faf3bdcc2e4",
-  tests: "deac812b016726cc3d4645e7c78639b25ed94aa5dab3abeb30de5715473bb12b",
+  apk: "915677b6d60383324ed208d8e58b84a1794d16f2748256b35bd7cec79e768388",
+  zip: "62eafc420d267d363f1c6f50079b76056a6a2de5e9817a30f2454e4c5c5efcc3",
+  tgz: "6b58ab445ceaa0375398f40ec0c147687749a4ab4fb212378cb1202f14d0b2bf",
+  bundle: "3a5992644e899f22fa7791dc198af410685a3051c34a4a582870dd62f607ae94",
+  tests: "b203fa58488411a6a32cc2dfce18f1a657209f81b330258c30a4dcd74c5e6b21",
   glibc: "2242f8ef8f18df06c6bf37d55f6ae526cccb6d835f76bc048b877266d252ad11",
   report: "0e0a2bf8363647aece215f4f0a00b658debb3d42a443b480d564b01cd7d17c0d",
 };
@@ -28,8 +28,9 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M6.0: Universal Runtime Compatibility{" "}
-          <span className="badge">versionCode 40</span>
+          M6.0.1: Universal Runtime Compatibility — now with install
+          observability{" "}
+          <span className="badge">versionCode 41</span>
         </h2>
         <p>
           <b>
@@ -73,13 +74,24 @@ export default function Home() {
             with the exact reason. <code>pocketshell-exec</code> routes any
             ELF to the right runtime.
           </li>
+          <li>
+            <b>New in m6.0.1 — the device-gate lesson:</b> the layer&apos;s
+            best-effort install is now OBSERVABLE. Every install outcome is
+            mirrored to the guest (<code>/etc/pocketshell/glibc-runtime.status</code>),
+            the suite prints a PREFLIGHT diagnosis and treats a missing layer
+            as SKIP-with-fix-path (not FAIL noise), and
+            <code> POCKETSHELL_INSTALL_LAYER=1</code> repairs the layer
+            in-guest without waiting for the app. Validated in 4 device
+            states under emulation, including repair of a gcompat-
+            contaminated rootfs — the exact state found at the gate.
+          </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.10.0-m6.0.0-debug.apk">
+        <a className="btn" href="/PocketShell-v0.10.0-m6.0.1-debug.apk">
           Download APK (debug, 29 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.0)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.1)
         </p>
       </div>
 
@@ -109,8 +121,10 @@ export default function Home() {
           inside the PocketShell terminal:
         </p>
         <p className="mono">
-          curl -fsSL &lt;this-site&gt;/pocketshell-runtime-tests-aarch64.tar.gz
-          | tar -xz -C /tmp && sh /tmp/pocketshell-tests/run_on_device.sh
+          mkdir -p /tmp/pocketshell-tests &amp;&amp; curl -fsSL
+          &lt;this-site&gt;/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C
+          /tmp/pocketshell-tests &amp;&amp; sh
+          /tmp/pocketshell-tests/run_on_device.sh
         </p>
         <a className="btn secondary" href="/pocketshell-runtime-tests-aarch64.tar.gz">
           runtime-tests (700 KB)
@@ -121,7 +135,8 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 40 installs <b>in place over v0.9.1-m5.1.0 (39),
+          versionCode 41 installs <b>in place over v0.10.0-m6.0.0 (40),
+          v0.9.1-m5.1.0 (39),
           v0.9.0-m5.0.1 (38), v0.9.0-m5.0.0 (37),
           v0.8.0-m4.0.12 (36), v0.8.0-m4.0.11 (35),
           v0.8.0-m4.1.0 (34, an intermediate that was never announced),
@@ -168,12 +183,18 @@ export default function Home() {
             performance pass.
           </li>
           <li>
-            <b>v0.10.0-m6.0.0 (this build):</b> Universal Runtime
-            Compatibility — real glibc 2.41 at canonical multiarch paths
-            inside the Alpine guest; musl + glibc + static coexist; glibc
-            children spawn correctly; NSS/DNS work; the layer is pinned,
-            self-healing and rides the APK; pocketshell-doctor/exec ship
-            inside the guest; the Cline-class loader failure is closed.
+            <b>v0.10.0-m6.0.0:</b> Universal Runtime Compatibility — real
+            glibc 2.41 at canonical multiarch paths inside the Alpine guest;
+            musl + glibc + static coexist; glibc children spawn correctly;
+            NSS/DNS work; the layer is pinned, self-healing and rides the
+            APK; pocketshell-doctor/exec ship inside the guest; the
+            Cline-class loader failure is closed.
+          </li>
+          <li>
+            <b>v0.10.0-m6.0.1 (this build):</b> install observability + suite
+            diagnosis — guest-visible install status, suite PREFLIGHT with
+            honest SKIPs, in-guest repair hatch; validated on a
+            gcompat-contaminated rootfs (the exact device-gate condition).
           </li>
         </ul>
       </div>
@@ -214,10 +235,10 @@ export default function Home() {
           contract, the rendering-reset report, and the new runtime
           documentation (docs/runtime/ + runtime-tests/ + scripts/runtime/).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.0-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.1-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.0-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.1-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -251,9 +272,10 @@ export default function Home() {
         · m4.1.0 the native rebuild · m4.0.11 replace renderer only — the
         winner frozen · m4.0.12 companion finalization · m5.0.0 UI &amp;
         interaction polish · m5.0.1 the workspace bar · m5.1.0 audit-first
-        performance ·{" "}
-        <b>v0.10.0-m6.0.0 (this build): universal runtime compatibility —
-        real glibc inside Alpine, musl untouched, Cline runs</b>.
+        performance · m6.0.0 universal runtime compatibility — real glibc
+        inside Alpine, musl untouched, Cline runs ·{" "}
+        <b>v0.10.0-m6.0.1 (this build): install observability + suite
+        diagnosis — the device-gate lesson turned into instrumentation</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>

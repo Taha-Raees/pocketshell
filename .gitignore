@@ -43,3 +43,4 @@ download/
 /server.log
 scratch/
 tool-results/
+tsconfig.tsbuildinfo

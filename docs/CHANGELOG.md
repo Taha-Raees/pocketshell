@@ -3,6 +3,38 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.10.0-m6.0.1] — 2026-09-06 — M6.0.1: install observability + suite diagnosis (device-gate lesson)
+
+The m6.0.0 device gate (§33.1) ran the suite before the glibc layer had
+installed; Tier 2/3 fell back to the gcompat stub (rootfs carries gcompat from
+the Antigravity era — it persists across app updates) and reported 6 FAILs
+that were one root cause. Nothing in the m6.0.0 layer was wrong — the failure
+mode was *silence*: a swallowed best-effort `Failed` is indistinguishable from
+"app too old" from inside the guest.
+
+- **GuestGlibcRuntime status file** (`/etc/pocketshell/glibc-runtime.status`):
+  every ensure outcome mirrored to the guest — `state=OK source=extractor |
+  fastpath entries=<n>` or `state=FAILED reason=<one-line>` + `ts`. Diagnostics
+  only; marker stays the completeness contract; never throws, never blocks a
+  session, never masks the result. 4 new JVM pins (OK/FAILED/fastpath +
+  gcompat-stub replacement).
+- **Suite v2** (`runtime-tests/run_on_device.sh`): PREFLIGHT diagnosis section
+  (marker, status, real loader identity, layer file count, gcompat, disk);
+  missing layer → SKIP-with-fix-path instead of FAIL noise (tier 1 musl/static
+  still runs — base-guest health is layer-independent); layer presence is a
+  capability probe (real loader `--version`), not marker paperwork;
+  `cline --help` no longer false-PASSes on an error line; verdict keys off
+  layer state, not skip count.
+- **Escape hatch**: `POCKETSHELL_INSTALL_LAYER=1` repairs the layer in-guest
+  from `POCKETSHELL_LAYER_URL` or a `pocketshell-glibc-*.tar.gz` beside the
+  suite (writes the exact app marker + `source=manual-hatch` status — the app's
+  fast path recognizes the repair; self-healing still guards drift).
+- Validated end-to-end under emulation in four device states: no layer (gcompat
+  stub) → musl green + 3 SKIPs + fix path; hatch repair on a
+  gcompat-contaminated rootfs → full matrix green incl. Cline 3.0.61; working
+  layer without marker → runs (idempotent re-extract covers it); full install →
+  24/24 ALL GREEN.
+
 ## [0.10.0-m6.0.0] — 2026-09-06 — M6.0: Universal Runtime Compatibility (musl + glibc + static in ONE Alpine guest)
 
 The engineering phase that removes the single hard blocker the two forensic
