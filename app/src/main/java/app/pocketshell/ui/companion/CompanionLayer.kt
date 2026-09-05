@@ -800,6 +800,32 @@ private fun CompanionHealthSheet(
                         .padding(horizontal = 4.dp, vertical = 6.dp),
                 )
             }
+            // m4.0.9 — the rendering-reset CONTROL (the ONLY Companion-side
+            // change this build): a plain-Activity baseline harness, one
+            // variable at a time, to prove exactly which layer breaks the
+            // visible presentation. No Companion behavior is touched.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+            ) {
+                Text(
+                    text = "Render baseline (diagnostic)",
+                    fontSize = 13.sp,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            try {
+                                context.startActivity(
+                                    Intent(context, app.pocketshell.diagnostic.BaselineWebViewActivity::class.java),
+                                )
+                            } catch (_: Throwable) {
+                            }
+                        }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                )
+            }
         }
     }
 }

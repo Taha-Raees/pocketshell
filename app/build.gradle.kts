@@ -22,8 +22,8 @@ android {
         // exact tradeoff Termux makes. Side-load distribution; Play rules do
         // not apply (and Android 14+ still installs targetSdk >= 23).
         targetSdk = 28
-        versionCode = 32
-        versionName = "0.7.0-m4.0.8"
+        versionCode = 33
+        versionName = "0.7.0-m4.0.9"
     }
 
     // m4.0.8: the render-probe pins exercise RenderProbe.findActivity's
