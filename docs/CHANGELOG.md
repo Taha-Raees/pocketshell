@@ -3,6 +3,67 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.7.0-m4.0.9] — 2026-09-05 — Companion Rendering Reset: the minimal baseline WebView experiment (no Companion changes, zero symptom patches)
+
+Scope: the user's hard reset, honored exactly. Eight iterations of
+evidence-backed fixes never proved WHICH architectural layer fails to
+present a fully loaded page's UI. The m4.0.8 reports sharpened the case:
+**ChatGPT paints a blank WHITE canvas** — the page's own light background
+PRESENTS (the forced-light scheme lever demonstrably worked) — **while the
+UI does not**; **Z.ai paints a blank dark canvas**. Page pixels present,
+page UI absent: the dark-rendering theory family is dead permanently, and
+the open question is which layer between a working WebView and the user's
+eyes breaks the presentation of content.
+
+### What this build is (and is not)
+- The Companion render path is FROZEN — no reload tricks, no new
+  watchdogs, no renderer toggles, no more settings churn. Zero behavior
+  changes.
+- It ships the mandated control experiment INSIDE PocketShell:
+  **BaselineWebViewActivity** — plain `Activity → LinearLayout →
+  FrameLayout → ONE WebView(activity)`, JavaScript + DOM storage on,
+  everything else Android defaults, URL loaded AFTER first layout
+  (create → attach → layout → load). No pool, no Compose, no
+  configuration context, no custom UA, no pixel watchdog, no attach
+  kick, no boot witness, no evaluateJavascript in the render path, no
+  compat retry.
+- Entry: Companion ⓘ Page health → **"Render baseline (diagnostic)"** —
+  the ONLY Companion-side change (a launch button).
+
+### The experiment
+- **One variable at a time** (pinned invariant): BASELINE (zero flags),
+  `+CHROME UA`, `+FORCED LIGHT CTX`, `+MIDNIGHT BG`, `+LOAD BEFORE
+  ATTACH`, `+WIDE VIEWPORT` — each turns on EXACTLY ONE Companion
+  suspect, so a device result names the breaking layer with no confounds.
+- **URL matrix** (gates A–D): example.com → wikipedia.org → chatgpt.com
+  → chat.z.ai.
+- **Real evidence per run**: the status line always shows the exact
+  config plus VIEW truth (attached, measured size, global visible rect,
+  layer type); **INSPECT** (opt-in, read-only, on demand) adds the
+  page's own viewport — `innerWidth/innerHeight`, `devicePixelRatio`,
+  `visualViewport`, title — the direct test of the bogus-viewport theory
+  the white-canvas evidence makes plausible; **COPY** hands the whole
+  status over for the chat.
+- The harness is non-exported, never launched at startup (§22 holds:
+  its WebView is created in its own onCreate), and lives in the app's
+  process/theme/identity — PocketShell itself, not a separate test app.
+
+### The deliverable report
+`docs/RENDER-RESET-M4.0.9.md`: the facts table (what eight iterations
+proved), the exact working architecture (baseline) vs the exact current
+Companion architecture, the full 15-layer A/B comparison with device
+rows PENDING, the suspect→variant map, the device gate protocol, and the
+evidence-based decision rule (single-variable removal / native ViewGroup
+host rebuild / Chrome Custom Tabs control / GeckoView research).
+
+### Tests & build
+- +8 unit pins (baseline purity, single-variable invariant, cycling
+  wrap-around, gate URL order, status composition incl. honest
+  missing-view state, layer naming, read-only probe guarantee). Full
+  suite: **788 executions / 0 failures**.
+- versionCode 33 / 0.7.0-m4.0.9; pinned cert `d96a6f66…8bf659`; APK
+  sha256 `2c83af33…0840e2c9`.
+
 ## [0.7.0-m4.0.8] — 2026-09-05 — The painted-but-black decode: the light package returns, on top of the fixed host (still the one job)
 
 Scope: still exactly one job. The user shipped the m4.0.7 health report

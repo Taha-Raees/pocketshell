@@ -1255,3 +1255,51 @@ color-truthful.
       touches android.webkit.
 - [ ] Terminal/Home untouched (Midnight stays Midnight — only the
       WebView's scheme is forced light).
+
+
+## 26. Manual acceptance — m4.0.9 (Companion Rendering Reset: the minimal baseline experiment, v0.7.0-m4.0.9) — DEVICE GATE PENDING
+
+The Companion render path is FROZEN this build. The deliverable is the
+control experiment: a plain-Activity WebView baseline inside PocketShell
+that will name the exact failing layer. Success is redefined: a real
+website visibly displays its actual UI on the physical device and is
+usable by touch and keyboard. DOM counts, readyState and "pixels
+painted" are NOT success.
+
+### 26.1 The baseline (gates A–D)
+- [ ] Install vc33 in place (over vc32). Open a Companion tab → ⓘ
+      Page health → **Render baseline (diagnostic)**.
+- [ ] MODE shows `BASELINE (Android defaults)`. URL ▸ until
+      `https://example.com/`. Gate A: the page's text must be VISIBLE.
+      Copy the status.
+- [ ] URL ▸ `https://www.wikipedia.org/`. Gate B: visible content +
+      scrolling works.
+- [ ] URL ▸ `https://chatgpt.com/`. Gate C: the REAL ChatGPT UI visible
+      (login wall acceptable if it renders with visible text/buttons).
+      Tap INSPECT; note viewport + title.
+- [ ] URL ▸ `https://chat.z.ai/`. Gate D: the REAL Z.ai UI visible.
+      INSPECT.
+- [ ] If the BASELINE fails on example.com: STOP — do not touch the
+      Companion; report the copied status (WebView provider/device
+      investigation begins).
+
+### 26.2 The single-variable sweep (finds the breaking layer)
+- [ ] MODE ▸ `+CHROME UA` → ChatGPT + Z.ai. Visible? Copy status.
+- [ ] MODE ▸ `+FORCED LIGHT CTX` → ChatGPT + Z.ai. Visible? Copy status.
+- [ ] MODE ▸ `+MIDNIGHT BG` → ChatGPT + Z.ai. Visible? Copy status.
+- [ ] MODE ▸ `+LOAD BEFORE ATTACH` → ChatGPT + Z.ai. Visible? Copy.
+- [ ] MODE ▸ `+WIDE VIEWPORT` → ChatGPT + Z.ai. Visible? Copy status.
+- [ ] Report the FIRST mode that blanks (and INSPECT's viewport reading
+      for it) — that is the failing variable.
+
+### 26.3 The Compose-host arm
+- [ ] With the harness showing a site correctly, open the REAL Companion
+      tab for the same site. If the harness renders and the Companion
+      does not, the failure is in the Compose host/panel path (S2/S3) —
+      the decision rule then rebuilds the host as a native ViewGroup.
+
+### 26.4 Regression
+- [ ] Companion behavior identical to m4.0.8 (frozen): tabs, drag,
+      health sheet, escapes — plus the new "Render baseline" button.
+- [ ] Terminal/Home/runtime untouched; §17–§25 spot-checks on the
+      Companion paths that existed before this build.

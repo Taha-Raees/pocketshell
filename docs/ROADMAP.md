@@ -532,3 +532,24 @@ remote development.
 - [x] versionCode 32.
 - [ ] Device gate §25 (LIGHT page visible; health report names the
       glass; escapes honest; §17–§24 regressions).
+
+
+### Phase 4.0.9 (2026-09-05, v0.7.0-m4.0.9) — Companion Rendering Reset: the minimal baseline WebView experiment
+- [x] The user's hard reset honored: NO Companion render-path changes, no
+      new workarounds — the investigation build only.
+- [x] Baseline harness inside PocketShell: plain Activity → FrameLayout →
+      one WebView(activity), JS + DOM storage only, load AFTER first
+      layout; entered from the Companion ⓘ health sheet.
+- [x] One-variable-at-a-time variant matrix (BASELINE, +CHROME UA,
+      +FORCED LIGHT CTX, +MIDNIGHT BG, +LOAD BEFORE ATTACH, +WIDE
+      VIEWPORT) × gate URLs (example.com, wikipedia.org, chatgpt.com,
+      chat.z.ai); view-truth status always; opt-in read-only page-
+      viewport INSPECT; COPY for reports.
+- [x] docs/RENDER-RESET-M4.0.9.md: facts table, working-vs-failing
+      architectures, 15-layer A/B comparison (device rows PENDING),
+      suspect→variant map, decision rule.
+- [x] +8 unit pins. Full suite: 788 executions / 0 failures.
+- [x] versionCode 33.
+- [ ] Device gate §26: baseline result, first failing variable, final
+      architecture decision (single-variable fix / native ViewGroup host /
+      Custom Tabs control / GeckoView research).
