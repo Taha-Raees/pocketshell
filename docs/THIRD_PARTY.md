@@ -100,6 +100,18 @@ bionic directly.
 All resolved from Google Maven / Maven Central at build time with pinned
 versions (version catalog: `gradle/libs.versions.toml`).
 
+## Shipped: PocketShell glibc runtime layer (M6.0)
+
+| Field | Value |
+|---|---|
+| What | REAL glibc ARM64 runtime at canonical multiarch paths inside the Alpine guest (docs/runtime/DUAL_LIBC.md) |
+| Source distribution | Debian 13 (trixie) `main/binary-arm64` — libc6 2.41-12+deb13u3, libgcc-s1 14.2.0-19, libstdc++6 14.2.0-19, zlib1g 1.3.1, libssl3t64 3.5.6, liblzma5, libbz2, libexpat1, libffi8, libpcre2-8-0, libyaml-0-2, libtinfo6, libncurses6, libncursesw6, libreadline8t64 |
+| Pinned inputs | Every `.deb` pinned by name+version+SHA-256 in `scripts/runtime/build_glibc_sidecar.sh` output (`download/glibc-sidecar/INPUTS.sha256`, committed); artifact pinned in `GlibcRuntimePin` |
+| License set | glibc **LGPL-2.1**; libstdc++/libgcc **GPL-3 with GCC Runtime Library Exception**; readline **GPL-3+**; zlib (zlib), OpenSSL 3.x **Apache-2.0**, expat/ffi/pcre2/yaml **MIT/BSD/ISC family**, ncurses/tinfo **NCURSES/MIT-style**, bz2 **bzip2/BSD-style**, lzma **public-domain/0BSD** |
+| Compliance | Binary redistribution under LGPL-2.1 §4/§6 with source offer satisfied by the pinned Debian pool URLs + exact version/SHA record (anyone can fetch the identical source from Debian); no glibc source was modified; the layer ships unmodified Debian binary contents plus PocketShell-authored symlinks/nsswitch/README/tools |
+| PocketShell-authored parts | merged-usr symlink layout, `/etc/nsswitch.conf`, `README.pocketshell-glibc`, `pocketshell-exec`, `pocketshell-doctor` (all in-repo, scripts/runtime/) |
+| Build tooling | scripts/runtime/* — not shipped in the APK; reproducible from the committed pins |
+
 ## Upstream re-sync procedure
 
 1. `git fetch` upstream; select new release/commit; record it here.

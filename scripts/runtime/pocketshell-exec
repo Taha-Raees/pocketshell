@@ -1,0 +1,42 @@
+#!/bin/sh
+# pocketshell-exec — universal executable launcher (detects ELF, routes libc).
+# Ships inside the PocketShell glibc runtime layer (usr/local/bin).
+#
+#   musl interp  → exec directly (musl loader, unchanged)
+#   static ELF   → exec directly
+#   glibc interp → exec directly (the canonical multiarch paths make the real
+#                  glibc loader self-sufficient); if the layer is absent, fall
+#                  back to an explicit loader invocation.
+#
+# Usage: pocketshell-exec <binary> [args...]
+set -u
+
+BIN="$1"; [ $# -gt 0 ] && shift
+
+# Not an ELF (script, shell builtin path): hand it to the kernel as-is.
+if ! head -c 4 "$BIN" 2>/dev/null | grep -q "$(printf '\177ELF')"; then
+  exec "$BIN" "$@"
+fi
+
+INTERP=""
+if command -v readelf >/dev/null 2>&1; then
+  INTERP=$(readelf -l "$BIN" 2>/dev/null | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')
+fi
+
+case "$INTERP" in
+  *ld-linux*)
+    # glibc-linked: canonical paths make direct exec work; the explicit
+    # fallback covers a layer installed without the multiarch symlinks.
+    if [ -e /usr/lib/aarch64-linux-gnu/libc.so.6 ]; then
+      exec "$BIN" "$@"
+    else
+      exec /lib/ld-linux-aarch64.so.1 \
+        --library-path /usr/lib/aarch64-linux-gnu:/lib/aarch64-linux-gnu \
+        "$BIN" "$@"
+    fi
+    ;;
+  *)
+    # musl-linked or static (or readelf unavailable): direct exec.
+    exec "$BIN" "$@"
+    ;;
+esac

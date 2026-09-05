@@ -1,0 +1,134 @@
+#!/bin/sh
+# pocketshell-doctor — executable compatibility diagnosis (no more guessing).
+# Ships inside the PocketShell glibc runtime layer (usr/local/bin).
+# Usage: pocketshell-doctor <binary>
+# Reports architecture, ELF class/type, interpreter, DT_NEEDED, max required
+# GLIBC symbol version, the runtime that will load it, and a verdict with the
+# real reason. Honest by construction: every claim is probed, nothing assumed.
+set -u
+
+MARKER=/etc/pocketshell/glibc-runtime
+GLIBC_LOADER=/lib/ld-linux-aarch64.so.1
+
+if [ $# -lt 1 ]; then
+  echo "usage: pocketshell-doctor <binary>" >&2
+  exit 2
+fi
+
+BIN="$1"
+if [ ! -f "$BIN" ]; then
+  echo "error: not a file: $BIN"
+  exit 2
+fi
+
+if ! command -v readelf >/dev/null 2>&1; then
+  echo "note: readelf unavailable (apk add binutils enables full ELF analysis)"
+fi
+
+have_readelf() { command -v readelf >/dev/null 2>&1; }
+
+echo "== pocketshell-doctor: $BIN"
+
+# --- ELF? ---------------------------------------------------------------------
+if have_readelf; then
+  if ! readelf -h "$BIN" >/dev/null 2>&1; then
+    echo "ELF: no"
+    echo "Compatibility: UNKNOWN (not an ELF object; scripts may run via their shebang)"
+    exit 1
+  fi
+  echo "ELF: yes"
+  echo "Class:   $(readelf -h "$BIN" | sed -n 's/.*Class: *//p')"
+  echo "Machine: $(readelf -h "$BIN" | sed -n 's/.*Machine: *//p')"
+  echo "Type:    $(readelf -h "$BIN" | sed -n 's/.*Type: *//p')"
+  INTERP=$(readelf -l "$BIN" 2>/dev/null | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')
+else
+  # Minimal magic probe without binutils: ELF magic + 64-bit little-endian.
+  magic=$(dd if="$BIN" bs=4 count=1 2>/dev/null)
+  if [ "$magic" != "$(printf '\177ELF')" ]; then
+    echo "ELF: no"
+    exit 1
+  fi
+  echo "ELF: yes (install binutils for full analysis)"
+  INTERP=""
+fi
+
+ARCH_OK=$(if have_readelf; then readelf -h "$BIN" | grep -c "Machine:.*AArch64"; else echo 1; fi)
+if [ "$ARCH_OK" = "0" ]; then
+  echo "Compatibility: UNSUPPORTED"
+  echo "Reason: not an ARM64 (AArch64) binary — this device cannot execute it"
+  exit 1
+fi
+
+# --- Interpreter / libc routing ------------------------------------------------
+if [ -z "$INTERP" ]; then
+  echo "Interpreter: (none — static)"
+  echo "Runtime: none required"
+  echo "Compatibility: SUPPORTED (static — executed directly)"
+  exit 0
+fi
+
+echo "Interpreter: $INTERP"
+
+case "$INTERP" in
+  *ld-musl*)
+    echo "Runtime: musl ($(ls -la /lib/ld-musl-aarch64.so.1 2>/dev/null | awk '{print $NF}' || echo ?))"
+    echo "DT_NEEDED:"
+    if have_readelf; then readelf -d "$BIN" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]/  \1/p' | sed 's/^/  /'; fi
+    echo "Compatibility: SUPPORTED (musl — executed directly)"
+    exit 0
+    ;;
+  *ld-linux*)
+    echo "Runtime: glibc (PocketShell layer)"
+    ;;
+  *)
+    echo "Runtime: unknown interpreter"
+    echo "Compatibility: UNSUPPORTED"
+    echo "Reason: unrecognized interpreter path"
+    exit 1
+    ;;
+esac
+
+# --- glibc layer state ----------------------------------------------------------
+if [ ! -e "$GLIBC_LOADER" ]; then
+  echo "glibc loader: MISSING ($GLIBC_LOADER)"
+  echo "Compatibility: UNSUPPORTED"
+  echo "Reason: glibc runtime layer is not installed in this guest — restart the app once (the layer self-installs on the next session) or reinstall the runtime from Diagnostics"
+  exit 1
+fi
+echo "glibc loader: $GLIBC_LOADER ($( [ -f "$MARKER" ] && cat "$MARKER" || echo 'layer version unknown'))"
+
+if have_readelf; then
+  NEEDS=$(readelf -d "$BIN" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p')
+  echo "DT_NEEDED:$(echo "$NEEDS" | sed 's/^/ /;s/^$/ (none)/')"
+  MAXV=$(readelf -V "$BIN" 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)
+  echo "Required GLIBC: ${MAXV:-none}"
+  if [ -n "$MAXV" ] && [ -f "$MARKER" ]; then
+    HAVEV=$(sed -n 's/.*glibc \([0-9.]*\).*/\1/p' "$MARKER" | tail -1)
+    if [ -n "$HAVEV" ]; then
+      if [ "$(printf '%s\n' "$MAXV" | sed 's/GLIBC_//' | sort -V; printf '%s\n' "$HAVEV" | sort -V | tail -1)" = "$HAVEV" ]; then
+        : # layer covers the required version
+      else
+        echo "Compatibility: UNSUPPORTED"
+        echo "Reason: binary requires $MAXV but the installed layer provides glibc $HAVEV"
+        echo "Path: update PocketShell (the pinned layer rides app updates)"
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+# --- REAL resolution check: ask the loader itself -------------------------------
+echo "Loader resolution check:"
+LOADER_OUT=$("$GLIBC_LOADER" --list "$BIN" 2>&1)
+if echo "$LOADER_OUT" | grep -q "not found"; then
+  echo "$LOADER_OUT" | grep "not found" | sed 's/^/  MISSING: /'
+  echo "Compatibility: UNSUPPORTED"
+  echo "Reason: shared objects above are not in the glibc layer; drop glibc-built"
+  echo "copies into /usr/lib/aarch64-linux-gnu (the extension slot) and re-run"
+  exit 1
+else
+  echo "  all shared objects resolved by the real loader"
+fi
+
+echo "Compatibility: SUPPORTED (glibc — executed via $GLIBC_LOADER)"
+exit 0

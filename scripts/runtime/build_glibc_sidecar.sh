@@ -130,6 +130,11 @@ glibc binary's DT_NEEDED that the base layer does not ship.
 Never place musl-built libraries here; never touch /lib or /usr/lib
 (musl owns them). Run `pocketshell-doctor <binary>` to diagnose.
 EOF
+  # Guest-side tooling rides the layer (one artifact, one pin, one extraction).
+  mkdir -p "$s/usr/local/bin"
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  install -m 755 "$SCRIPT_DIR/pocketshell-exec"  "$s/usr/local/bin/pocketshell-exec"
+  install -m 755 "$SCRIPT_DIR/pocketshell-doctor" "$s/usr/local/bin/pocketshell-doctor"
 }
 
 check_layout() {

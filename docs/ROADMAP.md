@@ -773,3 +773,33 @@ remote development.
       tabs / multi sessions+Companion / background→return) with
       before/after observations — memory growth, CPU spikes, lag,
       reloads, dropped frames, process leaks.
+
+---
+
+## Phase 6.0.0 — Universal Runtime Compatibility (v0.10.0-m6.0.0, versionCode 40)
+
+ONE Alpine distribution; musl + glibc + static + Node tooling coexist.
+Decision record: docs/runtime/DUAL_LIBC.md. Suite: docs/runtime/TESTING.md.
+
+- [x] Phase A/B: architecture selected — REAL Debian trixie glibc 2.41 at
+      canonical multiarch paths inside the rootfs (no binds, no env, no
+      wrappers; children work); gcompat/sgerrand/patchelf/LD_LIBRARY_PATH/
+      second-distro rejected on evidence, all documented.
+- [x] Sidecar built from 15 pinned Debian pool packages with per-input
+      SHA-256; artifact pinned (GlibcRuntimePin), ships in the APK.
+- [x] Guest tools: pocketshell-exec (routing) + pocketshell-doctor
+      (diagnosis incl. real loader `--list` resolution + symbol-version check).
+- [x] Delivery via GuestGlibcRuntime.ensureInstalled at the per-session prep
+      seam: idempotent marker fast path, self-healing, best-effort.
+- [x] Sandbox validation rig (proot + qemu-aarch64, same pins): suite 20/20;
+      device runner under emulation 24/24 ALL GREEN; REAL Cline 3.0.61
+      (byte-identical size to the device report) runs version/help/
+      node-spawn/relaunch ×3 under the layer.
+- [x] JVM suite 768 executions / 0 failures (8 new GuestGlibcRuntimeTest pins).
+- [x] Docs: DUAL_LIBC / ELF_COMPATIBILITY / runtime TESTING /
+      KNOWN_LIMITATIONS + THIRD_PARTY licensing (LGPL-2.1 + set).
+- [x] Other forensic findings documented for LATER phases (no scope creep):
+      /proc/net + /proc/stat-family overlays, sysdata liveness, PID-namespace
+      visibility — tracked in the Runtime Forensic Audit roadmap (P1/P3).
+- [ ] Device gate docs/TESTING.md §33: run the suite in a real PocketShell
+      session (musl regression + glibc matrix + doctor + Cline end-to-end).

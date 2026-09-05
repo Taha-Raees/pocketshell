@@ -1732,3 +1732,49 @@ profiler / `adb shell dumpsys meminfo app.pocketshell`, and by feel)
 - [ ] Full §30.7/§31.4 ladder: keyboard everywhere, themes sweep,
       ChatGPT + Z.ai render/scroll/login, refresh/hard-refresh, session
       persistence, workspace bar + compact tabs from §31.
+
+---
+
+## 33. Manual acceptance — m6.0.0 (Universal Runtime Compatibility: musl + glibc in ONE Alpine guest, v0.10.0-m6.0.0) — DEVICE GATE PENDING
+
+Preconditions: install vc40 IN PLACE over vc39 (data preserved). Open the
+Linux Shell (one fresh session — this also installs the glibc layer
+silently). Then run the automated suite and the manual checks below.
+
+### 33.1 Automated suite (paste-ready, in the guest)
+- `curl -fsSL <mirror>/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C /tmp`
+- `sh /tmp/pocketshell-tests/run_on_device.sh`
+- EXPECT: every row PASS; RESULT: 24 passed, 0 failed; VERDICT: ALL GREEN.
+- The Cline section requires Cline installed (npm i -g cline) — if absent,
+  that section reports honestly and the rest still stands.
+
+### 33.2 pocketshell-doctor (no more guessing)
+- `pocketshell-doctor /tmp/pocketshell-tests/t_cline_shape` → ELF64 AArch64,
+  DT_NEEDED libc.so.6/libpthread.so.0/libdl.so.2/libm.so.6, loader resolution
+  "all shared objects resolved", Compatibility: SUPPORTED.
+- `pocketshell-doctor /bin/sh` → SUPPORTED (musl — executed directly).
+- `pocketshell-doctor /bin/busybox` → SUPPORTED (musl).
+
+### 33.3 Cline end-to-end (the real-world test; needs credentials for 4–5)
+1. `cline --version` → 3.0.61
+2. `cline --help` → full usage text
+3. node-spawn chain: the suite's "cline via node spawn" row PASS
+4. `CLINE_DEEP_TEST=1 sh /tmp/pocketshell-tests/run_on_device.sh` → startup +
+   initialization render a UI/error honestly (no loader failures)
+5. an actual agent turn (if credentials configured) + repeat launches from a
+   CLEAN second session (kill the app, reopen, rerun)
+
+### 33.4 musl regression (nothing may have changed)
+- apk update / apk search / apk add nano (or any small package) — still works
+- node -e 'console.log(1+1)', npm --version, git clone of a small repo, curl
+- existing tools unaffected: Kilo starts, MCP servers start
+
+### 33.5 Session lifecycle
+- new session + close sessions — no change in terminal behavior, keyboard,
+  Companion (the layer installs on FIRST session only; later sessions show
+  the marker fast path)
+
+### 33.6 Honesty checks
+- `cat /etc/pocketshell/glibc-runtime` shows the layer version line
+- `ls /lib/ld-musl-aarch64.so.1` untouched; `apk` still fully functional
+- Diagnostics: package-environment check unchanged/green

@@ -1,10 +1,12 @@
-const VERSION = "v0.9.1-m5.1.0";
+const VERSION = "v0.10.0-m6.0.0";
 
 const HASHES = {
-  apk: "d8084b49f7af17b55cff643fc41ec0b56484b6830da219c11b4c2f56c3d56482",
-  zip: "1dcee490a87299bb493b016a91782144413d7cc8fe0b5498c11847e092ed8dda",
-  tgz: "f11ff7f3bf5d89f0e3b15ed6876ff0539f8f2f2fd1b3345860cd5f6bb8fa0fa1",
-  bundle: "083253e4230208d8e8bc80883ec1dd42a1866b7533460a48d7d0b338041cba3e",
+  apk: "16fc63edde2809c88d29ec7a0dcae4b29a2012078bb3bea98f16ed8ed1dc8aac",
+  zip: "50f80df94147dee960ba6df818443c19bbe437a0dd8664b421354a7980b5c2ff",
+  tgz: "0c9f92ee1c3ece4ecba5be53ef5aa6d690d06287b9a90f5e1a72d13e42ec4ea3",
+  bundle: "00ec6d1cd4db5941c82437873c88965ab52755f931a23dc951d46faf3bdcc2e4",
+  tests: "deac812b016726cc3d4645e7c78639b25ed94aa5dab3abeb30de5715473bb12b",
+  glibc: "2242f8ef8f18df06c6bf37d55f6ae526cccb6d835f76bc048b877266d252ad11",
   report: "0e0a2bf8363647aece215f4f0a00b658debb3d42a443b480d564b01cd7d17c0d",
 };
 
@@ -26,55 +28,58 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M5.1: ARM64 Performance &amp; Architecture Optimization{" "}
-          <span className="badge">versionCode 39</span>
+          M6.0: Universal Runtime Compatibility{" "}
+          <span className="badge">versionCode 40</span>
         </h2>
         <p>
-          <b>Audit-first: the real architecture was measured and read
-          end-to-end before any change; only what the evidence supports
-          changed; nothing working broke.</b>
+          <b>
+            ONE Alpine distribution — now running musl AND glibc AND static
+            ARM64 software side by side. The glibc blocker the two forensic
+            reports identified is closed as architecture, not as a per-tool
+            hack.
+          </b>
         </p>
         <ul className="steps">
           <li>
-            <b>The minimized Companion is silent:</b> collapsing the sheet
-            used to leave the active tab running JavaScript, timers and
-            layout at full rate while completely invisible. Now collapse →
-            pause EVERYTHING, raise → wake only the active tab. No reload,
-            no state loss, still logged in.
+            <b>Real glibc inside the Alpine guest:</b> Debian 13&apos;s glibc
+            2.41 runtime (loader, libc, libm, pthread/dl/rt, NSS, libstdc++,
+            libgcc, zlib + a common library set) installed at the canonical
+            multiarch paths. musl paths are disjoint by construction and never
+            touched — <code>apk</code>, node, git, bash behave exactly as
+            before.
           </li>
           <li>
-            <b>Home no longer spawns a guest shell on every visit:</b> the
-            command-app probe is a real proot exec; a 60s freshness window +
-            an in-flight guard gate the visibility-triggered probe (installs
-            still force a fresh answer; failures always re-probe).
+            <b>Transparent by construction:</b> a glibc binary — and every
+            child process it spawns — execs through the real loader with zero
+            env vars, zero proot changes, zero per-binary wrappers. No user
+            ever needs to know which libc a tool uses.
           </li>
           <li>
-            <b>Background terminal output no longer repaints the screen:</b>
-            a session streaming output in the background used to force full
-            repaints of the unchanged visible screen — N sessions multiplied
-            the load. Only the VISIBLE session&apos;s output repaints now.
+            <b>Cline 3.0.61 runs:</b> the real 151 MB glibc-native binary
+            (the exact artifact that failed on device at the loader stage)
+            passes version/help/node-spawn/relaunch ×3 under the layer in the
+            validated rig — 24/24 suite rows green, musl regression included.
           </li>
           <li>
-            <b>Web state persisted under memory pressure:</b> cookies flush
-            on system memory-pressure signals while Companion tabs are
-            alive — strictly gated on the provider already being loaded.
+            <b>Pinned &amp; self-healing delivery:</b> the layer ships inside
+            the APK (offline, atomic, SHA-256-pinned) and installs itself on
+            the next session spawn over any existing runtime — no reinstall,
+            no user steps, musl sessions never depend on it.
           </li>
           <li>
-            <b>Already sound, deliberately untouched:</b> lazy startup; one
-            WebView per tab (never recreated/reloaded on switch); WebView
-            height frozen during drags; background tabs platform-paused;
-            scrollback capped at 2000 rows; one Linux process per session;
-            honest FGS; keyboard allocations trivial. saveState/restore and
-            LRU eviction stay retired (the m4.0.11 verdict) — no user state
-            is ever destroyed behind their back.
+            <b>Diagnosable:</b> <code>pocketshell-doctor</code> reports
+            arch/class/interpreter/DT_NEEDED/max-GLIBC-version and asks the
+            real loader to resolve every dependency — SUPPORTED or UNSUPPORTED
+            with the exact reason. <code>pocketshell-exec</code> routes any
+            ELF to the right runtime.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.9.1-m5.1.0-debug.apk">
-          Download APK (debug, 22 MB)
+        <a className="btn" href="/PocketShell-v0.10.0-m6.0.0-debug.apk">
+          Download APK (debug, 29 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.9.1-m5.1.0)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.0)
         </p>
       </div>
 
@@ -84,15 +89,11 @@ export default function Home() {
         </h2>
         <p>
           The complete read-only engineering audit of the real architecture:
-          repository provenance (vendored Termux @ 3b66f879, proot
-          v5.1.107.92, pinned Alpine 3.24.1), the full Linux launch chain as
-          a sequence diagram, the targetSdk-28 exec model, /proc permission
-          attribution, the ELF/libc strategy (glibc sidecar recommended,
-          gcompat rejected on evidence), the developer-tool compatibility
-          matrix, storage, the session model, the Companion resource policy,
-          the ARM64 performance risk register, the security model, answers
-          to all 30 audit questions, KEEP/MODIFY/ADD/REPLACE, the PocketShell
-          Runtime 2.0 proposal and the prioritized roadmap.
+          repository provenance, the full Linux launch chain, Termux + proot
+          deep dives, the targetSdk-28 exec model, /proc attribution, the
+          ELF/libc strategy this build implements, the tool compatibility
+          matrix, answers to all 30 audit questions, and the Runtime 2.0
+          proposal.
         </p>
         <a className="btn secondary" href="/PocketShell-Runtime-Forensic-Audit.pdf">
           Download audit report (PDF, 300 KB)
@@ -101,21 +102,35 @@ export default function Home() {
       </div>
 
       <div className="card">
+        <h2>Executable compatibility suite <span className="badge">runtime-tests</span></h2>
+        <p>
+          The permanent ARM64 compatibility suite (musl / static / glibc matrix
+          + <code>pocketshell-doctor</code> + the real Cline test). Run it
+          inside the PocketShell terminal:
+        </p>
+        <p className="mono">
+          curl -fsSL &lt;this-site&gt;/pocketshell-runtime-tests-aarch64.tar.gz
+          | tar -xz -C /tmp && sh /tmp/pocketshell-tests/run_on_device.sh
+        </p>
+        <a className="btn secondary" href="/pocketshell-runtime-tests-aarch64.tar.gz">
+          runtime-tests (700 KB)
+        </a>
+        <Sha text={HASHES.tests} />
+      </div>
+
+      <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 39 installs <b>in place over v0.9.0-m5.0.1 (38),
-          v0.9.0-m5.0.0 (37),
+          versionCode 40 installs <b>in place over v0.9.1-m5.1.0 (39),
+          v0.9.0-m5.0.1 (38), v0.9.0-m5.0.0 (37),
           v0.8.0-m4.0.12 (36), v0.8.0-m4.0.11 (35),
           v0.8.0-m4.1.0 (34, an intermediate that was never announced),
-          v0.7.0-m4.0.9 (33), v0.7.0-m4.0.8 (32), v0.7.0-m4.0.7 (31),
-          v0.7.0-m4.0.6 (30), v0.7.0-m4.0.5 (29), v0.7.0-m4.0.4 (28),
-          v0.7.0-m4.0.3 (27), v0.7.0-m4.0.2 (26), v0.7.0-m4.0.1 (25),
-          v0.7.0-m4.0 (24) and every earlier pinned-cert build</b>. Your
+          v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Kilo/Hermes installation, the
           procfs contract, every Phase 3 behavior and all Companion data
-          (logins included) are untouched. This build also contains the
-          m4.0.1 startup fix — it starts regardless of the WebView
-          package&apos;s state.
+          (logins included) are untouched. The glibc layer installs into your
+          EXISTING runtime on the next session spawn — nothing is reinstalled,
+          nothing is wiped.
         </p>
       </div>
 
@@ -145,91 +160,47 @@ export default function Home() {
             pages.
           </li>
           <li>
-            Phase 4 (m4.0): Companion — the embedded web workspace. Generic
-            Name+URL definitions, bottom drag handle, persistent sessions,
-            live multi-tab, file upload, intelligent Back, Midnight Sapphire
-            throughout.
+            Phase 4 (m4.0) + m4.0.1–m4.0.12 + m5.0.x + m5.1.0: the Companion
+            workspace and every evidence-driven fix along the way — startup
+            hotfix, honest failure cards, one keyboard, the rendering reset,
+            the native re-host, the frozen winner, compact chrome, the Light
+            Theme, the silent minimized Companion and the audit-first
+            performance pass.
           </li>
           <li>
-            m4.0.1–m4.0.7: the startup hotfix, honest failure cards, the
-            shared keyboard, the pixel-truth watchdog, Force Dark off, the
-            DOM boot witness, the Page health sheet, the swap-safe host and
-            the attach kick — every one evidence-driven, every one real.
-          </li>
-          <li>
-            m4.0.8: the painted-but-black decode — the light package returned
-            on top of the fixed host; the health report learned to name the
-            glass color and the page&apos;s own words.
-          </li>
-          <li>
-            m4.0.9: the Companion Rendering Reset — the render path froze and
-            the baseline experiment shipped; your device then rendered
-            complete pages on the baseline and named the hosting stack.
-          </li>
-          <li>
-            m4.1.0: the native rebuild — the Companion re-hosted around the
-            proven baseline (one stable FrameLayout, one WebView per tab);
-            pool, probes, witnesses and health sheet deleted permanently.
-          </li>
-          <li>
-            v0.8.0-m4.0.11: Replace Renderer Only — the winner (BASELINE)
-            frozen and pinned; sheet/tabs/handle/heights untouched; the tab
-            content renderer is the exact baseline copy, diagnostics
-            stripped.
-          </li>
-          <li>
-            <b>v0.9.0-m5.0.0:</b> UI &amp; Interaction Polish — the drag bar
-            is 2× wider and a single TAP minimizes the Companion at any
-            height; heights are FREE (no snap points); the Home FAB and the
-            duplicate CLI Apps menu are gone; compact tabs with an
-            integrated “+”; the keyboard toggle sits in the bottom-right
-            corner; and the full Light Theme shipped (System/Light/Dark/
-            AMOLED) — websites still theme themselves.
-          </li>
-          <li>
-            <b>v0.9.0-m5.0.1:</b> M5.0 Final UI Correction — the workspace
-            header is gone, back lives in the tab bar, tabs are
-            significantly more compact (both strips, ellipsis + active tab
-            auto-scroll), and at ≥90% height the Companion tab strip also
-            drags the sheet (touch-slop gated; taps stay taps).
-          </li>
-          <li>
-            <b>v0.9.1-m5.1.0 (this build):</b> M5.1 ARM64 Performance &amp;
-            Architecture Optimization — audit-first; the minimized Companion
-            is silent (all WebViews paused, active wakes on raise); Home no
-            longer spawns a guest shell per visit; background terminal
-            output no longer repaints the screen; web state flushes under
-            memory pressure. Nothing working changed.
+            <b>v0.10.0-m6.0.0 (this build):</b> Universal Runtime
+            Compatibility — real glibc 2.41 at canonical multiarch paths
+            inside the Alpine guest; musl + glibc + static coexist; glibc
+            children spawn correctly; NSS/DNS work; the layer is pinned,
+            self-healing and rides the APK; pocketshell-doctor/exec ship
+            inside the guest; the Cline-class loader failure is closed.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §32 — the m5.1 gates)</h2>
+        <h2>Quick checks (docs/TESTING.md §33 — the m6.0 gates)</h2>
         <ol className="steps">
           <li>
-            <b>Silent minimize:</b> load ChatGPT, minimize the sheet, work
-            in the terminal for a few minutes → raise: the page is exactly
-            as you left it (no reload, still logged in); the device stays
-            cool while minimized.
+            <b>Automated suite:</b> one fresh session, then the
+            runtime-tests command above → 24 rows PASS, ALL GREEN.
           </li>
           <li>
-            <b>Home revisits:</b> Home ↔ Terminal repeatedly → instant
-            renders, no tool-grid churn; after an install the tools grid
-            still updates (forced probe).
+            <b>Doctor:</b> <code>pocketshell-doctor /bin/sh</code> → musl
+            SUPPORTED; <code>pocketshell-doctor</code> on a glibc binary →
+            full DT_NEEDED + loader resolution report.
           </li>
           <li>
-            <b>Background output:</b> run `yes` in session 1, switch to an
-            idle session 2, type/read → smooth; switch back → correct.
+            <b>Cline:</b> version/help/node-spawn (deep test with
+            CLINE_DEEP_TEST=1 when credentials exist).
           </li>
           <li>
-            <b>Nothing broke:</b> the §31 workspace bar + compact tabs, the
-            keyboard everywhere, themes, ChatGPT + Z.ai render/scroll/login,
-            refresh/hard-refresh — all unchanged.
+            <b>musl regression:</b> apk update/search/install, node, npm,
+            git, curl, Kilo — all unchanged.
           </li>
           <li>
-            <b>Startup:</b> force-stop → cold start → use only the terminal:
-            no crash, no provider loading (the m4.0.1 rule holds).
+            <b>Nothing broke:</b> keyboard, themes, Companion, sessions —
+            all unchanged (the layer is additive).
           </li>
         </ol>
       </div>
@@ -239,22 +210,26 @@ export default function Home() {
         <p>
           Complete buildable source. The zip intentionally contains no
           dotfiles; full history rides in the git bundle — includes the
-          complete milestone history, all Phase 3 design contracts, the
-          procfs contract, the Phase 4 Companion design contract, and the
-          rendering-reset report with the final verdict and the frozen-winner sweep (docs/RENDER-RESET-M4.0.9.md §7–§8).
+          complete milestone history, all design contracts, the procfs
+          contract, the rendering-reset report, and the new runtime
+          documentation (docs/runtime/ + runtime-tests/ + scripts/runtime/).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.9.1-m5.1.0-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.0-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.9.1-m5.1.0-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.0-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
           git bundle (full history)
         </a>
+        <a className="btn secondary" href="/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz">
+          glibc layer artifact (transparency copy)
+        </a>
         <Sha text={HASHES.zip} />
         <Sha text={HASHES.tgz} />
         <Sha text={HASHES.bundle} />
+        <Sha text={HASHES.glibc} />
         <p>
           Restore: <code>git clone pocketshell-m2.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
@@ -272,13 +247,13 @@ export default function Home() {
         m4.0.2 honest failure surfaces · m4.0.3 one keyboard for everything ·
         m4.0.4 pixels over promises · m4.0.5 the black page attacked at the
         root · m4.0.6 the page tells us everything · m4.0.7 the host was the
-        bug · m4.0.8 the painted-but-black decode ·{" "}
-        m4.0.9 the rendering reset · m4.1.0 the native rebuild · m4.0.11
-        replace renderer only — the winner frozen · m4.0.12 companion
-        finalization · m5.0.0 UI &amp; interaction polish · m5.0.1 the
-        workspace bar ·{" "}
-        <b>v0.9.1-m5.1.0 (this build): M5.1 ARM64 performance &amp;
-        architecture optimization — audit-first, four surgical fixes</b>.
+        bug · m4.0.8 the painted-but-black decode · m4.0.9 the rendering reset
+        · m4.1.0 the native rebuild · m4.0.11 replace renderer only — the
+        winner frozen · m4.0.12 companion finalization · m5.0.0 UI &amp;
+        interaction polish · m5.0.1 the workspace bar · m5.1.0 audit-first
+        performance ·{" "}
+        <b>v0.10.0-m6.0.0 (this build): universal runtime compatibility —
+        real glibc inside Alpine, musl untouched, Cline runs</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>

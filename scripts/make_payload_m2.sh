@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.9.1-m5.1.0
+VERSION=v0.10.0-m6.0.0
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,59 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.9.0-m5.0.1) — M5.1: ARM64 PERFORMANCE & ARCHITECTURE
+WHAT IS NEW IN $VERSION (vs v0.9.1-m5.1.0) — M6.0: UNIVERSAL RUNTIME COMPATIBILITY
+(musl + glibc + static + Node tooling in ONE Alpine guest; ONE distribution,
+Alpine, forever — the compatibility problem solved as architecture, not per-tool):
+  - THE BLOCKER CLOSED: glibc-linked ARM64 binaries failed at the loader stage
+    (gcompat shims only libc.so.6; Cline needs libpthread.so.0, libdl.so.2 and
+    libm.so.6 too — the exact failure the Kilo/M3 in-guest forensic report
+    captured on Cline 3.0.61).
+  - THE ARCHITECTURE (docs/runtime/DUAL_LIBC.md): REAL glibc (Debian 13 trixie
+    arm64, glibc 2.41) at the canonical multiarch paths INSIDE the Alpine
+    rootfs — /lib/ld-linux-aarch64.so.1 (the real loader),
+    /lib/aarch64-linux-gnu + /usr/lib/aarch64-linux-gnu, /etc/nsswitch.conf.
+    musl paths are disjoint by construction and never touched: the musl
+    loader (/lib/ld-musl-aarch64.so.1), musl SONAMEs and Alpine's /lib,
+    /usr/lib are exactly as before; apk is bit-identical in behavior.
+  - TRANSPARENT BY CONSTRUCTION: glibc binaries AND ALL THEIR CHILDREN exec
+    through the real loader with zero env vars, zero proot changes, zero
+    per-binary wrappers; both launch profiles (interactive sessions and
+    package operations) benefit automatically. Rejected on evidence:
+    gcompat (shim-only), sgerrand glibc (dead), patchelf-per-binary
+    (invasive), global LD_LIBRARY_PATH (musl mixing risk), a second distro
+    (forbidden by product direction).
+  - THE LAYER (PocketShell-owned, pinned, no user action):
+    pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz (6,761,290 B,
+    sha256 2242f8ef...) built from 15 pinned Debian pool packages (every
+    input SHA-256 recorded, INPUTS.sha256 committed); ships INSIDE the APK
+    (assets/guest/) — atomic with the app update, offline, no loose URLs.
+    Core: libc6 (loader, libc, libm, post-2.34 pthread/dl/rt/resolv, NSS),
+    libstdc++6, libgcc-s1, zlib; common set: ssl/crypto, lzma, bz2, expat,
+    ffi, pcre2, yaml, ncurses(w), tinfo, readline. gconv excluded
+    (documented in docs/runtime/KNOWN_LIMITATIONS.md).
+  - NEW GUEST TOOLS: pocketshell-exec (universal ELF routing) and
+    pocketshell-doctor (arch/class/interp/DT_NEEDED/max-GLIBC-version plus a
+    REAL loader resolution check via ld-linux --list; prints
+    SUPPORTED/UNSUPPORTED with the exact reason — no more guessing).
+  - THE DELIVERY (the GuestApkCompat self-healing pattern):
+    GuestGlibcRuntime.ensureInstalled at the one per-session prep seam —
+    idempotent marker fast path (one small read), self-healing
+    re-extraction, marker written LAST, zip-slip/absolute-path guards,
+    best-effort: musl sessions NEVER depend on it. Fresh AND existing
+    installs converge with no user step; the rootfs pin stays the pristine
+    upstream Alpine minirootfs.
+  - THE PROOF (new permanent suite, runtime-tests/, docs/runtime/TESTING.md):
+    sandbox rig (proot + qemu-aarch64 on the SAME pinned rootfs + layer):
+    20/20 PASS; the device runner under emulation: 24/24 ALL GREEN —
+    including the REAL Cline 3.0.61 binary (151,062,848 B, byte-identical to
+    the device report) running --version, --help, the node-spawn wrapper
+    chain and relaunch x3. musl regression: sh/bash/git/curl/node/npm/apk
+    all PASS unchanged.
+  - Full JVM suite: 768 executions, 0 failures (8 new GuestGlibcRuntimeTest
+    pins incl. pinned-asset integrity). Device gate: docs/TESTING.md §33.
+    versionCode 40 — in-place update over 16..39; same pinned cert.
+
+WHAT WAS NEW IN v0.9.1-m5.1.0 (vs v0.9.0-m5.0.1) — M5.1: ARM64 PERFORMANCE & ARCHITECTURE
 OPTIMIZATION (audit-first: the real architecture was measured and read end-to-end
 before any change; only what the evidence supports changed; nothing working broke):
   - ALREADY SOUND, DELIBERATELY UNTOUCHED: lazy startup (Application.onCreate
@@ -1292,7 +1344,7 @@ tar --exclude='./.git' --exclude='./.gitignore' --exclude='./.gitattributes' \
     --exclude='./dist-master' --exclude='./examples' --exclude='./mini-services' \
     --exclude='./tests' \
     --exclude='./.env' --exclude='./local.properties' \
-    --exclude='./*.zip' --exclude='./*.tar.gz' --exclude='./*.bundle' \
+    --exclude='./PocketShell-*.zip' --exclude='./PocketShell-*.tar.gz' --exclude='./*.gitbundle' \
     --exclude='./app/page.tsx' --exclude='./app/layout.tsx' \
     -cf - . | tar -xf - -C "$TREE"
 cp "$BUNDLE" "$TREE/pocketshell-m2.gitbundle"
@@ -1306,6 +1358,13 @@ rm -f "$ZIP" "$TGZ"
 tar -czf "$TGZ" -C "$STAGE" "$TOPDIR"
 cp "$BUNDLE" "$PUBLIC/pocketshell-m2.gitbundle"
 cp "$PROJECT/download/PocketShell-$VERSION-debug.apk" "$PUBLIC/"
+# M6.0: the executable compatibility suite + the glibc layer artifact
+# (transparency mirror — the layer itself already rides in the APK).
+RT_TGZ=$PUBLIC/pocketshell-runtime-tests-aarch64.tar.gz
+cp /home/z/tools/rig/pocketshell-runtime-tests-aarch64.tar.gz "$RT_TGZ" 2>/dev/null || {
+  ( cd "$PROJECT/runtime-tests" && tar -czf "$RT_TGZ" run_on_device.sh -C bin t_cline_shape t_cpp t_dlopen t_fork_exec t_getaddrinfo t_getpwnam t_hello t_libm t_pthread t_static )
+}
+cp "$PROJECT"/download/glibc-sidecar/pocketshell-glibc-aarch64-*.tar.gz "$PUBLIC/"
 
 # backup masters (survive download/ drains and public/ churn)
 cp "$ZIP" "$TGZ" "$BUNDLE" "$DIST/"
@@ -1356,6 +1415,14 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/res/font/jetbrains_mono_nl_italic.ttf \
            scripts/rehearse_m262.sh \
            app/src/main/assets/guest/libapk.so.3.0.0.fdlinkoff.aarch64 \
+           app/src/main/assets/guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz \
+           app/src/main/java/app/pocketshell/runtime/GuestGlibcRuntime.kt \
+           app/src/main/java/app/pocketshell/runtime/GlibcRuntimePin.kt \
+           app/src/main/java/app/pocketshell/packages/PackageGateway.kt \
+           docs/runtime/DUAL_LIBC.md docs/runtime/ELF_COMPATIBILITY.md \
+           docs/runtime/TESTING.md docs/runtime/KNOWN_LIMITATIONS.md \
+           runtime-tests/run_on_device.sh runtime-tests/src/t_pthread.c \
+           scripts/runtime/build_glibc_sidecar.sh \
            app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt \
            app/src/main/java/app/pocketshell/runtime/RuntimeManager.kt \
            pocketshell-m2.gitbundle RESTORE.txt gradlew \
@@ -1374,6 +1441,8 @@ echo "uncompressed bytes     : $FILES  (files: $(echo "$LIST" | awk '/files$/ { 
 # --- 6. delivery summary ---
 echo "== sha256 (paste into download page) =="
 sha256sum "$ZIP" "$TGZ" "$PUBLIC/pocketshell-m2.gitbundle" \
-          "$PUBLIC/PocketShell-$VERSION-debug.apk" | while read -r h f; do
+          "$PUBLIC/PocketShell-$VERSION-debug.apk" \
+          "$PUBLIC/pocketshell-runtime-tests-aarch64.tar.gz" \
+          "$PUBLIC"/pocketshell-glibc-aarch64-*.tar.gz | while read -r h f; do
   printf '%s  %s  (%s)\n' "$h" "$(basename "$f")" "$(du -h "$f" | cut -f1)"
 done

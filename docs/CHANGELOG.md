@@ -3,6 +3,67 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.10.0-m6.0.0] — 2026-09-06 — M6.0: Universal Runtime Compatibility (musl + glibc + static in ONE Alpine guest)
+
+The engineering phase that removes the single hard blocker the two forensic
+reports identified: glibc-linked ARM64 binaries failing at the loader stage
+(gcompat shims only `libc.so.6`; Cline needs `libpthread.so.0`,
+`libdl.so.2`, `libm.so.6` too).
+
+### 1. The architecture (docs/runtime/DUAL_LIBC.md — decision record)
+- **REAL glibc (Debian 13 trixie arm64, glibc 2.41) at canonical multiarch
+  paths inside the Alpine rootfs** — `/lib/ld-linux-aarch64.so.1` (real
+  loader) + `/lib/aarch64-linux-gnu` + `/usr/lib/aarch64-linux-gnu` +
+  `/etc/nsswitch.conf`. musl paths are disjoint by construction and never
+  touched; apk/musl behavior is bit-identical (loader names, SONAMEs and
+  directories do not overlap).
+- Transparent by construction: glibc binaries (and ALL their children) exec
+  through the real loader with zero env vars, zero proot changes, zero
+  per-binary wrappers; both launch profiles benefit automatically.
+- Rejected on evidence: gcompat (shim-only — the device failure), sgerrand
+  alpine-pkg-glibc (dead/unmaintained), patchelf-per-binary (invasive),
+  global LD_LIBRARY_PATH (musl mixing risk), a second distro (forbidden).
+
+### 2. The layer (PocketShell-owned, pinned, no user action)
+- `pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz` (6,761,290 B,
+  sha256 2242f8ef…) built by `scripts/runtime/build_glibc_sidecar.sh` from
+  15 pinned Debian pool packages (INPUTS.sha256 committed); ships in the APK
+  (`assets/guest/`) — atomic with the app update, offline, no loose URLs.
+- Core: libc6 (loader, libc, libm, post-2.34 pthread/dl/rt/resolv semantics,
+  NSS), libstdc++6, libgcc-s1, zlib; common set: ssl/crypto, lzma, bz2,
+  expat, ffi, pcre2, yaml, ncurses(w), tinfo, readline. gconv excluded
+  (documented, KNOWN_LIMITATIONS).
+- Guest tools ride the layer: `pocketshell-exec` (universal ELF routing) and
+  `pocketshell-doctor` (arch/class/interp/DT_NEEDED/max-GLIBC version + a
+  REAL loader resolution check → SUPPORTED/UNSUPPORTED with the reason).
+
+### 3. The delivery (the GuestApkCompat self-healing pattern)
+- `GuestGlibcRuntime.ensureInstalled(rootfsDir)` — idempotent marker fast
+  path (one small read), self-healing re-extraction, marker written LAST,
+  zip-slip/absolute-path guards, best-effort: musl sessions NEVER depend on
+  it. Called from the one existing per-session prep seam
+  (`PackageGateway.prepareGuestForSession`) — fresh and existing installs
+  converge without any user step.
+
+### 4. The proof (docs/runtime/TESTING.md)
+- New permanent suite `runtime-tests/` (sources + cross-compiled binaries):
+  `t_hello/t_pthread/t_dlopen/t_libm/t_cpp/t_fork_exec/t_getpwnam/
+  t_getaddrinfo/t_static/t_cline_shape` (the last replicates Cline's exact
+  DT_NEEDED class: libc.so.6 + libpthread.so.0 + libdl.so.2 + libm.so.6).
+- Sandbox rig (proot + qemu-aarch64 + the SAME pinned rootfs + layer):
+  **20/20 PASS**; the device runner validated under emulation: **24/24
+  ALL GREEN**, including the REAL Cline 3.0.61 binary (151,062,848 B —
+  byte-identical to the device report) running `--version`, `--help`, the
+  node-spawn wrapper chain and relaunch ×3. The failure the Kilo/M3 report
+  captured is CLOSED at the loader level and the full CLI level.
+- JVM suite: 768 executions / 0 failures (8 new `GuestGlibcRuntimeTest`
+  pins incl. pinned-asset integrity).
+
+### 5. Already sound, deliberately untouched
+- Terminal, keyboard, Companion, session model, package layer, procfs
+  contract, launch profiles — no behavior change; the layer is additive.
+- The rootfs pin stays the pristine upstream Alpine minirootfs.
+
 ## [0.9.1-m5.1.0] — 2026-09-06 — M5.1: ARM64 Performance & Architecture Optimization
 
 The audit-first optimization phase: measure the real architecture, change
