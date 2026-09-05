@@ -207,3 +207,27 @@ $ next dev -p 3000
  GET / 200 in 125ms
  GET / 200 in 95ms
 [?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.4.122:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ○ Compiling / ...
+ ✓ Compiled / in 4.2s (539 modules)
+ GET / 200 in 4664ms
+ GET / 200 in 160ms
+ GET / 200 in 421ms
+ GET / 200 in 424ms
+ GET / 200 in 151ms
+ GET / 200 in 135ms
+ GET / 200 in 134ms
+ GET / 200 in 171ms
+ GET / 200 in 144ms
+ GET / 200 in 325ms
+ GET / 200 in 130ms
+ GET / 200 in 325ms
+ GET / 200 in 179ms
+ GET / 200 in 140ms
