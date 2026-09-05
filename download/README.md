@@ -40,9 +40,16 @@ versionCode 36)
   keyboard, regression ladder).
   Sweep evidence + frozen winner: docs/RENDER-RESET-M4.0.9.md §1–§8.
   Full record: docs/CHANGELOG [0.8.0-m4.0.12].
-- PocketShell-v0.8.0-m4.0.12-source.zip sha256 2752f2ff8cf653904e6c0957042b9f2134276823714ddbaffe7fca80d0c88db9  (32M, 330 files)
-- PocketShell-v0.8.0-m4.0.12-source.tar.gz sha256 3ffe35e4db2ed3d713ba8329bfba66d47688d749affc6a214d8494d961347988  (32 MB)
-- pocketshell-m2.gitbundle           sha256 ed44868d4d83188facf761bef975d591d748d7f12348d3ea9fe0c06437a4baaa  (full history; ~28M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, docs/PHASE-4-COMPANION-DESIGN.md, and docs/RENDER-RESET-M4.0.9.md §1–§8 (verdict + frozen winner) — honest, no rewrites)
+- PocketShell-v0.8.0-m4.0.12-source.zip sha256 c2bf59801d8d10b3063b1603ac0edd8b6f3f88125d43f7727ed03abb815ce28e  (32M, 330 files)
+- PocketShell-v0.8.0-m4.0.12-source.tar.gz sha256 b42c2dbc8ad2d12f813aec81db6a0150613a98a8f4457d3c0891bc4d437e7bbc  (32 MB)
+- pocketshell-m2.gitbundle           sha256 86648801410362bb8889a8cadf865a0aaedf1e2e73fcebdbae160e4eda107b28  (full history; ~28M — includes the complete milestone history, all Phase 3/4 design contracts, docs/PROCFS-CONTRACT.md, docs/PHASE-4-COMPANION-DESIGN.md, and docs/RENDER-RESET-M4.0.9.md §1–§8 (verdict + frozen winner) — honest, no rewrites)
+
+Archive provenance: sandbox reset #10 wiped the binaries; toolchain
+reinstalled, APK rebuilt BYTE-IDENTICAL (pin above unchanged, cert
+d96a6f66…8bf659 re-verified), archives re-cut at the recovery tip
+(tree carries the final page/README/worklog commits that postdate the
+original cut at 1e59c00 — code state identical, hence new archive
+shas; file count still 330).
 
 All served on :3000 from public/ (same bytes, HTTP-verified).
 Older builds: withdrawn (v0.8.0-m4.0.11 superseded by m4.0.12; its
