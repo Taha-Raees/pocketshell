@@ -1,10 +1,10 @@
-const VERSION = "v0.8.0-m4.0.12";
+const VERSION = "v0.9.0-m5.0.0";
 
 const HASHES = {
-  apk: "679dff59a5290260dbf543209bf0eb5c9df7b1cc062b0d743c69f50c7e62f990",
-  zip: "c2bf59801d8d10b3063b1603ac0edd8b6f3f88125d43f7727ed03abb815ce28e",
-  tgz: "b42c2dbc8ad2d12f813aec81db6a0150613a98a8f4457d3c0891bc4d437e7bbc",
-  bundle: "86648801410362bb8889a8cadf865a0aaedf1e2e73fcebdbae160e4eda107b28",
+  apk: "b6b9d121c98a7367de6ee9d767dcab99ef438920f233aa21da9dde8edca3efc5",
+  zip: "82a435ad5a61dd6d03ff7ad86c1788ef8543b0cff753f57230c68f0efeeba896",
+  tgz: "994c8ef2df8baf73f0598d95255ebd3cc88ea071249e9accd0309e9bf5840051",
+  bundle: "643fd905d74eb4311ccb5f14116ac4d139f55e9bc94ee33c1002215fa83fb5f3",
 };
 
 function Sha({ text }: { text: string }) {
@@ -25,59 +25,63 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          Companion Finalization: cleanup, polish, ONE keyboard{" "}
-          <span className="badge">versionCode 36</span>
+          UI &amp; Interaction Polish: free-position Companion, decluttered
+          Home, Light Theme done fully{" "}
+          <span className="badge">versionCode 37</span>
         </h2>
         <p>
-          <b>A surgical cleanup and polish pass — the working renderer was
-          not modified.</b> The proven baseline renderer stays byte-identical
-          to m4.0.11. Five finalization items executed around it:
+          <b>A refinement phase — no redesign, no new features, the working
+          Companion implementation untouched.</b> Remove redundancy, reduce
+          wasted space, improve interaction, finish theming:
         </p>
         <ul className="steps">
           <li>
-            <b>All diagnostics removed, completely:</b> the ⓘ chip, its
-            launch path, the harness Activity and its matrix are DELETED
-            (code + manifest). The Companion shows only the real website —
-            no headers, readouts or test buttons anywhere. The frozen render
-            contract is unchanged; the winner is pinned by value.
+            <b>Companion drag bar, exact behavior:</b> the visible bar is
+            <b> 2× wider</b> (72×4dp, still slim) in the same 40dp invisible
+            full-width touch zone — and a <b>single tap minimizes</b> the
+            raised Companion at ANY height (25%, 50%, 80%, near-full).
+            Restore is drag-up only; no floating button.
           </li>
           <li>
-            <b>Refresh + hard refresh:</b> the ↻ glyph in the tab strip.
-            Tap = plain reload of the <b>active tab only</b> (same URL, same
-            tab, other tabs untouched). Long-press = <b>hard refresh</b> —
-            the freshest possible reload that is NOT a data reset (one
-            transient cache-bypass, restored on page finish; cookies,
-            logins and other tabs preserved; haptic + “Hard reloading…”).
+            <b>Free positioning:</b> the snap windows are retired. Height
+            changes ONLY by dragging; release stays EXACTLY where you leave
+            it — any fraction, no forced 25/50/75/full anchors. Drag to the
+            bar → minimized (unchanged).
           </li>
           <li>
-            <b>Drag handle, easier to grab:</b> the visible bar is unchanged
-            (36×4dp); the invisible full-width touch zone grew 28→40dp.
+            <b>Home decluttered:</b> the floating action button is REMOVED
+            (sessions are created in the Terminal&apos;s own "+"), and the
+            duplicate CLI Apps dropdown is retired — the “Your tools” grid
+            is the one path. Nothing functional lost.
           </li>
           <li>
-            <b>ONE PocketShell keyboard, everywhere:</b> the deck now lives
-            at the app root — the same keyboard over Terminal, Linux, CLI
-            Apps, Home, and the Companion over all of them. The
-            Android/Samsung keyboard is hard-blocked for the app&apos;s
-            lifetime (it used to leak back when the deck was hidden). Real
-            KeyEvents only — no JavaScript hacks; even the Companion
-            settings Name/URL fields are served by the same deck.
-            WebView-input focus auto-opens it; the bottom-right [⌨] toggle
-            works on every screen; closing the Companion restores the
-            terminal&apos;s focus cleanly.
+            <b>Compact workspace chrome:</b> tabs and strips slimmed (40dp
+            strip, tighter gaps/paddings, horizontally scrollable as
+            before); the terminal “+” is integrated into the strip (no
+            circle plate); padding trimmed app-wide — Home, Packages,
+            Settings, the system-page kit — touch targets kept ≥44dp.
           </li>
           <li>
-            <b>Untouched, the freeze held:</b> renderer, sheet, drag
-            mechanics, remembered height, tab system, tab state,
-            destination storage, navigation, provider management. Full
-            suite <b>750 executions / 0 failures</b>.
+            <b>Light Theme, full:</b> System / Light / Dark / AMOLED, all
+            live. Switching is immediate and persisted (no restart). The
+            terminal canvas stays dark (it is a terminal) and websites keep
+            their own themes — PocketShell never injects a theme into
+            Companion pages. The ONE keyboard is untouched; its [⌨] toggle
+            now sits anchored at the bottom-right corner on every screen.
+          </li>
+          <li>
+            <b>Untouched, the freeze held:</b> renderer, sheet mechanics,
+            tab system, pool, refresh/hard-refresh, session persistence,
+            keyboard internals. Full suite <b>750 executions / 0
+            failures</b>.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.8.0-m4.0.12-debug.apk">
+        <a className="btn" href="/PocketShell-v0.9.0-m5.0.0-debug.apk">
           Download APK (debug, 22 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.8.0-m4.0.12)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.9.0-m5.0.0)
         </p>
       </div>
 
@@ -157,42 +161,48 @@ export default function Home() {
             stripped.
           </li>
           <li>
-            <b>v0.8.0-m4.0.12 (this build):</b> Companion Finalization —
-            diagnostics retired completely (harness deleted), refresh +
-            long-press hard refresh, bigger invisible drag-handle touch
-            zone, and ONE PocketShell keyboard over every screen with the
-            system IME permanently blocked. The renderer: byte-identical.
+            <b>v0.9.0-m5.0.0 (this build):</b> UI &amp; Interaction Polish —
+            the drag bar is 2× wider and a single TAP minimizes the Companion
+            at any height; heights are FREE (no snap points); the Home FAB and
+            the duplicate CLI Apps menu are gone; compact tabs with an
+            integrated “+”; the keyboard toggle sits in the bottom-right
+            corner; and the full Light Theme shipped (System/Light/Dark/
+            AMOLED) — websites still theme themselves. The Companion
+            implementation: untouched.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §29 — the finalization gates)</h2>
+        <h2>Quick checks (docs/TESTING.md §30 — the Phase 5 gates)</h2>
         <ol className="steps">
           <li>
-            Install {VERSION} in place → the Companion shows ONLY the real
-            website: no ⓘ chip, no harness — the diagnostics are gone.
-            ChatGPT + Z.ai still render their REAL UIs (the freeze).
+            <b>Drag bar:</b> raise the Companion → tap the 2× bar → it
+            minimizes IMMEDIATELY at any height; drag up to restore; drag
+            and release at ~33% / ~61% / ~85% — it STAYS exactly there
+            (no snap points).
           </li>
           <li>
-            <b>Refresh:</b> tap ↻ — the active tab reloads, same URL, other
-            tabs intact. <b>Hard refresh:</b> hold ↻ (haptic + "Hard
-            reloading…") — fresh load, still logged in, session kept.
+            <b>Home:</b> no floating button, no CLI Apps dropdown — the
+            tools grid launches the same apps; sessions are created from
+            the Terminal’s own “+”. Nothing else changed.
           </li>
           <li>
-            <b>ONE keyboard:</b> tap the ChatGPT message box → the
-            PocketShell deck opens by itself and typing reaches the page;
-            the Samsung keyboard never appears. Same over Z.ai, and in the
-            Companion settings Name/URL fields.
+            <b>Light theme:</b> Settings → Appearance → Light — the whole
+            app flips instantly and stays Light after a restart. The
+            terminal canvas stays dark (it is a terminal) and ChatGPT/Z.ai
+            keep their own themes.
           </li>
           <li>
-            <b>Handle:</b> drag the bar — easier to grab (invisible 40dp
-            zone), same small look, smooth 1:1 drag, height remembered.
+            <b>Keyboard toggle:</b> hide the deck — the [⌨] icon now sits
+            anchored at the bottom-right corner on every screen; tap it to
+            bring the ONE keyboard back (the Android keyboard never
+            appears).
           </li>
           <li>
-            <b>Toggle + focus:</b> hide the deck via [⌨] → the bottom-right
-            button brings it back on EVERY screen; close the Companion →
-            the terminal receives typing again, cleanly.
+            <b>Regression:</b> ChatGPT + Z.ai still render their real UIs;
+            refresh (tap) / hard refresh (hold) still act on the active tab
+            only and keep you logged in.
           </li>
         </ol>
       </div>
@@ -206,10 +216,10 @@ export default function Home() {
           procfs contract, the Phase 4 Companion design contract, and the
           rendering-reset report with the final verdict and the frozen-winner sweep (docs/RENDER-RESET-M4.0.9.md §7–§8).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.8.0-m4.0.12-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.9.0-m5.0.0-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.8.0-m4.0.12-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.9.0-m5.0.0-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -237,10 +247,11 @@ export default function Home() {
         root · m4.0.6 the page tells us everything · m4.0.7 the host was the
         bug · m4.0.8 the painted-but-black decode ·{" "}
         m4.0.9 the rendering reset · m4.1.0 the native rebuild · m4.0.11
-        replace renderer only — the winner frozen ·{" "}
-        <b>v0.8.0-m4.0.12 (this build): companion finalization —
-        diagnostics retired, refresh + hard refresh, easier drag handle,
-        ONE keyboard everywhere, system IME blocked</b>.
+        replace renderer only — the winner frozen · m4.0.12 companion
+        finalization ·{" "}
+        <b>v0.9.0-m5.0.0 (this build): UI &amp; interaction polish —
+        free-position Companion, tap-to-minimize drag bar, decluttered
+        Home, compact chrome, Light Theme done fully</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>

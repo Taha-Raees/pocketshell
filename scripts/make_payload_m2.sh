@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
-VERSION=v0.8.0-m4.0.12
+VERSION=v0.9.0-m5.0.0
 TOPDIR=PocketShell-$VERSION
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -40,7 +40,60 @@ them. The complete git history (all milestone checkpoints: initial -> M0
 
   pocketshell-m2.gitbundle
 
-WHAT IS NEW IN $VERSION (vs v0.8.0-m4.0.11) — COMPANION FINALIZATION: CLEANUP,
+WHAT IS NEW IN $VERSION (vs v0.8.0-m4.0.12) — UI & INTERACTION POLISH: FREE-POSITION
+COMPANION, DECLUTTERED HOME, LIGHT THEME DONE FULLY (a refinement phase — no
+redesign, no new features, the working Companion implementation untouched
+architecturally):
+  - COMPANION DRAG BAR, EXACT BEHAVIOR: the visible bar is 2x wider (72x4dp,
+    still slim) inside the same 40dp invisible full-width touch zone; the
+    zone stays the column's first child (it can never hide behind tabs or
+    content). A single TAP anywhere on the bar IMMEDIATELY minimizes the
+    raised sheet — at 25%, 50%, 80%, near-full, ANY height. Restore is
+    drag-up only (no floating button — the persistent bar remains the only
+    affordance, as before).
+  - FREE POSITIONING: the HALF/FULL snap windows are RETIRED. The height
+    changes ONLY by dragging (up = taller, down = shorter) and a release
+    settles EXACTLY where the user leaves it — any fraction, no forced
+    anchors. The only special release is the collapse threshold (drag near
+    the bar -> minimized). Height-math unit pins reworked for the contract.
+  - HOME DECLUTTERED: the floating action button is REMOVED (code deleted;
+    its 140dp clearance too) — session creation lives in the Terminal (its
+    integrated "+" and the empty state). The duplicate "CLI Apps" dropdown
+    is RETIRED — it listed exactly the apps the "Your tools" grid already
+    launches; ONE clear path remains. No functionality removed.
+  - COMPACT CHROME: terminal strip 44 -> 40dp; tab min width 96 -> 84dp;
+    tab padding 12 -> 10dp; gaps 6 -> 4dp; the terminal "+" is now the same
+    quiet integrated glyph as the Companion strip's (no circle plate).
+    App-wide padding trim (Home, system-page kit, Packages, Settings) with
+    touch targets kept >= 44-48dp. Horizontal tab scrolling unchanged.
+  - KEYBOARD TOGGLE CORNER-ANCHORED: the [keyboard] rebirth icon sits 12dp
+    from the right edge / 8dp above the gesture inset — on every screen,
+    safe insets respected. The ONE keyboard system is otherwise untouched:
+    no second layout, no Android IME, same dispatch chain and web-input
+    bridging.
+  - LIGHT THEME, FULL: the Midnight Sapphire token vocabulary became
+    snapshot state — Midnight (dark, the historical values) <-> Daylight
+    Sapphire (light). System / Light / Dark / AMOLED all live; switching is
+    immediate (token sync before first read — no flash) and persisted
+    (DataStore; survives restart/process recreation). The terminal CONTENT
+    canvas stays Midnight in every theme (a terminal is a dark professional
+    surface; TerminalPalette/OSC authority untouched) and websites keep
+    owning their appearance — NO theme injection into Companion pages, ever.
+    Status-bar icons follow the theme on every screen; AMOLED preserved;
+    dynamic color intact.
+  - PACKAGES + SETTINGS POLISH: one-row search (field + action), tighter
+    list rhythm — every honest apk-backed state preserved verbatim;
+    Settings regrouped into Appearance / Terminal / Companion — nothing
+    invented.
+  - NOT TOUCHED: renderer, sheet mechanics, tab system, pool,
+    refresh/hard-refresh, session persistence, keyboard internals.
+  - Full suite green: 750 executions, 0 failures. Device gate:
+    docs/TESTING.md §30 (drag-bar matrix, free positioning, Home/FAB/CLI
+    removal, toggle corner, Light/Dark/System/AMOLED sweep — websites NOT
+    re-themed, Packages/Settings, keyboard regression ladder).
+    versionCode 37 — in-place update over 16..36; same pinned cert.
+
+WHAT WAS NEW IN v0.8.0-m4.0.12 (vs v0.8.0-m4.0.11) — COMPANION FINALIZATION: CLEANUP,
 POLISH, ONE KEYBOARD (surgical pass; the working renderer is the source of
 truth and was NOT modified):
   - DIAGNOSTICS GONE, COMPLETELY: the tab strip's i chip, the launch path,
@@ -1206,7 +1259,9 @@ for key in docs/M2-RESEARCH.md docs/M2.6-RESEARCH.md docs/M2-ARCHITECTURE.md \
            app/src/main/java/app/pocketshell/ui/home/HomeScreen.kt \
            app/src/main/java/app/pocketshell/ui/home/HomeTokens.kt \
            app/src/main/java/app/pocketshell/ui/home/HomeMarks.kt \
-           app/src/main/java/app/pocketshell/ui/home/QuickActions.kt \
+           app/src/main/java/app/pocketshell/ui/settings/SettingsScreen.kt \
+           app/src/main/java/app/pocketshell/ui/apps/ExploreAppsScreen.kt \
+           app/src/main/java/app/pocketshell/ui/theme/Theme.kt \
            app/src/main/java/app/pocketshell/ui/system/MidnightPage.kt \
            app/src/main/res/font/jetbrains_mono_nl_regular.ttf \
            app/src/main/res/font/jetbrains_mono_nl_bold.ttf \
