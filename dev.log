@@ -117,3 +117,34 @@ $ next dev -p 3000
  ○ Compiling / ...
  ✓ Compiled / in 3.8s (539 modules)
  GET / 200 in 4225ms
+ GET / 200 in 174ms
+ GET / 200 in 214ms
+ ✓ Compiled /_not-found in 372ms (526 modules)
+ GET /PocketShell-v0.7.0-m4.0.9-debug.apk 404 in 579ms
+ ⚠ Cross origin request detected from preview-chat-af9ee1f3-ca8c-465f-89b3-fb2137e3b7e6.space-z.ai to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ✓ Compiled / in 151ms (312 modules)
+ GET / 200 in 520ms
+ GET / 200 in 94ms
+ ✓ Compiled /_not-found in 442ms (530 modules)
+ GET /PocketShell-v0.7.0-m4.0.7-debug.apk 404 in 665ms
+ GET /PocketShell-v0.7.0-m4.0.1-debug.apk 404 in 44ms
+ GET / 200 in 118ms
+ GET / 200 in 110ms
+ GET / 200 in 100ms
+ GET / 200 in 103ms
+ GET / 200 in 135ms
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.16.37:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1936ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.5s (539 modules)
+ GET / 200 in 3987ms
+ GET / 200 in 362ms
+ GET / 200 in 374ms
