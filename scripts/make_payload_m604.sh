@@ -89,9 +89,9 @@ cp "$BUNDLE" "$PUBLIC/pocketshell-m2.gitbundle"
 # APK (already built + verified: vc44)
 cp "$PROJECT/app/build/outputs/apk/debug/app-debug.apk" "$PUBLIC/PocketShell-$VERSION-debug.apk"
 
-# tests tarball v2.3 (flat layout + the Phase-C drill script, zeroed mtimes, gzip -n)
+# tests tarball v2.4 (flat layout + Phase-C drill script + device gate runner, zeroed mtimes, gzip -n)
 RT_TGZ=$PUBLIC/pocketshell-runtime-tests-aarch64.tar.gz
-( cd "$PROJECT/runtime-tests" && find run_on_device.sh adversarial_closure_audit.sh bin -exec touch -d @0 {} + 2>/dev/null; tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - run_on_device.sh adversarial_closure_audit.sh -C bin t_cline_shape t_cpp t_dlopen t_fork_exec t_getaddrinfo t_getpwnam t_hello t_libm t_pthread t_static | gzip -n > "$RT_TGZ" )
+( cd "$PROJECT/runtime-tests" && find run_on_device.sh adversarial_closure_audit.sh device_gate.sh bin -exec touch -d @0 {} + 2>/dev/null; tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - run_on_device.sh adversarial_closure_audit.sh device_gate.sh -C bin t_cline_shape t_cpp t_dlopen t_fork_exec t_getaddrinfo t_getpwnam t_hello t_libm t_pthread t_static | gzip -n > "$RT_TGZ" )
 
 # glibc layer artifact (rev=2, unchanged by m6.0.4 — byte-identical; the
 # post-reset download/ copy is restored from the in-tree pinned asset)

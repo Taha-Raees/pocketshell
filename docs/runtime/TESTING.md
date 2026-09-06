@@ -41,6 +41,37 @@ and the real-Cline verdict inside the Cline section), Cline end-to-end
 (version/help/node-spawn/relaunch; `CLINE_DEEP_TEST=1` adds an
 initialization attempt when credentials exist).
 
+## M6 final device gate (guided, resumable)
+
+`device_gate.sh` (ships in the tests tarball beside the suite) drives the
+remaining destructive closure drills with the least user effort. Each stage
+is idempotent and re-runnable; `status` always prints the exact next command.
+
+    sh /tmp/pocketshell-tests/device_gate.sh gate
+      → baseline identity checks (app stamp, marker pin, REAL Debian loader,
+        musl, suite binaries, disk) then the C2 corruption drills
+      → ACTION REQUIRED: open ONE new PocketShell session
+    sh /tmp/pocketshell-tests/device_gate.sh resume-c2
+      → proves the app's session prep re-extracted (provenance: the layer
+        marker must have been RE-WRITTEN after the drill armed + status file
+        corroboration — a `heal --manual` restore canNOT pass) then arms C4
+      → ACTION REQUIRED: open ONE new PocketShell session
+    sh /tmp/pocketshell-tests/device_gate.sh resume-c4
+      → proves the loader was restored by session prep; records the measured
+        C4 answer (did `apk fix gcompat` reclaim naturally, or was the arm
+        simulated with the genuine shim); arms C5
+      → ACTION REQUIRED: open ONE new PocketShell session
+    sh .../device_gate.sh resume-c5
+      → proves the fast path survived the package operations; runs FINAL
+        (full 27-row suite + adversarial probe + summary)
+
+Stages: `gate | baseline | c2 | resume-c2 | c4 | resume-c4 | c5 | resume-c5 |
+final | status`. Safety: the drills only touch PocketShell-owned layer files
+(loader path, multiarch libs, marker); the Alpine rootfs, user projects and
+Android storage are never touched; destructive stages refuse to run until
+baseline passes. The runner never repairs the layer itself — healing must
+come from PocketShell's own `GuestGlibcRuntime` session-prep path.
+
 ## Test binary provenance
 
 `runtime-tests/src/*.c(pp)` cross-compiled with the pinned Debian cross gcc 14
