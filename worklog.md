@@ -1385,3 +1385,22 @@ Work Log:
   - F7 (C8, DOCUMENTATION): the proot process env (LD_LIBRARY_PATH=<nativeLibraryDir> for bionic libtalloc resolution, PROOT_LOADER, PROOT_TMP_DIR, PROOT_LOADER_32) is inherited by guest processes; the paths do not exist inside the guest, so they are functionally inert there, but visible in env. Must be documented in DUAL_LIBC.md (no musl->glibc forcing, no loader behavior change inside the guest).
   - F8 (C2.4/C2.5, PASS at code level): asset sha-256 verified BEFORE extraction (fail-closed), marker written LAST via tmp+rename, interrupted extraction leaves no marker => next ensure re-extracts. Device drills to confirm live.
 - C4 evidence: /tmp/c4evidence/gcompat.apk (dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/gcompat-1.1.0-r4.apk), APKINDEX entry (provides so:ld-linux-aarch64.so.1=1).
+
+---
+Task ID: 9 (continued — implementation + delivery)
+Agent: main (Super Z)
+Task: Implement + ship the Phase-C audit fixes as vc44, with permanent drill tooling and the release chain.
+
+Work Log:
+- GuestGlibcRuntime: structuralIntegrityPasses probe (loader symlink canonical-target check + load-bearing files; final-component symlinks FOLLOWED because SONAME aliases are legitimate layer shapes — caught by the real-archive test), single-flight ensure (monitor), symlink-node replaceSymlink, NOFOLLOW deleteRecursivelyNoFollow, refuseSymlinkParents fail-closed guard. RuntimeInstaller: same NOFOLLOW + guard + node-delete helpers. RuntimeStorage: cleanupTransient + clearRuntime on NOFOLLOW walks.
+- Two-phase session creation: TerminalSessionManager.prepareLinuxSession (IO) + spawnLinuxSession (main); TerminalViewModel.openLinuxShell now async with onReady (MainActivity updated); openCommandApp/openCatalogApp prep on IO before main spawn. guestLaunchChain moved to its call sites; unused import removed.
+- GuestGlibcRuntimeTest fixture enriched to the REAL layer shape (dir symlink before targets, core libs, both tools); +9 Phase-C pins: sentinel survival, loader-deleted / gcompat-reclaim / lib-deleted / doctor-deleted self-heals, healthy-fast-path, concurrent-single-flight (8 threads -> exactly 1 Installed), hostile intermediate-symlink refusal, REAL-archive extract+re-extract. One probe bug found BY the real-archive test (NOFOLLOW on SONAME aliases) and fixed.
+- JVM suite 397 -> 406 leaf cases / 0 failed / 0 skipped after APK build (built-APK pin executed against vc44 bytes: 26/26 in GuestGlibcRuntimeTest).
+- vc44 built: versionCode 44 / 0.10.0-m6.0.4, 29,826,219 B, APK sha e633ca3c…, cert d96a6f66… (unchanged), embedded asset sha/size EXACTLY the pin (898131ff… / 17,920,000 B).
+- Payload cut from final release tip a7441ff (make_payload_m604.sh): zip 04c055c1…, tgz 655f2ece…, bundle 4388da2f…, tests 8392edab… (712 KB, now ships adversarial_closure_audit.sh), layer ed82daa8… byte-identical (unchanged rev=2 — m6.0.4 is app-side only). mirror_m604.sh three-way verified + APK embedded-asset check OK. Page re-pinned (next build + start on :3000, served bytes sha-verified over HTTP).
+- Docs: DUAL_LIBC.md §8 (precise engineering claim, probe contract, gcompat coexistence verdict, environment disclosure, extractor hardening), KNOWN_LIMITATIONS.md §5–§7 (gcompat reclaim IMPORTANT/self-healing; UI-thread prep FIXED; multiarch-wipe FIXED), CHANGELOG m6.0.4 entry.
+- Commits: 8e20dc6 (audit fixes + tests + tooling), a7441ff (web delivery), 03a2053 (pin re-cut from final tip).
+
+Stage Summary:
+- Code-level closure achieved: the three Phase-C bugs are fixed with permanent regression pins; the audit's sandbox evidence batteries pass (doctor 20/20; symlink containment 361/361; gcompat package evidence secured).
+- REMAINING GATE (device is the authority, Rule 1): install vc44 in place over vc43, one fresh session, re-run the 27-row suite (expect 27/27 + fast-path status), then the drills in order: probe → drill-c2 → (new session) → heal → drill-c4 → (new session) → heal → drill-c5. If those pass, M6 is READY TO CLOSE with the freeze boundary documented in DUAL_LIBC.md §8.1.
