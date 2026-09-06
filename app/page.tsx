@@ -9,6 +9,7 @@ const VERSION = "v0.10.0-m6.0.4";
 // rev=2 (byte-identical artifact ed82daa8…): m6.0.4 fixes are APP-side only.
 const HASHES = {
   apk: "e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750",
+  m7p6: "35ae7a488af89a3403823f78ecadeaacb5c6b2806f5a240d73320128e94fff37",
   zip: "b0985c77d8c9e8100072b4f54d961c08aba0d79a02a75918cc5d5e8be753da12",
   tgz: "c46e585dc90663f5349f654940bbde1a6437acd4790f647d6405e1d3b7884595",
   bundle: "9982485d3c2e93213f9ec815f53228d74efa091773fc3ba9a9dc00a1f62f3938",
@@ -32,6 +33,35 @@ export default function Home() {
         Alpine Linux guest via proot, real <code>apk</code> package manager.
         REUSE → INTEGRATE → OPTIMIZE → IMPROVE. Nothing faked, ever.
       </p>
+
+      <div className="card primary">
+        <h2>
+          M7 Phase 6 build: quick text editor{" "}
+          <span className="badge">M7 tip 25f421f · vc44</span>
+        </h2>
+        <p>
+          <b>
+            LATEST BUILD — includes M7 Phases 1–6 on top of M6.0.4: storage
+            abstraction, file explorer, file operations, Android storage bridge
+            (SAF folders), and now the quick text editor. &quot;Open&quot; on
+            regular files across all three storage domains — PocketShell Linux,
+            the Downloads shelf, user-granted SAF folders. Byte-honest (strict
+            UTF-8 or refusal — no silent corruption; BOM/CRLF round-trip
+            byte-exact; NUL binary sniff; 1 MiB cap with the real size),
+            concurrency-honest ((size, mtime) save gate + explicit overwrite
+            confirmations), input-honest (the ONE keyboard deck, no IME).
+            Dirty back guard. NOT a mini IDE by design. JVM suite 586/586
+            green.
+          </b>
+        </p>
+        <a className="btn" href="/PocketShell-v0.10.0-m6.0.4-m7p6-debug.apk">
+          Download M7P6 APK (debug, 30.3 MB)
+        </a>
+        <Sha text={HASHES.m7p6} />
+        <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
+          installs in place over M6.0.4 (same versionCode 44, same cert) — glibc layer ed82daa8… unchanged
+        </p>
+      </div>
 
       <div className="card primary">
         <h2>

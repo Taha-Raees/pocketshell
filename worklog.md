@@ -1571,3 +1571,21 @@ Stage Summary:
 - Phase 6 complete: regular files across ALL THREE storage domains (PocketShell Linux, the Downloads shelf, user-granted SAF folders) now open in a quick text editor from the action sheet. The editor is byte-honest (strict UTF-8 or refusal, no BOM/line-ending surprises, no silent corruption), size-honest (1 MiB with the real size reported), concurrency-honest ((size, mtime) gate + explicit overwrite/recreate confirmations — a running guest shell can never be raced silently), and input-honest (the ONE deck, no IME, the proven focused-view path). Refusals never touch the file; errors never crash the screen; leaving dirty is impossible without an explicit Save/Discard decision.
 - M6 untouched (git status: 4 additive-UI modified files + 6 new paths; zero runtime/companion/terminal/keyboard/packages files). Phase 2–5 files: ZERO changes — the editor is a pure client of the storage abstraction. No new permissions, no new dependencies, shelf and deck untouched.
 - Next (per plan, each gate-approved): P7 Open Terminal Here → P8 search → P9 integration audit (0.11.0-m7.0.0 / vc45).
+
+---
+Task ID: 17 (M7.0.0 Phase 6 — APK delivery / download server)
+Agent: main (Super Z)
+Task: User asked to run the download server with updated files for the built M7P6 APK.
+
+Work Log:
+- Verified the Phase 6 build output: app/build/outputs/apk/debug/app-debug.apk (30,309,154 B, versionName 0.10.0-m6.0.4 / versionCode 44 unchanged per plan), sha256 35ae7a488af89a3403823f78ecadeaacb5c6b2806f5a240d73320128e94fff37, built from clean tree at M7 tip 25f421f.
+- Sanity-checked the APK content directly: multi-dex scan found EditorScreen compose classes + Lapp/pocketshell/EditorViewModel; + EditorLaunch inside classes9/classes17.dex — Phase 6 code confirmed present in the built artifact.
+- Staged the APK as PocketShell-v0.10.0-m6.0.4-m7p6-debug.apk into BOTH download/ (delivery masters) and public/ (served statically by the Next.js server); sha verified identical after copy.
+- download/README.md: new "Latest build: M7 Phase 6" section at the top (sha, install-in-place notes over M6.0.4, what M7P6 adds, 586/586 suite, docs/TESTING.md §35 pointer); the M6.0.4 "Current" section kept intact below.
+- app/page.tsx: added HASHES.m7p6 pin + a new top "M7 Phase 6 build: quick text editor" card with the download button (M6.0.4 primary card preserved unchanged below it).
+- Server: no listener on :3000 at start (Caddy :81 would 502). Started detached `bun run dev` (next dev -p 3000, log dev-server-m7p6.log) — boots, page 200.
+- HTTP verification: GET / → 200 containing the M7P6 card; GET /PocketShell-v0.10.0-m6.0.4-m7p6-debug.apk → 30,309,154 B, sha256 byte-identical (35ae7a48…); M6.0.4 APK + gitbundle + tests tarball still serve (206 on range probe).
+- Page.tsx + README edits left UNCOMMITTED on purpose (delivery-surface change, not an app phase); app code at 25f421f untouched.
+
+Stage Summary:
+- M7P6 APK (Phase 1–6 included) is downloadable at /PocketShell-v0.10.0-m6.0.4-m7p6-debug.apk with a sha-pinned card on the landing page; delivery server verified green over HTTP.
