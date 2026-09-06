@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -25,22 +27,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,39 +59,40 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.files.AreaId
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerCore
 import app.pocketshell.files.FsEntry
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightBanner
-import app.pocketshell.ui.system.MidnightFactRow
 import app.pocketshell.ui.system.MidnightNote
 import app.pocketshell.ui.system.MidnightQuietButton
 import app.pocketshell.ui.theme.TerminalTheme
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 /**
- * M7.0.0 Phase 3 — the File Explorer (EXPLORER FOUNDATION ONLY).
+ * M7.0.0 Phase 3 + Phase 4 — the File Explorer.
  *
  * Mobile-first and touch-first, deliberately NOT a desktop file manager:
  * one column, directories first (the Phase 2 engine's order), size as the
- * only per-row metadata, and exactly three interactions —
+ * only per-row metadata, and exactly these interactions —
  *
- *   tap a directory  → open it (never beyond the logical area boundary)
- *   system back      → parent directory, then out of the screen
- *   tap a file       → a minimal info surface (real actions = Phase 4)
+ *   tap a directory    → open it (never beyond the logical area boundary)
+ *   system back        → parent directory, then out of the screen
+ *   tap a file         → the action sheet (facts + Copy/Move/Rename/Delete)
+ *   long-press / "⋮"   → the same contextual action sheet (never gesture-only)
+ *   "+"                → New Folder / New File in the current directory
  *
  * The UI performs ZERO filesystem operations: it renders [ExplorerCore.State]
- * and sends intentions (names, up, area switch, refresh) to the ViewModel.
- * Errors are rendered verbatim — honest, never swallowed, never fatal.
+ * plus the [FilesOpsSurface] flows and dispatches intents only. Errors are
+ * rendered verbatim — honest, never swallowed, never fatal.
  */
 @Composable
 fun FilesScreen(
     state: ExplorerCore.State,
     guestUnavailable: Boolean,
+    ops: FilesOpsSurface,
     onBack: () -> Unit,
     onNavigateUp: () -> Unit,
     onOpenChild: (String) -> Unit,
@@ -95,8 +101,14 @@ fun FilesScreen(
     onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The minimal file surface (Phase 3): metadata + an honest "actions are
-    // coming" note. Phase 4 replaces this with the real operations menu.
+    val pending by ops.pending.collectAsStateWithLifecycle()
+    val notice by ops.notice.collectAsStateWithLifecycle()
+    val confirmReplace by ops.confirmReplace.collectAsStateWithLifecycle()
+    val newDialog by ops.newDialog.collectAsStateWithLifecycle()
+    val renameDialog by ops.renameDialog.collectAsStateWithLifecycle()
+    val deleteConfirm by ops.deleteConfirm.collectAsStateWithLifecycle()
+
+    // The tapped / long-pressed entry whose action sheet is open.
     var selected by remember { mutableStateOf<FsEntry?>(null) }
 
     // Back = parent directory while there is one INSIDE the area; at the area
@@ -117,7 +129,31 @@ fun FilesScreen(
         ) {
             FilesHeader(state = state, onBack = onBack, onSwitchArea = onSwitchArea)
 
-            LocationRow(state = state, onNavigateUp = onNavigateUp)
+            LocationRow(
+                state = state,
+                onNavigateUp = onNavigateUp,
+                onNewFolder = { ops.openNewDialog(folder = true) },
+                onNewFile = { ops.openNewDialog(folder = false) },
+            )
+
+            pending?.let { marker ->
+                Spacer(Modifier.height(6.dp))
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    PendingBanner(
+                        pending = marker,
+                        canPaste = state.path != null,
+                        onPaste = ops::pasteHere,
+                        onCancel = ops::cancelPending,
+                    )
+                }
+            }
+
+            notice?.let { item ->
+                Spacer(Modifier.height(6.dp))
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    OpsNoticeBanner(notice = item, onDismiss = ops::dismissNotice)
+                }
+            }
 
             if (guestUnavailable && state.areaId != null) {
                 Spacer(Modifier.height(6.dp))
@@ -192,14 +228,82 @@ fun FilesScreen(
                 else -> Listing(
                     entries = state.entries,
                     onOpenChild = onOpenChild,
-                    onSelectFile = { selected = it },
+                    onSelect = { selected = it },
                 )
             }
         }
     }
 
+    // ------------------------------------------------- Phase 4 op surfaces
+
     selected?.let { entry ->
-        FileSurface(entry = entry, onDismiss = { selected = null })
+        EntryActionSheet(
+            entry = entry,
+            onDismiss = { selected = null },
+            handlers = EntryActionHandlers(
+                onOpen = if (entry.kind == EntryKind.DIRECTORY) {
+                    { selected = null; onOpenChild(entry.name) }
+                } else {
+                    null
+                },
+                onNewFolder = if (entry.kind == EntryKind.DIRECTORY) {
+                    { selected = null; ops.openNewDialogInside(entry.name, folder = true) }
+                } else {
+                    null
+                },
+                onNewFile = if (entry.kind == EntryKind.DIRECTORY) {
+                    { selected = null; ops.openNewDialogInside(entry.name, folder = false) }
+                } else {
+                    null
+                },
+                onCopy = { selected = null; ops.startCopy(entry.name) },
+                onMove = { selected = null; ops.startMove(entry.name) },
+                onRename = { selected = null; ops.openRenameDialog(entry.name) },
+                onDelete = { selected = null; ops.openDeleteConfirm(entry.name) },
+            ),
+        )
+    }
+
+    confirmReplace?.let { request ->
+        ConfirmReplaceDialog(
+            request = request,
+            onReplace = { ops.resolveReplace(replace = true) },
+            onCancel = { ops.resolveReplace(replace = false) },
+        )
+    }
+
+    deleteConfirm?.let { confirm ->
+        ConfirmDeleteDialog(
+            state = confirm,
+            onDelete = ops::confirmDelete,
+            onCancel = ops::dismissDeleteConfirm,
+        )
+    }
+
+    renameDialog?.let { dialog ->
+        NamePromptDialog(
+            title = "Rename \"${dialog.currentName}\"",
+            initial = dialog.currentName,
+            confirmLabel = "Rename",
+            error = dialog.error,
+            onConfirm = ops::submitRename,
+            onDismiss = ops::dismissRenameDialog,
+        )
+    }
+
+    newDialog?.let { dialog ->
+        NamePromptDialog(
+            title = if (dialog.folder) {
+                "New folder in ${dialog.targetDir.value}"
+            } else {
+                "New file in ${dialog.targetDir.value}"
+            },
+            initial = "",
+            confirmLabel = if (dialog.folder) "Create" else "Create",
+            error = dialog.error,
+            onConfirm = ops::submitNewName,
+            onDismiss = ops::dismissNewDialog,
+        )
     }
 }
 
@@ -313,9 +417,19 @@ private fun FilesHeader(
 
 // -------------------------------------------------------------- location row
 
-/** The up-to-parent affordance and the current path, mono and dim. */
+/**
+ * The up-to-parent affordance, the current path, and the "+" that makes
+ * New Folder / New File reachable in the CURRENT directory (the only way
+ * creation works in an empty directory).
+ */
 @Composable
-private fun LocationRow(state: ExplorerCore.State, onNavigateUp: () -> Unit) {
+private fun LocationRow(
+    state: ExplorerCore.State,
+    onNavigateUp: () -> Unit,
+    onNewFolder: () -> Unit,
+    onNewFile: () -> Unit,
+) {
+    var createOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -350,8 +464,78 @@ private fun LocationRow(state: ExplorerCore.State, onNavigateUp: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .weight(1f)
-                .padding(end = 20.dp),
+                .padding(end = 8.dp),
         )
+        if (state.path != null) {
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(role = Role.Button, onClickLabel = "New folder or file") {
+                            createOpen = true
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "New folder or file",
+                        tint = HomeTokens.textDim,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                DropdownMenu(
+                    expanded = createOpen,
+                    onDismissRequest = { createOpen = false },
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "New folder",
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 14.sp,
+                                color = HomeTokens.textPrimary,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.CreateNewFolder,
+                                contentDescription = null,
+                                tint = HomeTokens.textDim,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        onClick = {
+                            createOpen = false
+                            onNewFolder()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "New file",
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 14.sp,
+                                color = HomeTokens.textPrimary,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.NoteAdd,
+                                contentDescription = null,
+                                tint = HomeTokens.textDim,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        onClick = {
+                            createOpen = false
+                            onNewFile()
+                        },
+                    )
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+        }
     }
 }
 
@@ -362,7 +546,7 @@ private fun LocationRow(state: ExplorerCore.State, onNavigateUp: () -> Unit) {
 private fun Listing(
     entries: List<FsEntry>,
     onOpenChild: (String) -> Unit,
-    onSelectFile: (FsEntry) -> Unit,
+    onSelect: (FsEntry) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -374,16 +558,22 @@ private fun Listing(
                 onClick = {
                     when (entry.kind) {
                         EntryKind.DIRECTORY -> onOpenChild(entry.name)
-                        else -> onSelectFile(entry)
+                        else -> onSelect(entry)
                     }
                 },
+                onActions = { onSelect(entry) },
             )
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EntryRow(entry: FsEntry, onClick: () -> Unit) {
+private fun EntryRow(
+    entry: FsEntry,
+    onClick: () -> Unit,
+    onActions: () -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     Row(
@@ -392,12 +582,15 @@ private fun EntryRow(entry: FsEntry, onClick: () -> Unit) {
             .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(if (pressed) HomeTokens.surfaceBanner else Color.Transparent)
-            .clickable(
+            .combinedClickable(
                 interactionSource = interaction,
                 indication = null,
                 role = Role.Button,
                 onClickLabel = if (entry.kind == EntryKind.DIRECTORY) "Open ${entry.name}" else "Details of ${entry.name}",
-            ) { onClick() }
+                onLongClickLabel = "Actions for ${entry.name}",
+                onClick = onClick,
+                onLongClick = onActions,
+            )
             .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -439,63 +632,22 @@ private fun EntryRow(entry: FsEntry, onClick: () -> Unit) {
                 fontSize = 12.sp,
                 color = HomeTokens.textDim,
             )
+            Spacer(Modifier.width(10.dp))
         }
-    }
-}
-
-// -------------------------------------------------------------- file surface
-
-/**
- * The Phase 3 file surface: real metadata, honest note, no fake buttons.
- * (Open / Edit / Share / Rename / Delete / Move arrive with Phase 4.)
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FileSurface(entry: FsEntry, onDismiss: () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = TerminalTheme.chrome,
-    ) {
-        Column(
+        // The always-visible affordance — actions are never gesture-only.
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
+                .size(32.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(role = Role.Button, onClickLabel = "Actions for ${entry.name}") { onActions() },
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = entry.name,
-                fontFamily = TerminalTheme.mono,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = HomeTokens.textPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            Icon(
+                imageVector = Icons.Outlined.MoreVert,
+                contentDescription = "Actions for ${entry.name}",
+                tint = HomeTokens.textDim,
+                modifier = Modifier.size(18.dp),
             )
-            Spacer(Modifier.height(10.dp))
-            MidnightFactRow(
-                label = "Kind",
-                value = when (entry.kind) {
-                    EntryKind.DIRECTORY -> "Folder"
-                    EntryKind.SYMLINK -> "Symlink"
-                    EntryKind.FILE -> "File"
-                    EntryKind.OTHER -> "Special"
-                },
-            )
-            if (entry.kind == EntryKind.FILE && entry.sizeBytes != null) {
-                MidnightFactRow("Size", formatBytes(entry.sizeBytes))
-            }
-            entry.modifiedAtMillis?.let { modified ->
-                MidnightFactRow("Modified", dateFormat().format(Date(modified)))
-            }
-            entry.symlinkTarget?.let { target ->
-                MidnightFactRow("Target", target)
-            }
-            Spacer(Modifier.height(12.dp))
-            MidnightNote(
-                text = "File actions — open, edit, share, rename, delete — arrive in the next update.",
-            )
-            Spacer(Modifier.height(16.dp))
-            MidnightQuietButton("Close", onClick = onDismiss)
         }
     }
 }
@@ -538,6 +690,3 @@ internal fun formatBytes(bytes: Long): String {
 
 private fun compact(value: Double): String =
     if (value < 10) String.format(Locale.US, "%.1f", value) else value.toLong().toString()
-
-/** Terminal-flavoured deterministic timestamp for the file surface. */
-private fun dateFormat(): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)

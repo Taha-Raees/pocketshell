@@ -243,6 +243,7 @@ fun PocketShellRoot(
             "files" -> app.pocketshell.ui.files.FilesScreen(
                 state = filesState,
                 guestUnavailable = filesViewModel.guestUnavailable,
+                ops = filesViewModel,
                 onBack = { screen = "home" },
                 onNavigateUp = filesViewModel::navigateUp,
                 onOpenChild = filesViewModel::openChild,
