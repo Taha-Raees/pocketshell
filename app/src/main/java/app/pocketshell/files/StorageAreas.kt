@@ -2,6 +2,9 @@ package app.pocketshell.files
 
 import android.content.Context
 import android.os.Environment
+import app.pocketshell.files.saf.AndroidDocumentArea
+import app.pocketshell.files.saf.DocumentsContractBackend
+import app.pocketshell.files.saf.SafFolders
 import app.pocketshell.runtime.RuntimeStorage
 import java.io.File
 
@@ -51,6 +54,40 @@ object StorageAreas {
             id = AreaId(AreaKind.ANDROID_SHELF),
             displayName = "Android Downloads (app storage)",
             policy = FileDirArea.MutationPolicy.OPEN,
+        )
+    }
+
+    /**
+     * M7.0.0 Phase 5 — ONE user-granted SAF document tree ("Android folder").
+     *
+     * Unlike the two factories above this NEVER returns null: a revoked
+     * grant still produces an area whose every operation reports the
+     * revocation honestly, so the switcher can keep showing the folder and
+     * the Files screen can offer Reconnect / Remove — never a silent
+     * disappearance and never a fake empty folder. The display name comes
+     * from the provider when reachable, otherwise from the URI itself
+     * (a display name — never a POSIX path).
+     *
+     * No permission is involved here beyond the grant the USER chose in the
+     * system picker; this factory never discovers or touches any other
+     * Android storage.
+     */
+    fun safTree(
+        context: Context,
+        treeUri: String,
+        label: String? = null,
+        onAccessLost: (() -> Unit)? = null,
+    ): AndroidDocumentArea {
+        val appContext = context.applicationContext
+        val backend = DocumentsContractBackend.fromContext(appContext, treeUri)
+        val display = label
+            ?: backend.rootDisplayName()
+            ?: SafFolders.labelFromTreeUri(treeUri)
+        return AndroidDocumentArea.create(
+            id = AndroidDocumentArea.areaIdFor(treeUri),
+            displayName = display,
+            backend = backend,
+            onAccessLost = onAccessLost,
         )
     }
 }

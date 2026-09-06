@@ -21,6 +21,11 @@ package app.pocketshell.files
  *    honest error — there is no code path that renders an unvalidated path.
  *  - Errors are data, not exceptions: a refused or failed listing produces
  *    a State with [State.error] set and the previous location preserved.
+ *
+ * Phase 5: the area set is no longer fixed at construction — user-granted
+ * SAF folders join and leave through [addArea] / [removeArea] with the same
+ * honest-state discipline (a revoked folder STAYS listed so the UI can offer
+ * Reconnect/Remove; its listing fails honestly instead of faking content).
  */
 class ExplorerCore(
     /**
@@ -28,9 +33,13 @@ class ExplorerCore(
      * Linux area first — the Phase 3 product decision). Only AVAILABLE areas
      * are passed in; the factories already returned null for the rest, and
      * the ViewModel renders that unavailability honestly on its own.
+     * SAF areas can be revoked while present — they stay listed and their
+     * operations report the revocation honestly.
      */
-    private val areaHandles: List<AreaHandle>,
+    areaHandles: List<AreaHandle>,
 ) {
+
+    private val areaHandles: MutableList<AreaHandle> = areaHandles.toMutableList()
 
     /** One switchable area: its engine, its landing path, its short chip label. */
     data class AreaHandle(
@@ -155,6 +164,58 @@ class ExplorerCore(
         current = current.copy(loading = true, error = null)
         current = enter(target, rememberedOrStart(target))
         return publish()
+    }
+
+    // ------------------------------------------------- dynamic areas (P5)
+
+    /**
+     * Register a user-granted area (Phase 5 SAF folder) at runtime.
+     * Idempotent by [AreaId]. When NO area is open (empty core), the new one
+     * is entered at its landing path; otherwise only the switcher list is
+     * republished and the user's current view never moves.
+     */
+    fun addArea(handle: AreaHandle): State {
+        if (areaHandles.any { it.area.id == handle.area.id }) return current
+        areaHandles.add(handle)
+        current = if (current.areaId == null) {
+            enter(handle, rememberedOrStart(handle))
+        } else {
+            current.copy(areas = switcherOptions())
+        }
+        return publish()
+    }
+
+    /**
+     * Drop an area (the user removed a SAF folder, or its grant was
+     * released). Unknown ids are an honest no-op. Removing the CURRENT area
+     * re-enters the first remaining one at its remembered/start path; with
+     * none left the state is the honest no-storage surface.
+     */
+    fun removeArea(id: AreaId): State {
+        val removed = areaHandles.firstOrNull { it.area.id == id } ?: return current
+        areaHandles.remove(removed)
+        lastPathByArea.remove(id)
+        current = when {
+            current.areaId != id -> current.copy(areas = switcherOptions())
+            areaHandles.isEmpty() -> State(
+                areas = emptyList(),
+                loading = false,
+                error = "No storage is available right now.",
+            )
+            else -> {
+                val next = areaHandles.first()
+                enter(next, rememberedOrStart(next))
+            }
+        }
+        return publish()
+    }
+
+    private fun switcherOptions(): List<AreaOption> = areaHandles.map { option ->
+        AreaOption(
+            id = option.area.id,
+            label = option.shortLabel,
+            selected = option.area.id == current.areaId,
+        )
     }
 
     /** Re-list the current location (the error banner's Retry, pull feel). */

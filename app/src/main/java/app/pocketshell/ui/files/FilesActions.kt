@@ -17,8 +17,10 @@ import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.NoteAdd
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -139,6 +141,10 @@ data class EntryActionHandlers(
     val onNewFile: (() -> Unit)? = null,
     val onCopy: () -> Unit,
     val onMove: () -> Unit,
+    /** Phase 5: share this file via the Android share sheet (files only). */
+    val onShare: (() -> Unit)? = null,
+    /** Phase 5: export this file via the system save dialog (files only). */
+    val onExport: (() -> Unit)? = null,
     val onRename: () -> Unit,
     val onDelete: () -> Unit,
 )
@@ -204,6 +210,14 @@ fun EntryActionSheet(
             }
             SheetAction("Copy", Icons.Outlined.ContentCopy, onClick = handlers.onCopy)
             SheetAction("Move", Icons.Outlined.DriveFileMove, onClick = handlers.onMove)
+            if (entry.kind == EntryKind.FILE && handlers.onShare != null) {
+                val share = handlers.onShare
+                SheetAction("Share", Icons.Outlined.Share, onClick = { share?.invoke() })
+            }
+            if (entry.kind == EntryKind.FILE && handlers.onExport != null) {
+                val export = handlers.onExport
+                SheetAction("Export", Icons.Outlined.FileUpload, onClick = { export?.invoke() })
+            }
             SheetAction("Rename", Icons.Outlined.Edit, onClick = handlers.onRename)
             SheetAction("Delete", Icons.Outlined.Delete, danger = true, onClick = handlers.onDelete)
 
@@ -212,7 +226,7 @@ fun EntryActionSheet(
                 text = if (entry.kind == EntryKind.DIRECTORY) {
                     "Open Terminal Here arrives in a later update."
                 } else {
-                    "Open, Edit, Share and Open in Terminal arrive in later updates."
+                    "Open and Edit arrive in a later update."
                 },
             )
         }

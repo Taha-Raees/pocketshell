@@ -4,16 +4,18 @@ import app.pocketshell.files.AreaId
 import app.pocketshell.files.AreaPath
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.PendingTransfer
+import app.pocketshell.files.saf.SafFolderInfo
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * M7.0.0 Phase 4 — the operation surface the Files UI is allowed to see.
+ * M7.0.0 Phase 4 (+ Phase 5 Android bridge) — the operation surface the
+ * Files UI is allowed to see.
  *
  * The narrow contract between the screen and [app.pocketshell.FilesViewModel]:
  * state flows to render plus intent methods to dispatch. The UI performs ZERO
  * filesystem operations and never sees a [app.pocketshell.files.StorageArea] —
- * it sends NAMES (from listings) and dialog decisions, exactly like the Phase 3
- * navigation discipline.
+ * it sends NAMES (from listings), picker RESULTS and dialog decisions,
+ * exactly like the Phase 3 navigation discipline.
  */
 interface FilesOpsSurface {
 
@@ -36,6 +38,17 @@ interface FilesOpsSurface {
 
     /** The Delete confirmation. */
     val deleteConfirm: StateFlow<DeleteConfirmState?>
+
+    // ------------------------------------------- Phase 5 — Android bridge
+
+    /** The user-granted Android folders with their honest access state. */
+    val safFolders: StateFlow<List<SafFolderInfo>>
+
+    /** A staged file ready to be handed to the Android share sheet. */
+    val shareReady: StateFlow<ShareReady?>
+
+    /** Everything the UI needs to open the system save dialog for an export. */
+    val exportPrompt: StateFlow<ExportPrompt?>
 
     // ---------------------------------------------------------------- intents
 
@@ -82,6 +95,40 @@ interface FilesOpsSurface {
     fun confirmDelete()
 
     fun dismissNotice()
+
+    // ------------------------------------------- Phase 5 — Android bridge
+
+    /**
+     * The system folder picker returned a tree URI (add OR reconnect). The
+     * picker callback must already have taken the persistable permission.
+     * A URI that matches an existing folder replaces it (fresh access
+     * probe); a new one joins the switcher.
+     */
+    fun addSafFolderPicked(uriString: String)
+
+    /** Drop a user-granted folder and release its permission. */
+    fun removeSafFolder(uriString: String)
+
+    /** Stage the listing entry [name] (a file) for the Android share sheet. */
+    fun requestShare(name: String)
+
+    /** Open the system save dialog for the listing entry [name] (a file). */
+    fun requestExport(name: String)
+
+    /** The share sheet was launched (or dismissed) — drop the staged offer. */
+    fun consumeShareReady()
+
+    /** The save dialog was opened (or dismissed) — drop the prompt. */
+    fun consumeExportPrompt()
+
+    /**
+     * The document picker returned a file to IMPORT into the CURRENT
+     * directory; collisions go through the existing Replace/Cancel flow.
+     */
+    fun importPicked(uriString: String)
+
+    /** The save dialog returned the destination for the pending export. */
+    fun exportTargetPicked(uriString: String)
 }
 
 /** One operation outcome, rendered verbatim. [seq] re-triggers auto-dismiss. */
@@ -112,6 +159,14 @@ sealed interface OpsCommand {
         val path: AreaPath,
         val newName: String,
     ) : OpsCommand
+
+    /** Phase 5: an imported document whose destination collided (Replace flow). */
+    data class ImportFile(
+        val uriString: String,
+        val targetAreaId: AreaId,
+        val target: AreaPath,
+        val name: String,
+    ) : OpsCommand
 }
 
 /** The New Folder / New File prompt state; [error] round-trips honest failures. */
@@ -134,4 +189,21 @@ data class RenameEntryDialog(
 data class DeleteConfirmState(
     val name: String,
     val kind: EntryKind,
+)
+
+/** Phase 5: a staged file the UI hands to the Android share sheet. The URI
+ * belongs to the share-staged COPY in the app cache — never to the original
+ * location — and carries temporary read permission only. */
+data class ShareReady(
+    val name: String,
+    val uriString: String,
+    val mimeType: String,
+)
+
+/** Phase 5: the parameters for the system save dialog (ACTION_CREATE_DOCUMENT).
+ * The ViewModel keeps the source file privately; the UI only sees what the
+ * dialog needs. */
+data class ExportPrompt(
+    val name: String,
+    val mimeType: String,
 )

@@ -57,6 +57,23 @@
           git history.
         -->
 
+        <!--
+          M7.0.0 Phase 5: FileProvider for SHARE only. Files are staged into
+          cacheDir/share/ and handed out as temporary read-only content://
+          URIs (grantUriPermissions) — the internal filesystem (rootfs,
+          shelf, SAF grants) is never exposed, and no storage permission is
+          involved. See res/xml/file_paths.xml for the single exported path.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="app.pocketshell.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <service
             android:name=".terminal.TerminalService"
             android:exported="false"

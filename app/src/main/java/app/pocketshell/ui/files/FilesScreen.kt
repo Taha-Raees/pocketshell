@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MoreVert
@@ -61,9 +62,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.files.AreaId
+import app.pocketshell.files.AreaKind
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerCore
 import app.pocketshell.files.FsEntry
+import app.pocketshell.files.saf.SafFolderState
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightBanner
 import app.pocketshell.ui.system.MidnightNote
@@ -72,7 +75,7 @@ import app.pocketshell.ui.theme.TerminalTheme
 import java.util.Locale
 
 /**
- * M7.0.0 Phase 3 + Phase 4 — the File Explorer.
+ * M7.0.0 Phase 3 + Phase 4 + Phase 5 — the File Explorer.
  *
  * Mobile-first and touch-first, deliberately NOT a desktop file manager:
  * one column, directories first (the Phase 2 engine's order), size as the
@@ -80,9 +83,12 @@ import java.util.Locale
  *
  *   tap a directory    → open it (never beyond the logical area boundary)
  *   system back        → parent directory, then out of the screen
- *   tap a file         → the action sheet (facts + Copy/Move/Rename/Delete)
+ *   tap a file         → the action sheet (facts + Copy/Move/Share/Export/…)
  *   long-press / "⋮"   → the same contextual action sheet (never gesture-only)
- *   "+"                → New Folder / New File in the current directory
+ *   "+"                → New Folder / New File / Import file… in the current
+ *                        directory
+ *   area switcher      → Linux / Downloads / user-granted Android folders
+ *                        (+ "Add Android folder…" through the SYSTEM picker)
  *
  * The UI performs ZERO filesystem operations: it renders [ExplorerCore.State]
  * plus the [FilesOpsSurface] flows and dispatches intents only. Errors are
@@ -107,9 +113,26 @@ fun FilesScreen(
     val newDialog by ops.newDialog.collectAsStateWithLifecycle()
     val renameDialog by ops.renameDialog.collectAsStateWithLifecycle()
     val deleteConfirm by ops.deleteConfirm.collectAsStateWithLifecycle()
+    val safFolders by ops.safFolders.collectAsStateWithLifecycle()
+
+    // Phase 5: the Android-side launchers (folder picker, import picker) and
+    // the share/save effects — created HERE so this screen keeps owning all
+    // its wiring and callers stay unchanged.
+    val bridge = rememberFilesBridgeLaunchers(ops)
+    FilesBridgeEffects(ops)
 
     // The tapped / long-pressed entry whose action sheet is open.
     var selected by remember { mutableStateOf<FsEntry?>(null) }
+
+    // The Android folder whose grant is gone WHILE it is the current area —
+    // the honest no-fake-empty-folder surface.
+    val revokedFolder = if (state.areaId?.kind == AreaKind.ANDROID_DOCUMENT_TREE) {
+        safFolders.firstOrNull {
+            it.uri == state.areaId?.key && it.state == SafFolderState.REVOKED
+        }
+    } else {
+        null
+    }
 
     // Back = parent directory while there is one INSIDE the area; at the area
     // root the handler releases back to the app router (→ Home). The logical
@@ -127,13 +150,19 @@ fun FilesScreen(
                 .widthIn(max = HomeTokens.contentMaxWidth)
                 .align(Alignment.TopCenter),
         ) {
-            FilesHeader(state = state, onBack = onBack, onSwitchArea = onSwitchArea)
+            FilesHeader(
+                state = state,
+                onBack = onBack,
+                onSwitchArea = onSwitchArea,
+                onAddSafFolder = bridge.pickFolder,
+            )
 
             LocationRow(
                 state = state,
                 onNavigateUp = onNavigateUp,
                 onNewFolder = { ops.openNewDialog(folder = true) },
                 onNewFile = { ops.openNewDialog(folder = false) },
+                onImportFile = bridge.pickImportFile,
             )
 
             pending?.let { marker ->
@@ -171,6 +200,17 @@ fun FilesScreen(
                                 )
                             }
                         },
+                    )
+                }
+            }
+
+            revokedFolder?.let { folder ->
+                Spacer(Modifier.height(6.dp))
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    SafRevokedBanner(
+                        folder = folder,
+                        onReconnect = bridge.pickFolder,
+                        onRemove = { ops.removeSafFolder(folder.uri) },
                     )
                 }
             }
@@ -258,6 +298,16 @@ fun FilesScreen(
                 },
                 onCopy = { selected = null; ops.startCopy(entry.name) },
                 onMove = { selected = null; ops.startMove(entry.name) },
+                onShare = if (entry.kind == EntryKind.FILE) {
+                    { selected = null; ops.requestShare(entry.name) }
+                } else {
+                    null
+                },
+                onExport = if (entry.kind == EntryKind.FILE) {
+                    { selected = null; ops.requestExport(entry.name) }
+                } else {
+                    null
+                },
                 onRename = { selected = null; ops.openRenameDialog(entry.name) },
                 onDelete = { selected = null; ops.openDeleteConfirm(entry.name) },
             ),
@@ -312,13 +362,16 @@ fun FilesScreen(
 /**
  * Back chevron + mono page title + the area switcher chip. The chip only
  * appears when more than one area exists (Linux-first Phase 3 usually has
- * two: Linux + Downloads); the current one carries a check.
+ * two: Linux + Downloads); the current one carries a check. Phase 5: the
+ * switcher ends with "Add Android folder…" — the only way in, always
+ * through the system picker.
  */
 @Composable
 private fun FilesHeader(
     state: ExplorerCore.State,
     onBack: () -> Unit,
     onSwitchArea: (AreaId) -> Unit,
+    onAddSafFolder: () -> Unit,
 ) {
     var switcherOpen by remember { mutableStateOf(false) }
     Row(
@@ -409,6 +462,29 @@ private fun FilesHeader(
                             },
                         )
                     }
+                    Spacer(Modifier.height(4.dp))
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Add Android folder…",
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 14.sp,
+                                color = HomeTokens.accent,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.CreateNewFolder,
+                                contentDescription = null,
+                                tint = HomeTokens.accent,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        onClick = {
+                            switcherOpen = false
+                            onAddSafFolder()
+                        },
+                    )
                 }
             }
         }
@@ -419,8 +495,8 @@ private fun FilesHeader(
 
 /**
  * The up-to-parent affordance, the current path, and the "+" that makes
- * New Folder / New File reachable in the CURRENT directory (the only way
- * creation works in an empty directory).
+ * New Folder / New File / Import file… reachable in the CURRENT directory
+ * (the only way creation and import work in an empty directory).
  */
 @Composable
 private fun LocationRow(
@@ -428,6 +504,7 @@ private fun LocationRow(
     onNavigateUp: () -> Unit,
     onNewFolder: () -> Unit,
     onNewFile: () -> Unit,
+    onImportFile: () -> Unit,
 ) {
     var createOpen by remember { mutableStateOf(false) }
     Row(
@@ -530,6 +607,29 @@ private fun LocationRow(
                         onClick = {
                             createOpen = false
                             onNewFile()
+                        },
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "Import file…",
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 14.sp,
+                                color = HomeTokens.accent,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.FileDownload,
+                                contentDescription = null,
+                                tint = HomeTokens.accent,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        onClick = {
+                            createOpen = false
+                            onImportFile()
                         },
                     )
                 }

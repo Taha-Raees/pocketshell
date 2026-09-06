@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M7.0.0 Phase 5 — FileProvider paths for SHARE staging only.
+
+  Files are staged into cacheDir/share/ (FileShareOps.STAGING_DIR_NAME) and
+  handed to the Android share sheet as temporary content:// URIs with
+  read-only permission. The provider exposes ONLY this cache subdirectory —
+  never the rootfs, never the shelf, never any other app storage.
+-->
+<paths>
+    <cache-path
+        name="share"
+        path="share/" />
+</paths>

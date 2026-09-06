@@ -1,6 +1,10 @@
 package app.pocketshell
 
 import android.app.Application
+import android.content.Intent
+import android.net.Uri
+import android.provider.DocumentsContract
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.pocketshell.files.AreaId
@@ -12,13 +16,22 @@ import app.pocketshell.files.PathSafety
 import app.pocketshell.files.PendingTransfer
 import app.pocketshell.files.StorageArea
 import app.pocketshell.files.StorageAreas
+import app.pocketshell.files.saf.AndroidDocumentArea
+import app.pocketshell.files.saf.FileShareOps
+import app.pocketshell.files.saf.SafFolderInfo
+import app.pocketshell.files.saf.SafFolderState
+import app.pocketshell.files.saf.SafTransfers
 import app.pocketshell.ui.files.DeleteConfirmState
+import app.pocketshell.ui.files.ExportPrompt
 import app.pocketshell.ui.files.FilesOpsSurface
 import app.pocketshell.ui.files.NewEntryDialog
 import app.pocketshell.ui.files.OpsCommand
 import app.pocketshell.ui.files.OpsNotice
 import app.pocketshell.ui.files.RenameEntryDialog
 import app.pocketshell.ui.files.ReplaceRequest
+import app.pocketshell.ui.files.ShareReady
+import java.io.File
+import java.io.FileNotFoundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,8 +78,9 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
 
     private val core: ExplorerCore
 
-    /** Every available area, by id — operations resolve areas from here. */
-    private val areaById: Map<AreaId, StorageArea>
+    /** Every available area, by id — operations resolve areas from here.
+     * Mutated ONLY on the serial worker (SAF folders join/leave at runtime). */
+    private val areaById: LinkedHashMap<AreaId, StorageArea> = LinkedHashMap()
 
     /** Honest static fact: the PocketShell Linux rootfs is not present yet. */
     val guestUnavailable: Boolean
@@ -94,6 +108,22 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     private val _deleteConfirm = MutableStateFlow<DeleteConfirmState?>(null)
     override val deleteConfirm: StateFlow<DeleteConfirmState?> = _deleteConfirm.asStateFlow()
 
+    // ------------------------------------------- Phase 5 — Android bridge
+
+    private val _safFolders = MutableStateFlow<List<SafFolderInfo>>(emptyList())
+    override val safFolders: StateFlow<List<SafFolderInfo>> = _safFolders.asStateFlow()
+
+    private val _shareReady = MutableStateFlow<ShareReady?>(null)
+    override val shareReady: StateFlow<ShareReady?> = _shareReady.asStateFlow()
+
+    private val _exportPrompt = MutableStateFlow<ExportPrompt?>(null)
+    override val exportPrompt: StateFlow<ExportPrompt?> = _exportPrompt.asStateFlow()
+
+    /** The export whose save dialog is currently open (one at a time). */
+    private var exportContext: ExportContext? = null
+
+    private data class ExportContext(val areaId: AreaId, val path: app.pocketshell.files.AreaPath, val name: String)
+
     /** Monotonic notice counter — re-triggers the banner's auto-dismiss. */
     private var noticeSeq = 0L
 
@@ -117,12 +147,51 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
                     ),
                 )
             }
+            // Phase 5: every persisted user-granted folder rejoins the
+            // switcher after a restart. Revoked grants are NOT silently
+            // dropped — they appear with the honest revoked state and the
+            // Reconnect/Remove banner.
+            safTreeUris(application).forEach { uri ->
+                val area = StorageAreas.safTree(
+                    context = application,
+                    treeUri = uri,
+                    onAccessLost = { markSafRevoked(uri) },
+                )
+                add(
+                    ExplorerCore.AreaHandle(
+                        area = area,
+                        startPath = PathSafety.validatePath("/")!!,
+                        shortLabel = area.displayName,
+                    ),
+                )
+                _safFolders.value = _safFolders.value + SafFolderInfo(
+                    uri = uri,
+                    label = area.displayName,
+                    state = if (area.startsAvailable) SafFolderState.AVAILABLE else SafFolderState.REVOKED,
+                )
+            }
         }
         guestUnavailable = handles.none { it.area.id.kind == AreaKind.GUEST_LINUX }
-        areaById = handles.associate { it.area.id to it.area }
+        handles.forEach { areaById[it.area.id] = it.area }
         core = ExplorerCore(handles)
         viewModelScope.launch {
             _state.value = withContext(explorerIo) { core.initial() }
+        }
+    }
+
+    /** The persisted tree-grant URIs the OS still holds for us (read grants). */
+    private fun safTreeUris(application: Application): List<String> = try {
+        application.contentResolver.persistedUriPermissions
+            .filter { it.isReadPermission }
+            .map { it.uri.toString() }
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    /** The area reported a revoked grant — flip the folder's honest state. */
+    private fun markSafRevoked(uri: String) {
+        _safFolders.value = _safFolders.value.map {
+            if (it.uri == uri) it.copy(state = SafFolderState.REVOKED) else it
         }
     }
 
@@ -192,7 +261,6 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
         val id = _state.value.areaId ?: return null
         return areaById[id]
     }
-
     // ------------------------------------------------------- pending transfer
 
     override fun startCopy(name: String) = markPending(name, move = false)
@@ -278,6 +346,29 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
                 val area = areaById[command.areaId] ?: return
                 runOp {
                     ExplorerOps.executeRename(area, command.path, command.newName, replace = true)
+                }
+            }
+            is OpsCommand.ImportFile -> {
+                val area = areaById[command.targetAreaId] ?: return
+                val application = getApplication<Application>()
+                val uri = Uri.parse(command.uriString)
+                runOp {
+                    val result = SafTransfers.importDocument(
+                        targetArea = area,
+                        target = command.target,
+                        openSource = {
+                            application.contentResolver.openInputStream(uri)
+                                ?: throw FileNotFoundException("the selected file is no longer accessible")
+                        },
+                        replace = true,
+                    )
+                    if (result.success) {
+                        ExplorerOps.OpOutcome.ok(
+                            "Imported \"${command.name}\" — the existing file was replaced (\u2713 verified)",
+                        )
+                    } else {
+                        ExplorerOps.OpOutcome.fail(result.reason ?: "the import failed")
+                    }
                 }
             }
         }
@@ -424,5 +515,253 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
 
     override fun dismissNotice() {
         _notice.value = null
+    }
+
+    // ================================================== Phase 5 — SAF folders
+
+    /**
+     * The folder picker returned a tree URI (a first add OR a reconnect).
+     * The picker callback has already taken the persistable permission; a
+     * URI matching a known folder replaces its area with a freshly probed
+     * one, otherwise the folder joins the switcher. Runs through the ONE
+     * dispatch slot so the switcher/state never races a navigation.
+     */
+    override fun addSafFolderPicked(uriString: String) {
+        val application = getApplication<Application>()
+        dispatchJob?.cancel()
+        dispatchJob = viewModelScope.launch {
+            withContext(explorerIo) {
+                val id = AndroidDocumentArea.areaIdFor(uriString)
+                val known = _safFolders.value.firstOrNull { it.uri == uriString }
+                if (known != null) {
+                    // Reconnect: rebuild the area with a fresh access probe.
+                    areaById.remove(id)
+                    _state.value = core.removeArea(id)
+                }
+                val area = StorageAreas.safTree(
+                    context = application,
+                    treeUri = uriString,
+                    label = known?.label,
+                    onAccessLost = { markSafRevoked(uriString) },
+                )
+                _state.value = core.addArea(
+                    ExplorerCore.AreaHandle(
+                        area = area,
+                        startPath = PathSafety.validatePath("/")!!,
+                        shortLabel = area.displayName,
+                    ),
+                )
+                areaById[area.id] = area
+                _safFolders.value = _safFolders.value.filterNot { it.uri == uriString } + SafFolderInfo(
+                    uri = uriString,
+                    label = area.displayName,
+                    state = if (area.startsAvailable) SafFolderState.AVAILABLE else SafFolderState.REVOKED,
+                )
+                if (!area.startsAvailable) {
+                    noticeSeq += 1
+                    _notice.value = OpsNotice(
+                        "\u26a0\ufe0f Access to \"${area.displayName}\" is not working yet — try Reconnect.",
+                        isError = true,
+                        seq = noticeSeq,
+                    )
+                }
+            }
+        }
+    }
+
+    /** Drop a user-granted folder: out of the switcher, permission released. */
+    override fun removeSafFolder(uriString: String) {
+        val application = getApplication<Application>()
+        val id = AndroidDocumentArea.areaIdFor(uriString)
+        dispatchJob?.cancel()
+        dispatchJob = viewModelScope.launch {
+            withContext(explorerIo) {
+                areaById.remove(id)
+                _state.value = core.removeArea(id)
+                _safFolders.value = _safFolders.value.filterNot { it.uri == uriString }
+            }
+        }
+        runCatching {
+            application.contentResolver.releasePersistableUriPermission(
+                Uri.parse(uriString),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+    }
+
+    // ===================================================== Phase 5 — share
+
+    override fun requestShare(name: String) {
+        val area = currentAreaOrNull() ?: return
+        val dir = _state.value.path ?: return
+        val child = ExplorerOps.composeChild(dir, name) ?: return
+        viewModelScope.launch {
+            val staged = withContext(explorerIo) {
+                FileShareOps.stageForShare(
+                    sourceArea = area,
+                    source = child,
+                    stagingDir = File(getApplication<Application>().cacheDir, FileShareOps.STAGING_DIR_NAME),
+                )
+            }
+            when (staged) {
+                is FileShareOps.Staging.Error -> {
+                    noticeSeq += 1
+                    _notice.value = OpsNotice(staged.reason, isError = true, seq = noticeSeq)
+                }
+                is FileShareOps.Staging.Ok -> {
+                    val uri = FileProvider.getUriForFile(
+                        getApplication(),
+                        FileShareOps.FILE_PROVIDER_AUTHORITY,
+                        staged.file,
+                    )
+                    _shareReady.value = ShareReady(
+                        name = name,
+                        uriString = uri.toString(),
+                        mimeType = FileShareOps.guessMimeType(name),
+                    )
+                }
+            }
+        }
+    }
+
+    override fun consumeShareReady() {
+        _shareReady.value = null
+    }
+
+    // ==================================================== Phase 5 — export
+
+    override fun requestExport(name: String) {
+        val state = _state.value
+        val areaId = state.areaId ?: return
+        val dir = state.path ?: return
+        val child = ExplorerOps.composeChild(dir, name) ?: return
+        val kind = state.entries.firstOrNull { it.name == name }?.kind
+        if (kind == EntryKind.DIRECTORY) {
+            noticeSeq += 1
+            _notice.value = OpsNotice(
+                "Folders cannot be exported — only files.",
+                isError = true,
+                seq = noticeSeq,
+            )
+            return
+        }
+        exportContext = ExportContext(areaId = areaId, path = child, name = name)
+        _exportPrompt.value = ExportPrompt(name = name, mimeType = FileShareOps.guessMimeType(name))
+    }
+
+    override fun consumeExportPrompt() {
+        _exportPrompt.value = null
+    }
+
+    override fun exportTargetPicked(uriString: String) {
+        val context = exportContext ?: return
+        exportContext = null
+        val area = areaById[context.areaId] ?: return
+        val application = getApplication<Application>()
+        val target = Uri.parse(uriString)
+        runOp {
+            val result = SafTransfers.exportDocument(
+                sourceArea = area,
+                source = context.path,
+                openOutput = {
+                    application.contentResolver.openOutputStream(target, "w")
+                        ?: throw FileNotFoundException("the save destination refused writing")
+                },
+                openVerify = {
+                    application.contentResolver.openInputStream(target)
+                        ?: throw FileNotFoundException("the saved file could not be re-opened")
+                },
+                onRemoveCreated = {
+                    runCatching { DocumentsContract.deleteDocument(application.contentResolver, target) }
+                },
+            )
+            if (result.success) {
+                ExplorerOps.OpOutcome.ok("Exported \"${context.name}\" (\u2713 verified)")
+            } else {
+                ExplorerOps.OpOutcome.fail(result.reason ?: "the export failed")
+            }
+        }
+    }
+
+    // ==================================================== Phase 5 — import
+
+    override fun importPicked(uriString: String) {
+        val application = getApplication<Application>()
+        val uri = Uri.parse(uriString)
+        dispatchJob?.cancel()
+        dispatchJob = viewModelScope.launch {
+            withContext(explorerIo) {
+                val pickedName = app.pocketshell.files.saf.DocumentsContractBackend
+                    .queryDisplayName(application.contentResolver, uri)
+                if (pickedName == null) {
+                    noticeSeq += 1
+                    _notice.value = OpsNotice(
+                        "The selected file could not be read — its name or content is not accessible.",
+                        isError = true,
+                        seq = noticeSeq,
+                    )
+                    return@withContext
+                }
+                val state = _state.value
+                val areaId = state.areaId
+                val dir = state.path
+                val area = areaId?.let { areaById[it] }
+                if (area == null || dir == null) {
+                    noticeSeq += 1
+                    _notice.value = OpsNotice(
+                        "Open a folder first — the import lands in the folder you are browsing.",
+                        isError = true,
+                        seq = noticeSeq,
+                    )
+                    return@withContext
+                }
+                val target = ExplorerOps.composeChild(dir, pickedName)
+                if (target == null) {
+                    noticeSeq += 1
+                    _notice.value = OpsNotice(
+                        "The file's name \"$pickedName\" cannot be used inside this storage.",
+                        isError = true,
+                        seq = noticeSeq,
+                    )
+                    return@withContext
+                }
+                val existing = area.stat(target)
+                if (existing == null) {
+                    val result = SafTransfers.importDocument(
+                        targetArea = area,
+                        target = target,
+                        openSource = {
+                            application.contentResolver.openInputStream(uri)
+                                ?: throw FileNotFoundException("the selected file is no longer accessible")
+                        },
+                        replace = false,
+                    )
+                    noticeSeq += 1
+                    _notice.value = OpsNotice(
+                        if (result.success) {
+                            "Imported \"$pickedName\" into ${area.displayName} (\u2713 verified)"
+                        } else {
+                            result.reason ?: "the import failed"
+                        },
+                        isError = !result.success,
+                        seq = noticeSeq,
+                    )
+                    _state.value = core.refresh()
+                } else {
+                    // The Phase 4 collision system, reused verbatim.
+                    _confirmReplace.value = ReplaceRequest(
+                        opLabel = "Import",
+                        name = pickedName,
+                        existingKind = existing.kind,
+                        command = OpsCommand.ImportFile(
+                            uriString = uriString,
+                            targetAreaId = areaId,
+                            target = target,
+                            name = pickedName,
+                        ),
+                    )
+                }
+            }
+        }
     }
 }

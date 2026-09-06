@@ -1865,3 +1865,55 @@ rev=1 → rev=2), then:
    three new doctor rows; the real-cline doctor row adds a 28th on
    Cline-equipped devices — report what you see, either is correct).
    Paste the full output either way.
+
+## 34. Manual acceptance — M7.0.0 Phase 5 (Android Storage Bridge: SAF folders, Share, Import, Export) — DEVICE GATE PENDING
+
+Context: Phase 5 adds USER-GRANTED Android folders (SAF), persistent
+re-grants across restarts, honest revocation handling, Share via FileProvider
+staging, Import into the current folder, and Export via the system save
+dialog. ZERO new permissions were added (manifest diff = the FileProvider
+declaration only). The JVM suite pins the area contract, revocation, the
+verified import/export bridges and the collision integration; the steps below
+need real hardware (a real SAF provider, a real share sheet, a real save
+dialog).
+
+Preconditions: install the vc44+ build IN PLACE (same debug cert), open one
+terminal session once so the runtime is installed, then open Files from Home.
+
+1. SAF — add a folder: Files → switcher → "Add Android folder…" → the SYSTEM
+   folder picker opens (no permission dialog beyond it) → pick e.g.
+   Download/MyProject → the folder appears in the switcher, opens at "/",
+   shows its real files. URIs are never rendered as POSIX paths (the location
+   row shows "/" inside the folder area, not a fake /storage/... path).
+2. SAF — operate: create a file and a folder (＋), rename one, delete one,
+   paste a Linux file INTO the folder and a folder file INTO Linux (both
+   directions: verified copy), move Linux → SAF. Every operation refreshes
+   the listing; errors, if any, are rendered verbatim.
+3. SAF — persistence: force-close PocketShell fully, reopen, Files → the
+   folder is still in the switcher with its content (persisted grant).
+4. Revocation: in system Settings → Apps → PocketShell → Permissions, revoke
+   the folder access (or use a file manager to "forget" the grant), then in
+   PocketShell open the folder area → an honest banner
+   ("Access to ... is no longer available.") appears, the listing shows the
+   honest error, the app does NOT crash, and Reconnect / Remove are offered.
+   Reconnect re-opens the picker; after re-picking, the folder works again.
+   Remove drops it from the switcher. Other areas (Linux, Downloads) keep
+   working throughout.
+5. Share: pick a file in ANY area (Linux, Downloads, SAF folder) → Share →
+   the Android share sheet opens (Files/Gmail/WhatsApp/Nearby…). The shared
+   attachment must arrive intact at the receiver. Never share a directory
+   (folders show no Share action).
+6. Import: browse /root (or any folder) → ＋ → "Import file…" → the system
+   document picker opens → select e.g. a ZIP from the real Downloads → it
+   appears in the CURRENT folder. Import onto an existing name asks
+   Replace / Cancel (the Phase 4 dialog — no duplicate collision UI).
+7. Export: pick a PocketShell file → Export → the system SAVE dialog opens
+   with the file name pre-filled → save into real Downloads → verify the
+   file appears there with correct size. Directories show no Export action.
+8. Downloads shelf intact: in the Companion browser, download a file from a
+   website ("Downloading to app storage…" toast) → Files → Downloads area →
+   the new file is listed. NO redesign of that flow.
+9. Regression: Linux /root listing, navigation, copy/move within Linux,
+   rename, delete, New folder/file still behave exactly as Phase 4 (the
+   storage engine under them is untouched). Rotation while on the Files
+   screen keeps location and the pending paste banner.
