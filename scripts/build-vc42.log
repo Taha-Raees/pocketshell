@@ -1,0 +1,152 @@
+Downloading https://services.gradle.org/distributions/gradle-8.14.5-bin.zip
+.............10%.............20%.............30%.............40%.............50%..............60%.............70%.............80%.............90%.............100%
+
+Welcome to Gradle 8.14.5!
+
+Here are the highlights of this release:
+ - Java 24 support
+ - GraalVM Native Image toolchain selection
+ - Enhancements to test reporting
+ - Build Authoring improvements
+
+For more details see https://docs.gradle.org/8.14.5/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :app:assembleDebug
+Checking the license for package Android SDK Build-Tools 35 in /home/z/android-sdk/licenses
+License for package Android SDK Build-Tools 35 accepted.
+Preparing "Install Android SDK Build-Tools 35 v.35.0.0".
+"Install Android SDK Build-Tools 35 v.35.0.0" ready.
+Installing Android SDK Build-Tools 35 in /home/z/android-sdk/build-tools/35.0.0
+"Install Android SDK Build-Tools 35 v.35.0.0" complete.
+"Install Android SDK Build-Tools 35 v.35.0.0" finished.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :terminal-emulator:preBuild UP-TO-DATE
+> Task :terminal-emulator:preDebugBuild UP-TO-DATE
+> Task :terminal-emulator:writeDebugAarMetadata
+> Task :terminal-view:preBuild UP-TO-DATE
+> Task :terminal-view:preDebugBuild UP-TO-DATE
+> Task :terminal-view:writeDebugAarMetadata
+> Task :app:checkDebugAarMetadata
+> Task :terminal-emulator:processDebugNavigationResources
+> Task :terminal-view:processDebugNavigationResources
+> Task :app:processDebugNavigationResources
+> Task :app:compileDebugNavigationResources
+> Task :app:generateDebugResValues
+> Task :terminal-emulator:generateDebugResValues FROM-CACHE
+> Task :terminal-emulator:generateDebugResources
+> Task :terminal-emulator:packageDebugResources
+> Task :terminal-view:generateDebugResValues FROM-CACHE
+> Task :terminal-view:generateDebugResources
+> Task :terminal-view:packageDebugResources
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:mergeDebugResources
+> Task :app:packageDebugResources
+> Task :app:parseDebugLocalResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :terminal-emulator:extractDeepLinksDebug
+> Task :terminal-emulator:processDebugManifest
+> Task :terminal-view:extractDeepLinksDebug FROM-CACHE
+> Task :terminal-view:processDebugManifest
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :terminal-emulator:compileDebugLibraryResources
+> Task :terminal-emulator:parseDebugLocalResources
+> Task :terminal-emulator:generateDebugRFile
+> Task :terminal-view:compileDebugLibraryResources
+> Task :terminal-view:parseDebugLocalResources
+> Task :terminal-view:generateDebugRFile
+> Task :app:processDebugResources
+> Task :terminal-emulator:javaPreCompileDebug
+
+> Task :terminal-emulator:compileDebugJavaWithJavac
+Note: /home/z/my-project/terminal-emulator/src/main/java/com/termux/terminal/TerminalSession.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :terminal-emulator:bundleLibCompileToJarDebug
+> Task :terminal-view:javaPreCompileDebug FROM-CACHE
+
+> Task :terminal-view:compileDebugJavaWithJavac
+Note: /home/z/my-project/terminal-view/src/main/java/com/termux/view/TerminalView.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :terminal-view:bundleLibCompileToJarDebug
+> Task :app:compileDebugKotlin
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/MainActivity.kt:111:42 'static field TRIM_MEMORY_RUNNING_LOW: Int' is deprecated. Deprecated in Java.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/companion/CompanionViewModel.kt:235:78 'fun clearFormData(): Unit' is deprecated. Deprecated in Java.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/packages/PackageGateway.kt:145:28 'val allNetworks: Array<(out) Network!>' is deprecated. Deprecated in Java.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/packages/PackageGateway.kt:246:61 'field versionCode: Int' is deprecated. Deprecated in Java.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/packages/PackageOperationManager.kt:293:58 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/runtime/GuestGlibcRuntime.kt:185:33 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/runtime/RuntimeInstaller.kt:218:37 'val nextTarEntry: TarArchiveEntry!' is deprecated. Deprecated in Java.
+w: file:///home/z/my-project/app/src/main/java/app/pocketshell/ui/companion/CompanionLayer.kt:168:26 'val LocalLifecycleOwner: ProvidableCompositionLocal<LifecycleOwner>' is deprecated. Moved to lifecycle-runtime-compose library in androidx.lifecycle.compose package.
+
+> Task :app:javaPreCompileDebug FROM-CACHE
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :terminal-emulator:mergeDebugShaders
+> Task :terminal-emulator:compileDebugShaders NO-SOURCE
+> Task :terminal-emulator:generateDebugAssets UP-TO-DATE
+> Task :terminal-emulator:mergeDebugAssets
+> Task :terminal-view:mergeDebugShaders
+> Task :terminal-view:compileDebugShaders NO-SOURCE
+> Task :terminal-view:generateDebugAssets UP-TO-DATE
+> Task :terminal-view:mergeDebugAssets
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets
+> Task :terminal-view:bundleLibRuntimeToJarDebug
+> Task :terminal-emulator:bundleLibRuntimeToJarDebug
+> Task :app:desugarDebugFileDependencies
+> Task :app:dexBuilderDebug
+> Task :app:mergeDebugGlobalSynthetics
+> Task :app:processDebugJavaRes
+> Task :terminal-emulator:processDebugJavaRes NO-SOURCE
+> Task :terminal-view:processDebugJavaRes NO-SOURCE
+> Task :app:mergeDebugJavaResource
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeExtDexDebug
+> Task :terminal-view:bundleLibRuntimeToDirDebug
+> Task :terminal-emulator:bundleLibRuntimeToDirDebug
+> Task :app:mergeLibDexDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:mergeDebugJniLibFolders
+> Task :terminal-emulator:configureNdkBuildDebug[arm64-v8a]
+> Task :terminal-emulator:buildNdkBuildDebug[arm64-v8a]
+> Task :terminal-emulator:configureNdkBuildDebug[armeabi-v7a]
+> Task :terminal-emulator:buildNdkBuildDebug[armeabi-v7a]
+> Task :terminal-emulator:configureNdkBuildDebug[x86]
+> Task :terminal-emulator:buildNdkBuildDebug[x86]
+> Task :terminal-emulator:configureNdkBuildDebug[x86_64]
+> Task :terminal-emulator:buildNdkBuildDebug[x86_64]
+> Task :terminal-emulator:mergeDebugJniLibFolders
+> Task :terminal-emulator:mergeDebugNativeLibs
+> Task :terminal-emulator:copyDebugJniLibsProjectOnly
+> Task :terminal-view:mergeDebugJniLibFolders
+> Task :terminal-view:mergeDebugNativeLibs NO-SOURCE
+> Task :terminal-view:copyDebugJniLibsProjectOnly
+> Task :app:mergeDebugNativeLibs
+
+> Task :app:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libdatastore_shared_counter.so, libproot-loader.so, libproot-loader32.so, libproot.so, libtalloc.so, libtermux.so. Run with --info option to learn more.
+
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+
+[Incubating] Problems report is available at: file:///home/z/my-project/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 6m 31s
+84 actionable tasks: 79 executed, 5 from cache
+Configuration cache entry stored.
