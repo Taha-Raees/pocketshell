@@ -1,26 +1,48 @@
 # download/ — delivery masters
 
-Latest build: **M7 Phase 6 (quick text editor)** — PocketShell-v0.10.0-m6.0.4-m7p6-debug.apk
-sha256 35ae7a488af89a3403823f78ecadeaacb5c6b2806f5a240d73320128e94fff37
+Latest build: **M7 Phase 7 (Open Terminal Here)** — PocketShell-v0.10.0-m6.0.4-m7p7-debug.apk
+sha256 a3ce9d3a03e8307ec3eca6893ee7b8fe96e6d0b2f4723a22e8a00b6347192cd8
 (30.3 MB, versionName 0.10.0-m6.0.4 / versionCode 44 UNCHANGED per plan —
-the version bump is deferred to P9 integration). Built from M7 tip 25f421f
-(Phases 1–6 included: architecture audit, storage abstraction, explorer
-foundation, file operations, Android storage bridge, quick text editor).
-Installs IN PLACE over the M6.0.4 build (same vc44, same pinned cert
-d96a6f66…8bf659) — app data and the glibc layer (ed82daa8…, unchanged)
-survive. New in M7P6: the file explorer's action sheet gains "Open" on
-regular files across all three storage domains (PocketShell Linux, the
-Downloads shelf, user-granted SAF folders); the editor is byte-honest
-(strict UTF-8 or refusal — no silent U+FFFD corruption, BOM/CRLF round-trip
-byte-exact, NUL binary sniff, 1 MiB cap with the real size reported),
-concurrency-honest ((size, mtime) save gate + explicit overwrite/recreate
-confirmations — a running guest shell can never be raced silently), and
-input-honest (the ONE hardware keyboard deck, no IME). Dirty back guard
-with an explicit Save/Discard decision; process death loses unsaved content
-(disclosed in the guard dialog, no fake autosave). NOT a mini IDE by design:
-no syntax highlighting, no line numbers, no search-in-file, no undo history,
-no tabs. JVM suite 586/586 green (M6's 406 + M7's 180). Device checklist:
-docs/TESTING.md §35.
+the version bump is deferred to P9 integration). Built from M7 tip d1fe8b6
+(Phases 1–7 included: architecture audit, storage abstraction, explorer
+foundation, file operations, Android storage bridge, quick text editor,
+Open Terminal Here). Installs IN PLACE over the M6.0.4 / M7P6 build (same
+vc44, same pinned cert d96a6f66…8bf659) — app data and the glibc layer
+(ed82daa8…, unchanged) survive. New in M7P7: Linux directories in the Files
+explorer gain a REAL "Open Terminal Here" action — a NORMAL Alpine session
+whose guest working directory is the exact browsed directory (pwd prints it
+literally), titled "Alpine Linux", created through the UNCHANGED canonical
+session path (RuntimeProcessLauncher preflight → prepareLinuxSession on IO →
+spawnLinuxSession on Main → navigation only after the session is actually
+ready — never navigate-first). The directory travels as PTY argv through the
+new guestTerminalChain = cd -- '<dir>' && exec /bin/sh -l: POSIX single-quote
+wrapping ('→'\''), -- ends options, && so the interactive login shell follows
+only a SUCCESSFUL cd — quoting is value-not-syntax, execution-proven through
+real /bin/sh including a genuine injection attempt whose touch never runs.
+Android areas (PocketShell Downloads, user-granted SAF folders) get NO fake
+button — the action sheet shows the honest boundary note instead: "Android
+folders are not Linux guest directories. Copy or move files into PocketShell
+Linux to work with them in Terminal." Existing sessions are untouched (one
+new session created, none closed, no cwd changes, no PTY writes). Linux-only
+by design: no proot bind mounts, no fabricated POSIX paths for content://.
+JVM suite 600/600 green (13 new pins incl. two /bin/sh execution fixtures).
+Device checklist: docs/TESTING.md §37.
+
+Previous: **M7 Phase 6 (quick text editor)** — PocketShell-v0.10.0-m6.0.4-m7p6-debug.apk
+sha256 35ae7a488af89a3403823f78ecadeaacb5c6b2806f5a240d73320128e94fff37
+(30.3 MB, same vc44, built from M7 tip 25f421f). The explorer's action sheet
+gained "Open" on regular files across all three storage domains (PocketShell
+Linux, the Downloads shelf, user-granted SAF folders); the editor is
+byte-honest (strict UTF-8 or refusal — no silent U+FFFD corruption, BOM/CRLF
+round-trip byte-exact, NUL binary sniff, 1 MiB cap with the real size
+reported), concurrency-honest ((size, mtime) save gate + explicit
+overwrite/recreate confirmations — a running guest shell can never be raced
+silently), and input-honest (the ONE hardware keyboard deck, no IME). Dirty
+back guard with an explicit Save/Discard decision; process death loses
+unsaved content (disclosed in the guard dialog, no fake autosave). NOT a
+mini IDE by design: no syntax highlighting, no line numbers, no
+search-in-file, no undo history, no tabs. JVM suite 586/586 green. Device
+checklist: docs/TESTING.md §35. Superseded by the M7P7 build above.
 
 Current: v0.10.0-m6.0.4 (M6 PHASE-C ADVERSARIAL CLOSURE AUDIT. The M6.0.3
 device gate scored 27/27 ALL GREEN — real Debian glibc 2.41, Cline 3.0.61,

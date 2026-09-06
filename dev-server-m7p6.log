@@ -39,3 +39,20 @@ $ next dev -p 3000
  GET / 200 in 152ms
  GET / 200 in 378ms
  GET / 200 in 231ms
+ GET / 200 in 480ms
+ GET / 200 in 519ms
+ GET / 200 in 347ms
+ GET / 200 in 138ms
+ GET / 200 in 180ms
+ GET / 200 in 558ms
+ GET / 200 in 127ms
+ GET / 200 in 199ms
+ GET / 200 in 200ms
+ GET / 200 in 135ms
+ ✓ Compiled in 594ms (312 modules)
+ ✓ Compiled in 81ms (312 modules)
+ GET / 200 in 539ms
+ GET / 200 in 143ms
+ ✓ Compiled in 416ms (312 modules)
+ GET / 200 in 208ms
+ GET / 200 in 392ms

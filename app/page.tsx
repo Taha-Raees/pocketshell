@@ -9,6 +9,7 @@ const VERSION = "v0.10.0-m6.0.4";
 // rev=2 (byte-identical artifact ed82daa8…): m6.0.4 fixes are APP-side only.
 const HASHES = {
   apk: "e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750",
+  m7p7: "a3ce9d3a03e8307ec3eca6893ee7b8fe96e6d0b2f4723a22e8a00b6347192cd8",
   m7p6: "35ae7a488af89a3403823f78ecadeaacb5c6b2806f5a240d73320128e94fff37",
   zip: "b0985c77d8c9e8100072b4f54d961c08aba0d79a02a75918cc5d5e8be753da12",
   tgz: "c46e585dc90663f5349f654940bbde1a6437acd4790f647d6405e1d3b7884595",
@@ -36,12 +37,50 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
+          M7 Phase 7 build: Open Terminal Here{" "}
+          <span className="badge">M7 tip d1fe8b6 · vc44</span>
+        </h2>
+        <p>
+          <b>
+            LATEST BUILD — includes M7 Phases 1–7 on top of M6.0.4: storage
+            abstraction, file explorer, file operations, Android storage
+            bridge (SAF folders), the quick text editor, and now
+            &quot;Open Terminal Here&quot;. Linux directories in the Files
+            explorer gain a REAL launch action: a normal Alpine session
+            (titled &quot;Alpine Linux&quot;) whose guest working directory is
+            the exact browsed directory — <code>pwd</code> prints it
+            literally. Created through the UNCHANGED canonical session path:
+            navigation happens only after the session is actually ready,
+            never navigate-first. The directory travels as PTY argv through
+            the new injection-proof chain{" "}
+            {"cd -- '<dir>' && exec /bin/sh -l"} — POSIX single-quote
+            wrapping, the -- option terminator, and && (never ;) so the
+            interactive login shell follows only a SUCCESSFUL cd; proven by
+            execution through real /bin/sh, including a genuine injection
+            attempt whose <code>touch</code> never runs. Android areas
+            (PocketShell Downloads, SAF folders) get NO fake button — the
+            honest boundary note instead: copy or move files into PocketShell
+            Linux to work with them in Terminal. Existing sessions untouched.
+            JVM suite 600/600 green.
+          </b>
+        </p>
+        <a className="btn" href="/PocketShell-v0.10.0-m6.0.4-m7p7-debug.apk">
+          Download M7P7 APK (debug, 30.3 MB)
+        </a>
+        <Sha text={HASHES.m7p7} />
+        <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
+          installs in place over M6.0.4 / M7P6 (same versionCode 44, same cert) — glibc layer ed82daa8… unchanged
+        </p>
+      </div>
+
+      <div className="card primary">
+        <h2>
           M7 Phase 6 build: quick text editor{" "}
           <span className="badge">M7 tip 25f421f · vc44</span>
         </h2>
         <p>
           <b>
-            LATEST BUILD — includes M7 Phases 1–6 on top of M6.0.4: storage
+            Includes M7 Phases 1–6 on top of M6.0.4: storage
             abstraction, file explorer, file operations, Android storage bridge
             (SAF folders), and now the quick text editor. &quot;Open&quot; on
             regular files across all three storage domains — PocketShell Linux,
@@ -260,6 +299,16 @@ export default function Home() {
             measurement, and the documented engineering boundary of the
             compatibility claim (DUAL_LIBC.md §8).
           </li>
+          <li>
+            <b>M7.0.0 phases 1–7 (this build):</b> one storage abstraction
+            behind the Files explorer (PocketShell Linux, the app Downloads
+            shelf, user-granted SAF folders), real file operations with
+            collision semantics, the byte-honest quick text editor, and
+            &quot;Open Terminal Here&quot; on Linux directories — a normal
+            Alpine session at the exact browsed directory through the
+            canonical launch path, with the honest boundary note instead of a
+            fake button on Android areas.
+          </li>
         </ul>
       </div>
 
@@ -342,10 +391,12 @@ export default function Home() {
         performance · m6.0.0 universal runtime compatibility — real glibc
         inside Alpine, musl untouched, Cline runs · m6.0.1 install
         observability · m6.0.2 the actual install-path fix · m6.0.3 the doctor
-        correctness gate ·{" "}
-        <b>v0.10.0-m6.0.4 (this build): the adversarial closure audit — the
+        correctness gate · v0.10.0-m6.0.4: the adversarial closure audit — the
         runtime survives corruption, reclaims, and concurrency, and says so
-        honestly</b>.
+        honestly ·{" "}
+        <b>m7.0.0 phases 1–7 (this build): storage abstraction, file explorer,
+        file operations, Android storage bridge, quick text editor, Open
+        Terminal Here</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
