@@ -12,6 +12,8 @@ import app.pocketshell.files.AreaKind
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerCore
 import app.pocketshell.files.ExplorerOps
+import app.pocketshell.files.FileSearch
+import app.pocketshell.files.FilesSearchState
 import app.pocketshell.files.PathSafety
 import app.pocketshell.files.PendingTransfer
 import app.pocketshell.files.StorageArea
@@ -207,8 +209,12 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     /** Back to the parent directory; at the area root the core no-ops (back then exits the screen). */
     fun navigateUp() = dispatch { core.navigateUp() }
 
-    /** Switch storage area (the header chip). */
-    fun switchArea(id: AreaId) = dispatch { core.switchArea(id) }
+    /** Switch storage area (the header chip). An open search is invalidated
+     * first — results from one area must never appear in another. */
+    fun switchArea(id: AreaId) {
+        exitSearch()
+        dispatch { core.switchArea(id) }
+    }
 
     /** Re-list the current location (the error banner's Retry). */
     fun refresh() = dispatch { core.refresh() }
@@ -227,6 +233,95 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
             _state.value = withContext(explorerIo) { core.stageLoading() }
             _state.value = withContext(explorerIo) { call() }
         }
+    }
+
+    // ======================================================= Phase 8 search
+
+    /**
+     * Search runs on its OWN serial worker — a long walk must never delay
+     * navigation (which owns [explorerIo]) — and never touches the core's
+     * state: the only shared objects are read-only [StorageArea.list] calls
+     * and the volatile generation below. StorageArea references are resolved
+     * on the main thread before the walk starts (the established pattern).
+     */
+    private val searchIo = Dispatchers.IO.limitedParallelism(1)
+
+    private val _search = MutableStateFlow<FilesSearchState>(FilesSearchState.Idle)
+    val search: StateFlow<FilesSearchState> = _search.asStateFlow()
+
+    /**
+     * Monotonic generation guard: every new query / exit / area-set change
+     * bumps it. A walk checks it between directories (cooperative cancel —
+     * blocking I/O never observes job cancellation on its own) and again at
+     * publication, so a slow stale walk can NEVER overwrite newer state.
+     */
+    @Volatile private var searchGen = 0L
+
+    private var searchJob: kotlinx.coroutines.Job? = null
+
+    /** Enter search mode. No scan happens — the empty field is the state. */
+    fun openSearch() {
+        searchJob?.cancel()
+        searchGen += 1
+        _search.value = FilesSearchState.Idle
+    }
+
+    /**
+     * Search the CURRENT storage area for [raw] (name substring,
+     * case-insensitive — the query is data, never a path or pattern). A
+     * blank query is the input state and never scans. Each call supersedes
+     * the previous walk (cancel + generation bump); results publish only
+     * while the generation is still current.
+     */
+    fun search(raw: String) {
+        if (raw.isBlank()) {
+            searchJob?.cancel()
+            searchGen += 1
+            _search.value = FilesSearchState.Idle
+            return
+        }
+        val area = currentAreaOrNull() ?: return
+        val gen = searchGen + 1
+        searchGen = gen
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            _search.value = FilesSearchState.Running(raw)
+            val outcome = withContext(searchIo) {
+                FileSearch.search(
+                    area = area,
+                    root = PathSafety.validatePath("/")!!,
+                    query = raw,
+                    isCancelled = { searchGen != gen },
+                )
+            }
+            if (searchGen != gen) return@launch // superseded — stale never wins
+            _search.value = when (outcome) {
+                null -> FilesSearchState.Idle // cancelled mid-walk (defensive)
+                is FileSearch.SearchOutcome.Idle -> FilesSearchState.Idle
+                is FileSearch.SearchOutcome.Error -> FilesSearchState.Failed(raw, outcome.reason)
+                is FileSearch.SearchOutcome.Matches -> FilesSearchState.Done(outcome)
+            }
+        }
+    }
+
+    /** Leave search mode: the walk is cancelled and its results discarded. */
+    fun exitSearch() {
+        searchJob?.cancel()
+        searchGen += 1
+        _search.value = FilesSearchState.Idle
+    }
+
+    /**
+     * Activate a result: leave search mode, then open the result's PARENT
+     * directory (the required behavior) with the tapped entry marked for
+     * display. The parent is an [app.pocketshell.files.AreaPath] this
+     * search composed inside the selected area — the core re-lists it and
+     * fails honestly if it vanished since. It can never name a location
+     * outside the area: the type has no representation for that.
+     */
+    fun openSearchResult(result: FileSearch.SearchResult) {
+        exitSearch()
+        dispatch { core.openDirectory(result.parent, result.entry.name) }
     }
 
     // ============================================================ Phase 4 ops
@@ -620,6 +715,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
      */
     override fun addSafFolderPicked(uriString: String) {
         val application = getApplication<Application>()
+        exitSearch() // the area set is about to change — a walk is stale
         dispatchJob?.cancel()
         dispatchJob = viewModelScope.launch {
             withContext(explorerIo) {
@@ -665,6 +761,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     override fun removeSafFolder(uriString: String) {
         val application = getApplication<Application>()
         val id = AndroidDocumentArea.areaIdFor(uriString)
+        exitSearch() // the area set is about to change — a walk is stale
         dispatchJob?.cancel()
         dispatchJob = viewModelScope.launch {
             withContext(explorerIo) {

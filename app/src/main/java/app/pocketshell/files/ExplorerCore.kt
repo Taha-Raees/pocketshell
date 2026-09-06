@@ -69,6 +69,13 @@ class ExplorerCore(
         val entries: List<FsEntry> = emptyList(),
         val loading: Boolean = true,
         val error: String? = null,
+        /**
+         * Phase 8 (additive, LAST field so positional constructions stay
+         * source-compatible): the entry name to visually mark after a
+         * search-result activation landed here. Pure display state — every
+         * navigation primitive except [openDirectory] clears it.
+         */
+        val highlight: String? = null,
     ) {
         /** True when the current location has a parent INSIDE the area. */
         val canNavigateUp: Boolean get() = path != null && path.value != "/"
@@ -129,7 +136,7 @@ class ExplorerCore(
         }
         val child = PathSafety.validatePath("${path.value.trimEnd('/')}/$name")
             ?: return refatalled("\"$name\" does not name a location inside this storage — navigation refused.")
-        current = current.copy(loading = true, error = null)
+        current = current.copy(loading = true, error = null, highlight = null)
         current = listInto(area, child, keepLocationOnFailure = true)
         return publish()
     }
@@ -146,7 +153,7 @@ class ExplorerCore(
         val parentComponents = path.components.dropLast(1)
         val parentRaw = if (parentComponents.isEmpty()) "/" else "/" + parentComponents.joinToString("/")
         val parent = PathSafety.validatePath(parentRaw) ?: return current
-        current = current.copy(loading = true, error = null)
+        current = current.copy(loading = true, error = null, highlight = null)
         current = listInto(area, parent, keepLocationOnFailure = true)
         return publish()
     }
@@ -161,8 +168,28 @@ class ExplorerCore(
         val target = areaHandles.firstOrNull { it.area.id == id }
             ?: return refatalled("That storage area is not available.")
         current.path?.let { leaving -> currentAreaIdOrNull()?.let { lastPathByArea[it] = leaving } }
-        current = current.copy(loading = true, error = null)
+        current = current.copy(loading = true, error = null, highlight = null)
         current = enter(target, rememberedOrStart(target))
+        return publish()
+    }
+
+    /**
+     * Phase 8 — open ONE already-validated directory inside the CURRENT
+     * area (the search-result activation). [path] is an [AreaPath]: the
+     * canonical, traversal-free type that cannot represent a location
+     * outside the area, exactly like the parent [navigateUp] composes — no
+     * new safety surface. A null [highlight] is plain navigation; otherwise
+     * the named entry (a result the user tapped) is marked for display.
+     * A vanished/mid-walk path fails honestly with the location preserved,
+     * like every listing here.
+     */
+    fun openDirectory(path: AreaPath, highlight: String? = null): State {
+        val area = currentArea() ?: return refatalled("No storage area is open.")
+        if (highlight != null && PathSafety.validateName(highlight) == null) {
+            return refatalled("\"$highlight\" is not a valid entry name — navigation refused.")
+        }
+        current = current.copy(loading = true, error = null, highlight = highlight)
+        current = listInto(area, path, keepLocationOnFailure = true)
         return publish()
     }
 
@@ -222,7 +249,7 @@ class ExplorerCore(
     fun refresh(): State {
         val area = currentArea() ?: return current
         val path = current.path ?: return current
-        current = current.copy(loading = true, error = null)
+        current = current.copy(loading = true, error = null, highlight = null)
         current = listInto(area, path, keepLocationOnFailure = true)
         return publish()
     }

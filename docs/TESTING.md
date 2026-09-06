@@ -2170,3 +2170,104 @@ H. THE "+" BUTTON MATCHES THE CURRENT ENVIRONMENT (p7.1)
     after a rotation falls back to the Android shell (spawn-time
     registration is the only source for those labels; nothing is
     guessed).
+
+## 38. Manual acceptance — M7.0.0 Phase 8 (File search: name search inside the selected storage area) — DEVICE GATE PENDING
+
+Build under test: `PocketShell-v0.10.0-m6.0.4-m7p8-debug.apk`
+(version 0.10.0-m6.0.4, versionCode 44 — unchanged until P9).
+
+What Phase 8 IS: a recursive NAME search of the CURRENTLY SELECTED storage
+area — literal, case-insensitive substring on file/directory names, walked
+through the unchanged Phase 2 storage abstraction, with explicit honest
+limits (stops at 200 matches or 2000 folders; skipped folders are counted
+and shown). What it is NOT: no background indexing, no database, no content
+search, no fuzzy/AI matching, no new permissions, no cross-area search.
+
+A. ENTERING / LEAVING SEARCH MODE
+
+1. Open Files (Linux area). Confirm the header now shows a search icon
+   next to the area chip.
+2. Tap the search icon: the location row is REPLACED by a focused search
+   field with the placeholder "Search in PocketShell Linux"; the area chip
+   disappears (the scope must be unambiguous); the keyboard appears.
+3. With the field EMPTY, confirm NO loading spinner and no scan happens
+   (the hint line explains the scope; an empty query never walks storage).
+4. Tap the "‹" (close) affordance at the field's right, then re-enter via
+   the header icon. Confirm the field opens empty again.
+5. Press system BACK inside search mode: search closes (the explorer
+   location never moved during the search — confirm the listing is exactly
+   where it was).
+
+B. BASIC SEARCH (Linux area)
+
+6. From any location, type `proj`: results appear with a folder/file icon,
+   the NAME, and a relative location line (e.g. "root/projects"). Results
+   come from the WHOLE area, not just the browsed folder.
+7. Confirm case-insensitivity: `PROJ`, `Proj`, `proj` produce the same set.
+8. Confirm substring behavior: `roje` matches "projects"; "abc" matches
+   nothing with the honest "No matches for "abc"" center text.
+9. Confirm dotfiles are searchable: `.env` is found by `env` and by `.env`.
+10. Confirm directories AND files both appear, directories sorted first,
+    names case-insensitive — consistent with the explorer's own order.
+11. While a large search is running, confirm the spinner shows and typing
+    more characters REPLACES the running search (newest query wins; no
+    flashing of stale results).
+
+C. RESULT ACTIVATION (the required behavior)
+
+12. Tap a NESTED result: search mode closes and the explorer shows the
+    result's PARENT directory, with the tapped entry visibly highlighted
+    (tinted row). The location line shows the parent path.
+13. Tap a ROOT-LEVEL result: the explorer shows the area root with the
+    entry highlighted.
+14. Open another folder afterwards: the highlight disappears (it marks
+    only the activation landing).
+
+D. SAFETY / QUERY-IS-DATA
+
+15. Search for `..`, `../etc`, `/etc`, `*`, `$`, `;`, `&&`: no crash, no
+    traversal, no fake matches — queries are literal data. (If a file
+    literally named with `*` exists, the `*` query finds it by name.)
+16. Confirm search NEVER leaves the selected area: in the Linux area there
+    is no result that resolves into Android storage, and vice versa.
+
+E. AREA SCOPE (each area searches only itself)
+
+17. Linux area: results' relative paths are guest spines (e.g.
+    "root/projects"), and protected prefixes (/etc, /usr) ARE searchable
+    read-only — this is the user's own rootfs.
+18. PocketShell Downloads shelf: switch to the shelf, enter search, type
+    part of a file placed there earlier; confirm results and honest spine
+    paths; confirm NO Linux-area results can appear.
+19. A user-granted SAF folder (real shared Download): search finds names
+    inside the granted tree only; relative locations are the document-tree
+    spine (never a fabricated POSIX path).
+20. Revoke the SAF grant in the system Settings while it is the current
+    area, then search: confirm the honest error ("Could not search …") —
+    never an empty-results pretend.
+21. Switch areas WHILE search results are visible…: the area chip is
+    hidden in search mode; exit search (back or ‹), switch, confirm no
+    stale results from the previous area ever appear.
+
+F. LIMITS AND PARTIALS (honest disclosures)
+
+22. On a tree with >200 matching names, confirm the banner: "Stopped at
+    the first 200 matches — refine the query to narrow the search."
+23. On a very deep/wide tree (or slow provider), if the 2000-folder cap
+    hits, confirm: "Stopped early — only part of <area> was searched, so
+    results may be incomplete."
+24. If a sub-folder cannot be listed, confirm the banner names the count
+    and the first reason ("1 folder(s) could not be searched: …") while
+    results from the rest of the area still appear.
+
+G. REGRESSION (P2–P7.1 untouched)
+
+25. Explorer regression ladder: navigation, up-nav at root, area switcher
+    (remembered locations), New Folder/File, Import, copy/move/paste with
+    Replace/Cancel, rename, delete, Share, Export, editor open/save —
+    all through the SAME flows as P6/P7 (§34–§37 spot checks).
+26. Open Terminal Here still opens THE TAPPED folder (§37 A steps).
+27. Terminal "+" still matches the current session's environment (§37 H).
+28. Confirm the APK permission list is UNCHANGED (6 permissions; no
+    MANAGE/READ/WRITE_EXTERNAL_STORAGE, no new entries) — Phase 8 adds
+    no permissions, no manifest entries, no new dependencies.

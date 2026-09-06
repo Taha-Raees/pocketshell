@@ -325,4 +325,59 @@ class ExplorerCoreTest {
         assertFalse(state.loading)
         assertNotNull(state.error)
     }
+
+    // ------------------------------------------- Phase 8 result activation
+
+    @Test
+    fun `openDirectory navigates to a nested validated path and marks the highlight`() {
+        core.initial()
+
+        val target = PathSafety.validatePath("/root/projects")!!
+        val state = core.openDirectory(target, highlight = "notes.txt")
+
+        assertEquals("/root/projects", state.path!!.value)
+        assertEquals("notes.txt", state.highlight)
+        assertTrue(state.entries.map { it.name }.contains("notes.txt"))
+        assertFalse(state.loading)
+        assertNull(state.error)
+    }
+
+    @Test
+    fun `openDirectory to the area root works and next navigation clears the highlight`() {
+        core.initial()
+        core.openDirectory(PathSafety.validatePath("/root/projects")!!, "notes.txt")
+
+        val rootState = core.openDirectory(PathSafety.validatePath("/")!!)
+        assertEquals("/", rootState.path!!.value)
+
+        // The next ordinary navigation primitive clears the display marker.
+        val child = core.openChild("root")
+        assertNull(child.highlight)
+    }
+
+    @Test
+    fun `openDirectory to a vanished path fails honestly with the location kept`() {
+        core.initial()
+        core.openChild("projects")
+        val before = core.snapshot().path!!.value
+
+        val ghost = PathSafety.validatePath("/root/projects/deleted-dir")!!
+        val state = core.openDirectory(ghost)
+
+        assertNotNull(state.error)
+        assertEquals(before, state.path!!.value) // location preserved
+    }
+
+    @Test
+    fun `openDirectory refuses an invalid highlight name`() {
+        core.initial()
+        val before = core.snapshot().path!!.value
+
+        val state = core.openDirectory(
+            PathSafety.validatePath("/root/projects")!!,
+            highlight = "../escape",
+        )
+        assertNotNull(state.error)
+        assertEquals(before, state.path!!.value)
+    }
 }

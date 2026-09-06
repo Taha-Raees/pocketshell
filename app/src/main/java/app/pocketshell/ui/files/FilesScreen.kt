@@ -25,12 +25,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FileDownload
@@ -38,6 +40,7 @@ import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.NoteAdd
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -54,6 +57,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +70,8 @@ import app.pocketshell.files.AreaId
 import app.pocketshell.files.AreaKind
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerCore
+import app.pocketshell.files.FileSearch
+import app.pocketshell.files.FilesSearchState
 import app.pocketshell.files.FsEntry
 import app.pocketshell.files.saf.SafFolderState
 import app.pocketshell.ui.home.HomeTokens
@@ -91,6 +98,12 @@ import java.util.Locale
  *                        / user-granted Android folders (label = the
  *                        folder's own name, e.g. a real shared "Download")
  *                        (+ "Add Android folder…" through the SYSTEM picker)
+ *   search (Phase 8)   → header search icon; the search mode REPLACES the
+ *                        listing with a focused name search of the CURRENT
+ *                        area only (recursive, literal case-insensitive
+ *                        substring — the query is data, never a pattern);
+ *                        tapping a result exits search and opens the
+ *                        result's PARENT directory with the entry marked
  *   Open Terminal Here → Phase 7: a real launch offered for directory
  *                        entries in the PocketShell Linux area only — it
  *                        opens THE TAPPED FOLDER (p7.1); Android-owned
@@ -105,11 +118,21 @@ fun FilesScreen(
     state: ExplorerCore.State,
     guestUnavailable: Boolean,
     ops: FilesOpsSurface,
+    /** Phase 8: the current search publication state (Idle/Running/Done/Failed). */
+    search: FilesSearchState,
     onBack: () -> Unit,
     onNavigateUp: () -> Unit,
     onOpenChild: (String) -> Unit,
     onSwitchArea: (AreaId) -> Unit,
     onRefresh: () -> Unit,
+    /** Phase 8: enter search mode (no scan — the empty field is the state). */
+    onSearchOpen: () -> Unit,
+    /** Phase 8: run/replace the search for [String] (blank = input state). */
+    onSearchQuery: (String) -> Unit,
+    /** Phase 8: leave search mode — the walk is cancelled, results dropped. */
+    onSearchExit: () -> Unit,
+    /** Phase 8: activate a result — exit search, open its PARENT directory. */
+    onOpenSearchResult: (FileSearch.SearchResult) -> Unit,
     /** Phase 6: open the listing FILE [name] in the quick text editor. */
     onOpenFile: (String) -> Unit,
     /**
@@ -140,6 +163,21 @@ fun FilesScreen(
     // The tapped / long-pressed entry whose action sheet is open.
     var selected by remember { mutableStateOf<FsEntry?>(null) }
 
+    // Phase 8: search mode is a UI-local rendering switch; the search STATE
+    // (walk, results, cancellation) lives in the ViewModel. Opening clears
+    // the field; leaving cancels the walk through onSearchExit.
+    var searchMode by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    fun closeSearch() {
+        searchMode = false
+        onSearchExit()
+    }
+    fun openSearchMode() {
+        searchQuery = ""
+        searchMode = true
+        onSearchOpen()
+    }
+
     // The Android folder whose grant is gone WHILE it is the current area —
     // the honest no-fake-empty-folder surface.
     val revokedFolder = if (state.areaId?.kind == AreaKind.ANDROID_DOCUMENT_TREE) {
@@ -150,10 +188,12 @@ fun FilesScreen(
         null
     }
 
-    // Back = parent directory while there is one INSIDE the area; at the area
-    // root the handler releases back to the app router (→ Home). The logical
-    // area boundary is never crossed by back navigation.
-    BackHandler(enabled = state.canNavigateUp) { onNavigateUp() }
+    // Back = exit search while it is open; otherwise parent directory while
+    // there is one INSIDE the area; at the area root the handler releases
+    // back to the app router (→ Home). The logical area boundary is never
+    // crossed by back navigation.
+    BackHandler(enabled = searchMode) { closeSearch() }
+    BackHandler(enabled = !searchMode && state.canNavigateUp) { onNavigateUp() }
 
     Box(
         modifier = modifier
@@ -168,18 +208,32 @@ fun FilesScreen(
         ) {
             FilesHeader(
                 state = state,
+                searchMode = searchMode,
+                onToggleSearch = { if (searchMode) closeSearch() else openSearchMode() },
                 onBack = onBack,
                 onSwitchArea = onSwitchArea,
                 onAddSafFolder = bridge.pickFolder,
             )
 
-            LocationRow(
-                state = state,
-                onNavigateUp = onNavigateUp,
-                onNewFolder = { ops.openNewDialog(folder = true) },
-                onNewFile = { ops.openNewDialog(folder = false) },
-                onImportFile = bridge.pickImportFile,
-            )
+            if (searchMode) {
+                SearchFieldRow(
+                    areaName = state.areaName,
+                    query = searchQuery,
+                    onQuery = {
+                        searchQuery = it
+                        onSearchQuery(it)
+                    },
+                    onExit = { closeSearch() },
+                )
+            } else {
+                LocationRow(
+                    state = state,
+                    onNavigateUp = onNavigateUp,
+                    onNewFolder = { ops.openNewDialog(folder = true) },
+                    onNewFile = { ops.openNewDialog(folder = false) },
+                    onImportFile = bridge.pickImportFile,
+                )
+            }
 
             pending?.let { marker ->
                 Spacer(Modifier.height(6.dp))
@@ -233,7 +287,19 @@ fun FilesScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            when {
+            if (searchMode) {
+                // Phase 8: the search mode REPLACES the listing — the
+                // explorer's own listing/error/loading surfaces are fully
+                // hidden while the field is open.
+                SearchBody(
+                    search = search,
+                    areaName = state.areaName,
+                    onOpenResult = { result ->
+                        searchMode = false
+                        onOpenSearchResult(result)
+                    },
+                )
+            } else when {
                 // No area at all: honest dead-end with the real way out.
                 state.areaId == null && !state.loading -> NoStorageState(onOpenDiagnostics)
 
@@ -283,6 +349,7 @@ fun FilesScreen(
 
                 else -> Listing(
                     entries = state.entries,
+                    highlight = state.highlight,
                     onOpenChild = onOpenChild,
                     onSelect = { selected = it },
                 )
@@ -408,6 +475,8 @@ fun FilesScreen(
 @Composable
 private fun FilesHeader(
     state: ExplorerCore.State,
+    searchMode: Boolean,
+    onToggleSearch: () -> Unit,
     onBack: () -> Unit,
     onSwitchArea: (AreaId) -> Unit,
     onAddSafFolder: () -> Unit,
@@ -444,7 +513,28 @@ private fun FilesHeader(
         )
         Spacer(Modifier.weight(1f))
 
-        if (state.areas.size > 1) {
+        // Phase 8: the search affordance lives in the header; while the
+        // search mode is open it becomes the exit (the field row carries
+        // its own clear/close too). The area chip is hidden in search mode
+        // so the scope stays unambiguous — the field names the area.
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button, onClickLabel = if (searchMode) "Close search" else "Search files") {
+                    onToggleSearch()
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = if (searchMode) Icons.Outlined.Close else Icons.Outlined.Search,
+                contentDescription = if (searchMode) "Close search" else "Search files",
+                tint = if (searchMode) HomeTokens.accent else HomeTokens.textDim,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+
+        if (state.areas.size > 1 && !searchMode) {
             Box {
                 Row(
                     modifier = Modifier
@@ -678,12 +768,254 @@ private fun LocationRow(
     }
 }
 
+// -------------------------------------------------------------- search (P8)
+
+/**
+ * The search-mode field row: a focused single-line text field with the
+ * scope named honestly ("Search in <area>"), an in-field clear affordance,
+ * and a close affordance. Typing dispatches [onQuery] for every change —
+ * each call supersedes the previous walk in the ViewModel; a BLANK query
+ * is the input state and never scans.
+ */
+@Composable
+private fun SearchFieldRow(
+    areaName: String,
+    query: String,
+    onQuery: (String) -> Unit,
+    onExit: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(HomeTokens.surfaceEnv)
+                .border(1.dp, HomeTokens.hairline, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            BasicTextField(
+                value = query,
+                onValueChange = onQuery,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = HomeTokens.textPrimary,
+                ),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(HomeTokens.accent),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
+                decorationBox = { inner ->
+                    Box {
+                        if (query.isEmpty()) {
+                            Text(
+                                text = "Search in $areaName",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = HomeTokens.textDim,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        inner()
+                    }
+                },
+            )
+        }
+        if (query.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button, onClickLabel = "Clear search") { onQuery("") },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "Clear search",
+                    tint = HomeTokens.textDim,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button, onClickLabel = "Close search") { onExit() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                contentDescription = "Close search",
+                tint = HomeTokens.textDim,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The search-mode body: ONLY renders the search publication state — running
+ * spinner, honest limit/skip disclosures, no-results, results — and sends
+ * activations. It never sees a [app.pocketshell.files.StorageArea] and never
+ * decides what a match is.
+ */
+@Composable
+private fun SearchBody(
+    search: FilesSearchState,
+    areaName: String,
+    onOpenResult: (FileSearch.SearchResult) -> Unit,
+) {
+    when (val s = search) {
+        FilesSearchState.Idle -> Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp, vertical = 40.dp),
+        ) {
+            MidnightNote(
+                text = "Type to search folder and file NAMES inside $areaName — " +
+                    "matching is a simple case-insensitive part of the name, " +
+                    "and the search never leaves this area.",
+            )
+        }
+
+        is FilesSearchState.Running -> Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+                color = HomeTokens.accent,
+            )
+        }
+
+        is FilesSearchState.Failed -> Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+        ) {
+            Spacer(Modifier.height(8.dp))
+            MidnightBanner(message = s.reason, failed = true)
+        }
+
+        is FilesSearchState.Done -> {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                // Honest disclosures — limits and partial failures are
+                // never silent. Exact wording mirrors the core's flags.
+                if (s.outcome.truncated || s.outcome.scanTruncated ||
+                    s.outcome.skippedCount > 0
+                ) {
+                    val notes = buildList {
+                        if (s.outcome.truncated) {
+                            add("Stopped at the first ${s.outcome.results.size} matches — refine the query to narrow the search.")
+                        }
+                        if (s.outcome.scanTruncated) {
+                            add("Stopped early — only part of $areaName was searched, so results may be incomplete.")
+                        }
+                        if (s.outcome.skippedCount > 0) {
+                            add("${s.outcome.skippedCount} folder(s) could not be searched: ${s.outcome.firstError ?: "listing failed"}")
+                        }
+                    }
+                    MidnightBanner(message = notes.joinToString(" "), failed = false)
+                    Spacer(Modifier.height(4.dp))
+                }
+                if (s.outcome.results.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "No matches for \"${s.outcome.query}\"",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = HomeTokens.textDim,
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                    ) {
+                        items(s.outcome.results, key = { it.parent.value + "/" + it.entry.name }) { result ->
+                            SearchRow(
+                                result = result,
+                                areaName = areaName,
+                                onClick = { onOpenResult(result) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One search result: kind icon, the name, and the relative location that
+ * distinguishes duplicates (the area's own navigation spine — for SAF
+ * areas this is the honest document-tree spine, never a fake POSIX path). */
+@Composable
+private fun SearchRow(
+    result: FileSearch.SearchResult,
+    areaName: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(role = Role.Button, onClickLabel = "Open ${result.entry.name}") { onClick() }
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = when (result.entry.kind) {
+                EntryKind.DIRECTORY -> Icons.Outlined.Folder
+                EntryKind.SYMLINK -> Icons.Outlined.Link
+                else -> Icons.Outlined.InsertDriveFile
+            },
+            contentDescription = null,
+            tint = HomeTokens.textDim,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = result.entry.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (result.entry.kind == EntryKind.DIRECTORY) FontWeight.Medium else FontWeight.Normal,
+                color = HomeTokens.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = if (result.relativeLocation.isEmpty()) areaName else result.relativeLocation,
+                fontFamily = TerminalTheme.mono,
+                fontSize = 11.sp,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
 // ------------------------------------------------------------------ listing
 
 /** One quiet column of entries — directories first (the engine's order). */
 @Composable
 private fun Listing(
     entries: List<FsEntry>,
+    highlight: String?,
     onOpenChild: (String) -> Unit,
     onSelect: (FsEntry) -> Unit,
 ) {
@@ -694,6 +1026,7 @@ private fun Listing(
         items(entries, key = { it.name }) { entry ->
             EntryRow(
                 entry = entry,
+                highlighted = entry.name == highlight,
                 onClick = {
                     when (entry.kind) {
                         EntryKind.DIRECTORY -> onOpenChild(entry.name)
@@ -712,6 +1045,7 @@ private fun EntryRow(
     entry: FsEntry,
     onClick: () -> Unit,
     onActions: () -> Unit,
+    highlighted: Boolean = false,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -720,7 +1054,13 @@ private fun EntryRow(
             .fillMaxWidth()
             .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(if (pressed) HomeTokens.surfaceBanner else Color.Transparent)
+            .background(
+                when {
+                    pressed -> HomeTokens.surfaceBanner
+                    highlighted -> HomeTokens.surfaceEnv
+                    else -> Color.Transparent
+                },
+            )
             .combinedClickable(
                 interactionSource = interaction,
                 indication = null,

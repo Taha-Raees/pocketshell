@@ -162,6 +162,7 @@ fun PocketShellRoot(
     // Home↔Files round-trips and rotation never reset the user's directory.
     val filesViewModel: app.pocketshell.FilesViewModel = viewModel()
     val filesState by filesViewModel.state.collectAsStateWithLifecycle()
+    val filesSearch by filesViewModel.search.collectAsStateWithLifecycle()
 
     // M7 Phase 6: the quick text editor is process-scoped as well — its
     // loaded document and dirty buffer survive Home↔Editor navigation and
@@ -257,11 +258,16 @@ fun PocketShellRoot(
                 state = filesState,
                 guestUnavailable = filesViewModel.guestUnavailable,
                 ops = filesViewModel,
+                search = filesSearch,
                 onBack = { screen = "home" },
                 onNavigateUp = filesViewModel::navigateUp,
                 onOpenChild = filesViewModel::openChild,
                 onSwitchArea = filesViewModel::switchArea,
                 onRefresh = filesViewModel::refresh,
+                onSearchOpen = filesViewModel::openSearch,
+                onSearchQuery = filesViewModel::search,
+                onSearchExit = filesViewModel::exitSearch,
+                onOpenSearchResult = filesViewModel::openSearchResult,
                 onOpenFile = { name ->
                     // Validate + resolve here; navigate only when the listing
                     // entry genuinely launches (never over a fake open).
