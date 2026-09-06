@@ -32,8 +32,11 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CheckBox
+import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.InsertDriveFile
@@ -154,6 +157,12 @@ fun FilesScreen(
     val deleteConfirm by ops.deleteConfirm.collectAsStateWithLifecycle()
     val safFolders by ops.safFolders.collectAsStateWithLifecycle()
 
+    // Phase 8.1: selection mode + the multi surfaces.
+    val selectionMode by ops.selectionMode.collectAsStateWithLifecycle()
+    val selection by ops.selection.collectAsStateWithLifecycle()
+    val multiDeleteConfirm by ops.multiDeleteConfirm.collectAsStateWithLifecycle()
+    val pendingCount by ops.pendingCount.collectAsStateWithLifecycle()
+
     // Phase 5: the Android-side launchers (folder picker, import picker) and
     // the share/save effects — created HERE so this screen keeps owning all
     // its wiring and callers stay unchanged.
@@ -194,6 +203,9 @@ fun FilesScreen(
     // crossed by back navigation.
     BackHandler(enabled = searchMode) { closeSearch() }
     BackHandler(enabled = !searchMode && state.canNavigateUp) { onNavigateUp() }
+    // Registered last, so while selection mode is on, back LEAVES selection
+    // before it ever navigates up or out of the screen.
+    BackHandler(enabled = selectionMode) { ops.exitSelectionMode() }
 
     Box(
         modifier = modifier
@@ -209,7 +221,11 @@ fun FilesScreen(
             FilesHeader(
                 state = state,
                 searchMode = searchMode,
+                selectionMode = selectionMode,
                 onToggleSearch = { if (searchMode) closeSearch() else openSearchMode() },
+                onToggleSelect = {
+                    if (selectionMode) ops.exitSelectionMode() else ops.enterSelectionMode()
+                },
                 onBack = onBack,
                 onSwitchArea = onSwitchArea,
                 onAddSafFolder = bridge.pickFolder,
@@ -224,6 +240,17 @@ fun FilesScreen(
                         onSearchQuery(it)
                     },
                     onExit = { closeSearch() },
+                )
+            } else if (selectionMode) {
+                // Phase 8.1: the selection bar replaces the location row —
+                // the mode's actions live where navigation normally does.
+                SelectionBar(
+                    count = selection.size,
+                    onExit = ops::exitSelectionMode,
+                    onSelectAll = ops::selectAll,
+                    onCopy = ops::startCopySelected,
+                    onMove = ops::startMoveSelected,
+                    onDelete = ops::openMultiDeleteConfirm,
                 )
             } else {
                 LocationRow(
@@ -240,6 +267,7 @@ fun FilesScreen(
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     PendingBanner(
                         pending = marker,
+                        count = pendingCount,
                         canPaste = state.path != null,
                         onPaste = ops::pasteHere,
                         onCancel = ops::cancelPending,
@@ -350,8 +378,11 @@ fun FilesScreen(
                 else -> Listing(
                     entries = state.entries,
                     highlight = state.highlight,
+                    selectionMode = selectionMode,
+                    selected = selection,
                     onOpenChild = onOpenChild,
                     onSelect = { selected = it },
+                    onToggle = ops::toggleSelected,
                 )
             }
         }
@@ -436,6 +467,14 @@ fun FilesScreen(
         )
     }
 
+    multiDeleteConfirm?.let { confirm ->
+        ConfirmMultiDeleteDialog(
+            state = confirm,
+            onDelete = ops::confirmMultiDelete,
+            onCancel = ops::dismissMultiDeleteConfirm,
+        )
+    }
+
     renameDialog?.let { dialog ->
         NamePromptDialog(
             title = "Rename \"${dialog.currentName}\"",
@@ -476,7 +515,9 @@ fun FilesScreen(
 private fun FilesHeader(
     state: ExplorerCore.State,
     searchMode: Boolean,
+    selectionMode: Boolean,
     onToggleSearch: () -> Unit,
+    onToggleSelect: () -> Unit,
     onBack: () -> Unit,
     onSwitchArea: (AreaId) -> Unit,
     onAddSafFolder: () -> Unit,
@@ -512,6 +553,28 @@ private fun FilesHeader(
             color = HomeTokens.textPrimary,
         )
         Spacer(Modifier.weight(1f))
+
+        // Phase 8.1: the select affordance lives beside search; while the
+        // selection mode is open it becomes the exit. Hidden during search
+        // mode (the two modes never mix) and for empty locations.
+        if (!searchMode && state.entries.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button, onClickLabel = if (selectionMode) "Exit selection" else "Select items") {
+                        onToggleSelect()
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.DoneAll,
+                    contentDescription = if (selectionMode) "Exit selection" else "Select items",
+                    tint = if (selectionMode) HomeTokens.accent else HomeTokens.textDim,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
 
         // Phase 8: the search affordance lives in the header; while the
         // search mode is open it becomes the exit (the field row carries
@@ -768,6 +831,87 @@ private fun LocationRow(
     }
 }
 
+// ------------------------------------------------------- selection (P8.1)
+
+/**
+ * The selection-mode action bar: replaces the location row while selecting.
+ * Copy/Move/Delete act on the selection (disabled while nothing is picked);
+ * Select all grabs the whole listing; the X leaves the mode. It performs
+ * ZERO filesystem work — every button dispatches an intent.
+ */
+@Composable
+private fun SelectionBar(
+    count: Int,
+    onExit: () -> Unit,
+    onSelectAll: () -> Unit,
+    onCopy: () -> Unit,
+    onMove: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .heightIn(min = 44.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button, onClickLabel = "Exit selection") { onExit() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = "Exit selection",
+                tint = HomeTokens.textDim,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = "$count selected",
+            fontFamily = TerminalTheme.mono,
+            fontSize = 13.sp,
+            color = HomeTokens.textPrimary,
+        )
+        Spacer(Modifier.weight(1f))
+        TextButton(onClick = onSelectAll) {
+            Text(
+                "All",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 13.sp,
+                color = HomeTokens.accent,
+            )
+        }
+        TextButton(onClick = onCopy, enabled = count > 0) {
+            Text(
+                "Copy",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 13.sp,
+                color = if (count > 0) HomeTokens.accent else HomeTokens.textDim,
+            )
+        }
+        TextButton(onClick = onMove, enabled = count > 0) {
+            Text(
+                "Move",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 13.sp,
+                color = if (count > 0) HomeTokens.accent else HomeTokens.textDim,
+            )
+        }
+        TextButton(onClick = onDelete, enabled = count > 0) {
+            Text(
+                "Delete",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 13.sp,
+                color = if (count > 0) HomeTokens.danger else HomeTokens.textDim,
+            )
+        }
+    }
+}
+
 // -------------------------------------------------------------- search (P8)
 
 /**
@@ -1016,8 +1160,11 @@ private fun SearchRow(
 private fun Listing(
     entries: List<FsEntry>,
     highlight: String?,
+    selectionMode: Boolean,
+    selected: Set<String>,
     onOpenChild: (String) -> Unit,
     onSelect: (FsEntry) -> Unit,
+    onToggle: (String) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1034,6 +1181,9 @@ private fun Listing(
                     }
                 },
                 onActions = { onSelect(entry) },
+                selecting = selectionMode,
+                selectedNow = entry.name in selected,
+                onToggle = { onToggle(entry.name) },
             )
         }
     }
@@ -1046,6 +1196,9 @@ private fun EntryRow(
     onClick: () -> Unit,
     onActions: () -> Unit,
     highlighted: Boolean = false,
+    selecting: Boolean = false,
+    selectedNow: Boolean = false,
+    onToggle: () -> Unit = {},
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -1057,6 +1210,7 @@ private fun EntryRow(
             .background(
                 when {
                     pressed -> HomeTokens.surfaceBanner
+                    selectedNow -> HomeTokens.surfaceEnv
                     highlighted -> HomeTokens.surfaceEnv
                     else -> Color.Transparent
                 },
@@ -1065,22 +1219,30 @@ private fun EntryRow(
                 interactionSource = interaction,
                 indication = null,
                 role = Role.Button,
-                onClickLabel = if (entry.kind == EntryKind.DIRECTORY) "Open ${entry.name}" else "Details of ${entry.name}",
-                onLongClickLabel = "Actions for ${entry.name}",
-                onClick = onClick,
-                onLongClick = onActions,
+                onClickLabel = if (selecting) {
+                    if (selectedNow) "Deselect ${entry.name}" else "Select ${entry.name}"
+                } else if (entry.kind == EntryKind.DIRECTORY) "Open ${entry.name}" else "Details of ${entry.name}",
+                onLongClickLabel = if (selecting) null else "Actions for ${entry.name}",
+                onClick = if (selecting) onToggle else onClick,
+                onLongClick = if (selecting) onToggle else onActions,
             )
             .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = when (entry.kind) {
-                EntryKind.DIRECTORY -> Icons.Outlined.Folder
-                EntryKind.SYMLINK -> Icons.Outlined.Link
+            imageVector = when {
+                selecting ->
+                    if (selectedNow) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank
+                entry.kind == EntryKind.DIRECTORY -> Icons.Outlined.Folder
+                entry.kind == EntryKind.SYMLINK -> Icons.Outlined.Link
                 else -> Icons.Outlined.InsertDriveFile
             },
-            contentDescription = null,
-            tint = HomeTokens.textDim,
+            contentDescription = if (selecting) {
+                if (selectedNow) "Selected" else "Not selected"
+            } else {
+                null
+            },
+            tint = if (selecting && selectedNow) HomeTokens.accent else HomeTokens.textDim,
             modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.width(14.dp))
@@ -1114,19 +1276,22 @@ private fun EntryRow(
             Spacer(Modifier.width(10.dp))
         }
         // The always-visible affordance — actions are never gesture-only.
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(role = Role.Button, onClickLabel = "Actions for ${entry.name}") { onActions() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.MoreVert,
-                contentDescription = "Actions for ${entry.name}",
-                tint = HomeTokens.textDim,
-                modifier = Modifier.size(18.dp),
-            )
+        // Hidden while selecting: the row itself toggles in this mode.
+        if (!selecting) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClickLabel = "Actions for ${entry.name}") { onActions() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = "Actions for ${entry.name}",
+                    tint = HomeTokens.textDim,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }

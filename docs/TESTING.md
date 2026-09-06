@@ -2173,8 +2173,12 @@ H. THE "+" BUTTON MATCHES THE CURRENT ENVIRONMENT (p7.1)
 
 ## 38. Manual acceptance — M7.0.0 Phase 8 (File search: name search inside the selected storage area) — DEVICE GATE PENDING
 
-Build under test: `PocketShell-v0.10.0-m6.0.4-m7p8-debug.apk`
-(version 0.10.0-m6.0.4, versionCode 44 — unchanged until P9).
+Build under test: `PocketShell-v0.10.0-m6.0.4-m7p8.1-debug.apk`
+(version 0.10.0-m6.0.4, versionCode 44 — unchanged until P9). Note: the
+original m7p8 APK was lost to a sandbox reset before delivery; this gate
+runs on the rebuilt artifact, which re-verified every semantic pin (version,
+permission set, embedded layer asset, dex symbols) — the rebuild also
+carries Phase 8.1 (multi-select), which shares the same build.
 
 What Phase 8 IS: a recursive NAME search of the CURRENTLY SELECTED storage
 area — literal, case-insensitive substring on file/directory names, walked
@@ -2271,3 +2275,85 @@ G. REGRESSION (P2–P7.1 untouched)
 28. Confirm the APK permission list is UNCHANGED (6 permissions; no
     MANAGE/READ/WRITE_EXTERNAL_STORAGE, no new entries) — Phase 8 adds
     no permissions, no manifest entries, no new dependencies.
+
+## 39. Manual acceptance — M7.0.0 Phase 8.1 (multi-select: copy / move / delete several entries at once) — DEVICE GATE PENDING
+
+Build under test: the SAME `PocketShell-v0.10.0-m6.0.4-m7p8.1-debug.apk`
+as §38 (one build carries Phase 8 search AND Phase 8.1 multi-select).
+
+What Phase 8.1 IS: a selection MODE over the CURRENT listing — toggle rows
+(header select icon), then Copy / Move / Delete act on the whole selection
+through the UNCHANGED Phase 4 per-entry operations, with an honest
+aggregate notice (per-item failures keep their names and reasons) and the
+same Replace/Cancel dialog per collision. What it is NOT: no new storage
+APIs, no path input anywhere (selection is names of the CURRENT listing
+only), no silent partial results, no new permissions.
+
+A — Enter / exit selection mode
+ 1. Open a folder with several entries → header select icon → rows show
+    checkboxes, the location row is replaced by "0 selected" + All / Copy /
+    Move / Delete (the three actions disabled while nothing is picked).
+ 2. Tap rows → each toggles its checkbox and accent tint; the count updates.
+ 3. All → every row selected; tap one row again → only that one deselects.
+ 4. X (or system Back) → leaves selection mode; rows navigate again;
+    re-enter → the selection starts empty.
+
+B — Multi delete
+ 5. Select 2 files + 1 folder WITH content → Delete → dialog "Delete 3
+    items?" names them and carries the folder-contents warning → Delete →
+    notice "Deleted 3 items."; the rows disappear.
+ 6. Select a symlink → Delete → the "only links are deleted" warning shows;
+    confirm → the link is gone, the target still opens with its content.
+ 7. Delete a selection where one entry disappears first (e.g. a folder
+    holding it is deleted by another flow) → the notice names the failed
+    item and its reason; the rest are still deleted.
+
+C — Multi copy (the clipboard)
+ 8. Select 2–3 entries → Copy → selection mode exits; the paste banner
+    reads "Holding N items to copy from <area> — open a destination and
+    paste here."
+ 9. Navigate into another folder → Paste here → every item lands; sources
+    remain; notice "Copied N items."
+10. Cross-area: mark the copy in the Linux area, switch the chip to the
+    Downloads shelf → the selection bar is GONE (a selection never survives
+    an area switch, but the clipboard banner stays) → Paste → the items
+    arrive in the shelf.
+11. Cancel on the banner → nothing was changed anywhere.
+
+D — Multi move
+12. Select entries → Move → navigate elsewhere → Paste here → the sources
+    are gone from the origin, present at the destination, "Moved N items."
+
+E — Collisions (the honest dialog, reused per item)
+13. Copy 2 entries where ONE name already exists at the destination → the
+    Replace dialog names THAT item → Replace → that one overwrites, the
+    rest complete; the aggregate notice reports everything.
+14. Copy with a collision → Cancel → the notice says what already landed
+    and "Cancelled at "x" — the remaining items were not touched."; the
+    already-landed items ARE at the destination (partial never hidden).
+
+F — Scope & safety
+15. A selection never survives leaving its directory: select → open any
+    folder (or Up) → selection mode is closed.
+16. Search and selection never mix: opening search closes the selection;
+    the select icon is hidden while search mode is open.
+17. Selection is row-only: there is no way to type a path into it; nothing
+    outside the current area listing can ever be selected.
+18. SAF folder: multi copy/move/delete inside a granted tree works through
+    the same flows; if the grant is revoked mid-session the honest error
+    appears — never a fake success or a fake empty result.
+19. Guest policy still bites: a delete that the area refuses (frozen
+    runtime prefix) surfaces as a failed item with the area's own reason.
+
+G — Regression ladder (P2–P8)
+20. Single-entry copy / move / paste / rename / delete / New Folder / New
+    File / Import / Share / Export still behave exactly as before (§34–§37
+    spot checks) — the single paths were not rewritten.
+21. Search (§38 spot): one query, tap a result → lands in the parent with
+    the highlight.
+22. Open Terminal Here still opens THE TAPPED folder (§37 A).
+23. Terminal "+" still matches the current session's environment (§37 H).
+24. Editor still opens listing files; Companion/terminal untouched.
+25. App info: still versionName 0.10.0-m6.0.4 / versionCode 44 and the SAME
+    6 permissions — Phase 8.1 adds no permissions, no manifest entries, no
+    new dependencies.

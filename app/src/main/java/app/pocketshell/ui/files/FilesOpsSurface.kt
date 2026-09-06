@@ -3,6 +3,7 @@ package app.pocketshell.ui.files
 import app.pocketshell.files.AreaId
 import app.pocketshell.files.AreaPath
 import app.pocketshell.files.EntryKind
+import app.pocketshell.files.MultiSelectOps.MultiOutcome
 import app.pocketshell.files.PendingTransfer
 import app.pocketshell.files.TerminalLaunchResolution
 import app.pocketshell.files.saf.SafFolderInfo
@@ -22,8 +23,13 @@ interface FilesOpsSurface {
 
     // ------------------------------------------------------------ render state
 
-    /** The one pending copy/move, shown as the paste banner. */
+    /** The pending copy/move, shown as the paste banner. Phase 8.1: a multi
+     * selection is held as a queue — [pendingCount] says how many items it
+     * carries (1 = the historical single transfer). */
     val pending: StateFlow<PendingTransfer?>
+
+    /** How many items the pending marker holds (Phase 8.1; always >= 1). */
+    val pendingCount: StateFlow<Int>
 
     /** The outcome of the last operation (honest success / failure / refusal). */
     val notice: StateFlow<OpsNotice?>
@@ -40,6 +46,17 @@ interface FilesOpsSurface {
     /** The Delete confirmation. */
     val deleteConfirm: StateFlow<DeleteConfirmState?>
 
+    // ------------------------------------------- Phase 8.1 — multi-select
+
+    /** Whether selection mode is active (rows toggle instead of navigate). */
+    val selectionMode: StateFlow<Boolean>
+
+    /** The selected entry NAMES of the CURRENT listing — never paths. */
+    val selection: StateFlow<Set<String>>
+
+    /** The multi-delete confirmation (names + the honest per-kind warnings). */
+    val multiDeleteConfirm: StateFlow<MultiDeleteConfirm?>
+
     // ------------------------------------------- Phase 5 — Android bridge
 
     /** The user-granted Android folders with their honest access state. */
@@ -53,7 +70,8 @@ interface FilesOpsSurface {
 
     // ---------------------------------------------------------------- intents
 
-    /** Mark the listing entry [name] to be copied (one operation at a time). */
+    /** Mark the listing entry [name] to be copied (one operation at a time;
+     * a Phase 8.1 multi marker is replaced). */
     fun startCopy(name: String)
 
     /** Mark the listing entry [name] to be moved. */
@@ -61,6 +79,34 @@ interface FilesOpsSurface {
 
     /** Drop the pending copy/move without doing anything. */
     fun cancelPending()
+
+    // ------------------------------------------- Phase 8.1 — multi-select
+
+    /** Enter selection mode over the current listing (empty listings refuse). */
+    fun enterSelectionMode()
+
+    /** Toggle the listing entry [name] in the selection (no-op outside mode). */
+    fun toggleSelected(name: String)
+
+    /** Select every entry of the current listing. */
+    fun selectAll()
+
+    /** Leave selection mode and drop the selection. */
+    fun exitSelectionMode()
+
+    /** Mark EVERY selected entry to be copied (replaces any pending marker). */
+    fun startCopySelected()
+
+    /** Mark EVERY selected entry to be moved (replaces any pending marker). */
+    fun startMoveSelected()
+
+    /** Open the multi-delete confirmation for the current selection. */
+    fun openMultiDeleteConfirm()
+
+    fun dismissMultiDeleteConfirm()
+
+    /** The user confirmed the multi deletion shown by the confirmation. */
+    fun confirmMultiDelete()
 
     /** Paste the pending entry into the CURRENT directory (asks on collision). */
     fun pasteHere()
@@ -172,6 +218,19 @@ sealed interface OpsCommand {
         val target: AreaPath,
     ) : OpsCommand
 
+    /** Phase 8.1: a multi paste interrupted by [current]'s collision.
+     * [targetDir] pins the destination directory so an answer can never be
+     * retargeted (the same discipline as [Paste]); [rest] continues after
+     * the answered item; [done] is the running aggregate. */
+    data class PasteMulti(
+        val current: PendingTransfer,
+        val target: AreaPath,
+        val targetDir: AreaPath,
+        val targetAreaId: AreaId,
+        val rest: List<PendingTransfer>,
+        val done: MultiOutcome,
+    ) : OpsCommand
+
     data class Rename(
         val areaId: AreaId,
         val path: AreaPath,
@@ -207,6 +266,13 @@ data class RenameEntryDialog(
 data class DeleteConfirmState(
     val name: String,
     val kind: EntryKind,
+)
+
+/** Phase 8.1: the multi-delete confirmation — the selected names plus the
+ * honest per-kind warning lines computed at open time. */
+data class MultiDeleteConfirm(
+    val names: List<String>,
+    val warnings: List<String>,
 )
 
 /** Phase 5: a staged file the UI hands to the Android share sheet. The URI

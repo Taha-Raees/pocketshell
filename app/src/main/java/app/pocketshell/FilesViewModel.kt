@@ -13,6 +13,7 @@ import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerCore
 import app.pocketshell.files.ExplorerOps
 import app.pocketshell.files.FileSearch
+import app.pocketshell.files.MultiSelectOps
 import app.pocketshell.files.FilesSearchState
 import app.pocketshell.files.PathSafety
 import app.pocketshell.files.PendingTransfer
@@ -30,6 +31,7 @@ import app.pocketshell.files.saf.SafFolderState
 import app.pocketshell.files.saf.SafTransfers
 import app.pocketshell.files.editor.EditorLaunch
 import app.pocketshell.ui.files.DeleteConfirmState
+import app.pocketshell.ui.files.MultiDeleteConfirm
 import app.pocketshell.ui.files.ExportPrompt
 import app.pocketshell.ui.files.FilesOpsSurface
 import app.pocketshell.ui.files.NewEntryDialog
@@ -101,6 +103,10 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     private val _pending = MutableStateFlow<PendingTransfer?>(null)
     override val pending: StateFlow<PendingTransfer?> = _pending.asStateFlow()
 
+    /** Phase 8.1: how many items the pending marker holds (1 = single). */
+    private val _pendingCount = MutableStateFlow(1)
+    override val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()
+
     private val _notice = MutableStateFlow<OpsNotice?>(null)
     override val notice: StateFlow<OpsNotice?> = _notice.asStateFlow()
 
@@ -115,6 +121,25 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
 
     private val _deleteConfirm = MutableStateFlow<DeleteConfirmState?>(null)
     override val deleteConfirm: StateFlow<DeleteConfirmState?> = _deleteConfirm.asStateFlow()
+
+    // ------------------------------------------- Phase 8.1 — multi-select
+
+    private val _selectionMode = MutableStateFlow(false)
+    override val selectionMode: StateFlow<Boolean> = _selectionMode.asStateFlow()
+
+    private val _selection = MutableStateFlow<Set<String>>(emptySet())
+    override val selection: StateFlow<Set<String>> = _selection.asStateFlow()
+
+    private val _multiDeleteConfirm = MutableStateFlow<MultiDeleteConfirm?>(null)
+    override val multiDeleteConfirm: StateFlow<MultiDeleteConfirm?> = _multiDeleteConfirm.asStateFlow()
+
+    /**
+     * The multi clipboard: fully validated single transfers, all from one
+     * source area, in listing order. It exists only while a paste banner is
+     * up; every path in it was composed at marking time and is re-checked
+     * at execution time — nothing is ever re-derived from raw names.
+     */
+    private var multiQueue: List<PendingTransfer>? = null
 
     // ------------------------------------------- Phase 5 — Android bridge
 
@@ -204,15 +229,23 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     }
 
     /** Open a directory entry by its listing name (the ONLY navigation input the UI has). */
-    fun openChild(name: String) = dispatch { core.openChild(name) }
+    fun openChild(name: String): Unit {
+        exitSelection() // a selection never survives leaving its directory
+        dispatch { core.openChild(name) }
+    }
 
     /** Back to the parent directory; at the area root the core no-ops (back then exits the screen). */
-    fun navigateUp() = dispatch { core.navigateUp() }
+    fun navigateUp(): Unit {
+        exitSelection() // a selection never survives leaving its directory
+        dispatch { core.navigateUp() }
+    }
 
     /** Switch storage area (the header chip). An open search is invalidated
-     * first — results from one area must never appear in another. */
+     * first — results from one area must never appear in another. A
+     * selection is dropped for the same reason. */
     fun switchArea(id: AreaId) {
         exitSearch()
+        exitSelection()
         dispatch { core.switchArea(id) }
     }
 
@@ -261,6 +294,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
 
     /** Enter search mode. No scan happens — the empty field is the state. */
     fun openSearch() {
+        exitSelection() // the search UI replaces the listing; selection is stale
         searchJob?.cancel()
         searchGen += 1
         _search.value = FilesSearchState.Idle
@@ -321,6 +355,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
      */
     fun openSearchResult(result: FileSearch.SearchResult) {
         exitSearch()
+        exitSelection() // landing in the parent directory drops the selection
         dispatch { core.openDirectory(result.parent, result.entry.name) }
     }
 
@@ -375,6 +410,9 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
         // Names come from listings, but the composed path is re-validated anyway.
         val child = ExplorerOps.composeChild(dir, name) ?: return
         val kind = state.entries.firstOrNull { it.name == name }?.kind ?: EntryKind.FILE
+        // A single mark replaces a multi marker — one operation at a time.
+        multiQueue = null
+        _pendingCount.value = 1
         _pending.value = PendingTransfer(
             areaId = areaId,
             areaLabel = state.areas.firstOrNull { it.selected }?.label ?: "",
@@ -385,14 +423,172 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
         )
     }
 
-    override fun cancelPending() {
+    override fun cancelPending() = dropPending()
+
+    /** Drop the whole pending marker — single OR multi — without doing anything. */
+    private fun dropPending() {
+        multiQueue = null
+        _pendingCount.value = 1
         _pending.value = null
     }
 
+    // ------------------------------------------- Phase 8.1 — multi-select
+
+    /** Leave selection mode; the selection and any multi-delete dialog die with it. */
+    private fun exitSelection() {
+        _selectionMode.value = false
+        _selection.value = emptySet()
+        _multiDeleteConfirm.value = null
+    }
+
+    override fun enterSelectionMode() {
+        if (_state.value.entries.isEmpty()) return
+        _selectionMode.value = true
+    }
+
+    override fun toggleSelected(name: String) {
+        if (!_selectionMode.value) return
+        _selection.value = if (name in _selection.value) {
+            _selection.value - name
+        } else {
+            _selection.value + name
+        }
+    }
+
+    override fun selectAll() {
+        if (!_selectionMode.value) return
+        _selection.value = _state.value.entries.mapTo(HashSet()) { it.name }
+    }
+
+    override fun exitSelectionMode() = exitSelection()
+
+    override fun startCopySelected() = startSelectedTransfer(move = false)
+
+    override fun startMoveSelected() = startSelectedTransfer(move = true)
+
+    private fun startSelectedTransfer(move: Boolean) {
+        val state = _state.value
+        val areaId = state.areaId ?: return
+        val dir = state.path ?: return
+        val (queue, outcome) = MultiSelectOps.buildTransfers(
+            areaId = areaId,
+            areaLabel = state.areas.firstOrNull { it.selected }?.label ?: "",
+            dir = dir,
+            entries = state.entries,
+            selected = _selection.value,
+            move = move,
+        )
+        exitSelection() // the clipboard takes over; rows navigate again
+        if (queue.isEmpty()) {
+            noticeSeq += 1
+            _notice.value = OpsNotice(
+                text = "Nothing to ${if (move) "move" else "copy"} — the selection no longer matches this folder" +
+                    if (outcome.failed.isEmpty()) {
+                        "."
+                    } else {
+                        ": " + outcome.failed.joinToString("; ") { "\"${it.name}\" (${it.reason})" }
+                    },
+                isError = true,
+                seq = noticeSeq,
+            )
+            return
+        }
+        multiQueue = queue
+        _pendingCount.value = queue.size
+        _pending.value = queue.first()
+    }
+
+    override fun openMultiDeleteConfirm() {
+        val state = _state.value
+        val names = state.entries.map { it.name }.filter { it in _selection.value }
+        if (names.isEmpty()) return
+        _multiDeleteConfirm.value = MultiDeleteConfirm(
+            names = names,
+            warnings = MultiSelectOps.deleteWarnings(state.entries, names),
+        )
+    }
+
+    override fun dismissMultiDeleteConfirm() {
+        _multiDeleteConfirm.value = null
+    }
+
+    override fun confirmMultiDelete() {
+        val confirm = _multiDeleteConfirm.value ?: return
+        _multiDeleteConfirm.value = null
+        val area = currentAreaOrNull() ?: return
+        val dir = _state.value.path ?: return
+        runOp {
+            val outcome = MultiSelectOps.deleteAll(area, dir, confirm.names)
+            exitSelection() // the selection is consumed
+            ExplorerOps.OpOutcome(
+                success = outcome.failed.isEmpty(),
+                refused = false,
+                message = MultiSelectOps.summary("Deleted", outcome),
+            )
+        }
+    }
+
+    /** Uniform honest banner mapping for a finished multi outcome. */
+    private fun multiOutcomeToOpOutcome(
+        verb: String,
+        outcome: MultiSelectOps.MultiOutcome,
+        cancelledAt: String?,
+    ): ExplorerOps.OpOutcome = ExplorerOps.OpOutcome(
+        success = outcome.failed.isEmpty(),
+        refused = false,
+        message = MultiSelectOps.summary(verb, outcome, cancelledAt),
+    )
+
     override fun pasteHere() {
-        val pending = _pending.value ?: return
         val targetArea = currentAreaOrNull() ?: return
         val dir = _state.value.path ?: return
+        val queue = multiQueue
+        if (queue != null) {
+            // Phase 8.1: the multi clipboard — items run in order through the
+            // SAME check/execute engine as the single paste; the first
+            // collision interrupts for the same Replace/Cancel question.
+            val sourceArea = areaById[queue.first().areaId] ?: run {
+                dropPending()
+                return
+            }
+            runOp {
+                when (
+                    val pass = MultiSelectOps.pastePass(
+                        sourceArea = sourceArea,
+                        queue = queue,
+                        targetArea = targetArea,
+                        targetDir = dir,
+                    )
+                ) {
+                    is MultiSelectOps.PastePassResult.Completed -> {
+                        dropPending()
+                        multiOutcomeToOpOutcome(
+                            if (queue.first().move) "Moved" else "Copied",
+                            pass.outcome,
+                            cancelledAt = null,
+                        )
+                    }
+                    is MultiSelectOps.PastePassResult.NeedsReplace -> {
+                        _confirmReplace.value = ReplaceRequest(
+                            opLabel = if (pass.current.move) "Move" else "Copy",
+                            name = pass.current.name,
+                            existingKind = pass.existingKind,
+                            command = OpsCommand.PasteMulti(
+                                current = pass.current,
+                                target = pass.target,
+                                targetDir = dir,
+                                targetAreaId = targetArea.id,
+                                rest = pass.rest,
+                                done = pass.done,
+                            ),
+                        )
+                        null // the outcome continues after the user answers
+                    }
+                }
+            }
+            return
+        }
+        val pending = _pending.value ?: return
         val sourceArea = areaById[pending.areaId] ?: run {
             _pending.value = null
             return
@@ -430,7 +626,20 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     override fun resolveReplace(replace: Boolean) {
         val request = _confirmReplace.value ?: return
         _confirmReplace.value = null
-        if (!replace) return
+        if (!replace) {
+            // Phase 8.1: cancelling a MULTI paste still reports what already
+            // landed — a partial execution must never go silent. A single
+            // paste cancel stays silent (nothing ever happened).
+            val command = request.command
+            if (command is OpsCommand.PasteMulti) {
+                val verb = if (command.current.move) "Moved" else "Copied"
+                runOp {
+                    dropPending()
+                    multiOutcomeToOpOutcome(verb, command.done, cancelledAt = command.current.name)
+                }
+            }
+            return
+        }
         when (val command = request.command) {
             is OpsCommand.Paste -> {
                 val sourceArea = areaById[command.pending.areaId] ?: return
@@ -441,6 +650,62 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
                     )
                     if (outcome.success) _pending.value = null
                     outcome
+                }
+            }
+            is OpsCommand.PasteMulti -> {
+                val sourceArea = areaById[command.current.areaId] ?: return
+                val targetArea = areaById[command.targetAreaId] ?: return
+                runOp {
+                    // The confirmed replacement — the SAME delete-then-perform
+                    // composition the single paste has always used.
+                    val first = ExplorerOps.executePaste(
+                        sourceArea, command.current, targetArea, command.target, replace = true,
+                    )
+                    var outcome = if (first.success) {
+                        command.done.copy(ok = command.done.ok + 1)
+                    } else {
+                        command.done.copy(
+                            failed = command.done.failed +
+                                MultiSelectOps.MultiFailure(command.current.name, first.message),
+                        )
+                    }
+                    // Continue the rest against the PINNED target directory.
+                    if (command.rest.isNotEmpty()) {
+                        when (
+                            val pass = MultiSelectOps.pastePass(
+                                sourceArea = sourceArea,
+                                queue = command.rest,
+                                targetArea = targetArea,
+                                targetDir = command.targetDir,
+                            )
+                        ) {
+                            is MultiSelectOps.PastePassResult.Completed ->
+                                outcome = outcome + pass.outcome
+                            is MultiSelectOps.PastePassResult.NeedsReplace -> {
+                                outcome = outcome + pass.done
+                                _confirmReplace.value = ReplaceRequest(
+                                    opLabel = if (pass.current.move) "Move" else "Copy",
+                                    name = pass.current.name,
+                                    existingKind = pass.existingKind,
+                                    command = OpsCommand.PasteMulti(
+                                        current = pass.current,
+                                        target = pass.target,
+                                        targetDir = command.targetDir,
+                                        targetAreaId = command.targetAreaId,
+                                        rest = pass.rest,
+                                        done = outcome,
+                                    ),
+                                )
+                                return@runOp null // chained on the next answer
+                            }
+                        }
+                    }
+                    dropPending()
+                    multiOutcomeToOpOutcome(
+                        if (command.current.move) "Moved" else "Copied",
+                        outcome,
+                        cancelledAt = null,
+                    )
                 }
             }
             is OpsCommand.Rename -> {
@@ -716,6 +981,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     override fun addSafFolderPicked(uriString: String) {
         val application = getApplication<Application>()
         exitSearch() // the area set is about to change — a walk is stale
+        exitSelection() // the area set is about to change — a selection is stale
         dispatchJob?.cancel()
         dispatchJob = viewModelScope.launch {
             withContext(explorerIo) {
@@ -762,6 +1028,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
         val application = getApplication<Application>()
         val id = AndroidDocumentArea.areaIdFor(uriString)
         exitSearch() // the area set is about to change — a walk is stale
+        exitSelection() // the area set is about to change — a selection is stale
         dispatchJob?.cancel()
         dispatchJob = viewModelScope.launch {
             withContext(explorerIo) {

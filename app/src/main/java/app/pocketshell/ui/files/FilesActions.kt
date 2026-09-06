@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerOps
+import app.pocketshell.files.MultiSelectOps
 import app.pocketshell.files.FsEntry
 import app.pocketshell.files.PendingTransfer
 import app.pocketshell.files.TerminalLaunchSupport
@@ -70,16 +71,18 @@ import java.util.Locale
 
 // ------------------------------------------------------------ pending banner
 
-/** The one-operation-at-a-time copy/move marker with its Paste here action. */
+/** The pending copy/move marker with its Paste here action. Phase 8.1:
+ * [count] > 1 discloses that the clipboard holds a whole selection. */
 @Composable
 fun PendingBanner(
     pending: PendingTransfer,
+    count: Int,
     canPaste: Boolean,
     onPaste: () -> Unit,
     onCancel: () -> Unit,
 ) {
     MidnightBanner(
-        message = ExplorerOps.bannerText(pending),
+        message = MultiSelectOps.bannerText(pending, count),
         failed = false,
         actions = {
             TextButton(onClick = onCancel) {
@@ -395,6 +398,59 @@ fun ConfirmDeleteDialog(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (warning != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = warning,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = HomeTokens.textPrimary,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDelete) {
+                Text("Delete", fontFamily = TerminalTheme.mono, color = HomeTokens.danger)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text("Cancel", fontFamily = TerminalTheme.mono, color = HomeTokens.textDim)
+            }
+        },
+    )
+}
+
+/** Phase 8.1: the multi-delete confirmation — the honest count, the named
+ * items (up to a handful, then "…"), and the per-kind warning lines. */
+@Composable
+fun ConfirmMultiDeleteDialog(
+    state: MultiDeleteConfirm,
+    onDelete: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val shown = state.names.take(3)
+    val rest = state.names.size - shown.size
+    AlertDialog(
+        onDismissRequest = onCancel,
+        containerColor = TerminalTheme.chrome,
+        titleContentColor = HomeTokens.textPrimary,
+        textContentColor = HomeTokens.textDim,
+        title = {
+            Text(
+                text = "Delete ${state.names.size} items?",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 17.sp,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "This permanently deletes " +
+                        shown.joinToString(", ") { "\"${it}\"" } +
+                        if (rest > 0) " and $rest more…" else ".",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                state.warnings.forEach { warning ->
                     Spacer(Modifier.height(6.dp))
                     Text(
                         text = warning,
