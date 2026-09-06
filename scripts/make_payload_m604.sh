@@ -10,7 +10,7 @@ PROJECT=/home/z/my-project
 PUBLIC=$PROJECT/public
 VERSION=v0.10.0-m6.0.4
 TOPDIR=PocketShell-$VERSION
-RELEASE_TIP=8e20dc6
+RELEASE_TIP=a7441ff
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 

@@ -31,7 +31,7 @@ fast-path timing, and post-session self-heal verification. The glibc layer
 artifact is BYTE-IDENTICAL to the 27/27 gate (ed82daa8…) — m6.0.4 is
 APP-side only. JVM suite 397 → 406 leaf cases / 0 failures (incl. the
 built-APK asset pin against this exact APK). Payload pins are DETERMINISTIC:
-the cutter stages from the pinned release tip (git 8e20dc6) with zeroed
+the cutter stages from the pinned release tip (git a7441ff) with zeroed
 mtimes.
 
 - PocketShell-v0.10.0-m6.0.4-debug.apk  sha256 e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750  (29.8 MB, versionCode 44)
@@ -46,10 +46,10 @@ mtimes.
   starts guarding them on the next session prep.
   Closure drills: docs/TESTING.md §33 + runtime-tests/adversarial_closure_audit.sh
   (drill-c2 → one new session → heal is the audited self-heal proof).
-- PocketShell-v0.10.0-m6.0.4-source.zip sha256 f3ed11066f855f0e833880052762b3514448e70f5bf2ae83383271307f053211  (the tracked source at release tip 8e20dc6 — zero dotfiles, zero web scaffold, zero build junk)
-- PocketShell-v0.10.0-m6.0.4-source.tar.gz sha256 c6fa93ba71618d8a1cef68c6b2cad0bf8bee386e00cdd1ff5f16a6bce2cc6e06
-- pocketshell-m2.gitbundle           sha256 97e4b38e8e0c2f121a9ff05a9a666543cab15d218c95fae57413165c06a761a2  (full history; ~36M — complete milestone history, all design contracts, docs/PROCFS-CONTRACT.md, docs/runtime/ + runtime-tests/ + scripts/runtime/ — honest, no rewrites)
-- pocketshell-runtime-tests-aarch64.tar.gz sha256 814224e86eb8afa0c9da1ac3f9b002500d8534fe345eca1129356c4733ffc961  (712 KB — suite v2.2 (27-row device suite, anchored doctor rows, repair hatch) PLUS the Phase-C adversarial drill script adversarial_closure_audit.sh: probe / drill-c2 / drill-c4 / drill-c5 / heal; usage in docs/runtime/TESTING.md)
+- PocketShell-v0.10.0-m6.0.4-source.zip sha256 04c055c18e1f1eaeb825db8cdd3e8cb8c01c2209dbd1c074c5dcd16affef2509  (the tracked source at release tip a7441ff — zero dotfiles, zero web scaffold, zero build junk)
+- PocketShell-v0.10.0-m6.0.4-source.tar.gz sha256 655f2ece1618b0f7f57c8fc33462754921a801e5f04bcfc66fe986c45ade5524
+- pocketshell-m2.gitbundle           sha256 4388da2f64a2240c80185b933cf2adca78a51559119c912592ec64496d141bf9  (full history; ~36M — complete milestone history, all design contracts, docs/PROCFS-CONTRACT.md, docs/runtime/ + runtime-tests/ + scripts/runtime/ — honest, no rewrites)
+- pocketshell-runtime-tests-aarch64.tar.gz sha256 8392edab7ba42930c0e43a4390a355c90a56c6639edafd7e62ce789d941c63c0  (712 KB — suite v2.2 (27-row device suite, anchored doctor rows, repair hatch) PLUS the Phase-C adversarial drill script adversarial_closure_audit.sh: probe / drill-c2 / drill-c4 / drill-c5 / heal; usage in docs/runtime/TESTING.md)
 - pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz sha256 ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d  (6.5 MB — the glibc layer artifact rev=2, UNCHANGED by m6.0.4; the APK ships the identical bytes decompressed (sha 898131ff…, 17,920,000 B, pinned as GlibcRuntimePin.ASSET_SHA256) and installs them itself)
 - PocketShell-Runtime-Forensic-Audit.pdf sha256 92015b7547b2e9b7dd6bd8888f5d641c8804a3e33cafaf8c069e811934af10ae  (33 pages — the read-only platform/runtime forensic audit; kept downloadable as the phase baseline; regenerated with fixed metadata dates from the committed generator after the sandbox reset)
 

@@ -1,7 +1,7 @@
 const VERSION = "v0.10.0-m6.0.4";
 
 // SHA pins — DETERMINISTIC: the APK is a clean-room gradle build, the payload
-// cutter stages from the pinned release tip (git 8e20dc6) with zeroed mtimes,
+// cutter stages from the pinned release tip (git a7441ff) with zeroed mtimes,
 // the tests tarball is cut the same way (now including the Phase-C drill
 // script), and the PDF has fixed metadata dates. Semantic pins: versionCode
 // 44, versionName 0.10.0-m6.0.4, cert d96a6f66…8bf659, embedded layer asset
@@ -9,10 +9,10 @@ const VERSION = "v0.10.0-m6.0.4";
 // rev=2 (byte-identical artifact ed82daa8…): m6.0.4 fixes are APP-side only.
 const HASHES = {
   apk: "e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750",
-  zip: "f3ed11066f855f0e833880052762b3514448e70f5bf2ae83383271307f053211",
-  tgz: "c6fa93ba71618d8a1cef68c6b2cad0bf8bee386e00cdd1ff5f16a6bce2cc6e06",
-  bundle: "97e4b38e8e0c2f121a9ff05a9a666543cab15d218c95fae57413165c06a761a2",
-  tests: "814224e86eb8afa0c9da1ac3f9b002500d8534fe345eca1129356c4733ffc961",
+  zip: "04c055c18e1f1eaeb825db8cdd3e8cb8c01c2209dbd1c074c5dcd16affef2509",
+  tgz: "655f2ece1618b0f7f57c8fc33462754921a801e5f04bcfc66fe986c45ade5524",
+  bundle: "4388da2f64a2240c80185b933cf2adca78a51559119c912592ec64496d141bf9",
+  tests: "8392edab7ba42930c0e43a4390a355c90a56c6639edafd7e62ce789d941c63c0",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
   report: "92015b7547b2e9b7dd6bd8888f5d641c8804a3e33cafaf8c069e811934af10ae",
 };
