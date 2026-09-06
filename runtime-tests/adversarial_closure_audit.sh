@@ -304,7 +304,7 @@ heal() {
   fi
   # loader really executes
   /lib/ld-linux-aarch64.so.1 --version 2>/dev/null | grep -q 'stable release version 2.41' \
-    && ok "heal loader is real glibc 2.41" "" || { bad "heal loader exec" "$(lib/ld-linux-aarch64.so.1 --version 2>&1 | head -1)"; all_ok=0; }
+    && ok "heal loader is real glibc 2.41" "" || { bad "heal loader exec" "$("$LOADER" --version 2>&1 | head -1)"; all_ok=0; }
   # marker + status
   [ -f "$MARKER" ] && ok "heal marker present" "$(cat "$MARKER")" || { bad "heal marker" "MISSING"; all_ok=0; }
   case "$(cat "$STATUS" 2>/dev/null)" in

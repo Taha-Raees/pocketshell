@@ -1,22 +1,20 @@
-const VERSION = "v0.10.0-m6.0.3";
+const VERSION = "v0.10.0-m6.0.4";
 
 // SHA pins — DETERMINISTIC: the APK is a clean-room gradle build, the payload
-// cutter stages from the pinned release tip (git f98360f) with zeroed mtimes
-// (two consecutive cuts byte-identical), the tests tarball is cut the same
-// way, and the PDF has fixed metadata dates. Semantic pins: versionCode 43,
-// versionName 0.10.0-m6.0.3, cert d96a6f66…8bf659, embedded layer asset
-// 898131ff… /17,920,000 B == GlibcRuntimePin. The layer is rev=2: the glibc
-// files are BYTE-IDENTICAL to the proven rev=1 layer (proven single-member
-// rebuild) — the only change is the fixed pocketshell-doctor v2, and the
-// marker revision makes every device re-extract it on the next session.
+// cutter stages from the pinned release tip (git 8e20dc6) with zeroed mtimes,
+// the tests tarball is cut the same way (now including the Phase-C drill
+// script), and the PDF has fixed metadata dates. Semantic pins: versionCode
+// 44, versionName 0.10.0-m6.0.4, cert d96a6f66…8bf659, embedded layer asset
+// 898131ff… /17,920,000 B == GlibcRuntimePin. The glibc layer is UNCHANGED
+// rev=2 (byte-identical artifact ed82daa8…): m6.0.4 fixes are APP-side only.
 const HASHES = {
-  apk: "89704a14b16f477fa2d9b5e2a941f2c008a1f5a08fe0e101c970bdca0171d400",
-  zip: "bc176239b40ba24287d7ac0b9c7710a595029ad9534bfb996d57219860e72334",
-  tgz: "9b429c6ea2e726ffd4744bec7dfb51e6b7f30039033267e96752bde7835409f6",
-  bundle: "d3e135a1f96e04b67c3625125b8d8b3f678cd6999c3a88fdca853186ae4ce529",
-  tests: "beb3ad5e2ec4caf905a9d24644a8d4d20764cb7f804da05d61c396a8ce916506",
+  apk: "e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750",
+  zip: "f3ed11066f855f0e833880052762b3514448e70f5bf2ae83383271307f053211",
+  tgz: "c6fa93ba71618d8a1cef68c6b2cad0bf8bee386e00cdd1ff5f16a6bce2cc6e06",
+  bundle: "97e4b38e8e0c2f121a9ff05a9a666543cab15d218c95fae57413165c06a761a2",
+  tests: "814224e86eb8afa0c9da1ac3f9b002500d8534fe345eca1129356c4733ffc961",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
-  report: "9cb3ccb0fcb0f0d6736226148b2c33aa2664c8c571cedd304c4a5087a97e56a6",
+  report: "92015b7547b2e9b7dd6bd8888f5d641c8804a3e33cafaf8c069e811934af10ae",
 };
 
 function Sha({ text }: { text: string }) {
@@ -37,101 +35,91 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M6.0.3: the doctor correctness gate — the runtime is proven, now
-          the diagnostic tool tells the truth{" "}
-          <span className="badge">versionCode 43</span>
+          M6.0.4: the adversarial closure audit — the runtime survives its own
+          failure modes{" "}
+          <span className="badge">versionCode 44</span>
         </h2>
         <p>
           <b>
-            The m6.0.2 runtime PROVED itself on real hardware: 24/24 suite
-            rows, real Debian glibc 2.41, Cline 3.0.61 end-to-end. What failed
-            was the diagnostic tool: pocketshell-doctor v1 verdicted
-            UNSUPPORTED for every versioned glibc binary — the real Cline
-            binary needs only GLIBC_2.17 and the layer provides 2.41, yet the
-            doctor said UNSUPPORTED. v2 fixes the comparison properly (numeric,
-            semantic, exit-code-authoritative), and the suite that let it slip
-            now anchors its verdict greps and ships permanent doctor rows.
+            The M6.0.3 device gate scored 27/27 ALL GREEN. Before freezing the
+            runtime architecture, the phase was audited adversarially:
+            corruption drills, concurrency, loader ownership vs the gcompat
+            package, extractor security, environment contamination, doctor
+            prediction accuracy, and lifecycle timing. Three real engineering
+            issues were found — all fixed, all regression-pinned, none touched
+            the proven runtime architecture. The glibc layer itself is
+            byte-identical to the one that scored 27/27.
           </b>
         </p>
         <ul className="steps">
           <li>
-            <b>Real glibc inside the Alpine guest:</b> Debian 13&apos;s glibc
-            2.41 runtime (loader, libc, libm, pthread/dl/rt, NSS, libstdc++,
-            libgcc, zlib + a common library set) installed at the canonical
-            multiarch paths. musl paths are disjoint by construction and never
-            touched — <code>apk</code>, node, git, bash behave exactly as
-            before.
+            <b>Integrity beyond the marker (C2/C4):</b> Alpine&apos;s{" "}
+            <code>gcompat</code> package provably owns
+            <code> /lib/ld-linux-aarch64.so.1</code> and ships a real ELF shim
+            there (verified from the actual package bytes) —{" "}
+            <code>apk fix/reinstall gcompat</code> could reclaim the loader
+            behind a perfectly valid marker. The layer fast path now runs a
+            structural integrity probe (the loader symlink must resolve to the
+            canonical Debian loader; load-bearing files must exist) and
+            self-heals by re-extraction on the next session. Deleted libraries
+            or tools are detected the same way.
           </li>
           <li>
-            <b>Transparent by construction:</b> a glibc binary — and every
-            child process it spawns — execs through the real loader with zero
-            env vars, zero proot changes, zero per-binary wrappers. No user
-            ever needs to know which libc a tool uses.
+            <b>Symlink-safe re-extraction (C3/C12):</b> the layer legitimately
+            ships <code>lib/aarch64-linux-gnu → ../usr/lib/aarch64-linux-gnu</code>
+            {" "}BEFORE the files it points to — and the old symlink replacement
+            followed directory symlinks, so every in-place re-extraction first
+            wiped the entire multiarch directory, then rewrote it. Fixed:
+            symlink nodes are replaced as nodes, every recursive delete is
+            NOFOLLOW, and archive entries routed through earlier symlink
+            entries are refused fail-closed.
           </li>
           <li>
-            <b>Cline 3.0.61 runs:</b> the real 151 MB glibc-native binary
-            (the exact artifact that failed on device at the loader stage)
-            passes version/help/node-spawn/relaunch ×3 under the layer in the
-            validated rig — 24/24 suite rows green, musl regression included.
+            <b>Session prep off the UI thread (C1.1/C3):</b> the heavy guest
+            preparation (18 MB asset read + sha-256 + re-extraction path) used
+            to run synchronously in the click handler. Session creation is now
+            two-phase — prep on Dispatchers.IO, PTY spawn on the main thread —
+            and the layer ensure is single-flight, so concurrent sessions
+            serialize instead of racing an extraction.
           </li>
           <li>
-            <b>Pinned &amp; self-healing delivery:</b> the layer ships inside
-            the APK (offline, atomic, SHA-256-pinned) and installs itself on
-            the next session spawn over any existing runtime — no reinstall,
-            no user steps, musl sessions never depend on it.
+            <b>Permanent drill suite:</b>{" "}
+            <code>adversarial_closure_audit.sh</code> rides the tests tarball —
+            <code> probe</code> (doctor prediction accuracy, environment
+            contamination, filesystem ownership map, fast-path timing),{" "}
+            <code>drill-c2</code> (corruption), <code>drill-c4</code> (gcompat
+            loader reclaim), <code>drill-c5</code> (apk update/upgrade/add/del
+            survival), and <code>heal</code> (post-session self-heal
+            verification).
           </li>
           <li>
-            <b>Diagnosable (v2 semantics):</b> <code>pocketshell-doctor</code>
-            reports arch/class/interpreter/DT_NEEDED/max-GLIBC-version, gates
-            versions NUMERICALLY (2.17 ≤ 2.41 ⇒ SUPPORTED; only required &gt;
-            installed ⇒ UNSUPPORTED), asks the real loader to resolve every
-            dependency with an exit-code-authoritative check, prints the full
-            fact hierarchy before the verdict, and <code>--selftest</code> runs
-            a permanent 15-case comparison matrix. <code>pocketshell-exec</code>
-            routes any ELF to the right runtime.
+            <b>Doctor accuracy is measured, not assumed (C7):</b> the audit
+            arms the doctor against real binaries and compares its verdict
+            with what actually executes — true positives, true negatives, and
+            an explicit FAIL on any false SUPPORTED/UNSUPPORTED. The sandbox
+            evidence battery (decision tree + malformed-input matrix) scores
+            20/20.
           </li>
           <li>
-            <b>The m6.0.3 fix (proven root causes):</b> doctor v1&apos;s version
-            "comparison" concatenated the required and installed versions and
-            string-compared the concatenation against the installed version
-            alone — structurally always false, for every input, even exact
-            matches; and its missing-library grep looked for "not found", which
-            glibc never prints (it prints "error while loading shared
-            libraries … cannot open shared object file", exit 127). The suite
-            hid both: its doctor row grepped "SUPPORTED" unanchored —
-            UNSUPPORTED CONTAINS SUPPORTED. All three defects have regression
-            tests now (397 JVM tests green).
-          </li>
-          <li>
-            <b>The layer is rev=2, not a new layer:</b> the glibc files are
-            byte-identical to the proven m6.0.2 layer (proven at rebuild:
-            exactly one tar member changed — the doctor script). The marker
-            gains <code>rev=2</code> so every device re-extracts the fixed
-            doctor on its next session prep — zero user action, musl untouched.
-          </li>
-          <li>
-            <b>Provable installs:</b> every session prep stamps the app
-            identity into <code>/etc/pocketshell/app-version</code> — the
-            suite PREFLIGHT shows WHICH build owns your runtime; install
-            outcomes stay mirrored to <code>/etc/pocketshell/glibc-runtime.status</code>
-            and logcat. Suite v2.2 self-locates its binaries, prints its
-            version, and its doctor rows anchor on
-            <code> ^Compatibility: SUPPORTED</code> — a wrong verdict can never
-            pass as a right one again.
+            <b>Nothing else changed:</b> the glibc layer artifact sha is
+            byte-identical to the 27/27 gate (ed82daa8…), musl is untouched by
+            construction, no loader routing was modified, no wrappers added.
+            JVM suite 397 → 406 leaf cases, 0 failures, including the
+            built-APK asset pin against this exact APK.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.10.0-m6.0.3-debug.apk">
+        <a className="btn" href="/PocketShell-v0.10.0-m6.0.4-debug.apk">
           Download APK (debug, 29 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.3)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.4)
         </p>
       </div>
 
       <div className="card">
         <h2>
-          Platform / Runtime Forensic Audit <span className="badge">PDF · 34 pages</span>
+          Platform / Runtime Forensic Audit <span className="badge">PDF · 33 pages</span>
         </h2>
         <p>
           The complete read-only engineering audit of the real architecture:
@@ -142,7 +130,7 @@ export default function Home() {
           proposal.
         </p>
         <a className="btn secondary" href="/PocketShell-Runtime-Forensic-Audit.pdf">
-          Download audit report (PDF, 300 KB)
+          Download audit report (PDF, 200 KB)
         </a>
         <Sha text={HASHES.report} />
       </div>
@@ -151,8 +139,9 @@ export default function Home() {
         <h2>Executable compatibility suite <span className="badge">runtime-tests</span></h2>
         <p>
           The permanent ARM64 compatibility suite (musl / static / glibc matrix
-          + <code>pocketshell-doctor</code> + the real Cline test). Run it
-          inside the PocketShell terminal:
+          + <code>pocketshell-doctor</code> + the real Cline test) and the
+          Phase-C adversarial drill script. Run inside the PocketShell
+          terminal:
         </p>
         <p className="mono">
           mkdir -p /tmp/pocketshell-tests &amp;&amp; curl -fsSL
@@ -160,8 +149,20 @@ export default function Home() {
           /tmp/pocketshell-tests &amp;&amp; sh
           /tmp/pocketshell-tests/run_on_device.sh
         </p>
+        <p>
+          Then the closure drills (each prints its own verdict):
+          <span className="mono">
+            {" "}
+            sh /tmp/pocketshell-tests/adversarial_closure_audit.sh probe
+            &nbsp;·&nbsp; drill-c2 &nbsp;·&nbsp; drill-c4 &nbsp;·&nbsp;
+            drill-c5
+          </span>{" "}
+          — after a drill, open ONE new session and run{" "}
+          <span className="mono">adversarial_closure_audit.sh heal</span> to
+          prove the app self-heals the layer.
+        </p>
         <a className="btn secondary" href="/pocketshell-runtime-tests-aarch64.tar.gz">
-          runtime-tests (700 KB)
+          runtime-tests (712 KB)
         </a>
         <Sha text={HASHES.tests} />
       </div>
@@ -169,7 +170,8 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 43 installs <b>in place over v0.10.0-m6.0.2 (42),
+          versionCode 44 installs <b>in place over v0.10.0-m6.0.3 (43),
+          v0.10.0-m6.0.2 (42),
           v0.10.0-m6.0.1 (41),
           v0.10.0-m6.0.0 (40),
           v0.9.1-m5.1.0 (39),
@@ -177,11 +179,11 @@ export default function Home() {
           v0.8.0-m4.0.12 (36), v0.8.0-m4.0.11 (35),
           v0.8.0-m4.1.0 (34, an intermediate that was never announced),
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
-          Alpine runtime, installed packages, Kilo/Hermes installation, the
-          procfs contract, every Phase 3 behavior and all Companion data
-          (logins included) are untouched. On the next session spawn the layer
-          marker flips to rev=2 and the fixed doctor re-extracts — the glibc
-          files themselves are byte-identical, nothing else changes.
+          Alpine runtime, installed packages, Cline installation, the procfs
+          contract, every Phase 3 behavior and all Companion data (logins
+          included) are untouched. This update is APP-side only: the layer
+          marker and the glibc files stay byte-identical — the new integrity
+          probe simply starts guarding them on the next session prep.
         </p>
       </div>
 
@@ -206,46 +208,25 @@ export default function Home() {
             install, uninstall, open.
           </li>
           <li>
-            Phase 3.1–3.5: Midnight Sapphire terminal + Home workspace, the
-            nine-CLI probe-gated registry, tap-to-launch, Midnight system
-            pages.
+            Phase 3.1–3.5 + m4.x + m5.x: Midnight Sapphire terminal + Home
+            workspace, the CLI registry, and the Companion workspace with every
+            evidence-driven fix along the way.
           </li>
           <li>
-            Phase 4 (m4.0) + m4.0.1–m4.0.12 + m5.0.x + m5.1.0: the Companion
-            workspace and every evidence-driven fix along the way — startup
-            hotfix, honest failure cards, one keyboard, the rendering reset,
-            the native re-host, the frozen winner, compact chrome, the Light
-            Theme, the silent minimized Companion and the audit-first
-            performance pass.
+            <b>v0.10.0-m6.0.0–m6.0.3:</b> Universal Runtime Compatibility —
+            real glibc 2.41 at canonical multiarch paths inside the Alpine
+            guest, self-healing pinned delivery, install observability, the
+            doctor correctness gate (numeric semantic comparison), and the
+            27/27 device gate.
           </li>
           <li>
-            <b>v0.10.0-m6.0.0:</b> Universal Runtime Compatibility — real
-            glibc 2.41 at canonical multiarch paths inside the Alpine guest;
-            musl + glibc + static coexist; glibc children spawn correctly;
-            NSS/DNS work; the layer is pinned, self-healing and rides the
-            APK; pocketshell-doctor/exec ship inside the guest; the
-            Cline-class loader failure is closed.
-          </li>
-          <li>
-            <b>v0.10.0-m6.0.1:</b> install observability + suite diagnosis —
-            guest-visible install status, suite PREFLIGHT with honest SKIPs,
-            in-guest repair hatch; validated on a gcompat-contaminated
-            rootfs (the exact device-gate condition).
-          </li>
-          <li>
-            <b>v0.10.0-m6.0.2:</b> the actual install-path fix —
-            the packaged-asset pin, format-sniffing + sha-verified extraction,
-            the built-APK regression pin, the app-version stamp, and suite
-            v2.1 (self-locating, layout-agnostic). PROVEN on the device:
-            24/24 ALL GREEN incl. Cline 3.0.61.
-          </li>
-          <li>
-            <b>v0.10.0-m6.0.3 (this build):</b> the doctor correctness gate —
-            pocketshell-doctor v2 (numeric semantic comparison, numeric max
-            extraction, exit-code-authoritative loader check, fact hierarchy,
-            --selftest), suite v2.2 (anchored verdict greps + three permanent
-            doctor rows), layer rev=2 (byte-identical glibc files, marker-
-            revision propagation). The runtime was right; now the doctor is.
+            <b>v0.10.0-m6.0.4 (this build):</b> the adversarial closure audit —
+            structural integrity probe behind the marker (gcompat loader
+            reclaim detection + self-heal), symlink-safe NOFOLLOW
+            re-extraction, session prep off the UI thread with single-flight
+            layer install, permanent drill suite, doctor prediction-accuracy
+            measurement, and the documented engineering boundary of the
+            compatibility claim (DUAL_LIBC.md §8).
           </li>
         </ul>
       </div>
@@ -255,9 +236,7 @@ export default function Home() {
         <ol className="steps">
           <li>
             <b>Automated suite:</b> one fresh session, then the
-            runtime-tests command above → 27 rows PASS, ALL GREEN (24 prior
-            rows + the three permanent doctor rows; a 28th real-Cline doctor
-            row appears on Cline-equipped devices).
+            runtime-tests command above → 27 rows PASS, ALL GREEN.
           </li>
           <li>
             <b>Doctor:</b> <code>pocketshell-doctor --selftest</code> → 15/15;
@@ -266,16 +245,18 @@ export default function Home() {
             Required GLIBC_2.17, Version gate PASS, SUPPORTED.
           </li>
           <li>
+            <b>Closure drills:</b> probe → all green; drill-c2 + one new
+            session + heal → every corruption state detected and fully
+            repaired; drill-c4 → the loader-ownership verdict with evidence;
+            drill-c5 → apk operations leave the layer intact.
+          </li>
+          <li>
             <b>Cline:</b> version/help/node-spawn (deep test with
             CLINE_DEEP_TEST=1 when credentials exist).
           </li>
           <li>
             <b>musl regression:</b> apk update/search/install, node, npm,
             git, curl, Kilo — all unchanged.
-          </li>
-          <li>
-            <b>Nothing broke:</b> keyboard, themes, Companion, sessions —
-            all unchanged (the layer is additive).
           </li>
         </ol>
       </div>
@@ -286,13 +267,13 @@ export default function Home() {
           Complete buildable source. The zip intentionally contains no
           dotfiles; full history rides in the git bundle — includes the
           complete milestone history, all design contracts, the procfs
-          contract, the rendering-reset report, and the new runtime
-          documentation (docs/runtime/ + runtime-tests/ + scripts/runtime/).
+          contract, and the runtime documentation
+          (docs/runtime/ + runtime-tests/ + scripts/runtime/).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.3-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.3-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
@@ -328,10 +309,11 @@ export default function Home() {
         interaction polish · m5.0.1 the workspace bar · m5.1.0 audit-first
         performance · m6.0.0 universal runtime compatibility — real glibc
         inside Alpine, musl untouched, Cline runs · m6.0.1 install
-        observability + suite diagnosis ·{" "}
-        <b>v0.10.0-m6.0.2 (this build): the actual install-path fix — the
-        packaged-asset pin, verified extraction, and a suite that proves
-        which build owns your runtime</b>.
+        observability · m6.0.2 the actual install-path fix · m6.0.3 the doctor
+        correctness gate ·{" "}
+        <b>v0.10.0-m6.0.4 (this build): the adversarial closure audit — the
+        runtime survives corruption, reclaims, and concurrency, and says so
+        honestly</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
