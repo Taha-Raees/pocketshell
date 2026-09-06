@@ -1917,3 +1917,65 @@ terminal session once so the runtime is installed, then open Files from Home.
    rename, delete, New folder/file still behave exactly as Phase 4 (the
    storage engine under them is untouched). Rotation while on the Files
    screen keeps location and the pending paste banner.
+
+## 35. Manual acceptance — M7.0.0 Phase 6 (Quick Text Editor) — DEVICE GATE PENDING
+
+Context: Phase 6 adds a QUICK TEXT VIEWER/EDITOR (Open on regular files) —
+UTF-8 only, 1 MiB cap, NUL-byte binary refusal, byte-exact round trip, a
+(size, mtime) save gate with explicit overwrite confirmation, a dirty-back
+guard, and honest full-screen refusal states. NO system IME involved: the
+editor is a multiline BasicTextField served by the ONE keyboard deck through
+the existing focused-view dispatch chain. The JVM suite pins the pure model
+and the full load/gate/save flow through the real guest/shelf/SAF engines;
+the steps below need real hardware (the deck, a real SAF provider, real
+cursor-key behaviour).
+
+Preconditions: install the P6 build IN PLACE (same debug cert), have a
+PocketShell Linux session available, and put a small UTF-8 text file (e.g.
+notes.txt) into /root.
+
+1. Open: Files → tap a FILE → the action sheet now shows "Open" (first row)
+   → the editor opens showing the content, file name + area label in the
+   header, and the size in the status line. Tapping a DIRECTORY still opens
+   the folder; symlinks still show no Open action (honest: a
+   write-through-symlink save is refused by the engine).
+2. Edit + Save: type with the keyboard deck (letters, ⏎ newline, ⌫) → the
+   status line flips to "Unsaved changes" and Save enables → Save → status
+   flashes "Saved ✓" and returns to the size label → leave and re-open the
+   file: the edit persisted. Verify from a terminal session too
+   (`cat /root/notes.txt`).
+3. Cursor/selection keys (the known device check): ←/→ move the cursor
+   within a line; ↑/↓ move across lines; the cursor stays inside the text
+   field instead of hopping focus to the header buttons. If an edge arrow
+   moves FOCUS instead of the cursor, report it — that is a known Compose
+   focus-search edge, not a data risk.
+4. Deck presence: the deck opens over the editor; the text area sits ABOVE
+   it (nothing hidden behind the deck); toggling the deck off (⌨) reclaims
+   the space; the parked ⌨ button brings it back.
+5. Dirty back guard: make an edit → press system back → the guard dialog
+   appears (Save / Discard / Keep editing). Keep editing stays; Save saves
+   and returns to Files automatically; Discard drops the edits and returns.
+   With NO edits, back leaves the editor directly. Rotation with a dirty
+   buffer keeps the buffer and the guard state.
+6. External change: open a file in the editor, then from a terminal session
+   run `echo more >> /root/notes.txt` → Save in the editor → an honest
+   dialog ("changed outside the editor") with Save anyway / Cancel → Save
+   anyway overwrites; Cancel keeps the editor buffer and the disk file
+   untouched. Delete the file from the terminal instead → Save → the
+   dialog honestly says the file no longer exists (saving recreates it).
+7. Honest refusals: put a PNG or ZIP in /root → Open → "is not a text file"
+   and the file is NOT changed. Put a Latin-1 file (invalid UTF-8) → Open →
+   "is not UTF-8 text", NOT shown garbled. `dd if=/dev/zero of=/root/big bs=1M count=2`
+   → Open → "too large ... up to 1 MB" with the real size shown.
+8. SAF folder: Open a text file that lives INSIDE a granted Android folder →
+   edit + save works through the provider. Revoke the grant (system
+   Settings) → save → an honest error banner in the editor (no crash), the
+   buffer is preserved; back → Files shows the usual Reconnect/Remove
+   banner.
+9. Save refusals: try opening /etc/hosts (Linux area) → Open → editing
+   works (reading is allowed) but Save is refused honestly
+   ("Could not save: refused ..."). The file on disk is unchanged.
+10. Regression: Files listing, copy/move/paste, rename, delete, New
+    folder/file, Share/Import/Export (Phase 5) all unchanged; the terminal,
+    Companion and shelf flows untouched; no new permissions (APK permission
+    list identical to vc44).

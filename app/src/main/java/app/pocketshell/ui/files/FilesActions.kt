@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileUpload
@@ -145,6 +146,8 @@ data class EntryActionHandlers(
     val onShare: (() -> Unit)? = null,
     /** Phase 5: export this file via the system save dialog (files only). */
     val onExport: (() -> Unit)? = null,
+    /** Phase 6: open this file in the quick text editor (files only). */
+    val onEdit: (() -> Unit)? = null,
     val onRename: () -> Unit,
     val onDelete: () -> Unit,
 )
@@ -208,6 +211,10 @@ fun EntryActionSheet(
                 SheetAction("New file", Icons.Outlined.NoteAdd, onClick = { handlers.onNewFile?.invoke() })
                 SheetDivider()
             }
+            if (entry.kind == EntryKind.FILE && handlers.onEdit != null) {
+                val edit = handlers.onEdit
+                SheetAction("Open", Icons.Outlined.Description, onClick = { edit?.invoke() })
+            }
             SheetAction("Copy", Icons.Outlined.ContentCopy, onClick = handlers.onCopy)
             SheetAction("Move", Icons.Outlined.DriveFileMove, onClick = handlers.onMove)
             if (entry.kind == EntryKind.FILE && handlers.onShare != null) {
@@ -223,10 +230,13 @@ fun EntryActionSheet(
 
             Spacer(Modifier.height(10.dp))
             MidnightNote(
-                text = if (entry.kind == EntryKind.DIRECTORY) {
-                    "Open Terminal Here arrives in a later update."
-                } else {
-                    "Open and Edit arrive in a later update."
+                text = when {
+                    entry.kind == EntryKind.DIRECTORY ->
+                        "Open Terminal Here arrives in a later update."
+                    entry.kind == EntryKind.FILE && handlers.onEdit != null ->
+                        "The quick editor opens UTF-8 text files up to 1 MB."
+                    else ->
+                        "Open and Edit arrive in a later update."
                 },
             )
         }

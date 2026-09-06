@@ -21,6 +21,7 @@ import app.pocketshell.files.saf.FileShareOps
 import app.pocketshell.files.saf.SafFolderInfo
 import app.pocketshell.files.saf.SafFolderState
 import app.pocketshell.files.saf.SafTransfers
+import app.pocketshell.files.editor.EditorLaunch
 import app.pocketshell.ui.files.DeleteConfirmState
 import app.pocketshell.ui.files.ExportPrompt
 import app.pocketshell.ui.files.FilesOpsSurface
@@ -515,6 +516,39 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
 
     override fun dismissNotice() {
         _notice.value = null
+    }
+
+    // ================================================ Phase 6 — quick editor
+
+    /**
+     * Resolve a listing FILE into a launch for the quick text editor:
+     * validate + resolve ONLY — no I/O, no state change (the same discipline
+     * as every path composition in this class). Null when the current state
+     * cannot launch (no area/location, the name is not in the listing, it is
+     * not a regular file, or the path does not validate) — the router simply
+     * does not navigate. Regular files only: symlinks are never opened in
+     * the editor (a safe-target read would work, but a write-through-symlink
+     * save is refused by the engine, so the honest surface is: not offered).
+     *
+     * The returned launch carries the SAME StorageArea instance this class
+     * operates on; the editor runs on its own serial worker and relies on
+     * the area's atomic writes plus its own (size, mtime) save gate.
+     */
+    fun editorLaunch(name: String): EditorLaunch? {
+        val state = _state.value
+        val areaId = state.areaId ?: return null
+        val dir = state.path ?: return null
+        val kind = state.entries.firstOrNull { it.name == name }?.kind ?: return null
+        if (kind != EntryKind.FILE) return null
+        val area = areaById[areaId] ?: return null
+        val child = ExplorerOps.composeChild(dir, name) ?: return null
+        return EditorLaunch(
+            area = area,
+            areaId = areaId,
+            areaLabel = state.areas.firstOrNull { it.selected }?.label ?: "",
+            path = child,
+            name = name,
+        )
     }
 
     // ================================================== Phase 5 — SAF folders

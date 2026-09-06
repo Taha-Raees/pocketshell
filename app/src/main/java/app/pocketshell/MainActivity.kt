@@ -163,6 +163,13 @@ fun PocketShellRoot(
     val filesViewModel: app.pocketshell.FilesViewModel = viewModel()
     val filesState by filesViewModel.state.collectAsStateWithLifecycle()
 
+    // M7 Phase 6: the quick text editor is process-scoped as well — its
+    // loaded document and dirty buffer survive Home↔Editor navigation and
+    // rotation (the back guard keeps the screen from ever being left dirty;
+    // process death losing unsaved content is stated honestly in the guard).
+    val editorViewModel: app.pocketshell.EditorViewModel = viewModel()
+    val editorState by editorViewModel.state.collectAsStateWithLifecycle()
+
     val sessions by terminalViewModel.sessions.collectAsStateWithLifecycle()
     val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
     val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
@@ -249,7 +256,26 @@ fun PocketShellRoot(
                 onOpenChild = filesViewModel::openChild,
                 onSwitchArea = filesViewModel::switchArea,
                 onRefresh = filesViewModel::refresh,
+                onOpenFile = { name ->
+                    // Validate + resolve here; navigate only when the listing
+                    // entry genuinely launches (never over a fake open).
+                    val launch = filesViewModel.editorLaunch(name)
+                    if (launch != null) {
+                        editorViewModel.open(launch)
+                        screen = "editor"
+                    }
+                },
                 onOpenDiagnostics = { screen = "diagnostics" },
+                modifier = Modifier.padding(padding),
+            )
+
+            "editor" -> app.pocketshell.ui.files.EditorScreen(
+                state = editorState,
+                surface = editorViewModel,
+                // The deck is mounted at root over EVERY screen; the editor
+                // body clears it the same way the Terminal screen does.
+                keyboardBottomInset = keyboardInset,
+                onBack = { screen = "home" },
                 modifier = Modifier.padding(padding),
             )
 

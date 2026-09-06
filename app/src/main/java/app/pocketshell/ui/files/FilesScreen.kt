@@ -104,6 +104,8 @@ fun FilesScreen(
     onOpenChild: (String) -> Unit,
     onSwitchArea: (AreaId) -> Unit,
     onRefresh: () -> Unit,
+    /** Phase 6: open the listing FILE [name] in the quick text editor. */
+    onOpenFile: (String) -> Unit,
     onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -281,10 +283,14 @@ fun FilesScreen(
             entry = entry,
             onDismiss = { selected = null },
             handlers = EntryActionHandlers(
-                onOpen = if (entry.kind == EntryKind.DIRECTORY) {
-                    { selected = null; onOpenChild(entry.name) }
-                } else {
-                    null
+                onOpen = when (entry.kind) {
+                    EntryKind.DIRECTORY -> {
+                        { selected = null; onOpenChild(entry.name) }
+                    }
+                    EntryKind.FILE -> {
+                        { selected = null; onOpenFile(entry.name) }
+                    }
+                    else -> null
                 },
                 onNewFolder = if (entry.kind == EntryKind.DIRECTORY) {
                     { selected = null; ops.openNewDialogInside(entry.name, folder = true) }
@@ -310,6 +316,11 @@ fun FilesScreen(
                 },
                 onRename = { selected = null; ops.openRenameDialog(entry.name) },
                 onDelete = { selected = null; ops.openDeleteConfirm(entry.name) },
+                onEdit = if (entry.kind == EntryKind.FILE) {
+                    { selected = null; onOpenFile(entry.name) }
+                } else {
+                    null
+                },
             ),
         )
     }
