@@ -144,7 +144,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
                     ExplorerCore.AreaHandle(
                         area = area,
                         startPath = PathSafety.validatePath("/")!!,
-                        shortLabel = "Downloads",
+                        shortLabel = StorageAreas.Labels.SHELF_SHORT_LABEL,
                     ),
                 )
             }

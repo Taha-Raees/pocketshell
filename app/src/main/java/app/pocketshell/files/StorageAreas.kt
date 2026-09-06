@@ -22,6 +22,22 @@ import java.io.File
 object StorageAreas {
 
     /**
+     * P6.1 — the ONE place the app-owned shelf's user-facing labels live, so
+     * the ownership wording is a single pinned constant rather than scattered
+     * literals. JVM tests assert these EXACT strings (the regression pin:
+     * the shelf can never silently return to the ambiguous plain label
+     * "Downloads"), while SAF folders keep the folder's own derived label
+     * (e.g. "Download") — the two must never read alike.
+     */
+    object Labels {
+        /** Area switcher chip for the app-owned downloads shelf. */
+        const val SHELF_SHORT_LABEL = "PocketShell Downloads"
+
+        /** Full name (collision dialogs, import notice) for the same shelf. */
+        const val SHELF_DISPLAY_NAME = "PocketShell Downloads (app storage)"
+    }
+
+    /**
      * The PocketShell Linux storage — direct File IO over the guest rootfs.
      * Guest "/" is the rootfs; /root is the user's home; mutations in
      * runtime-critical prefixes are refused by the guest policy.
@@ -44,6 +60,11 @@ object StorageAreas {
      * Companion browser already lands, so it is the natural first stop of the
      * "download → import → unzip" workflow. Plain app-owned storage: full
      * operations, no policy, no permission.
+     *
+     * P6.1 NAMING RULE: the labels here say "PocketShell" so this shelf can
+     * never be confused with the REAL shared Android Download folder the user
+     * grants through the system SAF picker (whose label is the folder's own
+     * name, e.g. "Download"). The ownership regression is pinned by tests.
      */
     fun androidShelf(context: Context): FileDirArea? {
         val appContext = context.applicationContext
@@ -52,7 +73,7 @@ object StorageAreas {
         return FileDirArea.create(
             root = dir,
             id = AreaId(AreaKind.ANDROID_SHELF),
-            displayName = "Android Downloads (app storage)",
+            displayName = Labels.SHELF_DISPLAY_NAME,
             policy = FileDirArea.MutationPolicy.OPEN,
         )
     }

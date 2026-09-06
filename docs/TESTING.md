@@ -1979,3 +1979,72 @@ notes.txt) into /root.
     folder/file, Share/Import/Export (Phase 5) all unchanged; the terminal,
     Companion and shelf flows untouched; no new permissions (APK permission
     list identical to vc44).
+
+## 36. Manual acceptance — M7.0.0 P6.1 (real Android Downloads via SAF + shelf ownership labels) — DEVICE GATE PENDING
+
+Context: P6.1 is a LABELS-ONLY fix on top of the already-working Phase 5
+SAF architecture. The app-owned external shelf
+(Android/data/app.pocketshell/files/Download — where Companion downloads
+land) is now labeled "PocketShell Downloads" in the switcher and
+"PocketShell Downloads (app storage)" in dialogs, so it can never be
+confused with the user's REAL shared Download folder
+(Internal storage → Download), which enters through the UNCHANGED system
+SAF picker under the folder's own name ("Download"). No storage code, no
+permissions, no manifest change; a JVM regression pin forbids the shelf
+from ever silently returning to the ambiguous plain "Downloads" label.
+
+Preconditions: install the P6.1 build IN PLACE (same debug cert); a
+Samsung or other device whose My Files shows Internal storage → Download.
+
+Shelf ownership:
+
+1.  Open Files.
+2.  Open the area switcher (the chip at the top).
+3.  Confirm the app-owned shelf is labeled "PocketShell Downloads" (NOT
+    plain "Downloads", NOT "Android Downloads").
+4.  Confirm the Linux area is still labeled "Linux".
+
+Real shared Download via SAF (the UNCHANGED Phase 5 flow):
+
+5.  Select "Add Android folder…" — the SYSTEM picker opens (this is the
+    only door; PocketShell never discovers storage by itself).
+6.  Navigate to Internal storage → Download and confirm with the system
+    "USE THIS FOLDER" button.
+7.  Confirm a SEPARATE area appears in the switcher labeled "Download"
+    (the folder's own name — distinct from "PocketShell Downloads").
+8.  Confirm files visible in Samsung My Files → Internal storage →
+    Download are visible in the PocketShell "Download" area.
+9.  Create/copy/move a test file into the SAF Download area from
+    PocketShell; confirm it appears in Samsung My Files.
+10. Add a file from Samsung My Files into Download; refresh/re-enter the
+    area in PocketShell and confirm it appears.
+11. Restart PocketShell and confirm the SAF grant persists (the
+    "Download" area rejoins the switcher with its contents — no
+    re-selection needed).
+
+Cross-domain operations (all through the UNCHANGED Phase 4/5 verified
+paths — collision Replace/Cancel semantics included):
+
+12. Copy Linux → Download, and Download → Linux: both succeed; the Linux
+    side shows the file with correct size (cat it in a terminal if
+    convenient).
+13. Move Linux → Download, and Download → Linux: source disappears,
+    destination verified.
+14. Trigger a name collision in the Download area: the dialog offers
+    Replace/Cancel exactly as everywhere else — never silent overwrite.
+15. Enter a file in the Download area and "Open" it in the quick editor
+    (Phase 6 path over the SAME abstraction): edit, save, and confirm the
+    change in Samsung My Files.
+
+Honesty and safety:
+
+16. Revoke the grant (system Settings → PocketShell → remove access, or
+    revoke from the folder's provider): the area stays listed behind the
+    honest banner ("Access to "Download" is no longer available") with
+    Reconnect / Remove — never a fake empty folder, never a crash.
+17. Confirm the APK permission list is UNCHANGED (5 permissions, no
+    MANAGE_EXTERNAL_STORAGE, no READ/WRITE_EXTERNAL_STORAGE) — the real
+    Download access is PURELY the user-granted persistent SAF grant.
+18. Regression: Linux, PocketShell Downloads, Share/Import/Export,
+    editor, terminal, Companion all behave exactly as in the Phase 6
+    build (this fix touches labels only).

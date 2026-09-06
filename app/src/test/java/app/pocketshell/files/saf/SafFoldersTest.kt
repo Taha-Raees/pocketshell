@@ -5,12 +5,14 @@ import app.pocketshell.files.AreaKind
 import app.pocketshell.files.ExplorerCore
 import app.pocketshell.files.FileDirArea
 import app.pocketshell.files.PathSafety
+import app.pocketshell.files.StorageAreas
 import java.nio.file.Files
 import java.nio.file.Path
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -90,6 +92,30 @@ class SafFoldersTest {
     }
 
     @Test
+    fun `the app shelf label is unmistakably PocketShell-owned never plain Downloads`() {
+        // P6.1 regression pin: the app-owned shelf (getExternalFilesDir) must
+        // always carry the owner in BOTH user-facing labels, so it can never
+        // be confused with the REAL shared Download folder granted via SAF.
+        val short = StorageAreas.Labels.SHELF_SHORT_LABEL
+        val display = StorageAreas.Labels.SHELF_DISPLAY_NAME
+        assertTrue("switcher label must name the owner: '$short'", short.contains("PocketShell"))
+        assertTrue("display name must name the owner: '$display'", display.contains("PocketShell"))
+        assertNotEquals(
+            "the ambiguous plain 'Downloads' label must never return",
+            "Downloads",
+            short,
+        )
+        assertFalse("the old Android-Downloads wording must stay gone", display.startsWith("Android Downloads"))
+        // A real Download folder granted through SAF keeps the folder's own
+        // name — distinct from the shelf label by construction.
+        val real = SafFolders.labelFromTreeUri(
+            "content://com.android.externalstorage.documents/tree/primary%3ADownload",
+        )
+        assertEquals("Download", real)
+        assertNotEquals("shelf and real-Download labels must differ", short, real)
+    }
+
+    @Test
     fun `odd uris still yield a usable honest label`() {
         assertEquals("something", SafFolders.labelFromTreeUri("https://example.com/something"))
         assertEquals("Android folder", SafFolders.labelFromTreeUri(""))
@@ -115,7 +141,7 @@ class SafFoldersTest {
         val core = ExplorerCore(
             listOf(
                 handle(guestArea(), "/root", "Linux"),
-                handle(shelfArea(), "/", "Downloads"),
+                handle(shelfArea(), "/", StorageAreas.Labels.SHELF_SHORT_LABEL),
             ),
         )
         core.initial()
@@ -128,7 +154,7 @@ class SafFoldersTest {
         FileDirArea.create(
             root = shelfRoot.toFile(),
             id = AreaId(AreaKind.ANDROID_SHELF),
-            displayName = "Android Downloads (app storage)",
+            displayName = StorageAreas.Labels.SHELF_DISPLAY_NAME,
             policy = FileDirArea.MutationPolicy.OPEN,
         )!!
 
@@ -149,7 +175,7 @@ class SafFoldersTest {
 
         val after = core.addArea(handle(safArea(FakeDocumentBackend()), "/", "MyProject"))
 
-        assertEquals(listOf("Linux", "Downloads", "MyProject"), after.areas.map { it.label })
+        assertEquals(listOf("Linux", StorageAreas.Labels.SHELF_SHORT_LABEL, "MyProject"), after.areas.map { it.label })
         assertFalse(after.areas.last().selected)
         assertEquals(before.path, after.path)
         assertEquals(before.areaId, after.areaId)
@@ -161,7 +187,7 @@ class SafFoldersTest {
         val handle = handle(safArea(FakeDocumentBackend()), "/", "MyProject")
         core.addArea(handle)
         val after = core.addArea(handle)
-        assertEquals(listOf("Linux", "Downloads", "MyProject"), after.areas.map { it.label })
+        assertEquals(listOf("Linux", StorageAreas.Labels.SHELF_SHORT_LABEL, "MyProject"), after.areas.map { it.label })
     }
 
     @Test
@@ -196,7 +222,7 @@ class SafFoldersTest {
 
         val after = core.removeArea(safId())
 
-        assertEquals(listOf("Linux", "Downloads"), after.areas.map { it.label })
+        assertEquals(listOf("Linux", StorageAreas.Labels.SHELF_SHORT_LABEL), after.areas.map { it.label })
         assertEquals(before.areaId, after.areaId)
         assertEquals(before.path, after.path)
     }

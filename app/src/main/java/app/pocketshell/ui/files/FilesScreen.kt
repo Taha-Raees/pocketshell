@@ -87,7 +87,9 @@ import java.util.Locale
  *   long-press / "⋮"   → the same contextual action sheet (never gesture-only)
  *   "+"                → New Folder / New File / Import file… in the current
  *                        directory
- *   area switcher      → Linux / Downloads / user-granted Android folders
+ *   area switcher      → Linux / PocketShell Downloads (the app-owned shelf)
+ *                        / user-granted Android folders (label = the
+ *                        folder's own name, e.g. a real shared "Download")
  *                        (+ "Add Android folder…" through the SYSTEM picker)
  *
  * The UI performs ZERO filesystem operations: it renders [ExplorerCore.State]

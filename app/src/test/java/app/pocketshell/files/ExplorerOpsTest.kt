@@ -65,7 +65,7 @@ class ExplorerOpsTest {
         FileDirArea.create(
             root = shelf.toFile(),
             id = shelfId,
-            displayName = "Android Downloads (app storage)",
+            displayName = StorageAreas.Labels.SHELF_DISPLAY_NAME,
             policy = FileDirArea.MutationPolicy.OPEN,
         )!!
 
@@ -399,7 +399,7 @@ class ExplorerOpsTest {
 
         val outcome = ExplorerOps.executePaste(
             shelfArea,
-            pending(shelfId, "/evil.zip", move = true, label = "Downloads"),
+            pending(shelfId, "/evil.zip", move = true, label = StorageAreas.Labels.SHELF_SHORT_LABEL),
             guest,
             guestPath("/etc/evil.zip"),
             replace = false,

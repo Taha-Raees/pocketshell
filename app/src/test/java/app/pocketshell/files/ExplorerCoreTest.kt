@@ -60,7 +60,7 @@ class ExplorerCoreTest {
                 ExplorerCore.AreaHandle(
                     area = newShelfArea(),
                     startPath = PathSafety.validatePath("/")!!,
-                    shortLabel = "Downloads",
+                    shortLabel = StorageAreas.Labels.SHELF_SHORT_LABEL,
                 ),
             ),
         )
@@ -84,7 +84,7 @@ class ExplorerCoreTest {
         FileDirArea.create(
             root = shelf.toFile(),
             id = shelfId,
-            displayName = "Android Downloads (app storage)",
+            displayName = StorageAreas.Labels.SHELF_DISPLAY_NAME,
             policy = FileDirArea.MutationPolicy.OPEN,
         )!!
 
@@ -115,7 +115,7 @@ class ExplorerCoreTest {
         assertEquals("Linux", state.areas[0].label)
         assertTrue(state.areas[0].selected)
         assertEquals(guestId, state.areas[0].id)
-        assertEquals("Downloads", state.areas[1].label)
+        assertEquals(StorageAreas.Labels.SHELF_SHORT_LABEL, state.areas[1].label)
         assertFalse(state.areas[1].selected)
         assertEquals(shelfId, state.areas[1].id)
     }

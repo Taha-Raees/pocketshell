@@ -7,6 +7,7 @@ import app.pocketshell.files.EntryKind
 import app.pocketshell.files.FileDirArea
 import app.pocketshell.files.OpResult
 import app.pocketshell.files.PathSafety
+import app.pocketshell.files.StorageAreas
 import app.pocketshell.files.ReadResult
 import app.pocketshell.files.StorageArea
 import app.pocketshell.files.saf.AndroidDocumentArea
@@ -76,7 +77,7 @@ class EditorFlowTest {
         downloads = FileDirArea.create(
             root = shelf.toFile(),
             id = shelfId,
-            displayName = "Android Downloads (app storage)",
+            displayName = StorageAreas.Labels.SHELF_DISPLAY_NAME,
             policy = FileDirArea.MutationPolicy.OPEN,
         )!!
         backend = FakeDocumentBackend("MyProject")
