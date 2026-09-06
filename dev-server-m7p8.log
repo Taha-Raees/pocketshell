@@ -1,0 +1,25 @@
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.8.217:3000
+   - Environments: .env
+
+ ✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+ ✓ Ready in 1973ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.9s (539 modules)
+ GET / 200 in 4340ms
+ GET / 200 in 124ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 580ms (530 modules)
+ GET /PocketShell-v0.10.0-m6.0.4-m7p7.1-debug.apk 404 in 782ms
+ GET / 200 in 112ms
+ GET / 200 in 214ms
+ GET / 200 in 94ms
+ GET / 200 in 180ms
+ GET / 200 in 246ms
+ GET / 200 in 100ms
