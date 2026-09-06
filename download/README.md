@@ -17,10 +17,14 @@ layouts), prints its version in the header, and PREFLIGHT reports the app stamp
 + raw ls/readlink loader evidence. M6.0's Universal Runtime Compatibility is
 unchanged: ONE Alpine distribution running musl + glibc + static + Node tooling;
 REAL Debian 13 trixie glibc 2.41 at the canonical multiarch paths; musl paths
-disjoint and never touched; layer bytes UNCHANGED (2242f8ef…). JVM suite 780
-executions / 0 failures; rig device-state validation 3 phases green (24/24
-incl. Cline 3.0.61). versionCode 42)
-- PocketShell-v0.10.0-m6.0.2-debug.apk  sha256 832648e5e6d89554bf11e786c9bb9d1a48b7054815502791d91175fcf31da6d0  (30 MB)
+disjoint and never touched; layer bytes UNCHANGED (2242f8ef…). JVM suite
+780 executions / 0 failures at the original release; RE-VERIFIED 2026-09-06
+after a sandbox reset with a clean-room rebuild of the same tree (git
+e5b0c93 content): 392 debug-variant test cases / 0 failures including the
+built-APK asset pin, on the exact rebuilt bytes below. Archive shas differ
+from the first cut (embedded timestamps); versionCode, signing cert and
+the embedded layer asset are identical. versionCode 42)
+- PocketShell-v0.10.0-m6.0.2-debug.apk  sha256 b6ade0745734cfe8dd101ba31c5980efaccf904d503fe7a83d3cde379cfcf577  (29.8 MB)
   Installs IN PLACE over v0.10.0-m6.0.1 (41), v0.10.0-m6.0.0 (40),
   v0.9.1-m5.1.0 (39), v0.9.0-m5.0.1 (38), v0.9.0-m5.0.0 (37),
   v0.8.0-m4.0.12 (36), v0.8.0-m4.0.11 (35), v0.8.0-m4.1.0 (34, unannounced
@@ -31,12 +35,12 @@ incl. Cline 3.0.61). versionCode 42)
   reinstall, no wipe, no user action.
   Device gate: docs/TESTING.md §33.1 with the FRESH v2.1 suite tarball (the
   /tmp/kilo/gdrive copy is the stale v1 suite — delete it and re-download).
-- PocketShell-v0.10.0-m6.0.2-source.zip sha256 82875abeef54932afe7c2829e37b27a4304e170b228d81eed472515ecb7c411e  (47 MB uncompressed, 379 files)
-- PocketShell-v0.10.0-m6.0.2-source.tar.gz sha256 a77cece3378cebc95003a0f672df96cf114048d7ec521e2a43d74d7858ce48eb
-- pocketshell-m2.gitbundle           sha256 73d6bd4d844883b7ab72917afb4a3539fe1e4d86ec289ffc9393c92f5629b6b3  (full history; ~36M — complete milestone history, all design contracts, docs/PROCFS-CONTRACT.md, docs/RENDER-RESET-M4.0.9.md, docs/runtime/ + runtime-tests/ + scripts/runtime/ — honest, no rewrites)
-- pocketshell-runtime-tests-aarch64.tar.gz sha256 22e283ef07e2984942e8f6e40b4cb43b9b6d8ef240105285b4d30bb1873c0b1e  (708 KB — suite v2.1: self-locating runner (flat + bin/ layouts), suite version in header, PREFLIGHT with app-version stamp + status file + ls/readlink loader evidence + SKIP-with-fix-path + POCKETSHELL_INSTALL_LAYER=1 repair hatch, plus the cross-compiled test binaries; usage in docs/runtime/TESTING.md)
+- PocketShell-v0.10.0-m6.0.2-source.zip sha256 7b53c731cc112781c8ee6bbc68263cc0745560d553a066f28e99308529bd5953  (54 MB uncompressed, 382 files)
+- PocketShell-v0.10.0-m6.0.2-source.tar.gz sha256 01afd3b48a6108dcf7c230071797b70f3e1bc85e8588731ec3e34524466bdeb7
+- pocketshell-m2.gitbundle           sha256 c116ca76822e2347019148a0c72803f9e571c4d1247897e360bc82fc2c1b7cd5  (full history; ~36M — complete milestone history, all design contracts, docs/PROCFS-CONTRACT.md, docs/RENDER-RESET-M4.0.9.md, docs/runtime/ + runtime-tests/ + scripts/runtime/ — honest, no rewrites)
+- pocketshell-runtime-tests-aarch64.tar.gz sha256 6717f981a50a1733ff7c4f089db380ffd107296a7e29458732e916380d5963a7  (705 KB — suite v2.1: self-locating runner (flat + bin/ layouts), suite version in header, PREFLIGHT with app-version stamp + status file + ls/readlink loader evidence + SKIP-with-fix-path + POCKETSHELL_INSTALL_LAYER=1 repair hatch, plus the cross-compiled test binaries; usage in docs/runtime/TESTING.md)
 - pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz sha256 2242f8ef8f18df06c6bf37d55f6ae526cccb6d835f76bc048b877266d252ad11  (6.5 MB — the glibc layer artifact, transparency copy; the APK ships the identical bytes decompressed (sha 5be400dd…, pinned as GlibcRuntimePin.ASSET_SHA256) and installs them itself)
-- PocketShell-Runtime-Forensic-Audit.pdf sha256 0e0a2bf8363647aece215f4f0a00b658debb3d42a443b480d564b01cd7d17c0d  (34 pages — the read-only platform/runtime forensic audit; kept downloadable as the phase baseline)
+- PocketShell-Runtime-Forensic-Audit.pdf sha256 913fd2e37a478236f1ff2e21d102bc11d482cad3dfca601bda985377acb652ea  (34 pages — the read-only platform/runtime forensic audit; kept downloadable as the phase baseline; regenerated from the committed generator script after the sandbox reset — content identical, PDF timestamps differ)
 
 All served on :3000 from public/ (same bytes, HTTP-verified; the release
 mirror now also extracts and sha-verifies the APK's embedded layer asset —

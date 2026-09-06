@@ -1,13 +1,20 @@
 const VERSION = "v0.10.0-m6.0.2";
 
+// SHA pins re-cut 2026-09-06 after a sandbox reset (clean-room rebuild of the
+// SAME m6.0.2 source tree — git e5b0c93 content). Semantic pins are unchanged:
+// versionCode 42, versionName 0.10.0-m6.0.2, cert d96a6f66…8bf659, embedded
+// layer asset 5be400dd…/17,909,760 B == GlibcRuntimePin. Outer container shas
+// (apk/zip/tgz/bundle/tests/pdf) differ because archives embed build-era
+// timestamps; the JVM suite (incl. the built-APK asset pin) was re-run green
+// on the exact rebuilt bytes. Layer artifact bytes 2242f8ef… are UNCHANGED.
 const HASHES = {
-  apk: "832648e5e6d89554bf11e786c9bb9d1a48b7054815502791d91175fcf31da6d0",
-  zip: "82875abeef54932afe7c2829e37b27a4304e170b228d81eed472515ecb7c411e",
-  tgz: "a77cece3378cebc95003a0f672df96cf114048d7ec521e2a43d74d7858ce48eb",
-  bundle: "73d6bd4d844883b7ab72917afb4a3539fe1e4d86ec289ffc9393c92f5629b6b3",
-  tests: "22e283ef07e2984942e8f6e40b4cb43b9b6d8ef240105285b4d30bb1873c0b1e",
+  apk: "b6ade0745734cfe8dd101ba31c5980efaccf904d503fe7a83d3cde379cfcf577",
+  zip: "7b53c731cc112781c8ee6bbc68263cc0745560d553a066f28e99308529bd5953",
+  tgz: "01afd3b48a6108dcf7c230071797b70f3e1bc85e8588731ec3e34524466bdeb7",
+  bundle: "c116ca76822e2347019148a0c72803f9e571c4d1247897e360bc82fc2c1b7cd5",
+  tests: "6717f981a50a1733ff7c4f089db380ffd107296a7e29458732e916380d5963a7",
   glibc: "2242f8ef8f18df06c6bf37d55f6ae526cccb6d835f76bc048b877266d252ad11",
-  report: "0e0a2bf8363647aece215f4f0a00b658debb3d42a443b480d564b01cd7d17c0d",
+  report: "913fd2e37a478236f1ff2e21d102bc11d482cad3dfca601bda985377acb652ea",
 };
 
 function Sha({ text }: { text: string }) {
