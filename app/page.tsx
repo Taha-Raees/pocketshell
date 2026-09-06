@@ -1,20 +1,22 @@
-const VERSION = "v0.10.0-m6.0.2";
+const VERSION = "v0.10.0-m6.0.3";
 
-// SHA pins re-cut 2026-09-06 after a sandbox reset (clean-room rebuild of the
-// SAME m6.0.2 source tree — git e5b0c93 content). Semantic pins are unchanged:
-// versionCode 42, versionName 0.10.0-m6.0.2, cert d96a6f66…8bf659, embedded
-// layer asset 5be400dd…/17,909,760 B == GlibcRuntimePin. Outer container shas
-// (apk/zip/tgz/bundle/tests/pdf) differ because archives embed build-era
-// timestamps; the JVM suite (incl. the built-APK asset pin) was re-run green
-// on the exact rebuilt bytes. Layer artifact bytes 2242f8ef… are UNCHANGED.
+// SHA pins — DETERMINISTIC: the APK is a clean-room gradle build, the payload
+// cutter stages from the pinned release tip (git f98360f) with zeroed mtimes
+// (two consecutive cuts byte-identical), the tests tarball is cut the same
+// way, and the PDF has fixed metadata dates. Semantic pins: versionCode 43,
+// versionName 0.10.0-m6.0.3, cert d96a6f66…8bf659, embedded layer asset
+// 898131ff… /17,920,000 B == GlibcRuntimePin. The layer is rev=2: the glibc
+// files are BYTE-IDENTICAL to the proven rev=1 layer (proven single-member
+// rebuild) — the only change is the fixed pocketshell-doctor v2, and the
+// marker revision makes every device re-extract it on the next session.
 const HASHES = {
-  apk: "b6ade0745734cfe8dd101ba31c5980efaccf904d503fe7a83d3cde379cfcf577",
-  zip: "7b53c731cc112781c8ee6bbc68263cc0745560d553a066f28e99308529bd5953",
-  tgz: "01afd3b48a6108dcf7c230071797b70f3e1bc85e8588731ec3e34524466bdeb7",
-  bundle: "c116ca76822e2347019148a0c72803f9e571c4d1247897e360bc82fc2c1b7cd5",
-  tests: "6717f981a50a1733ff7c4f089db380ffd107296a7e29458732e916380d5963a7",
-  glibc: "2242f8ef8f18df06c6bf37d55f6ae526cccb6d835f76bc048b877266d252ad11",
-  report: "913fd2e37a478236f1ff2e21d102bc11d482cad3dfca601bda985377acb652ea",
+  apk: "89704a14b16f477fa2d9b5e2a941f2c008a1f5a08fe0e101c970bdca0171d400",
+  zip: "bc176239b40ba24287d7ac0b9c7710a595029ad9534bfb996d57219860e72334",
+  tgz: "9b429c6ea2e726ffd4744bec7dfb51e6b7f30039033267e96752bde7835409f6",
+  bundle: "d3e135a1f96e04b67c3625125b8d8b3f678cd6999c3a88fdca853186ae4ce529",
+  tests: "beb3ad5e2ec4caf905a9d24644a8d4d20764cb7f804da05d61c396a8ce916506",
+  glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
+  report: "9cb3ccb0fcb0f0d6736226148b2c33aa2664c8c571cedd304c4a5087a97e56a6",
 };
 
 function Sha({ text }: { text: string }) {
@@ -35,18 +37,20 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M6.0.2: the actual install-path fix — the layer now REALLY installs
-          on your device{" "}
-          <span className="badge">versionCode 42</span>
+          M6.0.3: the doctor correctness gate — the runtime is proven, now
+          the diagnostic tool tells the truth{" "}
+          <span className="badge">versionCode 43</span>
         </h2>
         <p>
           <b>
-            The m6.0.0/m6.0.1 device gates failed for one proven root cause:
-            Android&apos;s build pipeline silently repackaged the glibc layer
-            asset inside the APK under a different name than the app asked
-            for — so the install never ran. This build pins what the APK
-            ACTUALLY carries, verifies it at every extraction, and proves
-            which app build owns your runtime. Forensics first, then the fix.
+            The m6.0.2 runtime PROVED itself on real hardware: 24/24 suite
+            rows, real Debian glibc 2.41, Cline 3.0.61 end-to-end. What failed
+            was the diagnostic tool: pocketshell-doctor v1 verdicted
+            UNSUPPORTED for every versioned glibc binary — the real Cline
+            binary needs only GLIBC_2.17 and the layer provides 2.41, yet the
+            doctor said UNSUPPORTED. v2 fixes the comparison properly (numeric,
+            semantic, exit-code-authoritative), and the suite that let it slip
+            now anchors its verdict greps and ships permanent doctor rows.
           </b>
         </p>
         <ul className="steps">
@@ -77,38 +81,51 @@ export default function Home() {
             no user steps, musl sessions never depend on it.
           </li>
           <li>
-            <b>Diagnosable:</b> <code>pocketshell-doctor</code> reports
-            arch/class/interpreter/DT_NEEDED/max-GLIBC-version and asks the
-            real loader to resolve every dependency — SUPPORTED or UNSUPPORTED
-            with the exact reason. <code>pocketshell-exec</code> routes any
-            ELF to the right runtime.
+            <b>Diagnosable (v2 semantics):</b> <code>pocketshell-doctor</code>
+            reports arch/class/interpreter/DT_NEEDED/max-GLIBC-version, gates
+            versions NUMERICALLY (2.17 ≤ 2.41 ⇒ SUPPORTED; only required &gt;
+            installed ⇒ UNSUPPORTED), asks the real loader to resolve every
+            dependency with an exit-code-authoritative check, prints the full
+            fact hierarchy before the verdict, and <code>--selftest</code> runs
+            a permanent 15-case comparison matrix. <code>pocketshell-exec</code>
+            routes any ELF to the right runtime.
           </li>
           <li>
-            <b>The m6.0.2 fix (proven root cause):</b> the build pipeline
-            decompresses <code>.gz</code> assets and renames them — the shipped
-            APK carried a plain <code>.tar</code> while the code opened
-            <code> .tar.gz</code>, so every spawn failed before touching your
-            runtime. The pin now describes the packaged form exactly, the
-            extractor accepts either form (gzip-magic sniff) and SHA-verifies
-            the asset BEFORE extracting, and a new regression test opens the
-            built APK itself so this class of defect can never ship again.
+            <b>The m6.0.3 fix (proven root causes):</b> doctor v1&apos;s version
+            "comparison" concatenated the required and installed versions and
+            string-compared the concatenation against the installed version
+            alone — structurally always false, for every input, even exact
+            matches; and its missing-library grep looked for "not found", which
+            glibc never prints (it prints "error while loading shared
+            libraries … cannot open shared object file", exit 127). The suite
+            hid both: its doctor row grepped "SUPPORTED" unanchored —
+            UNSUPPORTED CONTAINS SUPPORTED. All three defects have regression
+            tests now (397 JVM tests green).
+          </li>
+          <li>
+            <b>The layer is rev=2, not a new layer:</b> the glibc files are
+            byte-identical to the proven m6.0.2 layer (proven at rebuild:
+            exactly one tar member changed — the doctor script). The marker
+            gains <code>rev=2</code> so every device re-extracts the fixed
+            doctor on its next session prep — zero user action, musl untouched.
           </li>
           <li>
             <b>Provable installs:</b> every session prep stamps the app
             identity into <code>/etc/pocketshell/app-version</code> — the
             suite PREFLIGHT shows WHICH build owns your runtime; install
             outcomes stay mirrored to <code>/etc/pocketshell/glibc-runtime.status</code>
-            and logcat. Suite v2.1 self-locates its binaries (both flat and
-            <code> bin/</code> layouts) and prints its version — stale-copy
-            confusion is over.
+            and logcat. Suite v2.2 self-locates its binaries, prints its
+            version, and its doctor rows anchor on
+            <code> ^Compatibility: SUPPORTED</code> — a wrong verdict can never
+            pass as a right one again.
           </li>
         </ul>
-        <a className="btn" href="/PocketShell-v0.10.0-m6.0.2-debug.apk">
-          Download APK (debug, 30 MB)
+        <a className="btn" href="/PocketShell-v0.10.0-m6.0.3-debug.apk">
+          Download APK (debug, 29 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.2)
+          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.3)
         </p>
       </div>
 
@@ -152,7 +169,8 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 42 installs <b>in place over v0.10.0-m6.0.1 (41),
+          versionCode 43 installs <b>in place over v0.10.0-m6.0.2 (42),
+          v0.10.0-m6.0.1 (41),
           v0.10.0-m6.0.0 (40),
           v0.9.1-m5.1.0 (39),
           v0.9.0-m5.0.1 (38), v0.9.0-m5.0.0 (37),
@@ -161,9 +179,9 @@ export default function Home() {
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Kilo/Hermes installation, the
           procfs contract, every Phase 3 behavior and all Companion data
-          (logins included) are untouched. The glibc layer installs into your
-          EXISTING runtime on the next session spawn — nothing is reinstalled,
-          nothing is wiped.
+          (logins included) are untouched. On the next session spawn the layer
+          marker flips to rev=2 and the fixed doctor re-extracts — the glibc
+          files themselves are byte-identical, nothing else changes.
         </p>
       </div>
 
@@ -215,11 +233,19 @@ export default function Home() {
             rootfs (the exact device-gate condition).
           </li>
           <li>
-            <b>v0.10.0-m6.0.2 (this build):</b> the actual install-path fix —
+            <b>v0.10.0-m6.0.2:</b> the actual install-path fix —
             the packaged-asset pin, format-sniffing + sha-verified extraction,
             the built-APK regression pin, the app-version stamp, and suite
-            v2.1 (self-locating, layout-agnostic). The layer installs itself
-            for real this time — or says exactly why not.
+            v2.1 (self-locating, layout-agnostic). PROVEN on the device:
+            24/24 ALL GREEN incl. Cline 3.0.61.
+          </li>
+          <li>
+            <b>v0.10.0-m6.0.3 (this build):</b> the doctor correctness gate —
+            pocketshell-doctor v2 (numeric semantic comparison, numeric max
+            extraction, exit-code-authoritative loader check, fact hierarchy,
+            --selftest), suite v2.2 (anchored verdict greps + three permanent
+            doctor rows), layer rev=2 (byte-identical glibc files, marker-
+            revision propagation). The runtime was right; now the doctor is.
           </li>
         </ul>
       </div>
@@ -229,12 +255,15 @@ export default function Home() {
         <ol className="steps">
           <li>
             <b>Automated suite:</b> one fresh session, then the
-            runtime-tests command above → 24 rows PASS, ALL GREEN.
+            runtime-tests command above → 27 rows PASS, ALL GREEN (24 prior
+            rows + the three permanent doctor rows; a 28th real-Cline doctor
+            row appears on Cline-equipped devices).
           </li>
           <li>
-            <b>Doctor:</b> <code>pocketshell-doctor /bin/sh</code> → musl
-            SUPPORTED; <code>pocketshell-doctor</code> on a glibc binary →
-            full DT_NEEDED + loader resolution report.
+            <b>Doctor:</b> <code>pocketshell-doctor --selftest</code> → 15/15;
+            <code> pocketshell-doctor /bin/sh</code> → musl SUPPORTED;
+            <code> pocketshell-doctor</code> on the real Cline binary →
+            Required GLIBC_2.17, Version gate PASS, SUPPORTED.
           </li>
           <li>
             <b>Cline:</b> version/help/node-spawn (deep test with
@@ -260,10 +289,10 @@ export default function Home() {
           contract, the rendering-reset report, and the new runtime
           documentation (docs/runtime/ + runtime-tests/ + scripts/runtime/).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.2-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.3-source.zip">
           source.zip
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.2-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.3-source.tar.gz">
           source.tar.gz
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">

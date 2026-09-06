@@ -2,9 +2,13 @@
 > pocketshell-download@0.4.1 start
 > next start -p 3000
 
-   ▲ Next.js 15.5.25
-   - Local:        http://localhost:3000
-   - Network:      http://21.0.11.1:3000
-
- ✓ Starting...
- ✓ Ready in 694ms
+ ⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
