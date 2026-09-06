@@ -10,6 +10,9 @@ const VERSION = "v0.10.0-m6.0.4";
 const HASHES = {
   apk: "e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750",
   m7p7: "a3ce9d3a03e8307ec3eca6893ee7b8fe96e6d0b2f4723a22e8a00b6347192cd8",
+  m7p7zip: "9383ab00c82108913f02fd03471f0b3c5ca30e8deca2af45117499dee4f3184a",
+  m7p7tgz: "8a0d48605bd4cbe5b8eea905b82116fb6cc536e1bcfcc1922ffef120ed3b0132",
+  m7p7bundle: "3b67d58d2965de1884ba09c7175af254da59d26fee3d45c33fedd957d85ea6a2",
   m7p6: "35ae7a488af89a3403823f78ecadeaacb5c6b2806f5a240d73320128e94fff37",
   zip: "b0985c77d8c9e8100072b4f54d961c08aba0d79a02a75918cc5d5e8be753da12",
   tgz: "c46e585dc90663f5349f654940bbde1a6437acd4790f647d6405e1d3b7884595",
@@ -345,20 +348,39 @@ export default function Home() {
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Complete buildable source. The zip intentionally contains no
-          dotfiles; full history rides in the git bundle — includes the
-          complete milestone history, all design contracts, the procfs
-          contract, and the runtime documentation
-          (docs/runtime/ + runtime-tests/ + scripts/runtime/).
+          Source at the M7 tip d1fe8b6 (M7 phases 1–7 included, incl. Open
+          Terminal Here). The zip intentionally contains no dotfiles; full
+          history rides in the git bundle — the complete milestone history
+          (M0 → M7P7), all design contracts, the procfs contract, and the
+          runtime documentation (docs/runtime/ + runtime-tests/ +
+          scripts/runtime/). Bundle main tip 0c979f1 = the P7 app tip
+          d1fe8b6 plus the delivery-page updates and server log; the
+          archived tree is cut at d1fe8b6.
+        </p>
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-m7p7-source.zip">
+          source.zip (M7 tip)
+        </a>
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-m7p7-source.tar.gz">
+          source.tar.gz (M7 tip)
+        </a>
+        <a className="btn secondary" href="/pocketshell-m7p7.gitbundle">
+          git bundle (full history, M7 tip)
+        </a>
+        <Sha text={HASHES.m7p7zip} />
+        <Sha text={HASHES.m7p7tgz} />
+        <Sha text={HASHES.m7p7bundle} />
+        <p>
+          Previous release cut — v0.10.0-m6.0.4 (M6.0.4 release tip ff4afa9;
+          M7 not included):
         </p>
         <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-source.zip">
-          source.zip
+          source.zip (m6.0.4)
         </a>
         <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-source.tar.gz">
-          source.tar.gz
+          source.tar.gz (m6.0.4)
         </a>
         <a className="btn secondary" href="/pocketshell-m2.gitbundle">
-          git bundle (full history)
+          git bundle (m6.0.4)
         </a>
         <a className="btn secondary" href="/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz">
           glibc layer artifact (transparency copy)
@@ -368,7 +390,7 @@ export default function Home() {
         <Sha text={HASHES.bundle} />
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m2.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7p7.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
           with the same signing identity.
         </p>

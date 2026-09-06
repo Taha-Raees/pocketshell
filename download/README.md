@@ -26,7 +26,9 @@ Linux to work with them in Terminal." Existing sessions are untouched (one
 new session created, none closed, no cwd changes, no PTY writes). Linux-only
 by design: no proot bind mounts, no fabricated POSIX paths for content://.
 JVM suite 600/600 green (13 new pins incl. two /bin/sh execution fixtures).
-Device checklist: docs/TESTING.md §37.
+Device checklist: docs/TESTING.md §37. Source archives + the full-history
+git bundle are re-cut at this tip (the -m7p7 artifacts below); the m6.0.4
+source artifacts stay pinned at the release tip.
 
 Previous: **M7 Phase 6 (quick text editor)** — PocketShell-v0.10.0-m6.0.4-m7p6-debug.apk
 sha256 35ae7a488af89a3403823f78ecadeaacb5c6b2806f5a240d73320128e94fff37
@@ -78,6 +80,9 @@ built-APK asset pin against this exact APK). Payload pins are DETERMINISTIC:
 the cutter stages from the pinned release tip (git a7441ff) with zeroed
 mtimes.
 
+- PocketShell-v0.10.0-m6.0.4-m7p7-source.zip sha256 9383ab00c82108913f02fd03471f0b3c5ca30e8deca2af45117499dee4f3184a  (48 MB — tracked source cut at M7 app tip d1fe8b6 via git archive, web shim excluded, zeroed mtimes; RESTORE.txt + the m7p7 git bundle embedded)
+- PocketShell-v0.10.0-m6.0.4-m7p7-source.tar.gz sha256 8a0d48605bd4cbe5b8eea905b82116fb6cc536e1bcfcc1922ffef120ed3b0132  (47 MB — same cut, sorted tar, gzip -n)
+- pocketshell-m7p7.gitbundle sha256 3b67d58d2965de1884ba09c7175af254da59d26fee3d45c33fedd957d85ea6a2  (36 MB — full history M0 → main tip 0c979f1 = the P7 app tip d1fe8b6 + the delivery-page updates + server log; bundle pack bytes are not re-cut-stable, so all three pins refer to this ONE delivered cut — re-cutting requires re-pinning)
 - PocketShell-v0.10.0-m6.0.4-debug.apk  sha256 e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750  (29.8 MB, versionCode 44)
   Installs IN PLACE over v0.10.0-m6.0.3 (43), v0.10.0-m6.0.2 (42),
   v0.10.0-m6.0.1 (41), v0.10.0-m6.0.0 (40), v0.9.1-m5.1.0 (39),
