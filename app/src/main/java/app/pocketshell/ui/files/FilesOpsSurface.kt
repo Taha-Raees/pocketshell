@@ -4,6 +4,7 @@ import app.pocketshell.files.AreaId
 import app.pocketshell.files.AreaPath
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.PendingTransfer
+import app.pocketshell.files.TerminalLaunchResolution
 import app.pocketshell.files.saf.SafFolderInfo
 import kotlinx.coroutines.flow.StateFlow
 
@@ -129,6 +130,21 @@ interface FilesOpsSurface {
 
     /** The save dialog returned the destination for the pending export. */
     fun exportTargetPicked(uriString: String)
+
+    // --------------------------------------------- Phase 7 — Open Terminal Here
+
+    /**
+     * Resolve the CURRENT explorer location into an "Open Terminal Here"
+     * launch (M7.0.0 Phase 7) — the narrow terminal-launch intent: validate +
+     * resolve ONLY, exactly like every other intent here. No filesystem I/O,
+     * no session creation, no navigation ever happens inside this call —
+     * the caller receives either [TerminalLaunchResolution.Ready] (it then
+     * asks the TerminalViewModel for a real session and navigates only on
+     * its `onReady`) or [TerminalLaunchResolution.NotSupported] (the honest
+     * area-boundary reason, already surfaced as this VM's notice; the UI
+     * stays where it is).
+     */
+    fun terminalLaunch(): TerminalLaunchResolution
 }
 
 /** One operation outcome, rendered verbatim. [seq] re-triggers auto-dismiss. */

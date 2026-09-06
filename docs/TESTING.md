@@ -2048,3 +2048,103 @@ Honesty and safety:
 18. Regression: Linux, PocketShell Downloads, Share/Import/Export,
     editor, terminal, Companion all behave exactly as in the Phase 6
     build (this fix touches labels only).
+
+## 37. Manual acceptance — M7.0.0 Phase 7 (Open Terminal Here) — DEVICE GATE PENDING
+
+Context: Phase 7 adds "Open Terminal Here" for directories inside
+PocketShell Linux ONLY. The action sheet of a directory entry in the
+Linux area offers a real launch: a NORMAL Alpine terminal session is
+created (never reusing another session's PTY, never writing into a
+running session) whose guest working directory is the exact directory
+the explorer is browsing, established through the guest shell chain
+`cd -- '<directory>' && exec /bin/sh -l` delivered as PTY argv (the
+proven command-app launch shape; the directory is POSIX single-quoted
+so spaces, apostrophes, double quotes, $, ;, &&, |, backticks and
+newlines all stay literal path data). Navigation to the Terminal screen
+happens only after the session really exists (the onReady pattern).
+Android-owned areas (PocketShell Downloads shelf, user-granted SAF
+folders) never offer the action; their directory sheets show the honest
+boundary note: "Android folders are not Linux guest directories. Copy
+or move files into PocketShell Linux to work with them in Terminal."
+
+Preconditions: P7 build installed in place; Linux runtime installed;
+at least one existing terminal session for the integrity checks (E).
+
+A. BASIC
+
+1.  Open Files; browse PocketShell Linux (the "Linux" area).
+2.  Navigate into a directory (e.g. create /root/projects/my app).
+3.  Tap any directory entry inside it (or long-press / "⋮") to open the
+    action sheet; confirm "Open Terminal Here" appears as a real action
+    (between "Open" and "New folder").
+4.  Tap Open Terminal Here.
+5.  Confirm the Terminal screen appears only AFTER session creation
+    (no empty/fake terminal tab, no flash of a dead session).
+6.  Run `pwd` at the prompt.
+7.  Confirm pwd prints the exact guest path the explorer was browsing
+    (e.g. /root/projects/my app).
+
+B. NESTED DIRECTORY
+
+8.  Create and navigate into a deeply nested path
+    (e.g. /root/a/b/c/d/e) and repeat 3-7.
+9.  Run `pwd`.
+10. Confirm the exact nested path.
+
+C. SPECIAL PATHS
+
+11. Create directories whose names contain: spaces ("my folder"), an
+    apostrophe ("it's-here"), a dollar sign ("$HOME" as a literal
+    name), a semicolon ("semi;colon"), and other shell metacharacters
+    where the filesystem allows ("a && b", "a | b", "`cmd`").
+12. For each: navigate into it, Open Terminal Here, run `pwd`, and
+    confirm pwd prints the literal directory path (no truncation at
+    the space, no shell expansion of $/backticks, no command ever
+    executed from the name, prompt lands inside the directory).
+
+D. NORMAL TERMINAL (a real session, not a one-shot)
+
+13. After a launch: confirm `ls`, `cd ..`, `cd -` and normal commands
+    work; the interactive prompt keeps accepting commands (the shell
+    is NOT stuck in a one-shot command and did not exit).
+14. Confirm the session behaves like every other Alpine session
+    (keyboard deck, scrolling, session switcher).
+
+E. EXISTING SESSIONS
+
+15. Create two or more terminal sessions first (with content/cwd of
+    their own, e.g. cd /root and leave a file listing on screen).
+16. Open Terminal Here from Files.
+17. Confirm a NEW session appears in the session switcher and is the
+    selected one; the previous sessions are still open, still in the
+    same order, with their content and cwd UNCHANGED.
+18. Confirm no text was ever written into the old sessions' PTYs
+    (their screens show exactly what was there before).
+
+F. ANDROID BOUNDARY (honest, never a fake launch)
+
+19. Switch to the "PocketShell Downloads" shelf; open a directory
+    entry's action sheet: confirm NO "Open Terminal Here" action and
+    the honest note instead ("Android folders are not Linux guest
+    directories. Copy or move files into PocketShell Linux to work
+    with them in Terminal.").
+20. Repeat for a user-granted SAF folder (a real shared Download
+    granted via the system picker) and one more SAF folder.
+21. Confirm no fake Linux path is displayed anywhere for those areas
+    (no /storage/emulated/0 fabrication, no content:// rendered as a
+    POSIX path) and no launch can be triggered there.
+22. Confirm the suggested workflow stays real: copy/move from the
+    Android area into PocketShell Linux still works (Phase 4/5
+    paths), and after copying, Open Terminal Here works in the Linux
+    copy's directory.
+
+G. M6/GLIBC REGRESSION (all through the UNCHANGED runtime path)
+
+23. Plain Linux Shell from Home still works (musl Alpine shell).
+24. node still works (node -v in a session).
+25. cline / the glibc loader still work (existing M6 closure commands
+    where applicable).
+26. Sessions still survive screen rotation and process switching.
+27. Confirm the APK permission list is UNCHANGED (5 permissions; no
+    MANAGE/READ/WRITE_EXTERNAL_STORAGE, no new entries) — Phase 7
+    adds no permissions, no manifest entries, no storage mounts.

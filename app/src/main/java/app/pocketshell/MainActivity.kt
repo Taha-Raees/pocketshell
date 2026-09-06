@@ -265,6 +265,25 @@ fun PocketShellRoot(
                         screen = "editor"
                     }
                 },
+                onOpenTerminal = {
+                    // Phase 7 "Open Terminal Here": resolve the CURRENT
+                    // explorer directory through the ops surface (pure area
+                    // gate — no I/O, no session creation here). On Ready the
+                    // TerminalViewModel spawns a NORMAL Alpine session in
+                    // that directory and only its onReady navigates — never
+                    // "navigate first and hope". NotSupported keeps the user
+                    // in Files with the honest boundary notice already
+                    // surfaced by the view model.
+                    when (val resolution = filesViewModel.terminalLaunch()) {
+                        is app.pocketshell.files.TerminalLaunchResolution.Ready ->
+                            terminalViewModel.openLinuxShellAt(
+                                resolution.launch.directory.value,
+                            ) { screen = "terminal" }
+                        is app.pocketshell.files.TerminalLaunchResolution.NotSupported -> {
+                            // Honest refusal — stay in Files.
+                        }
+                    }
+                },
                 onOpenDiagnostics = { screen = "diagnostics" },
                 modifier = Modifier.padding(padding),
             )

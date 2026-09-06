@@ -188,6 +188,170 @@ class CommandAppsTest {
         }
     }
 
+    // --------------------------------------- M7.0.0 Phase 7 — Open Terminal Here
+
+    /**
+     * The Phase 7 sibling chain, pinned exact-string per metacharacter class.
+     * The directory is ONE quoted POSIX word — the assertions below prove the
+     * path travels as literal DATA (an exact expected string, not a
+     * "contains quotes" hint): `cd --`, POSIX `'` → `'\''` escaping, and the
+     * `exec <shell> -l` interactive takeover are all pinned here.
+     */
+    @Test
+    fun `guestTerminalChain cds into the directory and execs the login shell`() {
+        assertEquals(
+            "cd -- '/root/projects' && exec /bin/sh -l",
+            guestTerminalChain("/root/projects", "/bin/sh"),
+        )
+    }
+
+    @Test
+    fun `guestTerminalChain treats every shell metacharacter as literal path data`() {
+        val cases: List<Pair<String, String>> = listOf(
+            // (directory value, the exact chain it must produce)
+            "my folder" to "cd -- '/root/my folder' && exec /bin/sh -l",
+            "it's-here" to "cd -- '/root/it'\\''s-here' && exec /bin/sh -l",
+            "a\"b" to "cd -- '/root/a\"b' && exec /bin/sh -l",
+            "\$HOME" to "cd -- '/root/\$HOME' && exec /bin/sh -l",
+            "semi;colon" to "cd -- '/root/semi;colon' && exec /bin/sh -l",
+            "a && b" to "cd -- '/root/a && b' && exec /bin/sh -l",
+            "a | b" to "cd -- '/root/a | b' && exec /bin/sh -l",
+            "`cmd`" to "cd -- '/root/`cmd`' && exec /bin/sh -l",
+            "multi\nline" to "cd -- '/root/multi\nline' && exec /bin/sh -l",
+            "-dash-start" to "cd -- '/root/-dash-start' && exec /bin/sh -l",
+        )
+        for ((directory, expected) in cases) {
+            assertEquals(
+                "directory '$directory' must travel as one literal value",
+                expected,
+                guestTerminalChain("/root/$directory", "/bin/sh"),
+            )
+        }
+    }
+
+    @Test
+    fun `guestTerminalChain pins the structural contract`() {
+        val directories = listOf(
+            "/root/projects",
+            "/root/my app",
+            "/root/it's-here",
+            "/root/\$HOME",
+            "/root/semi;colon",
+            "/root/a && b",
+            "/root/a | b",
+            "/root/`cmd`",
+            "/root/multi\nline",
+        )
+        for (directory in directories) {
+            val chain = guestTerminalChain(directory, "/bin/sh")
+            assertTrue(
+                "cd -- must lead the chain (option parsing ends before the path): $chain",
+                chain.startsWith("cd -- '"),
+            )
+            assertTrue(
+                "the interactive login shell must follow a SUCCESSFUL cd only (&&): $chain",
+                chain.contains(" && exec /bin/sh -l"),
+            )
+            assertFalse(
+                "the joiner must be &&, never ';' (a failed cd must not silently land the user somewhere else): $chain",
+                chain.contains("; exec"),
+            )
+            assertTrue(
+                "the chain must end with the exec'd login shell: $chain",
+                chain.endsWith(" && exec /bin/sh -l"),
+            )
+        }
+    }
+
+    /**
+     * Execution-level proof (temporary shell fixture): run the REAL chain
+     * through /bin/sh on the test host. The final exec'd shell reads `pwd`
+     * from stdin and must print the directory LITERALLY — every metacharacter
+     * at once. If the quoting ever let shell syntax through, this directory
+     * name would execute as commands and the assertion would fail.
+     */
+    @Test
+    fun `guestTerminalChain executes - every metacharacter stays one literal value`() {
+        org.junit.Assume.assumeTrue(
+            "POSIX shell required for the execution fixture",
+            java.io.File("/bin/sh").exists(),
+        )
+        val name = "my 'dir' with \$dollar ; semi && amp | pipe `cmd` \"quote\"\nsecond line"
+        val root = java.nio.file.Files.createTempDirectory("p7-terminal-chain").toFile()
+        try {
+            val dir = java.io.File(root, name)
+            assertTrue("fixture directory must exist", dir.mkdirs())
+            val chain = guestTerminalChain(dir.absolutePath, "/bin/sh")
+            val process = ProcessBuilder("/bin/sh", "-l", "-c", chain).start()
+            process.outputStream.use { stream ->
+                stream.write("pwd\n".toByteArray())
+                stream.flush()
+            } // stdin EOF ends the exec'd login shell after pwd
+            val output = process.inputStream.bufferedReader().readText()
+            assertTrue(
+                "the chain must terminate",
+                process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS),
+            )
+            // Substring containment (not per-line): the fixture name itself
+            // contains a newline, so the correct output spans two lines. The
+            // FULL path appearing contiguously is the proof — it can only be
+            // printed by a cwd that IS the literal directory (a broken quote
+            // would have failed the cd and produced no pwd line at all).
+            assertTrue(
+                "pwd must print the directory EXACTLY as one literal value, got:\n$output",
+                output.contains(dir.absolutePath),
+            )
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    /**
+     * Execution-level injection proof: the value below is an actual injection
+     * ATTEMPT. If `guestTerminalChain` ever allowed the directory to become
+     * shell syntax, `touch injected-marker` would run and create the marker
+     * file — the test fails. With correct quoting the whole string is one
+     * directory name, cd succeeds, and nothing extra ever executes.
+     */
+    @Test
+    fun `guestTerminalChain executes - shell metacharacters cannot escape the cd argument`() {
+        org.junit.Assume.assumeTrue(
+            "POSIX shell required for the execution fixture",
+            java.io.File("/bin/sh").exists(),
+        )
+        val injection = "x'; touch injected-marker ; echo \"pwned\" ; ls | wc -l'"
+        val root = java.nio.file.Files.createTempDirectory("p7-terminal-injection").toFile()
+        try {
+            val dir = java.io.File(root, injection)
+            assertTrue("fixture directory must exist", dir.mkdirs())
+            assertFalse(
+                "precondition: the marker must not pre-exist",
+                java.io.File(root, "injected-marker").exists(),
+            )
+            val chain = guestTerminalChain(dir.absolutePath, "/bin/sh")
+            val process = ProcessBuilder("/bin/sh", "-l", "-c", chain).start()
+            process.outputStream.use { stream ->
+                stream.write("pwd\n".toByteArray())
+                stream.flush()
+            }
+            val output = process.inputStream.bufferedReader().readText()
+            assertTrue(
+                "the chain must terminate",
+                process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS),
+            )
+            assertTrue(
+                "pwd must print the hostile name literally, got:\n$output",
+                output.lines().any { it == dir.absolutePath },
+            )
+            assertFalse(
+                "the injected command must NEVER have executed",
+                java.io.File(root, "injected-marker").exists(),
+            )
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     private fun assertNotEquals(expected: String, actual: String) {
         assertFalse("expected not to equal '$expected'", expected == actual)
     }

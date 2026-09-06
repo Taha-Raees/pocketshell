@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.pocketshell.apps.CommandApp
 import app.pocketshell.apps.availableCommandApps
 import app.pocketshell.apps.guestLaunchChain
+import app.pocketshell.apps.guestTerminalChain
 import app.pocketshell.packages.CliAppCatalog
 import app.pocketshell.packages.CliAppCatalogEntry
 import app.pocketshell.packages.InstalledCatalogApp
@@ -96,6 +97,77 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                         _selectedId.value = TerminalSessionManager.spawnLinuxSession(
                             application,
                             listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
+                            "Alpine Linux",
+                            sysDataBinds,
+                        ).id
+                        true
+                    } catch (t: Throwable) {
+                        _launchError.value =
+                            "Linux shell could not start: ${t.message ?: t.javaClass.simpleName}"
+                        false
+                    }
+                }
+                if (ok) onReady()
+            } catch (t: Throwable) {
+                _launchError.value =
+                    "Linux shell could not start: ${t.message ?: t.javaClass.simpleName}"
+            }
+        }
+    }
+
+    /**
+     * M7.0.0 Phase 7 — "Open Terminal Here": a NORMAL Alpine Linux session
+     * whose guest working directory starts at [directory] (the explorer's
+     * current, already-validated [app.pocketshell.files.AreaPath] value).
+     *
+     * This MIRRORS the proven [openLinuxShell] path exactly — same runtime
+     * preflight, same `prepareLinuxSession` on IO, same `spawnLinuxSession`
+     * on Main, same honest [launchError] refusals, `onReady` fires only when
+     * a real session was created and selected — with ONE difference: the PTY
+     * argv carries the directory through the guest shell chain
+     * ([guestTerminalChain]) instead of a bare login shell. That is the
+     * EXISTING command-app launch shape (`sh -l -c "<chain>"`, argv-based,
+     * never a PTY write — the m3.5 lesson) applied to `cd -- '<dir>' &&
+     * exec <shell> -l`, so the user lands at a real interactive prompt in
+     * the directory; no new PTY path, no session reuse, no writes into a
+     * running session. Existing sessions are untouched: a NEW session joins
+     * the list and is selected by the same spawn-and-select behavior as
+     * every other launch.
+     *
+     * @param directory the guest-native directory path (DATA — quoted as a
+     *   single POSIX word by the chain, never interpreted as shell syntax).
+     * @param onReady called on the main thread exactly when a real session
+     *   was created and selected (caller navigates).
+     */
+    fun openLinuxShellAt(directory: String, onReady: () -> Unit) {
+        val application = getApplication<Application>()
+        // Preflight for an honest, specific message before any side effects.
+        val preflight = RuntimeProcessLauncher.preconditionProblem(
+            nativeLibraryDir = application.applicationInfo.nativeLibraryDir,
+            rootfsDir = RuntimeStorage(application.noBackupFilesDir).rootfsDir,
+        )
+        if (preflight != null) {
+            _launchError.value = preflight
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val sysDataBinds = withContext(Dispatchers.IO) {
+                    TerminalSessionManager.prepareLinuxSession(application)
+                }
+                val ok = withContext(Dispatchers.Main) {
+                    try {
+                        _selectedId.value = TerminalSessionManager.spawnLinuxSession(
+                            application,
+                            listOf(
+                                ShellEnvironment.SHELL_PATH_GUEST,
+                                "-l",
+                                "-c",
+                                guestTerminalChain(
+                                    directory = directory,
+                                    guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                                ),
+                            ),
                             "Alpine Linux",
                             sysDataBinds,
                         ).id

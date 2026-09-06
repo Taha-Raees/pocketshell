@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,6 +50,7 @@ import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerOps
 import app.pocketshell.files.FsEntry
 import app.pocketshell.files.PendingTransfer
+import app.pocketshell.files.TerminalLaunchSupport
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightBanner
 import app.pocketshell.ui.system.MidnightFactRow
@@ -140,6 +142,14 @@ data class EntryActionHandlers(
     val onOpen: (() -> Unit)? = null,
     val onNewFolder: (() -> Unit)? = null,
     val onNewFile: (() -> Unit)? = null,
+    /**
+     * M7.0.0 Phase 7: open a real Linux terminal session in the directory
+     * the explorer is browsing. Offered ONLY for directories inside the
+     * PocketShell Linux area; Android-owned areas keep the honest boundary
+     * note instead ([TerminalLaunchSupport.ANDROID_BOUNDARY_MESSAGE]) —
+     * never a broken actionable launch.
+     */
+    val onTerminal: (() -> Unit)? = null,
     val onCopy: () -> Unit,
     val onMove: () -> Unit,
     /** Phase 5: share this file via the Android share sheet (files only). */
@@ -207,6 +217,13 @@ fun EntryActionSheet(
 
             if (entry.kind == EntryKind.DIRECTORY) {
                 SheetAction("Open", Icons.Outlined.FolderOpen, onClick = { handlers.onOpen?.invoke() })
+                // Phase 7: the real action — a launchable terminal session in
+                // the browsed directory (PocketShell Linux areas only; the
+                // caller wires the handler, the sheet never fabricates one).
+                if (handlers.onTerminal != null) {
+                    val terminal = handlers.onTerminal
+                    SheetAction("Open Terminal Here", Icons.Outlined.Terminal, onClick = { terminal?.invoke() })
+                }
                 SheetAction("New folder", Icons.Outlined.CreateNewFolder, onClick = { handlers.onNewFolder?.invoke() })
                 SheetAction("New file", Icons.Outlined.NoteAdd, onClick = { handlers.onNewFile?.invoke() })
                 SheetDivider()
@@ -231,8 +248,12 @@ fun EntryActionSheet(
             Spacer(Modifier.height(10.dp))
             MidnightNote(
                 text = when {
+                    entry.kind == EntryKind.DIRECTORY && handlers.onTerminal != null ->
+                        "Opens a new Linux terminal in the folder you are browsing."
                     entry.kind == EntryKind.DIRECTORY ->
-                        "Open Terminal Here arrives in a later update."
+                        // The honest Android-boundary explanation — replaces
+                        // the old Phase 4 deferral note. Never a fake launch.
+                        TerminalLaunchSupport.ANDROID_BOUNDARY_MESSAGE
                     entry.kind == EntryKind.FILE && handlers.onEdit != null ->
                         "The quick editor opens UTF-8 text files up to 1 MB."
                     else ->

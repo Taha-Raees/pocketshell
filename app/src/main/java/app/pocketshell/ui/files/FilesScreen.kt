@@ -91,6 +91,9 @@ import java.util.Locale
  *                        / user-granted Android folders (label = the
  *                        folder's own name, e.g. a real shared "Download")
  *                        (+ "Add Android folder…" through the SYSTEM picker)
+ *   Open Terminal Here → Phase 7: a real launch offered for directories in
+ *                        the PocketShell Linux area only; Android-owned
+ *                        areas show the honest boundary note instead
  *
  * The UI performs ZERO filesystem operations: it renders [ExplorerCore.State]
  * plus the [FilesOpsSurface] flows and dispatches intents only. Errors are
@@ -108,6 +111,13 @@ fun FilesScreen(
     onRefresh: () -> Unit,
     /** Phase 6: open the listing FILE [name] in the quick text editor. */
     onOpenFile: (String) -> Unit,
+    /**
+     * Phase 7: open a Linux terminal in the directory the explorer is
+     * browsing (the caller resolves the launch through the ops surface and
+     * navigates only after the session really exists — this screen never
+     * talks to the TerminalViewModel itself).
+     */
+    onOpenTerminal: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -320,6 +330,18 @@ fun FilesScreen(
                 onDelete = { selected = null; ops.openDeleteConfirm(entry.name) },
                 onEdit = if (entry.kind == EntryKind.FILE) {
                     { selected = null; onOpenFile(entry.name) }
+                } else {
+                    null
+                },
+                // Phase 7: a REAL terminal launch for directories inside the
+                // PocketShell Linux area. Android-owned areas keep the
+                // handler null — the sheet then shows the honest boundary
+                // note instead of an actionable launch.
+                onTerminal = if (
+                    entry.kind == EntryKind.DIRECTORY &&
+                    state.areaId?.kind == AreaKind.GUEST_LINUX
+                ) {
+                    { selected = null; onOpenTerminal() }
                 } else {
                     null
                 },

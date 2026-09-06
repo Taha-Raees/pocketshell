@@ -157,6 +157,54 @@ fun guestLaunchChain(
 }
 
 /**
+ * M7.0.0 Phase 7 — the "Open Terminal Here" launch chain: the SIBLING of
+ * [guestLaunchChain], built for arbitrary FILESYSTEM PATHS instead of
+ * registry argv tokens.
+ *
+ * Why a sibling: [guestLaunchChain] quotes with a registry-token allowlist
+ * regex — its inputs are plain command names pinned by tests. A directory
+ * from the Files explorer is a different input class entirely: valid
+ * area-native names may contain spaces, apostrophes, double quotes, `$`,
+ * `;`, `&&`, `|`, backticks and newlines (all accepted by the existing
+ * path validation). Token allowlisting can never carry those, so this
+ * helper quotes the directory as ONE POSIX single-quoted word — the shell
+ * cannot reinterpret any character inside it:
+ *
+ *   - every byte of the path travels inside `'…'`, where POSIX defines the
+ *     content as literal data (no expansion, no splitting, no history);
+ *   - the one character single quotes cannot hold — `'` — is emitted as
+ *     `'\''` (close quote, backslash-escaped quote, reopen quote), the
+ *     canonical POSIX escape;
+ *   - `cd --` ends option parsing, so a leading-dash path stays a path;
+ *   - `&&` (not `;`) means the interactive login shell is exec'd only
+ *     after a SUCCESSFUL cd — a vanished directory exits the chain instead
+ *     of silently dropping the user somewhere else (usually $HOME);
+ *   - `exec /bin/sh -l` (the supplied [guestShell]) replaces the -c shell
+ *     with a real interactive login prompt at the new working directory —
+ *     the same trailing-exec contract as [guestLaunchChain].
+ *
+ * The directory value remains DATA end to end: this function never parses,
+ * validates or rewrites it (validation happened upstream in the Phase 2
+ * [app.pocketshell.files.PathSafety] system) and it only ever WRAPS it.
+ * Pure and test-pinned by [CommandAppsTest], including an execution-level
+ * fixture that runs the real chain through /bin/sh against a directory
+ * whose name contains every metacharacter at once.
+ */
+fun guestTerminalChain(
+    directory: String,
+    guestShell: String,
+): String = "cd -- ${posixSingleQuoted(directory)} && exec $guestShell -l"
+
+/**
+ * POSIX single-quote wrapping for one arbitrary string: the canonical
+ * `'` → `'\''` escape, everything else literal inside the quotes.
+ * Private: callers must go through [guestTerminalChain] so the cd/exec
+ * contract stays in one place.
+ */
+private fun posixSingleQuoted(value: String): String =
+    "'" + value.replace("'", "'\\''") + "'"
+
+/**
  * Classification (pure, test-pinned): the registry subset the REAL guest
  * answer confirms, in registry order. Anything absent from [paths] is absent
  * from the launcher — this function never adds an app the guest did not name,
