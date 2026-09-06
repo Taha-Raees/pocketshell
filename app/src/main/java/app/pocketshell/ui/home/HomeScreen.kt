@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -92,6 +93,7 @@ fun HomeScreen(
     onOpenSession: (Long) -> Unit,
     onOpenCommandApp: (CommandApp) -> Unit,
     onExplorePackages: () -> Unit,
+    onOpenFiles: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
@@ -163,6 +165,12 @@ fun HomeScreen(
                     onOpenLinuxShell = onOpenLinuxShell,
                     onOpenDiagnostics = onOpenDiagnostics,
                 )
+
+                // M7 Phase 3 — the ONE Files entry point: a quiet launcher
+                // surface under the environments, before the tools grid.
+                // Home stays uncluttered (one row, no badges, no counters).
+                Spacer(Modifier.height(12.dp))
+                FilesLauncherRow(onOpenFiles = onOpenFiles)
 
                 // Phase 5 §3 — the "CLI Apps ▾" dropdown is retired: it listed
                 // exactly the apps the "Your tools" grid below already shows,
@@ -453,6 +461,57 @@ private fun ReadyDot() {
             .size(6.dp)
             .background(HomeTokens.accent, CircleShape),
     )
+}
+
+/**
+ * M7 Phase 3 — the Files launcher: one compact full-width surface in the
+ * environment-launcher family (icon + name + one honest subtitle). It opens
+ * the explorer at PocketShell Linux /root; the Android Downloads shelf is a
+ * switch inside Files. Exactly ONE entry point on Home — no clutter.
+ */
+@Composable
+private fun FilesLauncherRow(onOpenFiles: () -> Unit) {
+    PressableScale(onClick = onOpenFiles, onClickLabel = "Open Files", modifier = Modifier.padding(horizontal = 20.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clip(RoundedCornerShape(HomeTokens.heroRadius))
+                .background(HomeTokens.surfaceEnv)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(HomeTokens.surfaceApp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Folder,
+                    contentDescription = null,
+                    tint = HomeTokens.textPrimary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "Files",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HomeTokens.textPrimary,
+                )
+                Text(
+                    text = "Linux files · Downloads",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 }
 
 // --------------------------------------------------------------- tools section

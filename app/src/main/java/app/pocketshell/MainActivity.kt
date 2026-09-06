@@ -158,6 +158,11 @@ fun PocketShellRoot(
     // height, the in-process WebView pool's identity) survives screen switches.
     val companionViewModel: app.pocketshell.companion.CompanionViewModel = viewModel()
 
+    // M7 Phase 3: the explorer's location/state is process-scoped too —
+    // Home↔Files round-trips and rotation never reset the user's directory.
+    val filesViewModel: app.pocketshell.FilesViewModel = viewModel()
+    val filesState by filesViewModel.state.collectAsStateWithLifecycle()
+
     val sessions by terminalViewModel.sessions.collectAsStateWithLifecycle()
     val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
     val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
@@ -235,6 +240,18 @@ fun PocketShellRoot(
                 modifier = Modifier.padding(padding),
             )
 
+            "files" -> app.pocketshell.ui.files.FilesScreen(
+                state = filesState,
+                guestUnavailable = filesViewModel.guestUnavailable,
+                onBack = { screen = "home" },
+                onNavigateUp = filesViewModel::navigateUp,
+                onOpenChild = filesViewModel::openChild,
+                onSwitchArea = filesViewModel::switchArea,
+                onRefresh = filesViewModel::refresh,
+                onOpenDiagnostics = { screen = "diagnostics" },
+                modifier = Modifier.padding(padding),
+            )
+
             "settings" -> SettingsScreen(
                 themeMode = themeMode,
                 dynamicColor = dynamicColor,
@@ -288,6 +305,7 @@ fun PocketShellRoot(
                     terminalViewModel.openCommandApp(app) { screen = "terminal" }
                 },
                 onExplorePackages = { screen = "explore" },
+                onOpenFiles = { screen = "files" },
                 onOpenSettings = { screen = "settings" },
                 onOpenDiagnostics = { screen = "diagnostics" },
                 // Phase 3.2: Home is an edge-to-edge launcher — it consumes
