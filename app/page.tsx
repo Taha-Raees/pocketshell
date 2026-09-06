@@ -9,10 +9,10 @@ const VERSION = "v0.10.0-m6.0.4";
 // rev=2 (byte-identical artifact ed82daa8…): m6.0.4 fixes are APP-side only.
 const HASHES = {
   apk: "e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750",
-  zip: "04c055c18e1f1eaeb825db8cdd3e8cb8c01c2209dbd1c074c5dcd16affef2509",
-  tgz: "655f2ece1618b0f7f57c8fc33462754921a801e5f04bcfc66fe986c45ade5524",
-  bundle: "4388da2f64a2240c80185b933cf2adca78a51559119c912592ec64496d141bf9",
-  tests: "8392edab7ba42930c0e43a4390a355c90a56c6639edafd7e62ce789d941c63c0",
+  zip: "b0985c77d8c9e8100072b4f54d961c08aba0d79a02a75918cc5d5e8be753da12",
+  tgz: "c46e585dc90663f5349f654940bbde1a6437acd4790f647d6405e1d3b7884595",
+  bundle: "9982485d3c2e93213f9ec815f53228d74efa091773fc3ba9a9dc00a1f62f3938",
+  tests: "90009339d4baeae001f0417c4c926fb18256a8f4b96e62e3dbb074b55fe87ac5",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
   report: "92015b7547b2e9b7dd6bd8888f5d641c8804a3e33cafaf8c069e811934af10ae",
 };
@@ -159,10 +159,12 @@ export default function Home() {
           </span>{" "}
           — after a drill, open ONE new session and run{" "}
           <span className="mono">adversarial_closure_audit.sh heal</span> to
-          prove the app self-heals the layer.
+          prove the app self-heals the layer. The guided closure runner is{" "}
+          <span className="mono">device_gate.sh</span> (gate → resume-c2 →
+          resume-c4 → resume-c5; each destructive stage gated by baseline).
         </p>
         <a className="btn secondary" href="/pocketshell-runtime-tests-aarch64.tar.gz">
-          runtime-tests (712 KB)
+          runtime-tests (718 KB)
         </a>
         <Sha text={HASHES.tests} />
       </div>
