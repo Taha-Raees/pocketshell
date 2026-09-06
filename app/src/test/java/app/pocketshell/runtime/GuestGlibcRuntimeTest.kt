@@ -13,6 +13,7 @@ import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.security.MessageDigest
+import kotlin.concurrent.thread
 
 /**
  * M6.0 — the PocketShell glibc runtime layer (docs/runtime/DUAL_LIBC.md):
@@ -23,7 +24,15 @@ class GuestGlibcRuntimeTest {
 
     // ------------------------------------------------------------ tar builder
 
-    /** Minimal glibc-layer-shaped tar: dirs, file (mode), symlink, nested file. */
+    /**
+     * Minimal glibc-layer-shaped tar with the REAL layer's entry ORDER and
+     * shapes (Phase-C audit fixture): the directory symlink
+     * lib/aarch64-linux-gnu -> ../usr/lib/aarch64-linux-gnu comes BEFORE the
+     * multiarch files (exactly the shape that made a naïve recursive delete
+     * wipe the whole directory during in-place re-extraction), the loader
+     * symlink is absolute, and the core-lib/tool set the structural
+     * integrity probe checks is present.
+     */
     private fun layerTar(): ByteArray {
         val bytes = ByteArrayOutputStream()
         TarArchiveOutputStream(bytes).use { tar ->
@@ -47,16 +56,25 @@ class GuestGlibcRuntimeTest {
                 tar.putArchiveEntry(e); tar.closeArchiveEntry()
             }
             dir("./")
+            dir("./etc/")
             dir("./usr/")
             dir("./usr/lib/")
             dir("./usr/lib/aarch64-linux-gnu/")
             file("./usr/lib/aarch64-linux-gnu/libc.so.6", "REAL-GLIBC-LIBC", 0b100_101_101)
             file("./usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1", "REAL-LOADER", 0b101_101_101)
+            file("./usr/lib/aarch64-linux-gnu/libm.so.6", "REAL-LIBM", 0b100_101_101)
+            file("./usr/lib/aarch64-linux-gnu/libpthread.so.0", "REAL-PTHREAD", 0b100_101_101)
+            file("./usr/lib/aarch64-linux-gnu/libdl.so.2", "REAL-DL", 0b100_101_101)
+            file("./usr/lib/aarch64-linux-gnu/libstdc++.so.6", "REAL-STDCXX", 0b100_101_101)
             dir("./lib/")
+            // The REAL layer's directory symlink — placed BEFORE the files it
+            // points at, exactly like the pinned sidecar.
+            link("./lib/aarch64-linux-gnu", "../usr/lib/aarch64-linux-gnu")
             link("./lib/ld-linux-aarch64.so.1", "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1")
             dir("./usr/local/")
             dir("./usr/local/bin/")
             file("./usr/local/bin/pocketshell-doctor", "#!/bin/sh\necho doctor\n", 0b101_101_101)
+            file("./usr/local/bin/pocketshell-exec", "#!/bin/sh\necho exec\n", 0b101_101_101)
         }
         return bytes.toByteArray()
     }
@@ -379,6 +397,214 @@ class GuestGlibcRuntimeTest {
         val status = File(root, GuestGlibcRuntime.STATUS_RELATIVE).readText()
         assertTrue("status must record the failure: $status", status.startsWith("state=FAILED"))
         assertTrue("status must carry the reason: $status", status.contains(GlibcRuntimePin.ASSET_PATH))
+    }
+
+    // ------------------------------------- M6 Phase-C adversarial closure pins
+
+    /**
+     * PHASE-C F1 PIN (C3/C12): in-place re-extraction must replace an
+     * existing symlink by deleting the LINK NODE — never by walking through
+     * it. The real layer ships lib/aarch64-linux-gnu -> ../usr/lib/aarch64-
+     * linux-gnu BEFORE the multiarch files; the old deleteRecursively-based
+     * replaceSymlink FOLLOWED the directory symlink and wiped every layer
+     * library mid-re-extraction (converged only because the files were
+     * rewritten right after; the window was observable to concurrent apk
+     * ops and running sessions). A foreign sentinel in the pointed-to
+     * directory is the deterministic witness: the old code deletes it.
+     */
+    @Test
+    fun `re-extraction never deletes through the layer's directory symlink`() {
+        val root = newRootfs()
+        GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        val multarch = File(root, "usr/lib/aarch64-linux-gnu")
+        val sentinel = File(multarch, "foreign-sentinel")
+        sentinel.writeText("NOT-FROM-THE-ARCHIVE")
+        // Force the in-place re-extraction path with the exact real order.
+        File(root, GlibcRuntimePin.MARKER_RELATIVE).delete()
+
+        val result = GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        assertTrue("expected re-Installed, got $result", result is GuestGlibcRuntime.Result.Installed)
+        assertTrue(
+            "the re-extraction must not delete foreign files through the directory symlink",
+            sentinel.isFile && sentinel.readText() == "NOT-FROM-THE-ARCHIVE",
+        )
+        assertTrue("layer content must be intact after re-extraction", GuestGlibcRuntime.isCurrent(root))
+    }
+
+    /** PHASE-C F2 PIN (C2.2): a deleted loader behind a valid marker must self-heal. */
+    @Test
+    fun `deleted loader behind a valid marker is detected and self-heals`() {
+        val root = newRootfs()
+        GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+        File(root, GuestGlibcRuntime.LOADER_RELATIVE).delete()
+        assertFalse("a missing loader must not pass the integrity probe", GuestGlibcRuntime.isCurrent(root))
+
+        val result = GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        assertTrue("expected self-healing re-extraction, got $result", result is GuestGlibcRuntime.Result.Installed)
+        assertTrue(Files.isSymbolicLink(File(root, GuestGlibcRuntime.LOADER_RELATIVE).toPath()))
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+    }
+
+    /**
+     * PHASE-C F3 PIN (C4/C2.2): the proven gcompat reclaim — Alpine's gcompat
+     * package owns lib/ld-linux-aarch64.so.1 and ships a REAL ELF shim there;
+     * `apk fix/reinstall/upgrade gcompat` can put it back behind a perfectly
+     * valid marker. The structural probe must detect the shape and the next
+     * ensure must restore the real loader symlink.
+     */
+    @Test
+    fun `gcompat-shaped loader reclaim behind a valid marker is detected and self-heals`() {
+        val root = newRootfs()
+        GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        // The reclaim: the symlink becomes a regular file (the shim ELF).
+        val loader = File(root, GuestGlibcRuntime.LOADER_RELATIVE)
+        loader.delete()
+        loader.writeText("GCOMPAT-SHIM-ELF-BYTES")
+        assertFalse("a shim at the loader path must not pass the probe", GuestGlibcRuntime.isCurrent(root))
+
+        val result = GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        assertTrue("expected self-healing re-extraction, got $result", result is GuestGlibcRuntime.Result.Installed)
+        val link = loader.toPath()
+        assertTrue("the real-loader symlink must be restored", Files.isSymbolicLink(link))
+        assertEquals(GuestGlibcRuntime.LOADER_CANONICAL_TARGET, Files.readSymbolicLink(link).toString())
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+    }
+
+    /** PHASE-C F2 PIN (C2.3): a deleted core library must self-heal, not report healthy. */
+    @Test
+    fun `deleted core library behind a valid marker is detected and self-heals`() {
+        val root = newRootfs()
+        GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        File(root, "usr/lib/aarch64-linux-gnu/libpthread.so.0").delete()
+        assertFalse(GuestGlibcRuntime.isCurrent(root))
+
+        val result = GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        assertTrue("expected self-healing re-extraction, got $result", result is GuestGlibcRuntime.Result.Installed)
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+    }
+
+    /** PHASE-C F2 PIN: a deleted diagnostic tool must self-heal too. */
+    @Test
+    fun `deleted pocketshell-doctor behind a valid marker is detected and self-heals`() {
+        val root = newRootfs()
+        GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        File(root, "usr/local/bin/pocketshell-doctor").delete()
+        assertFalse(GuestGlibcRuntime.isCurrent(root))
+        assertTrue(
+            "expected self-healing re-extraction",
+            GuestGlibcRuntime.ensureInstalled(root) { tarStream() } is GuestGlibcRuntime.Result.Installed,
+        )
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+    }
+
+    /** PHASE-C F2: a healthy layer passes the probe and keeps the marker fast path. */
+    @Test
+    fun `structural integrity passes on a healthy layer and keeps the fast path`() {
+        val root = newRootfs()
+        GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        assertTrue(GuestGlibcRuntime.structuralIntegrityPasses(root))
+        val result = GuestGlibcRuntime.ensureInstalled(root) {
+            throw IllegalStateException("a healthy layer must not re-extract")
+        }
+        assertEquals(GuestGlibcRuntime.Result.Current, result)
+    }
+
+    /** PHASE-C (C3): concurrent ensures are single-flight — exactly one extraction. */
+    @Test
+    fun `concurrent ensures extract exactly once`() {
+        val root = newRootfs()
+        val threads = 8
+        val barrier = java.util.concurrent.CyclicBarrier(threads)
+        val outcomes = java.util.Collections.synchronizedList(mutableListOf<GuestGlibcRuntime.Result>())
+        val workers = List(threads) {
+            thread(start = false) {
+                barrier.await()
+                outcomes.add(GuestGlibcRuntime.ensureInstalled(root) { tarStream() })
+            }
+        }
+        workers.forEach { it.start() }
+        workers.forEach { it.join() }
+        val installed = outcomes.count { it is GuestGlibcRuntime.Result.Installed }
+        val current = outcomes.count { it == GuestGlibcRuntime.Result.Current }
+        assertEquals(
+            "exactly one thread may run the extraction (got $installed Installed, $current Current)",
+            1,
+            installed,
+        )
+        assertEquals(threads - 1, current)
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+    }
+
+    /** PHASE-C F5 PIN (C12): an entry routed through an earlier symlink entry is refused. */
+    @Test
+    fun `archive entry routed through an earlier symlink is refused`() {
+        val bytes = ByteArrayOutputStream()
+        TarArchiveOutputStream(bytes).use { tar ->
+            fun link(name: String, target: String) {
+                val e = TarArchiveEntry(name, TarArchiveEntry.LF_SYMLINK)
+                e.linkName = target
+                e.mode = 0b101_101_101
+                tar.putArchiveEntry(e); tar.closeArchiveEntry()
+            }
+            fun file(name: String, content: String) {
+                val e = TarArchiveEntry(name)
+                e.mode = 0b100_101_101
+                e.size = content.toByteArray().size.toLong()
+                tar.putArchiveEntry(e)
+                tar.write(content.toByteArray())
+                tar.closeArchiveEntry()
+            }
+            // Entry 1: a legitimate-looking directory symlink.
+            link("./lib/aarch64-linux-gnu", "../usr/lib/aarch64-linux-gnu")
+            // Entry 2: a write routed THROUGH entry 1 — the hostile shape.
+            file("./lib/aarch64-linux-gnu/evil.so", "EVIL")
+        }
+        val root = newRootfs()
+        val result = GuestGlibcRuntime.ensureInstalled(root) { gz(bytes.toByteArray()) }
+        assertTrue("expected Failed, got $result", result is GuestGlibcRuntime.Result.Failed)
+        assertFalse(
+            "nothing may be written through the symlink",
+            File(root, "usr/lib/aarch64-linux-gnu/evil.so").exists(),
+        )
+        assertFalse(GuestGlibcRuntime.isCurrent(root))
+    }
+
+    /**
+     * PHASE-C: the REAL pinned layer archive (103 entries, absolute loader
+     * symlink, directory symlink before its targets) must extract AND
+     * re-extract in place under the hardened extractor — the guards must
+     * never reject the artifact we actually ship.
+     */
+    @Test
+    fun `real pinned layer archive extracts and re-extracts under the hardened extractor`() {
+        val candidates = listOf(
+            File("src/main/assets/guest"),
+            File("app/src/main/assets/guest"),
+        )
+        val dir = candidates.firstOrNull { File(it, GlibcRuntimePin.ARTIFACT_NAME).isFile }
+        org.junit.Assume.assumeTrue(
+            "pinned asset not found on this test runner (CI packaging test covers it)",
+            dir != null,
+        )
+        val asset = File(dir, GlibcRuntimePin.ARTIFACT_NAME)
+
+        val root = newRootfs()
+        val first = GuestGlibcRuntime.ensureInstalled(root) { asset.inputStream() }
+        assertTrue("expected Installed, got $first", first is GuestGlibcRuntime.Result.Installed)
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+        assertTrue(GuestGlibcRuntime.structuralIntegrityPasses(root))
+
+        // In-place re-extraction over the REAL shapes (dir symlink + absolute
+        // loader link + 26 symlinks) must succeed and stay complete.
+        File(root, GlibcRuntimePin.MARKER_RELATIVE).delete()
+        val second = GuestGlibcRuntime.ensureInstalled(root) { asset.inputStream() }
+        assertTrue("expected re-Installed, got $second", second is GuestGlibcRuntime.Result.Installed)
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+        assertTrue(
+            "the real loader file must survive the re-extraction",
+            File(root, "usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1").isFile,
+        )
     }
 
     // ------------------------------------------------------------- sha helper

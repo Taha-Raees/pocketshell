@@ -217,6 +217,10 @@ class RuntimeInstaller(
                 while (true) {
                     val entry = tar.nextTarEntry ?: break
                     val target = resolveSecure(stagingRootfs, entry.name)
+                    // C12 (Phase-C audit): refuse entries routed through an
+                    // earlier entry's symlink — fail closed, staging is kept
+                    // clean by the pipeline's cleanup-on-failure contract.
+                    refuseSymlinkParents(stagingRootfs, target, entry.name)
                     when {
                         entry.isDirectory -> {
                             if (!Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)) {
@@ -257,8 +261,11 @@ class RuntimeInstaller(
         target.parent?.toFile()?.mkdirs()
         // Guest-internal link targets may legitimately be absolute (e.g. /proc/...);
         // creating the link is contained — it only writes the link node itself.
-        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-            deleteRecursivelyPath(target)
+        if (Files.isSymbolicLink(target)) {
+            // Replace the link node itself (C12): never walk through a symlink.
+            Files.delete(target)
+        } else if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            deleteRecursivelyNoFollow(target)
         }
         try {
             Files.createSymbolicLink(target, Path(entry.linkName))
@@ -274,8 +281,10 @@ class RuntimeInstaller(
     private fun createHardLink(stagingRootfs: File, entry: TarArchiveEntry, target: Path) {
         val source = resolveSecure(stagingRootfs, entry.linkName)
         target.parent?.toFile()?.mkdirs()
-        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-            deleteRecursivelyPath(target)
+        if (Files.isSymbolicLink(target)) {
+            Files.delete(target)
+        } else if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            deleteRecursivelyNoFollow(target)
         }
         try {
             if (Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
@@ -345,6 +354,28 @@ class RuntimeInstaller(
 
     // ---------------------------------------------------------------- utils
 
+    /**
+     * C12 (Phase-C audit): fail closed when any component between [root] and
+     * [target] is a symlink — a hostile archive must not redirect a later
+     * entry's writes through its own earlier symlink entries. The pinned
+     * minirootfs never triggers this (verified: zero directory symlinks; all
+     * file entries live in real directories).
+     */
+    private fun refuseSymlinkParents(root: File, target: Path, entryName: String) {
+        val rootNode = Path(root.absolutePath).normalize()
+        var node = target.parent?.normalize() ?: return
+        while (node != null && node != rootNode) {
+            if (Files.isSymbolicLink(node)) {
+                throw InstallException(
+                    RuntimeState.EXTRACTING,
+                    "archive entry \"$entryName\" resolves through a symlink " +
+                        "(${node.fileName}) — refusing to write through it",
+                )
+            }
+            node = node.parent?.normalize() ?: break
+        }
+    }
+
     /** Lexical path-containment guard (zip-slip). Checksum-verified archive + this = solid. */
     private fun resolveSecure(stagingRootfs: File, entryName: String): Path {
         if (entryName.isEmpty() || entryName.endsWith("/")) {
@@ -379,9 +410,39 @@ class RuntimeInstaller(
         }
     }
 
-    private fun deleteRecursivelyPath(target: Path) {
-        val file = target.toFile()
-        if (file.isDirectory) file.deleteRecursively() else file.delete()
+    /**
+     * NOFOLLOW recursive delete (C12, Phase-C audit): deletes files and
+     * symlink NODES as they are, never descending through a symlinked
+     * directory (File.deleteRecursively follows directory links — the audit
+     * proved the hazard class on the layer extractor; this staging-side
+     * helper removes it for the rootfs pipeline too).
+     */
+    private fun deleteRecursivelyNoFollow(target: Path) {
+        Files.walkFileTree(
+            target,
+            java.util.EnumSet.noneOf(java.nio.file.FileVisitOption::class.java),
+            Int.MAX_VALUE,
+            object : java.nio.file.SimpleFileVisitor<Path>() {
+                override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                    Files.delete(file) // symlink nodes land here too (no follow)
+                    return java.nio.file.FileVisitResult.CONTINUE
+                }
+
+                override fun postVisitDirectory(dir: Path, exc: IOException?): java.nio.file.FileVisitResult {
+                    Files.delete(dir)
+                    return java.nio.file.FileVisitResult.CONTINUE
+                }
+
+                override fun visitFileFailed(file: Path, exc: IOException?): java.nio.file.FileVisitResult {
+                    try {
+                        Files.delete(file)
+                    } catch (_: Exception) {
+                        // best-effort on exotic fs — the parent dir delete surfaces it
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE
+                }
+            },
+        )
     }
 
     private fun countingStream(file: File, counter: AtomicLong): InputStream =

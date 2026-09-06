@@ -3,6 +3,60 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.10.0-m6.0.4] — 2026-09-06 — M6 Phase-C adversarial closure audit
+
+The M6.0.3 device gate reached 27/27 ALL GREEN (doctor correctness proven on
+the real device). Per the Phase-C mandate, the runtime phase was then
+audited adversarially before closure: corruption/self-healing, concurrency,
+loader ownership vs the gcompat package, extractor security, environment
+contamination, filesystem collisions, doctor prediction accuracy, and
+lifecycle sizing. Three real engineering issues were found and fixed (all
+regression-pinned), and the audit tooling ships as a permanent drill suite.
+
+- **Integrity probe behind the marker (C2.2/C2.3/C2.6)**: the layer fast
+  path trusted ONLY the marker text — a deleted/clobbered loader or core
+  library reported healthy. Alpine's gcompat package provably owns
+  `lib/ld-linux-aarch64.so.1` and ships a real ELF shim there (verified from
+  the actual 1.1.0-r4 package bytes), so `apk fix/reinstall/upgrade gcompat`
+  could reclaim the loader behind a valid marker. The fast path now also
+  runs a structural integrity probe (loader symlink must resolve to the
+  canonical Debian loader; load-bearing files must exist) and self-heals by
+  re-extraction. Pins: loader-deleted, gcompat-reclaim, lib-deleted,
+  doctor-deleted, healthy-fast-path tests.
+- **In-place re-extraction wiped the multiarch directory mid-run (C3/C12)**:
+  the layer ships `lib/aarch64-linux-gnu -> ../usr/lib/aarch64-linux-gnu`
+  BEFORE the files it points to, and the old symlink replacement used
+  `File.deleteRecursively`, which FOLLOWS directory symlinks — every
+  re-extraction erased all layer libraries, then rewrote them. Converged,
+  but opened a no-libs window observable to concurrent apk operations.
+  Fixed: symlink nodes are deleted as nodes; all recursive deletes are
+  NOFOLLOW; entries routed through earlier symlink entries are refused
+  (fail closed). Pins: foreign-sentinel survival test, real-archive
+  extract+re-extract test, hostile-intermediate-symlink test.
+- **Session prep ran on the UI thread (C1.1/C3)**: the heavy guest
+  preparation (asset read + sha-256 + re-extraction path) executed
+  synchronously in the click handler. Session creation is now two-phase —
+  `prepareLinuxSession` on Dispatchers.IO, the PTY spawn on the main
+  thread — and `GuestGlibcRuntime.ensureInstalled` is single-flight, so
+  concurrent sessions serialize instead of racing the extraction.
+- **Extractor hardening (C12, both extractors)**: NOFOLLOW tree walks for
+  every staging/runtime cleanup; symlink-parent fail-closed guard;
+  (`RuntimeStorage.cleanupTransient`/`clearRuntime` included — the minirootfs
+  ships hundreds of symlinks). Both pinned archives surveyed: 361 symlinks,
+  zero escaping the guest root (`scripts/audit_c12_symlink_containment.py`).
+- **Permanent audit tooling**: `runtime-tests/adversarial_closure_audit.sh`
+  (probe = C7 doctor prediction accuracy + C8 environment + C9 filesystem
+  ownership + C10/C11 timing; drill-c2 = corruption drills with honest
+  detection checks; drill-c4 = gcompat loader-reclaim drill; drill-c5 =
+  apk update/upgrade/add/del survival; heal = post-session self-heal
+  verification). `scripts/audit_c6_doctor_evidence.sh` (20/20) pins the
+  doctor's decision tree and malformed-input battery in the sandbox.
+- **Documentation**: DUAL_LIBC.md §8 (precise engineering claim, integrity
+  probe contract, gcompat coexistence verdict, environment disclosure,
+  extractor hardening), KNOWN_LIMITATIONS.md §5–§7 (classified).
+- JVM suite 397 -> 406 leaf cases, 0 failures (incl. the built-APK asset
+  pin against the vc44 APK). versionCode 44, versionName 0.10.0-m6.0.4.
+
 ## [0.10.0-m6.0.3] — 2026-09-06 — M6.0.3: the doctor correctness gate
 
 Device gate #3 PASSED 24/24 on real hardware (real Debian glibc 2.41 loader,

@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.pocketshell.apps.CommandApp
 import app.pocketshell.apps.availableCommandApps
+import app.pocketshell.apps.guestLaunchChain
 import app.pocketshell.packages.CliAppCatalog
 import app.pocketshell.packages.CliAppCatalogEntry
 import app.pocketshell.packages.InstalledCatalogApp
@@ -14,6 +15,7 @@ import app.pocketshell.packages.installedCatalogApps
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
+import app.pocketshell.terminal.ShellEnvironment
 import app.pocketshell.terminal.TerminalSessionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,11 +67,15 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     /**
      * Enter the installed Alpine guest (M2.3). Caller must only invoke this
-     * when [runtimeState] is READY (Home routes otherwise). Returns true when
-     * a real session was created and selected; false + [launchError] when the
-     * launch was refused — the app must NEVER die from a refused launch.
+     * when [runtimeState] is READY (Home routes otherwise). ASYNC since the
+     * M6 Phase-C audit (C1.1/C3): the heavy guest prep (layer fast path —
+     * or, on updates/corruption repair, a full re-extraction) runs on
+     * Dispatchers.IO, the PTY spawn keeps the main thread, and [onReady]
+     * fires exactly when a real session was created and selected (caller
+     * navigates). Refusals land in [launchError] — the app must NEVER die
+     * from a refused launch, and the UI never freezes on a re-extraction.
      */
-    fun openLinuxShell(): Boolean {
+    fun openLinuxShell(onReady: () -> Unit) {
         val application = getApplication<Application>()
         // Preflight for an honest, specific message before any side effects.
         val preflight = RuntimeProcessLauncher.preconditionProblem(
@@ -78,10 +84,33 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         )
         if (preflight != null) {
             _launchError.value = preflight
-            return false
+            return
         }
-        return safeSpawn("Linux shell") {
-            TerminalSessionManager.createLinuxSession(application).id
+        viewModelScope.launch {
+            try {
+                val sysDataBinds = withContext(Dispatchers.IO) {
+                    TerminalSessionManager.prepareLinuxSession(application)
+                }
+                val ok = withContext(Dispatchers.Main) {
+                    try {
+                        _selectedId.value = TerminalSessionManager.spawnLinuxSession(
+                            application,
+                            listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
+                            "Alpine Linux",
+                            sysDataBinds,
+                        ).id
+                        true
+                    } catch (t: Throwable) {
+                        _launchError.value =
+                            "Linux shell could not start: ${t.message ?: t.javaClass.simpleName}"
+                        false
+                    }
+                }
+                if (ok) onReady()
+            } catch (t: Throwable) {
+                _launchError.value =
+                    "Linux shell could not start: ${t.message ?: t.javaClass.simpleName}"
+            }
         }
     }
 
@@ -219,14 +248,27 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                     return@launch
                 }
                 var newId: Long? = null
+                // M6 Phase-C: heavy guest prep on IO, PTY spawn on Main.
+                val sysDataBinds = withContext(Dispatchers.IO) {
+                    TerminalSessionManager.prepareLinuxSession(application)
+                }
                 val ok = withContext(Dispatchers.Main) {
                     // TerminalSession construction belongs on the main thread
                     // (upstream MainThreadHandler contract, same as M2.3 flow)
                     try {
-                        newId = TerminalSessionManager.createLinuxCommandSession(
+                        newId = TerminalSessionManager.spawnLinuxSession(
                             application,
-                            label = app.displayName,
-                            launchCommand = app.launchCommand,
+                            listOf(
+                                ShellEnvironment.SHELL_PATH_GUEST,
+                                "-l",
+                                "-c",
+                                guestLaunchChain(
+                                    launchCommand = app.launchCommand,
+                                    guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                                ),
+                            ),
+                            app.displayName,
+                            sysDataBinds,
                         ).id
                         _selectedId.value = newId
                         true
@@ -341,11 +383,28 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                     return@launch
                 }
                 var newId: Long? = null
+                // M6 Phase-C: heavy guest prep on IO, PTY spawn on Main.
+                val sysDataBinds = withContext(Dispatchers.IO) {
+                    TerminalSessionManager.prepareLinuxSession(application)
+                }
                 val ok = withContext(Dispatchers.Main) {
                     // TerminalSession construction belongs on the main thread
                     // (upstream MainThreadHandler contract, same as M2.3 flow)
                     try {
-                        newId = TerminalSessionManager.createLinuxAppSession(application, entry).id
+                        newId = TerminalSessionManager.spawnLinuxSession(
+                            application,
+                            listOf(
+                                ShellEnvironment.SHELL_PATH_GUEST,
+                                "-l",
+                                "-c",
+                                guestLaunchChain(
+                                    launchCommand = entry.launchCommand,
+                                    guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                                ),
+                            ),
+                            entry.name,
+                            sysDataBinds,
+                        ).id
                         _selectedId.value = newId
                         true
                     } catch (t: Throwable) {

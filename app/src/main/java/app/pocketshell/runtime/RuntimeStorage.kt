@@ -27,11 +27,61 @@ class RuntimeStorage(baseDir: File) {
     /** True when a final runtime directory exists. */
     fun runtimeDirExists(): Boolean = rootDir.isDirectory
 
-    /** Delete transient staging artifacts (idempotent, safe when absent). */
+    /**
+     * Delete transient staging artifacts (idempotent, safe when absent).
+     * C12 (Phase-C audit): an interrupted extraction leaves staging dirs
+     * containing symlinks (the minirootfs ships etc/mtab -> ../proc/mounts
+     * and 304 /bin/busybox applet links); the cleanup walk must never follow
+     * them — File.deleteRecursively follows directory links, so staging is
+     * cleared with a NOFOLLOW tree walk (symlink nodes are deleted as nodes).
+     */
     fun cleanupTransient(): Boolean {
-        val a = downloadTmp.deleteRecursively()
-        val b = extractTmp.deleteRecursively()
+        val a = deleteTreeNoFollow(downloadTmp.toPath())
+        val b = deleteTreeNoFollow(extractTmp.toPath())
         return a && b
+    }
+
+    private fun deleteTreeNoFollow(target: java.nio.file.Path): Boolean {
+        if (!java.nio.file.Files.exists(target, java.nio.file.LinkOption.NOFOLLOW_LINKS)) return true
+        return try {
+            java.nio.file.Files.walkFileTree(
+                target,
+                java.util.EnumSet.noneOf(java.nio.file.FileVisitOption::class.java),
+                Int.MAX_VALUE,
+                object : java.nio.file.SimpleFileVisitor<java.nio.file.Path>() {
+                    override fun visitFile(
+                        file: java.nio.file.Path,
+                        attrs: java.nio.file.attribute.BasicFileAttributes,
+                    ): java.nio.file.FileVisitResult {
+                        java.nio.file.Files.delete(file) // symlink nodes land here too
+                        return java.nio.file.FileVisitResult.CONTINUE
+                    }
+
+                    override fun postVisitDirectory(
+                        dir: java.nio.file.Path,
+                        exc: java.io.IOException?,
+                    ): java.nio.file.FileVisitResult {
+                        java.nio.file.Files.delete(dir)
+                        return java.nio.file.FileVisitResult.CONTINUE
+                    }
+
+                    override fun visitFileFailed(
+                        file: java.nio.file.Path,
+                        exc: java.io.IOException?,
+                    ): java.nio.file.FileVisitResult {
+                        try {
+                            java.nio.file.Files.delete(file)
+                        } catch (_: Exception) {
+                            // best-effort; the overall result reports honestly
+                        }
+                        return java.nio.file.FileVisitResult.CONTINUE
+                    }
+                },
+            )
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /**
@@ -47,8 +97,14 @@ class RuntimeStorage(baseDir: File) {
         }
     }
 
-    /** Remove the entire runtime (user-invoked remove/repair). Idempotent. */
-    fun clearRuntime(): Boolean = if (!rootDir.exists()) true else rootDir.deleteRecursively()
+    /**
+     * Remove the entire runtime (user-invoked remove/repair). Idempotent.
+     * C12: NOFOLLOW tree walk — the rootfs contains hundreds of symlinks and
+     * may contain user-installed directory symlinks; the remove walk must
+     * never delete THROUGH any of them.
+     */
+    fun clearRuntime(): Boolean =
+        if (!rootDir.exists()) true else deleteTreeNoFollow(rootDir.toPath())
 
     /**
      * Startup reconciliation (docs/M2-ARCHITECTURE §4 "persistence"):

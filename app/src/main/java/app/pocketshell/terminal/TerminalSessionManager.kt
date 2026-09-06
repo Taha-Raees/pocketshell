@@ -3,7 +3,6 @@ package app.pocketshell.terminal
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import app.pocketshell.apps.guestLaunchChain
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
@@ -104,69 +103,21 @@ object TerminalSessionManager {
      * Enter the installed Alpine guest through proot (M2.3): SAME PTY, SAME
      * session machinery — only the spawned process differs. Refuses honestly
      * unless the runtime is READY; nothing is ever faked.
-     */
-    fun createLinuxSession(context: Context): SessionEntry = createLinuxSessionInternal(
-        context,
-        guestCommand = listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
-        label = "Alpine Linux",
-    )
-
-    /**
-     * Open an installed catalog CLI app inside a NEW dedicated guest session
-     * (M2.4): the proot spec is identical to the Linux Shell's (same builder,
-     * same guest shell) and the app's launch command is written into THAT NEW
-     * session's PTY only. This is not injection into a user session — the
-     * session exists solely for this app launch, the typed command stays
-     * visible in its scrollback, and exiting the app returns to the guest
-     * shell prompt (real nano → Ctrl+X → real shell).
-     */
-    fun createLinuxAppSession(context: Context, entry: app.pocketshell.packages.CliAppCatalogEntry): SessionEntry =
-        createLinuxCommandSession(context, label = entry.name, launchCommand = entry.launchCommand)
-
-    /**
-     * Phase 3.2 — launch a command-launchable app (docs/PHASE-3.2-DESIGN.md
-     * §4.3, launch fixed in v0.7.0-m3.5): a NEW dedicated guest session whose
-     * login shell receives [launchCommand] through its ARGV —
-     * `sh -l -c "<command>; exec sh -l"` (see [guestLaunchChain]).
      *
-     * The previous form wrote the command into the PTY right after
-     * construction — but TerminalSession forks the process only when the view
-     * first renders the session, and write() drops bytes while no process
-     * exists, so the command was silently lost and the user got a plain shell.
-     * The argv form is timing-independent: the login shell itself runs the
-     * command whenever the view attaches, then the exec'd shell takes over —
-     * exiting the app returns to the guest prompt, same as before.
-     *
-     * The machinery (builder, proot spec, login shell) is byte-identical to
-     * the Linux Shell path; this ONE path serves both the command-app
-     * registry and the catalog CLI apps — nothing is per-app special-cased.
+     * TWO-PHASE since the M6 Phase-C audit (C3/C1.1):
+     * [prepareLinuxSession] is the HEAVY half (apk fd-link self-repair, the
+     * glibc layer ensure — marker fast path or full re-extraction — sysdata
+     * overlays, DNS/apk-workspace repair) and must run OFF the main thread:
+     * the layer's re-extraction path reads an ~18 MB asset, sha-verifies it
+     * and writes ~103 entries, which used to freeze the UI for the whole
+     * duration when session creation ran synchronously in the click handler.
+     * [spawnLinuxSession] is the PTY half and keeps the upstream
+     * MainThreadHandler contract (main thread only). Callers compose:
+     * `withContext(IO) { prepareLinuxSession(ctx) }` then
+     * `withContext(Main) { spawnLinuxSession(...) }`.
      */
-    fun createLinuxCommandSession(
-        context: Context,
-        label: String,
-        launchCommand: List<String>,
-    ): SessionEntry {
-        val chain = guestLaunchChain(
-            launchCommand = launchCommand,
-            guestShell = ShellEnvironment.SHELL_PATH_GUEST,
-        )
-        return createLinuxSessionInternal(
-            context,
-            guestCommand = listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l", "-c", chain),
-            label = label,
-        )
-    }
-
-    private fun createLinuxSessionInternal(
-        context: Context,
-        guestCommand: List<String>,
-        label: String,
-    ): SessionEntry {
+    fun prepareLinuxSession(context: Context): List<String> {
         val appContext = context.applicationContext
-        val state = RuntimeManager.state.value
-        check(RuntimeProcessLauncher.canEnterLinuxShell(state)) {
-            "Linux shell requires runtime READY (current state: $state) — refusing to fake one."
-        }
         ShellEnvironment.ensureDirs(appContext)
         val storage = RuntimeStorage(appContext.noBackupFilesDir)
         // M2.6 → m3.6: prepare the guest (DNS/apk workspace best-effort + the
@@ -186,8 +137,33 @@ object TerminalSessionManager {
         // real files are never overlaid). They ride every interactive session
         // directly on top of the real /proc bind; the builder refuse-guards
         // the rest.
+        // M6 Phase-C: the glibc layer ensure runs inside the SAME prep call
+        // (PackageGateway.prepareGuestForSession) — single-flight inside
+        // GuestGlibcRuntime, so a concurrent second session waits instead of
+        // racing the extraction.
         val prep = PackageGateway.prepareGuestForSession(appContext, storage.rootfsDir)
-        val sysDataBinds = prep.sysData.bindArgs()
+        return prep.sysData.bindArgs()
+    }
+
+    /**
+     * Phase 2 of guest session creation — the PTY spawn. MAIN THREAD ONLY
+     * (TerminalSession MainThreadHandler contract). Refuses honestly unless
+     * the runtime is READY; the sysdata binds come from the completed
+     * [prepareLinuxSession] call.
+     */
+    fun spawnLinuxSession(
+        context: Context,
+        guestCommand: List<String>,
+        label: String,
+        sysDataBinds: List<String>,
+    ): SessionEntry {
+        val appContext = context.applicationContext
+        val state = RuntimeManager.state.value
+        check(RuntimeProcessLauncher.canEnterLinuxShell(state)) {
+            "Linux shell requires runtime READY (current state: $state) — refusing to fake one."
+        }
+        ShellEnvironment.ensureDirs(appContext)
+        val storage = RuntimeStorage(appContext.noBackupFilesDir)
         val prootTmp = File(appContext.cacheDir, "proot-tmp").apply { mkdirs() }
         val spec = RuntimeProcessLauncher.buildSessionSpec(
             nativeLibraryDir = appContext.applicationInfo.nativeLibraryDir,

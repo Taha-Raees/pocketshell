@@ -274,7 +274,9 @@ fun PocketShellRoot(
                     if (terminalViewModel.newSession()) screen = "terminal"
                 },
                 onOpenLinuxShell = {
-                    if (terminalViewModel.openLinuxShell()) screen = "terminal"
+                    // Async since the M6 Phase-C audit: heavy guest prep runs
+                    // on IO; navigate only when a real session was created.
+                    terminalViewModel.openLinuxShell { screen = "terminal" }
                 },
                 onOpenSession = { id ->
                     terminalViewModel.select(id)

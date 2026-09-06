@@ -49,3 +49,57 @@ Only verified, current limitations. Each with cause, evidence, fixability.
 - Children of glibc binaries: work unchanged (same canonical resolution).
 - proot interaction: no new mechanism; the layer is ordinary rootfs content,
   validated under proot+ptrace in the rig and by the device gate.
+
+## 5. gcompat package operations can reclaim the loader path (C4 verdict)
+
+- **Classification**: IMPORTANT (bounded, self-healing, permanently tested).
+- **Cause**: Alpine's `gcompat` package owns `lib/ld-linux-aarch64.so.1` in
+  the apk database and ships a real ELF shim there (verified from the actual
+  1.1.0-r4 package: a 67,600-byte static-PIE, `so:ld-linux-aarch64.so.1=1`).
+  `apk fix/reinstall/upgrade gcompat` can therefore overwrite the real
+  loader symlink behind a perfectly valid layer marker.
+- **Evidence**: the downloaded package file list;
+  `runtime-tests/adversarial_closure_audit.sh drill-c4` on the device;
+  `GuestGlibcRuntimeTest` gcompat-reclaim regression pin.
+- **Mitigation** (m6.0.4): the layer fast path runs a structural integrity
+  probe (loader symlink must resolve to the canonical Debian loader;
+  load-bearing files must exist) — a reclaim is detected on the next session
+  prep and self-heals by idempotent re-extraction. musl is never affected.
+- **Fixability**: containment is by design (package db ownership cannot be
+  rewritten unprivileged); a post-package repair hook is possible if device
+  evidence ever shows the next-session heal is too coarse.
+
+## 6. Heavy session prep ran on the UI thread (C1.1/C3) — fixed in m6.0.4
+
+- **Classification**: was IMPORTANT (UX/ANR risk, never correctness), FIXED.
+- **Cause**: session creation performed the guest preparation (including the
+  ~18 MB layer re-extraction path) synchronously in the click handler.
+- **Fix**: two-phase session creation — `prepareLinuxSession` on
+  Dispatchers.IO, PTY spawn on the main thread; `GuestGlibcRuntime.ensure`
+  is single-flight (monitor) so concurrent sessions serialize instead of
+  racing. UI-thread freeze eliminated for updates/repairs.
+
+## 7. In-place re-extraction wiped the multiarch directory mid-run (C3/C12) — fixed in m6.0.4
+
+- **Classification**: was HIGH (corruption window for concurrent observers), FIXED.
+- **Cause**: the layer ships `lib/aarch64-linux-gnu -> ../usr/lib/aarch64-
+  linux-gnu` and the old symlink replacement used `File.deleteRecursively`,
+  whose walk FOLLOWS directory symlinks — every re-extraction first erased
+  the entire multiarch directory, then rewrote it (converged, but exposed a
+  no-libs window to concurrent apk operations or running sessions).
+- **Fix**: symlink replacement deletes the link node; all recursive deletes
+  are NOFOLLOW; entries routed through earlier symlink entries are refused.
+  Regression pins: sentinel survival test, real-archive re-extract test.
+
+## Not limitations (checked and closed)
+
+- musl regression: none — disjoint loader names, SONAMEs and directories
+  (DUAL_LIBC.md §3); the suite proves sh/bash/git/curl/node/npm/apk unchanged.
+- `ld.so.cache` shadowing: impossible — Alpine ships none, we never build one.
+- Children of glibc binaries: work unchanged (same canonical resolution).
+- proot interaction: no new mechanism; the layer is ordinary rootfs content,
+  validated under proot+ptrace in the rig and by the device gate.
+- gcompat merely installed: harmless to musl and to the layer (see §5) — it
+  only becomes a factor when package operations rewrite its files.
+- Environment variables in guest sessions (`LD_LIBRARY_PATH` etc.): visible
+  but inert inside the guest (DUAL_LIBC.md §8.4); no global loader hack.

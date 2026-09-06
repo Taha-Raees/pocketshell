@@ -141,3 +141,81 @@ installed AND launches AND executes correctly AND survives a fresh session AND d
 not break musl AND passes the automated suite (`runtime-tests/`) — musl regression
 (sh, bash, git, curl, node, npm, apk), glibc matrix (simple/pthread/dlopen/libm/C++
 exceptions/fork-exec/NSS/getaddrinfo), static, and the real Cline binary.
+
+## 8. Phase-C adversarial closure audit (m6.0.4, vc44)
+
+A full adversarial audit (areas C1–C15 of the Phase-C mandate) closed M6. The
+hardened contract below is enforced by JVM tests (`GuestGlibcRuntimeTest`,
+26 cases) and by the device drill script
+(`runtime-tests/adversarial_closure_audit.sh` — probe / drill-c2 / drill-c4 /
+drill-c5 / heal).
+
+### 8.1 Engineering claim (the precise boundary of "universal")
+
+> PocketShell provides a dual-libc runtime environment supporting Alpine musl
+> binaries, compatible static binaries, and a broad class of aarch64 glibc ELF
+> binaries whose interpreter, GLIBC symbol-version requirements (highest
+> required ≤ installed), architecture, and required shared libraries are
+> satisfied by the installed runtime layer.
+
+"Universal runtime compatibility" remains the internal milestone name, not a
+claim about every Linux binary. `pocketshell-doctor` states the boundary per
+binary and its prediction is measured against reality on every audit run
+(C7 prediction-accuracy rows).
+
+### 8.2 Loader integrity beyond the marker (C2.2/C2.3/C2.6 — probe)
+
+The marker is the completeness contract, but a text marker cannot see a
+clobbered filesystem. Since m6.0.4 the layer fast path additionally runs a
+structural integrity probe (`GuestGlibcRuntime.structuralIntegrityPasses`):
+the loader symlink must still resolve to the canonical real Debian loader
+(`/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1`), and the load-bearing
+files (multiarch core libs incl. SONAME aliases, `pocketshell-doctor`,
+`pocketshell-exec`) must exist. Any mismatch → honest re-extraction on the
+next session prep (idempotent, musl untouched). Documented marker-loss
+behavior (C2.1): a valid layer with a missing/stale marker is re-extracted —
+identical bytes, converges, never trusted blindly.
+
+### 8.3 gcompat coexistence verdict (C4 — evidence-based)
+
+Alpine's `gcompat` package (verified from
+`dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/gcompat-1.1.0-r4.apk`)
+ships a real 67,600-byte static-PIE ELF shim AT
+`lib/ld-linux-aarch64.so.1` (plus a `lib64/` link) and *provides*
+`so:ld-linux-aarch64.so.1=1`. The package therefore owns the exact path our
+real loader occupies, and `apk fix/reinstall/upgrade gcompat` CAN reclaim it
+(behind a perfectly valid marker — that is why §8.2 exists). Residual
+exposure is bounded: app-driven package operations never touch gcompat
+unless the user asks for it; a reclaim is detected by the integrity probe on
+the NEXT session prep and self-heals by re-extraction; `pocketshell-doctor`
+and the device suite expose the interim broken state honestly. gcompat
+staying installed is historical and harmless to musl; it must not be relied
+on for glibc execution, and after any gcompat package operation a new
+session is the repair path. The drill (`drill-c4`) measures the actual apk
+behavior on the device.
+
+### 8.4 Environment disclosure (C8)
+
+Guest processes inherit the proot process environment:
+`LD_LIBRARY_PATH=<app nativeLibraryDir>` (needed by bionic to resolve proot's
+`libtalloc.so` before the rootfs exists), `PROOT_LOADER`,
+`PROOT_TMP_DIR`, and optionally `PROOT_LOADER_32`. Inside the guest these
+paths do not exist, so they are functionally inert for musl and glibc alike
+(neither loader can resolve anything from them; no musl→glibc forcing, no
+loader behavior change). They are visible in `env` by design — routing is
+the ELF interpreter contract, and the audit's `probe` mode asserts no
+`LD_PRELOAD`/`LD_CONFIG` exists and both libcs run under this exact
+environment.
+
+### 8.5 Extractor hardening (C12)
+
+Both extractors (rootfs + glibc layer) now: verify asset sha-256 before any
+byte is written (fail-closed); refuse absolute entry paths and lexical path
+traversal; refuse any entry whose parent chain routes through a symlink
+(a hostile archive cannot redirect writes outside the guest root through its
+own earlier symlink entries); replace existing symlinks by deleting the link
+node (never walking through it — the layer legitimately ships a directory
+symlink, and File.deleteRecursively follows directory links); and clear
+staging/runtime trees with NOFOLLOW walks. Both pinned archives were
+surveyed (361 symlinks, zero escaping the guest root — see
+`scripts/audit_c12_symlink_containment.py`).
