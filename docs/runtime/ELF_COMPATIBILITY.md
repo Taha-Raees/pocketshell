@@ -34,8 +34,17 @@ Extension slot: drop glibc-built `.so` into `/usr/lib/aarch64-linux-gnu`.
 - `pocketshell-doctor <binary>` — arch/class/interp/DT_NEEDED/max-`GLIBC_x.y`
   required version + a REAL resolution check by the loader itself
   (`ld-linux-aarch64.so.1 --list <binary>`), then SUPPORTED/UNSUPPORTED with
-  the reason. Requires `binutils` for the readelf fields (falls back to a
-  magic-only probe without it; the loader check always runs).
+  the reason. v2 (m6.0.3): the version gate is a NUMERIC component-wise
+  comparison (`required <= installed` ⇒ satisfied; the only normal
+  UNSUPPORTED case is `required > installed`), the max is computed
+  numerically over ALL version tokens (never `sort -V`, which busybox does
+  not guarantee), the loader check is exit-code-authoritative (glibc reports
+  a missing library as "error while loading shared libraries: … cannot open
+  shared object file", exit 127 — never "not found"), the fact hierarchy
+  prints before the verdict, and `--selftest` runs the permanent comparison
+  regression matrix. Requires `binutils` for the readelf fields (falls back
+  to a magic + PT_INTERP-scan probe without it; the loader check always
+  runs; unauditable version facts are labelled, never silently assumed).
 - `pocketshell-exec <binary> [args]` — routing wrapper: musl/static/glibc →
   direct exec (canonical paths make this transparent); explicit
   `--library-path` invocation only as fallback if the multiarch layout is
@@ -48,4 +57,7 @@ glibc records per-symbol requirements (`GLIBC_2.17`, …) in `.gnu.version_r`.
 The real loader enforces them against the layer's glibc 2.41; any binary built
 against glibc ≤ 2.41 is covered (backward compatibility), which spans every
 current mainstream prebuilt. `pocketshell-doctor` reports the max required
-version and compares it to the installed layer.
+version and compares it NUMERICALLY to the installed layer: 2.17 ≤ 2.41 ⇒
+SUPPORTED, 2.41 = 2.41 ⇒ SUPPORTED, only 2.42 > 2.41 ⇒ UNSUPPORTED
+(m6.0.3: the v1 verdict was structurally always-false — every versioned
+binary was condemned; the device suite's unanchored grep hid it).

@@ -1,17 +1,185 @@
 #!/bin/sh
 # pocketshell-doctor — executable compatibility diagnosis (no more guessing).
 # Ships inside the PocketShell glibc runtime layer (usr/local/bin).
-# Usage: pocketshell-doctor <binary>
-# Reports architecture, ELF class/type, interpreter, DT_NEEDED, max required
-# GLIBC symbol version, the runtime that will load it, and a verdict with the
-# real reason. Honest by construction: every claim is probed, nothing assumed.
+#
+# Usage:
+#   pocketshell-doctor <binary>     diagnose one executable
+#   pocketshell-doctor --selftest   run the built-in regression suite
+#                                   (semantic version comparison + max
+#                                   extraction; no binaries needed)
+#
+# Reports architecture, ELF class/type, interpreter, DT_NEEDED, the maximum
+# required GLIBC symbol version, the runtime that will load it, real loader
+# resolution, and a verdict with the reason. Honest by construction: every
+# claim is probed, nothing assumed; every failed check is printed, and no
+# successful check may hide another failure.
+#
+# m6.0.3 (doctor correctness gate): the shipped v1 verdict logic produced
+# UNSUPPORTED for EVERY versioned glibc binary — including ones the layer
+# fully satisfies (real device evidence: cline 3.0.61 requires GLIBC_2.17,
+# layer provides 2.41, verdict was UNSUPPORTED). Root cause: the "comparison"
+# concatenated the required and installed versions and string-compared the
+# concatenation against the installed version alone — structurally always
+# false. v2 replaces it with numeric component-wise comparison, makes the
+# max-version extraction numeric-aware (no sort -V dependence: busybox sort
+# is not GNU sort), detects loader failures by exit code plus the REAL glibc
+# error messages (glibc never prints "not found" for a missing library — it
+# prints "error while loading shared libraries: … cannot open shared object
+# file" and exits 127), and prints the full fact hierarchy before verdicting.
+# The device suite greps "^Compatibility: SUPPORTED" (anchored — UNSUPPORTED
+# contains SUPPORTED as a substring; the v1 runner grep was vacuous).
 set -u
 
 MARKER=/etc/pocketshell/glibc-runtime
 GLIBC_LOADER=/lib/ld-linux-aarch64.so.1
 
+# ------------------------------------------------------------------ helpers
+
+have_readelf() { command -v readelf >/dev/null 2>&1; }
+
+_strip_vprefix() { printf '%s' "$1" | sed 's/^GLIBC_//'; }
+
+# _numchk S — fail (return 1) unless S is a nonempty numeric version like
+# "2", "2.17", "2.2.5": only [0-9.] allowed, no empty components (leading dot,
+# trailing dot, or adjacent dots).
+_numchk() {
+  case "$1" in
+    ""|*[!0-9.]*) return 1 ;;
+    .*|*.|*..*) return 1 ;;
+  esac
+  return 0
+}
+
+# _normnum S — strip leading zeros per component ("02.07" -> "2.7"); POSIX sh.
+# busybox ash interprets 0-prefixed numerals as octal in $(( )), so this must
+# happen before any arithmetic.
+_normnum() {
+  _nn_in=$1
+  _nn_out=""
+  while [ -n "$_nn_in" ]; do
+    _nn_c=${_nn_in%%.*}
+    case "$_nn_in" in
+      *.*) _nn_in=${_nn_in#*.} ;;
+      *)   _nn_in="" ;;
+    esac
+    while [ "${_nn_c#0}" != "$_nn_c" ] && [ "${#_nn_c}" -gt 1 ]; do _nn_c=${_nn_c#0}; done
+    _nn_c=${_nn_c:-0}
+    if [ -z "$_nn_out" ]; then _nn_out=$_nn_c; else _nn_out="$_nn_out.$_nn_c"; fi
+  done
+  printf '%s' "$_nn_out"
+}
+
+# ver_le REQ INST — return 0 iff numeric version REQ <= INST (component-wise,
+# missing components count as 0; "2.4" <= "2.4.0"). Returns 2 on invalid input.
+# NO lexical string comparison anywhere: "2.9" < "2.10" and "2.10" < "2.17"
+# must hold numerically, which sort/grep/test-based approaches get wrong.
+ver_le() {
+  _vl_a=$1
+  _vl_b=$2
+  _numchk "$_vl_a" || return 2
+  _numchk "$_vl_b" || return 2
+  _vl_a=$(_normnum "$_vl_a")
+  _vl_b=$(_normnum "$_vl_b")
+  _vl_i=0
+  while :; do
+    _vl_x=${_vl_a%%.*}
+    _vl_y=${_vl_b%%.*}
+    case "$_vl_a" in *.*) _vl_a=${_vl_a#*.} ;; *) _vl_a="" ;; esac
+    case "$_vl_b" in *.*) _vl_b=${_vl_b#*.} ;; *) _vl_b="" ;; esac
+    _vl_x=${_vl_x:-0}
+    _vl_y=${_vl_y:-0}
+    if [ "$_vl_x" -lt "$_vl_y" ]; then return 0; fi
+    if [ "$_vl_x" -gt "$_vl_y" ]; then return 1; fi
+    [ -z "$_vl_a" ] && [ -z "$_vl_b" ] && return 0
+    _vl_i=$((_vl_i + 1))
+    [ "$_vl_i" -gt 8 ] && return 0   # version components are < 9 deep; safety valve
+  done
+}
+
+# ver_max V... — print the numeric maximum of the given version strings
+# (GLIBC_ prefixes are stripped defensively, so raw readelf tokens are fine).
+# Numeric-aware: max(2.9, 2.10) = 2.10, max(2.2.5, 2.17) = 2.17.
+ver_max() {
+  _vm_best=""
+  for _vm_v in "$@"; do
+    [ -n "$_vm_v" ] || continue
+    _vm_v=$(_strip_vprefix "$_vm_v")
+    _numchk "$_vm_v" || continue
+    if [ -z "$_vm_best" ]; then
+      _vm_best=$_vm_v
+    elif ver_le "$_vm_best" "$_vm_v"; then
+      _vm_best=$_vm_v
+    fi
+  done
+  printf '%s' "$_vm_best"
+}
+
+# --------------------------------------------------------------- selftest
+
+doctor_selftest() {
+  n=0; fails=0
+  t_le() { # t_le REQ INST EXPECT(0=supported,1=unsupported) LABEL
+    n=$((n + 1))
+    ver_le "$1" "$2"
+    got=$?
+    if [ "$got" -eq "$3" ]; then
+      printf 'PASS selftest[%d]: %s vs %s -> %s\n' "$n" "$1" "$2" "$4"
+    else
+      fails=$((fails + 1))
+      printf 'FAIL selftest[%d]: ver_le %s %s -> rc=%s, want %s (%s)\n' "$n" "$1" "$2" "$got" "$3" "$4"
+    fi
+  }
+  t_max() { # t_max LABEL EXPECTED V...
+    _tm_label=$1; _tm_want=$2; shift 2
+    got=$(ver_max "$@")
+    n=$((n + 1))
+    if [ "$got" = "$_tm_want" ]; then
+      printf 'PASS selftest[%d]: max(%s) = %s\n' "$n" "$*" "$_tm_want"
+    else
+      fails=$((fails + 1))
+      printf 'FAIL selftest[%d]: max(%s) = %s, want %s\n' "$n" "$*" "$got" "$_tm_want"
+    fi
+  }
+
+  # --- the m6.0.3 regression matrix (device evidence: cline needs 2.17) ----
+  t_le 2.17 2.41 0 "required 2.17  <= installed 2.41 -> SUPPORTED"
+  t_le 2.28 2.41 0 "required 2.28  <= installed 2.41 -> SUPPORTED"
+  t_le 2.34 2.41 0 "required 2.34  <= installed 2.41 -> SUPPORTED"
+  t_le 2.41 2.41 0 "required 2.41 == installed 2.41 -> SUPPORTED (exact)"
+  t_le 2.42 2.41 1 "required 2.42  > installed 2.41 -> UNSUPPORTED"
+  t_le 2.9  2.17 0 "required 2.9   <= installed 2.17 -> SUPPORTED (numeric, not lexical)"
+  t_le 2.10 2.17 0 "required 2.10  <= installed 2.17 -> SUPPORTED (numeric, not lexical)"
+  t_le 2.17 2.9  1 "required 2.17  >  installed 2.9  -> UNSUPPORTED"
+  t_le 2.2.5 2.41 0 "required 2.2.5 <= installed 2.41 -> SUPPORTED (3 components)"
+  t_le 2.4 2.4.0 0 "required 2.4  <= installed 2.4.0 -> SUPPORTED (zero padding)"
+  t_le 2.2.5 2.2.4 1 "required 2.2.5 >  installed 2.2.4 -> UNSUPPORTED (patch level)"
+
+  # --- max-version extraction (numeric-aware) ------------------------------
+  t_max "{2.17, 2.28, 2.34}" 2.34 GLIBC_2.17 GLIBC_2.28 GLIBC_2.34
+  t_max "{2.9, 2.10} — the lexical trap" 2.10 GLIBC_2.9 GLIBC_2.10
+  t_max "{2.2.5, 2.17}" 2.17 GLIBC_2.2.5 GLIBC_2.17
+  t_max "{2.17, 2.34, 2.41}" 2.41 GLIBC_2.17 GLIBC_2.34 GLIBC_2.41
+
+  if [ "$fails" -eq 0 ]; then
+    printf 'SELFTEST PASS (%d/%d)\n' "$n" "$n"
+    return 0
+  fi
+  printf 'SELFTEST FAIL (%d of %d failed)\n' "$fails" "$n"
+  return 1
+}
+
+# ------------------------------------------------------------------- usage
+
+case "${1:-}" in
+  --selftest) doctor_selftest; exit $? ;;
+  -h|--help)
+    sed -n '2,12p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+esac
+
 if [ $# -lt 1 ]; then
-  echo "usage: pocketshell-doctor <binary>" >&2
+  echo "usage: pocketshell-doctor <binary> | --selftest" >&2
   exit 2
 fi
 
@@ -21,11 +189,9 @@ if [ ! -f "$BIN" ]; then
   exit 2
 fi
 
-if ! command -v readelf >/dev/null 2>&1; then
-  echo "note: readelf unavailable (apk add binutils enables full ELF analysis)"
-fi
-
-have_readelf() { command -v readelf >/dev/null 2>&1; }
+# ------------------------------------------------------- fact gathering
+# Collect every fact we can BEFORE any verdict, so a successful check can
+# never hide another failure and the full hierarchy is always printed.
 
 echo "== pocketshell-doctor: $BIN"
 
@@ -41,19 +207,31 @@ if have_readelf; then
   echo "Machine: $(readelf -h "$BIN" | sed -n 's/.*Machine: *//p')"
   echo "Type:    $(readelf -h "$BIN" | sed -n 's/.*Type: *//p')"
   INTERP=$(readelf -l "$BIN" 2>/dev/null | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')
+  MACHINE=$(readelf -h "$BIN" | sed -n 's/.*Machine: *//p')
 else
-  # Minimal magic probe without binutils: ELF magic + 64-bit little-endian.
+  # Minimal magic probe without binutils: ELF magic.
   magic=$(dd if="$BIN" bs=4 count=1 2>/dev/null)
   if [ "$magic" != "$(printf '\177ELF')" ]; then
     echo "ELF: no"
+    echo "Compatibility: UNKNOWN (not an ELF object)"
     exit 1
   fi
   echo "ELF: yes (install binutils for full analysis)"
-  INTERP=""
+  # Best-effort interpreter probe without readelf: the PT_INTERP string sits
+  # within the first few hundred bytes of every dynamically linked ELF.
+  INTERP=$(dd if="$BIN" bs=1 count=1024 2>/dev/null | strings 2>/dev/null | grep -m1 '^/.*ld[-.]')
+  MACHINE="(unknown — install binutils)"
 fi
 
-ARCH_OK=$(if have_readelf; then readelf -h "$BIN" | grep -c "Machine:.*AArch64"; else echo 1; fi)
-if [ "$ARCH_OK" = "0" ]; then
+ARCH_OK=0
+case "$MACHINE" in
+  *AArch64*) ARCH_OK=1 ;;
+  *"(unknown"*)
+    echo "note: machine architecture not verifiable without binutils (continuing on interpreter evidence)"
+    ARCH_OK=1
+    ;;
+esac
+if [ "$ARCH_OK" -eq 0 ]; then
   echo "Compatibility: UNSUPPORTED"
   echo "Reason: not an ARM64 (AArch64) binary — this device cannot execute it"
   exit 1
@@ -61,9 +239,16 @@ fi
 
 # --- Interpreter / libc routing ------------------------------------------------
 if [ -z "$INTERP" ]; then
-  echo "Interpreter: (none — static)"
-  echo "Runtime: none required"
-  echo "Compatibility: SUPPORTED (static — executed directly)"
+  if have_readelf; then
+    echo "Interpreter: (none — static)"
+    echo "Runtime: none required"
+    echo "Compatibility: SUPPORTED (static — executed directly)"
+    exit 0
+  fi
+  # Without readelf an empty probe is ambiguous; be honest about it.
+  echo "Interpreter: (none found by header scan)"
+  echo "Runtime: none required (assumed static — install binutils to confirm)"
+  echo "Compatibility: SUPPORTED (static-probe fallback)"
   exit 0
 fi
 
@@ -73,7 +258,11 @@ case "$INTERP" in
   *ld-musl*)
     echo "Runtime: musl ($(ls -la /lib/ld-musl-aarch64.so.1 2>/dev/null | awk '{print $NF}' || echo ?))"
     echo "DT_NEEDED:"
-    if have_readelf; then readelf -d "$BIN" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]/  \1/p' | sed 's/^/  /'; fi
+    if have_readelf; then
+      readelf -d "$BIN" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]/  \1/p'
+    else
+      echo "  (unavailable — install binutils)"
+    fi
     echo "Compatibility: SUPPORTED (musl — executed directly)"
     exit 0
     ;;
@@ -89,46 +278,134 @@ case "$INTERP" in
 esac
 
 # --- glibc layer state ----------------------------------------------------------
+fatal=""
 if [ ! -e "$GLIBC_LOADER" ]; then
   echo "glibc loader: MISSING ($GLIBC_LOADER)"
-  echo "Compatibility: UNSUPPORTED"
-  echo "Reason: glibc runtime layer is not installed in this guest — restart the app once (the layer self-installs on the next session) or reinstall the runtime from Diagnostics"
-  exit 1
+  fatal="glibc runtime layer is not installed in this guest — restart the app once (the layer self-installs on the next session) or reinstall the runtime from Diagnostics"
+  LOADER_PRESENT=0
+else
+  LOADER_PRESENT=1
+  echo "glibc loader: $GLIBC_LOADER ($( [ -f "$MARKER" ] && cat "$MARKER" || echo 'layer version unknown'))"
 fi
-echo "glibc loader: $GLIBC_LOADER ($( [ -f "$MARKER" ] && cat "$MARKER" || echo 'layer version unknown'))"
 
+# Installed glibc version: the REAL loader is the ground truth for what will
+# actually run; the marker is the app-managed claim. Report both; warn on drift.
+HAVEV=""
+MARKERV=""
+if [ "$LOADER_PRESENT" -eq 1 ]; then
+  # Trailing-period strip: glibc prints "stable release version 2.41." — the
+  # final dot is sentence punctuation, not a version component.
+  HAVEV=$("$GLIBC_LOADER" --version 2>/dev/null | sed -n 's/.*stable release version \([0-9][0-9.]*\).*/\1/p' | sed 's/[.]*$//' | head -1)
+fi
+if [ -f "$MARKER" ]; then
+  MARKERV=$(sed -n 's/.*(glibc \([0-9][0-9.]*\)).*/\1/p' "$MARKER" | sed 's/[.]*$//' | tail -1)
+fi
+if [ -n "$HAVEV" ]; then
+  echo "Installed glibc: $HAVEV (per the real loader)"
+elif [ -n "$MARKERV" ]; then
+  echo "Installed glibc: $MARKERV (per the layer marker; loader unreadable)"
+fi
+if [ -n "$HAVEV" ] && [ -n "$MARKERV" ] && [ "$HAVEV" != "$MARKERV" ]; then
+  echo "warning: loader reports glibc $HAVEV but the marker claims $MARKERV — loader wins"
+fi
+if [ -z "$HAVEV" ] && [ -z "$MARKERV" ]; then
+  echo "Installed glibc: (unknown — version gate cannot run; loader resolution still applies)"
+fi
+INSTALLEDV=${HAVEV:-$MARKERV}
+
+# --- DT_NEEDED + maximum required GLIBC symbol version ---------------------------
+NEEDS=""
+MAXV=""
 if have_readelf; then
   NEEDS=$(readelf -d "$BIN" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p')
-  echo "DT_NEEDED:$(echo "$NEEDS" | sed 's/^/ /;s/^$/ (none)/')"
-  MAXV=$(readelf -V "$BIN" 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)
-  echo "Required GLIBC: ${MAXV:-none}"
-  if [ -n "$MAXV" ] && [ -f "$MARKER" ]; then
-    HAVEV=$(sed -n 's/.*glibc \([0-9.]*\).*/\1/p' "$MARKER" | tail -1)
-    if [ -n "$HAVEV" ]; then
-      if [ "$(printf '%s\n' "$MAXV" | sed 's/GLIBC_//' | sort -V; printf '%s\n' "$HAVEV" | sort -V | tail -1)" = "$HAVEV" ]; then
-        : # layer covers the required version
-      else
-        echo "Compatibility: UNSUPPORTED"
-        echo "Reason: binary requires $MAXV but the installed layer provides glibc $HAVEV"
-        echo "Path: update PocketShell (the pinned layer rides app updates)"
-        exit 1
-      fi
+  echo "DT_NEEDED:"
+  if [ -n "$NEEDS" ]; then
+    printf '%s\n' "$NEEDS" | sed 's/^/  /'
+  else
+    echo "  (none)"
+  fi
+  # Numeric-aware max over ALL version requirements — NOT sort -V | tail -1
+  # (busybox sort is not guaranteed to implement GNU version sort).
+  MAXV=$(ver_max $(readelf -V "$BIN" 2>/dev/null | grep -o 'GLIBC_[0-9][0-9.]*' | sed 's/^GLIBC_//'))
+  if [ -n "$MAXV" ]; then
+    echo "Required GLIBC: GLIBC_$MAXV"
+    printf '  version requirements: %s\n' "$(
+      readelf -V "$BIN" 2>/dev/null | grep -o 'GLIBC_[0-9][0-9.]*' | sed 's/^GLIBC_//' | sort -u | tr '\n' ' '
+    )"
+  else
+    echo "Required GLIBC: (none detected — binary has no versioned glibc symbol requirements)"
+  fi
+else
+  echo "DT_NEEDED: (unavailable — install binutils)"
+  echo "Required GLIBC: (unavailable — install binutils)"
+fi
+
+# --- static version gate (the m6.0.3 fix) ----------------------------------------
+# THE RULE: required <= installed  =>  satisfied. Nothing else.
+# This is a pure numeric comparison; see ver_le in this script.
+if [ -n "$MAXV" ]; then
+  if [ -z "$INSTALLEDV" ]; then
+    echo "Version gate: UNDECIDED (installed glibc version unknown)"
+  elif ! _numchk "$MAXV" || ! _numchk "$INSTALLEDV"; then
+    echo "Version gate: UNDECIDED (unparseable version: required='$MAXV' installed='$INSTALLEDV')"
+  elif ver_le "$MAXV" "$INSTALLEDV"; then
+    echo "Version gate: PASS (installed glibc $INSTALLEDV satisfies required GLIBC_$MAXV)"
+  else
+    echo "Version gate: FAIL"
+    fatal="binary requires GLIBC_$MAXV but installed glibc is $INSTALLEDV"
+  fi
+else
+  if have_readelf; then
+    echo "Version gate: PASS (no versioned glibc symbol requirements)"
+  else
+    echo "Version gate: UNAUDITED (binutils not installed)"
+  fi
+fi
+
+# --- REAL resolution check: ask the loader itself ---------------------------------
+echo "Loader resolution:"
+if [ "$LOADER_PRESENT" -eq 0 ]; then
+  echo "  UNAVAILABLE (loader missing)"
+else
+  LOADER_OUT=$("$GLIBC_LOADER" --list "$BIN" 2>&1)
+  LOADER_RC=$?
+  # glibc failure surfaces (verified empirically against the real loader):
+  #   missing lib : "<bin>: error while loading shared libraries: <lib>:
+  #                  cannot open shared object file: No such file or directory"  (exit 127)
+  #   version gap : "<bin>: /lib/…: version `GLIBC_X.Y' not found (required by <bin>)"
+  # The v1 grep for "not found" matched NEITHER missing-lib case; exit code
+  # is now authoritative alongside the message scan.
+  if [ "$LOADER_RC" -eq 0 ] && ! printf '%s' "$LOADER_OUT" | grep -Eq "cannot open shared object file|not found|error while loading shared libraries"; then
+    if [ -n "$NEEDS" ]; then
+      printf '%s\n' "$NEEDS" | while IFS= read -r _l; do
+        printf '  %-24s RESOLVED\n' "$_l"
+      done
+    fi
+    echo "  PASS — all required libraries resolve through the real loader"
+  else
+    printf '%s\n' "$LOADER_OUT" | grep -E "cannot open shared object file|not found|error while loading shared libraries" | sed 's/^/  FAILED: /'
+    [ -z "$LOADER_OUT" ] && echo "  FAILED: loader exited $LOADER_RC with no output"
+    if [ -z "$fatal" ]; then
+      fatal="the real loader could not load this binary (exit $LOADER_RC) — missing layer libraries or a version gap; see the FAILED lines above"
     fi
   fi
 fi
 
-# --- REAL resolution check: ask the loader itself -------------------------------
-echo "Loader resolution check:"
-LOADER_OUT=$("$GLIBC_LOADER" --list "$BIN" 2>&1)
-if echo "$LOADER_OUT" | grep -q "not found"; then
-  echo "$LOADER_OUT" | grep "not found" | sed 's/^/  MISSING: /'
+# ------------------------------------------------------------------- verdict
+
+if [ -n "$fatal" ]; then
   echo "Compatibility: UNSUPPORTED"
-  echo "Reason: shared objects above are not in the glibc layer; drop glibc-built"
-  echo "copies into /usr/lib/aarch64-linux-gnu (the extension slot) and re-run"
+  echo "Reason: $fatal"
+  case "$fatal" in
+    *"requires GLIBC_"*) echo "Path: update PocketShell (the pinned layer rides app updates)" ;;
+  esac
   exit 1
-else
-  echo "  all shared objects resolved by the real loader"
 fi
 
 echo "Compatibility: SUPPORTED (glibc — executed via $GLIBC_LOADER)"
+if [ -n "$MAXV" ] && [ -n "$INSTALLEDV" ]; then
+  echo "Reason: installed glibc $INSTALLEDV satisfies required GLIBC_$MAXV and all required libraries resolve"
+else
+  echo "Reason: the real loader resolves this binary end-to-end"
+fi
 exit 0

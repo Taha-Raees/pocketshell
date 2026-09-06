@@ -21,6 +21,14 @@
 # header (stale-copy confusion cannot recur silently), and PREFLIGHT reports
 # the app-identity stamp (/etc/pocketshell/app-version — written by every
 # m6.0.2+ session prep) plus the raw ls/readlink evidence for the loader.
+# v0.10.0-m6.0.3 (doctor correctness gate): the suite's doctor row grepped
+# "SUPPORTED" UNANCHORED — but "UNSUPPORTED" contains "SUPPORTED" as a
+# substring, so the row PASSED while pocketshell-doctor v1 was verdicting
+# UNSUPPORTED for every versioned glibc binary (real cline 3.0.61 requires
+# only GLIBC_2.17; the layer provides 2.41). All doctor rows now anchor on
+# "^Compatibility: SUPPORTED", and three permanent doctor rows join the
+# suite: the doctor's own --selftest regression matrix (semantic numeric
+# GLIBC comparison), a musl-classification row, and a real-cline verdict row.
 # Escape hatch (repairs the layer WITHOUT waiting for the app):
 #   POCKETSHELL_INSTALL_LAYER=1 sh run_on_device.sh
 #     uses $POCKETSHELL_LAYER_URL, or a pocketshell-glibc-*.tar.gz placed in
@@ -29,7 +37,7 @@
 #
 # Every claim is probed. Nothing is assumed. Output is a paste-ready table.
 set -u
-SUITE_VERSION="v2.1 (m6.0.2)"
+SUITE_VERSION="v2.2 (m6.0.3)"
 SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || SELF_DIR="."
 DIR="${POCKETSHELL_TESTS_DIR:-$SELF_DIR}"
 # Binary location: the suite ships BOTH layouts over its life (flat staging
@@ -123,7 +131,7 @@ if [ -n "${POCKETSHELL_INSTALL_LAYER:-}" ] && ! layer_present; then
     esac
     if [ "$h" -eq 0 ]; then
       mkdir -p /etc/pocketshell
-      echo "PocketShell glibc runtime layer 2.41-12.deb13u3 (glibc 2.41)" > "$MARKER"
+      echo "PocketShell glibc runtime layer 2.41-12.deb13u3 (glibc 2.41) rev=2" > "$MARKER"
       echo "state=OK source=manual-hatch ts=$(date +%s)" > "$STATUS"
       layer_present && layer_ok=1
       check "hatch: loader is real 2.41" "stable release version 2.41" /lib/ld-linux-aarch64.so.1 --version
@@ -174,10 +182,30 @@ if layer_present; then
 
   echo "=== pocketshell-doctor ==="
   if command -v pocketshell-doctor >/dev/null 2>&1; then
-    if pocketshell-doctor "$BIN/t_cline_shape" 2>/dev/null | grep -q "SUPPORTED"; then
-      ok "doctor verdict (t_cline_shape)" "SUPPORTED"
+    # v2.2: verdict rows anchor on "^Compatibility: SUPPORTED" — an unanchored
+    # grep matches UNSUPPORTED too (the v2.1 escape hatch this row sailed
+    # through while doctor v1 mis-verdicted every versioned binary).
+    if [ -x "$BIN/t_cline_shape" ]; then
+      dout=$(pocketshell-doctor "$BIN/t_cline_shape" 2>&1)
+      if printf '%s\n' "$dout" | grep -q "^Compatibility: SUPPORTED"; then
+        ok "doctor verdict (t_cline_shape)" "SUPPORTED"
+      else
+        bad "doctor verdict (t_cline_shape)" "$(printf '%s\n' "$dout" | grep '^Compatibility:' | head -1)"
+      fi
     else
-      bad "doctor verdict (t_cline_shape)" "$(pocketshell-doctor "$BIN/t_cline_shape" 2>&1 | tail -1)"
+      bad "doctor verdict (t_cline_shape)" "binary missing (download the suite tarball)"
+    fi
+    dout=$(pocketshell-doctor /bin/busybox 2>&1)
+    if printf '%s\n' "$dout" | grep -q "^Compatibility: SUPPORTED"; then
+      ok "doctor verdict (musl busybox)" "SUPPORTED (musl/static classification)"
+    else
+      bad "doctor verdict (musl busybox)" "$(printf '%s\n' "$dout" | grep '^Compatibility:' | head -1)"
+    fi
+    st=$(pocketshell-doctor --selftest 2>&1); st_rc=$?
+    if [ "$st_rc" -eq 0 ] && printf '%s\n' "$st" | grep -q "SELFTEST PASS"; then
+      ok "doctor selftest (semver)" "$(printf '%s\n' "$st" | tail -1)"
+    else
+      bad "doctor selftest (semver)" "rc=$st_rc $(printf '%s\n' "$st" | tail -1)"
     fi
   else
     bad "pocketshell-doctor" "in the layer (/usr/local/bin) but not on PATH — check rootfs PATH"
@@ -189,6 +217,12 @@ if layer_present; then
     check "cline --help"           "^Usage" sh -c "$CLINE --help 2>&1 | head -3"
     check "cline via node spawn"   "3.0.61" /usr/bin/node -e "console.log(require('child_process').execFileSync('$CLINE',['--version']).toString())"
     check "cline relaunch x3"      "3.0.61" sh -c "$CLINE --version && $CLINE --version && $CLINE --version"
+    dout=$(pocketshell-doctor "$CLINE" 2>&1)
+    if printf '%s\n' "$dout" | grep -q "^Compatibility: SUPPORTED"; then
+      ok "doctor verdict (real cline)" "$(printf '%s\n' "$dout" | grep '^Required GLIBC:' | head -1) satisfied"
+    else
+      bad "doctor verdict (real cline)" "$(printf '%s\n' "$dout" | grep '^Reason:' | head -1)"
+    fi
     if [ -n "${CLINE_DEEP_TEST:-}" ]; then
       echo "(CLINE_DEEP_TEST set — attempting initialization; requires credentials/config)"
       timeout 60 sh -c "$CLINE" 2>&1 | head -5

@@ -12,18 +12,33 @@ PUBLIC=$PROJECT/public
 DIST=$PROJECT/dist-master
 VERSION=v0.10.0-m6.0.2
 TOPDIR=PocketShell-$VERSION
+# RELEASE TIP (m6.0.2): the payload is cut from THIS immutable commit, not from
+# the moving working tree/HEAD — sandbox resets, platform auto-commits and
+# web-page pin updates must never change the delivered source bytes again.
+# BUMP ON EVERY RELEASE.
+RELEASE_TIP=e5b0c93
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 
 cd "$PROJECT"
-TIP=$(git rev-parse --short HEAD)
-echo "== payload $VERSION @ git tip $TIP =="
+RELEASE_TIP_FULL=$(git rev-parse "$RELEASE_TIP"^{commit})
+TIP=$(git rev-parse --short "$RELEASE_TIP")
+echo "== payload $VERSION @ release tip $TIP (pinned; HEAD may be ahead) =="
 
 mkdir -p "$DIST" "$PUBLIC"
 
-# --- 1. git bundle: complete history, one file ---
+# --- 1. git bundle: complete history AT THE RELEASE TIP (self-contained;
+# ---    refs main+HEAD both point at the tip so `git clone <bundle>` checks out) ---
+# main is moved to the release tip for the duration of the bundling, then
+# restored — the delivered bundle is a function of the immutable tip only.
 BUNDLE=$STAGE/pocketshell-m2.gitbundle
-git bundle create "$BUNDLE" --all
+MAIN_SAVE=$(git rev-parse refs/heads/main)
+restore_main() { git update-ref refs/heads/main "$MAIN_SAVE"; }
+trap 'restore_main' EXIT
+git update-ref refs/heads/main "$RELEASE_TIP_FULL"
+git bundle create "$BUNDLE" refs/heads/main HEAD
+restore_main
+trap 'rm -rf "$STAGE"' EXIT
 git bundle verify "$BUNDLE" > /dev/null
 echo "bundle ok: $(du -h "$BUNDLE" | cut -f1)"
 
@@ -1400,46 +1415,37 @@ Everything else in this archive is the plain, buildable working tree:
 EOF
 
 # --- 3. source tree: zero dotfiles, zero web scaffold, zero build outputs ---
+# Staged from git archive AT THE RELEASE TIP (tracked files only, immutable) —
+# worklog edits, platform auto-commits and working-tree drift can never touch
+# the delivered source bytes. The exclude list still strips the tracked web
+# scaffold (page/layout shims) from the archive.
 TREE=$STAGE/$TOPDIR
 mkdir -p "$TREE"
-tar --exclude='./.git' --exclude='./.gitignore' --exclude='./.gitattributes' \
-    --exclude='./.gradle' --exclude='./.kotlin' --exclude='./.next' \
-    --exclude='./.zscripts' --exclude='./.idea' \
-    --exclude='.*/' --exclude='./_*' \
-    --exclude='./node_modules' --exclude='*/node_modules' \
-    --exclude='./*/build' --exclude='./build' \
-    --exclude='./src' --exclude='./public' --exclude='./prisma' --exclude='./db' \
-    --exclude='./package.json' --exclude='./bun.lock' --exclude='./bun.lockb' \
-    --exclude='./tsconfig.json' --exclude='./next.config.ts' \
-    --exclude='./postcss.config.mjs' --exclude='./components.json' \
-    --exclude='./eslint.config.mjs' --exclude='./next-env.d.ts' \
-    --exclude='./tailwind.config.ts' --exclude='./Caddyfile' \
-    --exclude='./dev.log' --exclude='./server.log' \
-    --exclude='./skills' --exclude='./upload' --exclude='./download' \
-    --exclude='./scratch' --exclude='./vframes' --exclude='./sheets' \
-    --exclude='./tool-results' \
-    --exclude='./dist-master' --exclude='./examples' --exclude='./mini-services' \
-    --exclude='./tests' \
-    --exclude='./.env' --exclude='./local.properties' \
-    --exclude='./PocketShell-*.zip' --exclude='./PocketShell-*.tar.gz' --exclude='./*.gitbundle' \
-    --exclude='./app/page.tsx' --exclude='./app/layout.tsx' \
-    -cf - . | tar -xf - -C "$TREE"
+git archive --format=tar "$RELEASE_TIP_FULL" \
+  | tar -xf - -C "$TREE" \
+      --exclude='app/page.tsx' --exclude='app/layout.tsx' \
+      --exclude='.env' --exclude='.gitignore' --exclude='.kotlin' \
+      --exclude='delivery'
 cp "$BUNDLE" "$TREE/pocketshell-m2.gitbundle"
 cp "$STAGE/RESTORE.txt" "$TREE/RESTORE.txt"
+# REPRODUCIBLE ARCHIVES: zero every mtime, fixed owner, sorted entries —
+# the same tree always yields the same zip/tgz bytes (pins stop churning
+# across sandbox resets; build-era timestamps were the old churn source).
+find "$TREE" -exec touch -d @0 {} +
 
 # --- 4. publish zip + tar.gz twin + bundle + apk ---
 ZIP=$PUBLIC/PocketShell-$VERSION-source.zip
 TGZ=$PUBLIC/PocketShell-$VERSION-source.tar.gz
 rm -f "$ZIP" "$TGZ"
-(cd "$STAGE" && zip -rq "$ZIP" "$TOPDIR")
-tar -czf "$TGZ" -C "$STAGE" "$TOPDIR"
+(cd "$STAGE" && zip -rqX "$ZIP" "$TOPDIR")
+tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - -C "$STAGE" "$TOPDIR" | gzip -n > "$TGZ"
 cp "$BUNDLE" "$PUBLIC/pocketshell-m2.gitbundle"
 cp "$PROJECT/download/PocketShell-$VERSION-debug.apk" "$PUBLIC/"
 # M6.0: the executable compatibility suite + the glibc layer artifact
 # (transparency mirror — the layer itself already rides in the APK).
 RT_TGZ=$PUBLIC/pocketshell-runtime-tests-aarch64.tar.gz
 cp /home/z/tools/rig/pocketshell-runtime-tests-aarch64.tar.gz "$RT_TGZ" 2>/dev/null || {
-  ( cd "$PROJECT/runtime-tests" && tar -czf "$RT_TGZ" run_on_device.sh -C bin t_cline_shape t_cpp t_dlopen t_fork_exec t_getaddrinfo t_getpwnam t_hello t_libm t_pthread t_static )
+  ( cd "$PROJECT/runtime-tests" && find run_on_device.sh bin -exec touch -d @0 {} + 2>/dev/null; tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - run_on_device.sh -C bin t_cline_shape t_cpp t_dlopen t_fork_exec t_getaddrinfo t_getpwnam t_hello t_libm t_pthread t_static | gzip -n > "$RT_TGZ" )
 }
 cp "$PROJECT"/download/glibc-sidecar/pocketshell-glibc-aarch64-*.tar.gz "$PUBLIC/"
 

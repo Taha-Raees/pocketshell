@@ -16,10 +16,12 @@ scripts/runtime/build_test_binaries.sh  # aarch64 glibc test binaries (cross gcc
 scripts/runtime/run_sandbox_suite.sh    # the matrix
 ```
 
-Latest full results: **20/20 PASS** (2026-09-05) and the device runner itself
-validated under emulation: **24/24 PASS — ALL GREEN**, including
-`cline --version` / `--help` / node-spawn chain / relaunch ×3 on the real
-Cline 3.0.61 binary (151,062,848 B — byte-identical size to the device report).
+Latest full results: **20/20 PASS** (2026-09-05, emulation) and the REAL
+DEVICE gate: **24/24 PASS — ALL GREEN** (2026-09-06, v0.10.0-m6.0.2, real
+Debian glibc 2.41) including `cline --version` / `--help` / node-spawn chain
+/ relaunch ×3 on the real Cline 3.0.61 binary. Suite v2.2 (m6.0.3) adds the
+three permanent doctor rows (anchored-verdict t_cline_shape, musl
+classification, selftest matrix) → **27 rows** on a Cline-equipped device.
 
 ## Device gate (paste-ready)
 
@@ -33,8 +35,11 @@ sh /tmp/pocketshell-tests/run_on_device.sh
 Sections: musl regression (sh/bash/git/curl/node/npm/apk), static, real glibc
 layer (loader --version, hello, pthread, dlopen, libm, C++ exceptions,
 fork+exec across libcs, NSS passwd, NSS DNS, Cline-shaped DT_NEEDED),
-pocketshell-doctor verdict, Cline end-to-end (version/help/node-spawn/relaunch;
-`CLINE_DEEP_TEST=1` adds an initialization attempt when credentials exist).
+pocketshell-doctor rows (anchored verdict on t_cline_shape, musl
+classification on /bin/busybox, the `--selftest` semantic-comparison matrix,
+and the real-Cline verdict inside the Cline section), Cline end-to-end
+(version/help/node-spawn/relaunch; `CLINE_DEEP_TEST=1` adds an
+initialization attempt when credentials exist).
 
 ## Test binary provenance
 

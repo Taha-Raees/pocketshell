@@ -1762,12 +1762,20 @@ silently). Then run the automated suite and the manual checks below.
   A `status: state=FAILED reason=…` line in PREFLIGHT is an app-side install
   failure — paste it.
 
-### 33.2 pocketshell-doctor (no more guessing)
+### 33.2 pocketshell-doctor (no more guessing; v2 semantics since m6.0.3)
 - `pocketshell-doctor /tmp/pocketshell-tests/t_cline_shape` → ELF64 AArch64,
-  DT_NEEDED libc.so.6/libpthread.so.0/libdl.so.2/libm.so.6, loader resolution
-  "all shared objects resolved", Compatibility: SUPPORTED.
+  DT_NEEDED libc.so.6/libpthread.so.0/libdl.so.2/libm.so.6,
+  `Required GLIBC: GLIBC_2.34`, `Version gate: PASS (installed glibc 2.41
+  satisfies required GLIBC_2.34)`, loader resolution PASS per-library,
+  Compatibility: SUPPORTED with the combined reason.
+- `pocketshell-doctor <real Cline binary>` → `Required GLIBC: GLIBC_2.17`,
+  Version gate PASS (2.41 ≥ 2.17), Compatibility: SUPPORTED — the m6.0.2
+  device's UNSUPPORTED verdict was the doctor v1 bug, fixed in v2.
 - `pocketshell-doctor /bin/sh` → SUPPORTED (musl — executed directly).
 - `pocketshell-doctor /bin/busybox` → SUPPORTED (musl).
+- `pocketshell-doctor --selftest` → 15/15 semantic-comparison cases PASS
+  (2.17≤2.41, 2.41=2.41, 2.42>2.41, the 2.9/2.10 lexical trap, numeric
+  max extraction).
 
 ### 33.3 Cline end-to-end (the real-world test; needs credentials for 4–5)
 1. `cline --version` → 3.0.61
@@ -1790,9 +1798,12 @@ silently). Then run the automated suite and the manual checks below.
 
 ### 33.6 Honesty checks
 - `cat /etc/pocketshell/app-version` shows the app build that last prepared
-  this rootfs (m6.0.2+: `0.10.0-m6.0.2 (versionCode 42)`; absent = the app is
-  pre-m6.0.2 — that alone is a verdict, install the current APK)
-- `cat /etc/pocketshell/glibc-runtime` shows the layer version line
+  this rootfs (m6.0.3+: `0.10.0-m6.0.3 (versionCode 43)`; older builds show
+  their own stamp; absent = the app is pre-m6.0.2 — that alone is a verdict,
+  install the current APK)
+- `cat /etc/pocketshell/glibc-runtime` shows the layer version line —
+  `… rev=2` after the m6.0.3 update has taken effect; rev-less or `rev=1`
+  means the updated app has not prepared a session yet (open one session)
 - `cat /etc/pocketshell/glibc-runtime.status` shows the last install outcome
   (state=OK source=extractor|fastpath|manual-hatch …, or FAILED + reason)
 - `ls /lib/ld-musl-aarch64.so.1` untouched; `apk` still fully functional
@@ -1825,4 +1836,32 @@ extracts ~18 MB, subsequent spawns are the marker fast path). Then:
 4. `command -v pocketshell-doctor && pocketshell-doctor /tmp/pocketshell-tests/t_cline_shape`
    → SUPPORTED.
 5. EXPECT 24 passed, 0 failed, 0 skipped — ALL GREEN incl. Cline 3.0.61.
+   Paste the full output either way.
+
+## 33B. m6.0.3 re-gate — the doctor correctness gate (v0.10.0-m6.0.3, vc43) — DEVICE GATE PENDING
+
+Context (gate #3 outcome): the runtime PROVED itself 24/24 on real hardware
+(real loader, real Cline 3.0.61 end-to-end) — but the diagnostic tool was
+wrong: doctor v1's version "comparison" was structurally always-false, so
+every versioned glibc binary (real Cline included: GLIBC_2.17 vs 2.41) got
+UNSUPPORTED, and the suite's unanchored "SUPPORTED" grep hid it. Fixed in
+doctor v2 (numeric comparison, exit-code-authoritative loader check,
+fact-hierarchy output, `--selftest`); the layer is re-cut as rev=2 with
+BYTE-IDENTICAL glibc files (proven: exactly one tar member changed) and the
+marker revision forces every device to re-extract on the next session.
+
+Preconditions: install vc43 IN PLACE (same cert — data preserved), fully
+close + reopen the app, open ONE fresh session (one ~18 MB re-extraction:
+rev=1 → rev=2), then:
+1. §33.1 with a FRESH v2.2 suite download (header must read
+   `suite: v2.2 (m6.0.3)` — delete any older copy).
+2. §33.6: app-version `0.10.0-m6.0.3 (versionCode 43)`; marker ends `rev=2`;
+   status shows `state=OK source=extractor` (first spawn) then `fastpath`.
+3. `pocketshell-doctor /usr/local/lib/node_modules/cline/node_modules/@cline/cli-linux-arm64/bin/cline`
+   → `Required GLIBC: GLIBC_2.17`, `Version gate: PASS`, Compatibility:
+   SUPPORTED.
+4. `pocketshell-doctor --selftest` → SELFTEST PASS (15/15).
+5. EXPECT 27 passed, 0 failed, 0 skipped — ALL GREEN (24 prior rows + the
+   three new doctor rows; the real-cline doctor row adds a 28th on
+   Cline-equipped devices — report what you see, either is correct).
    Paste the full output either way.

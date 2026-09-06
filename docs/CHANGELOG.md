@@ -3,6 +3,64 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.10.0-m6.0.3] — 2026-09-06 — M6.0.3: the doctor correctness gate
+
+Device gate #3 PASSED 24/24 on real hardware (real Debian glibc 2.41 loader,
+Cline 3.0.61 end-to-end). What failed was the DIAGNOSTIC TOOL:
+`pocketshell-doctor` verdicted UNSUPPORTED for every versioned glibc binary —
+the real Cline binary (max required GLIBC_2.17, layer provides 2.41) reported
+UNSUPPORTED with the reason "binary requires GLIBC_2.17 but the installed
+layer provides glibc 2.41", which is semantically backwards. This release
+fixes the doctor, closes the suite gap that let it escape, and re-cuts the
+layer (rev=2) so the fix reaches already-installed devices with zero user
+action. The glibc files themselves are byte-identical to the proven rev=1
+layer.
+
+- **Doctor v1 root cause (structurally always-false, not a reversed or
+  lexical compare)**: the version "comparison" concatenated the required
+  version (GLIBC_ prefix stripped) and the installed version, then
+  string-compared the concatenation against the installed version alone —
+  `"2.17\n2.41" = "2.41"` is never true for ANY input, including exact
+  matches. Every binary with a versioned glibc symbol requirement was
+  condemned; binaries without one (or judged without binutils) were waved
+  through. The suite masked it: the doctor row grepped "SUPPORTED"
+  UNANCHORED — `UNSUPPORTED` contains `SUPPORTED` as a substring — so the
+  row PASSED while the doctor was wrong (t_cline_shape requires GLIBC_2.34
+  and was mis-verdicted on the very device that scored 24/24).
+- **Doctor v2 (scripts/runtime/pocketshell-doctor)**:
+  `ver_le` — numeric component-wise semantic comparison (2.9 < 2.10 < 2.17;
+  2.2.5 three components; zero padding; leading-zero normalization against
+  busybox-octal arithmetic); numeric-aware maximum extraction over ALL
+  `GLIBC_x.y` tokens (no `sort -V` dependence — busybox sort is not GNU
+  sort); the real-loader resolution check is exit-code-authoritative
+  (empirically probed: glibc prints "error while loading shared libraries:
+  … cannot open shared object file" and exits 127 for a missing library —
+  the v1 grep for "not found" NEVER matched it, so unresolvable DT_NEEDED
+  was reported as "all shared objects resolved"); installed version parsed
+  from the REAL loader first, marker as fallback, drift warning if they
+  disagree; trailing sentence period handled ("stable release version 2.41.");
+  the full fact hierarchy (ELF/class/machine/interp/runtime/DT_NEEDED/
+  required-glibc/version-gate/loader-resolution) prints BEFORE the verdict —
+  no successful check can hide a failed one; `--selftest` runs the permanent
+  15-case regression matrix (the exact Phase-7 table plus numeric-max traps).
+- **Suite v2.1 → v2.2**: all doctor rows anchor on `^Compatibility:
+  SUPPORTED`; three permanent doctor rows join the device suite (the
+  selftest matrix, musl classification, real-Cline verdict) — 24 rows → 27.
+- **Layer rev=2 (propagation contract)**: rebuild-by-patch of the rev=1
+  artifact — byte-compare of every extracted file proves EXACTLY ONE tar
+  member changed (`usr/local/bin/pocketshell-doctor`); metadata (modes,
+  owners, mtimes, symlinks) identical. The marker now ends `rev=2`, so
+  `GuestGlibcRuntime.isCurrent` treats every rev=1 device as stale and
+  re-extracts on the next session prep. The suite repair hatch writes the
+  same rev=2 marker.
+- **Tests 392 → 397** (all green): the doctor script's selftest executed on
+  the JVM, usage/not-a-file exit codes, real-fixture fact extraction
+  (t_cline_shape → `Required GLIBC: GLIBC_2.34` — the numeric max of
+  {2.17, 2.34}), static classification, and the marker-rev re-extraction
+  regression. New rig evidence: scripts/probe_loader_behavior.sh (loader
+  exit codes + message formats) and scripts/test_doctor_integration.sh
+  (22 dash assertions incl. both loader-resolution branches).
+
 ## [0.10.0-m6.0.2] — 2026-09-06 — M6.0.2: the actual install-path fix (proven root cause)
 
 Device gate #2 failed identically to #1 — this time the failure was traced to

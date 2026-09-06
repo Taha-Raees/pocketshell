@@ -26,21 +26,30 @@ package app.pocketshell.runtime
  *    mirrored for the suite hatch and provenance verification.
  *
  * Version bumps happen through app updates, never through loose URLs.
+ *
+ * m6.0.3 (doctor correctness gate, rev=2): the layer payload CHANGED —
+ * pocketshell-doctor v2 replaces the v1 verdict logic that produced
+ * UNSUPPORTED for every versioned glibc binary. The marker therefore gains
+ * an explicit revision ([LAYER_REVISION]): [GuestGlibcRuntime.isCurrent]
+ * compares the full marker text, so any device that still carries the rev=1
+ * layer re-extracts on its next session prep — the fix propagates without
+ * any user action and without touching the glibc files (which are
+ * byte-identical to the rev=1 layer; proven at rebuild time).
  */
 object GlibcRuntimePin {
 
     /** Release artifact (mirror + suite hatch + payload verification). */
     const val ARTIFACT_NAME = "pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz"
-    const val SHA256 = "2242f8ef8f18df06c6bf37d55f6ae526cccb6d835f76bc048b877266d252ad11"
-    const val SIZE_BYTES = 6_761_290L
+    const val SHA256 = "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d"
+    const val SIZE_BYTES = 6_764_916L
 
     /**
      * The APK asset form: AGP ships the DECOMPRESSED tar under the `.tar` name
      * (see class doc). Pinned by name, size and sha; verified at extraction.
      */
     const val ASSET_PATH = "guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar"
-    const val ASSET_SHA256 = "5be400dd13ca05f569924f598a0c4c2c0b7331af8a8bd5f586c6d7535fccd3c0"
-    const val ASSET_SIZE_BYTES = 17_909_760L
+    const val ASSET_SHA256 = "898131ff2f5b243ee52eeeb4c3b45a51036f58e29f1a9775d6f8b45048626b1d"
+    const val ASSET_SIZE_BYTES = 17_920_000L
 
     /** Upstream glibc version the layer provides (RuntimePin-style honesty). */
     const val GLIBC_VERSION = "2.41"
@@ -49,14 +58,23 @@ object GlibcRuntimePin {
     const val LAYER_VERSION = "2.41-12.deb13u3"
 
     /**
+     * Layer payload revision (m6.0.3). rev=1 shipped with vc42; rev=2 carries
+     * pocketshell-doctor v2 (semantic GLIBC comparison). Bump on ANY change to
+     * the layer payload — the marker text is the currency contract, so a rev
+     * bump is what makes every already-installed device re-extract.
+     */
+    const val LAYER_REVISION = 2
+
+    /**
      * Guest-relative marker file, written LAST after every entry extracted.
-     * Presence + exact content = the layer is complete and current. Anything
-     * else (missing, stale, corrupt) → re-extraction on the next ensure call
-     * (idempotent, self-healing). `pocketshell-doctor` parses the "glibc x.y"
-     * part for the required-symbol-version check.
+     * Presence + exact content = the layer is complete AND current (the rev
+     * suffix makes payload changes visible to [GuestGlibcRuntime.isCurrent]).
+     * Anything else (missing, stale, corrupt) → re-extraction on the next
+     * ensure call (idempotent, self-healing). `pocketshell-doctor` parses the
+     * "glibc x.y" part for the required-symbol-version check.
      */
     const val MARKER_RELATIVE = "etc/pocketshell/glibc-runtime"
 
     fun markerContent(): String =
-        "PocketShell glibc runtime layer $LAYER_VERSION (glibc $GLIBC_VERSION)\n"
+        "PocketShell glibc runtime layer $LAYER_VERSION (glibc $GLIBC_VERSION) rev=$LAYER_REVISION\n"
 }

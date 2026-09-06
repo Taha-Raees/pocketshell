@@ -220,6 +220,38 @@ class GuestGlibcRuntimeTest {
 
     // ------------------------------------- device-condition (gcompat) pin
 
+    /**
+     * m6.0.3 DOCTOR-CORRECTNESS GATE: the layer payload changed (doctor v2)
+     * while the glibc files stayed byte-identical. The ONLY thing that makes
+     * an already-installed device re-extract is the marker text — so the
+     * marker must carry the revision, and a rev=1 (vc42-era) marker must be
+     * treated as stale. This is the test that keeps the fix propagating.
+     */
+    @Test
+    fun `layer revision bump forces re-extraction of an older layer`() {
+        assertTrue(
+            "LAYER_REVISION must advance when the payload changes (rev=2 = doctor v2)",
+            GlibcRuntimePin.LAYER_REVISION >= 2,
+        )
+        val root = newRootfs()
+        val oldMarker = GlibcRuntimePin.markerContent()
+            .replace("rev=${GlibcRuntimePin.LAYER_REVISION}", "rev=1")
+        assertTrue("guard: the substituted marker must differ", oldMarker != GlibcRuntimePin.markerContent())
+        File(root, GlibcRuntimePin.MARKER_RELATIVE).parentFile!!.mkdirs()
+        File(root, GlibcRuntimePin.MARKER_RELATIVE).writeText(oldMarker)
+
+        assertFalse("a rev=1 layer must not claim currency", GuestGlibcRuntime.isCurrent(root))
+
+        val result = GuestGlibcRuntime.ensureInstalled(root) { tarStream() }
+        assertTrue("expected re-extraction, got $result", result is GuestGlibcRuntime.Result.Installed)
+        assertEquals(
+            "the marker must now carry the current revision",
+            GlibcRuntimePin.markerContent(),
+            File(root, GlibcRuntimePin.MARKER_RELATIVE).readText(),
+        )
+        assertTrue(GuestGlibcRuntime.isCurrent(root))
+    }
+
     @Test
     fun `gcompat stub at the loader path is replaced by the real loader symlink`() {
         // The m6.0.0 device gate: the rootfs carries gcompat (installed by an
