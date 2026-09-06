@@ -1713,3 +1713,19 @@ Work Log:
 
 Stage Summary:
 - Phase 8.1 complete: multi-select is the existing per-entry engine executed N times with an honest aggregate — selection is names-only and dies at every boundary, collisions reuse the one Replace dialog, partial outcomes are always disclosed, zero new storage APIs/permissions/dependencies, M6 and P7.x untouched.
+
+---
+Task ID: 25 (M7.0.0 P8.1 delivery + the standing reset protocol)
+Agent: main (Super Z)
+Task: Deliver the m7p8.1 set NOW (the user's core directive: "if you had uploaded m7p8 files when you finished instead of me asking we would have that too") and make reset-survival systematic.
+
+Work Log:
+- Payload re-cut from the restored tip e7f2630 via scripts/make_payload_m7p81.sh (m7p71 cutter adapted; sanity: 0 dot-path entries, 0 web-shim entries, FileSearch.kt + MultiSelectOps.kt + TerminalLaunch.kt + the glibc asset present): source.zip 5f1f3eb2…/49,446,382 B, source.tar.gz 788970c0…/49,255,759 B, pocketshell-m7p81.gitbundle 1068ed17…/37,125,915 B (main tip == APK build tip), RESTORE.txt carrying the M7 phases 1-8.1 narrative + the reset-recovery note.
+- APK staged as PocketShell-v0.10.0-m6.0.4-m7p8.1-debug.apk (f316ec67…/30,451,017 B) into public/ + download/; glibc layer artifact re-served byte-identical (ed82daa8…/6,764,916 B — the in-tree asset survived the reset); stale m2.4 junk removed from public/.
+- page.tsx re-pinned (m7p8.1 top card with both features + the reset-recovery note, withdrawals card for the lost m7p7.1/m7p6/m6.0.4 artifacts with the honest reason, §38/§39 device-gate summary, source card on the m7p81 pins, footer extended); download/README.md rewritten (new pins, withdrawal list, recovery narrative).
+- HTTP verification (next dev on :3000): page 200 rendering m7p8.1/e7f2630; all five artifacts 200 at EXACT byte sizes; APK + bundle wire sha256 == published pins; stale m7p7.1 APK 404 with zero stale page references.
+- RESET PROTOCOL (standing, every phase from now on): (1) commit the phase; (2) re-cut the FULL payload at the phase tip; (3) re-pin page + README; (4) stage public/ + download/ and HTTP-verify byte sizes + wire shas; (5) copy the fresh git bundle + APK into upload/ — the platform-managed surface that survives resets (proven: the user's m7p71 bundle there was the recovery source); (6) only then report. Delivery is part of the phase, never an afterthought.
+- Commit 48ac398 (page.tsx + download/README.md + make_payload_m7p81.sh); recovery copies staged into upload/ (bundle + APK). Final commit chain on restored history: fb01540 (P7.1, user-restored) → 51cd18b (P8 redo) → e7f2630 (P8.1) → 48ac398 (web delivery).
+
+Stage Summary:
+- The m7p8.1 set is LIVE and HTTP-verified; the reset hole is closed by process: every phase now ends delivered and re-feedable. Awaiting the user's §38 (search) + §39 (multi-select) device gates; P9 next per plan (integration audit + version bump 0.11.0-m7.0.0 / vc45).
