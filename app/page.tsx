@@ -1,25 +1,21 @@
-const VERSION = "v0.10.0-m6.0.4";
+const VERSION = "v0.10.0-m6.0.4-m7p8.1";
 
-// SHA pins — DETERMINISTIC: the APK is a clean-room gradle build, the payload
-// cutter stages from the pinned release tip (git a7441ff) with zeroed mtimes,
-// the tests tarball is cut the same way (now including the Phase-C drill
-// script), and the PDF has fixed metadata dates. Semantic pins: versionCode
-// 44, versionName 0.10.0-m6.0.4, cert d96a6f66…8bf659, embedded layer asset
-// 898131ff… /17,920,000 B == GlibcRuntimePin. The glibc layer is UNCHANGED
-// rev=2 (byte-identical artifact ed82daa8…): m6.0.4 fixes are APP-side only.
+// SHA pins — the m7p8.1 delivery. HONESTY NOTE: the ORIGINAL m7p8 build and
+// the older milestone artifacts were lost to a sandbox reset before they
+// could be delivered; this page serves the REBUILT, re-gated m7p8.1 set cut
+// from the restored history (bundle tip e7f2630). The payload cutter stages
+// from the pinned tip with zeroed mtimes; the embedded git bundle's pack
+// bytes are not re-cut-stable, so these pins refer to the ONE delivered cut.
+// Semantic pins: versionCode 44, versionName 0.10.0-m6.0.4, cert
+// d96a6f66…8bf659, embedded layer asset 898131ff… /17,920,000 B ==
+// GlibcRuntimePin. The glibc layer is UNCHANGED rev=2 (byte-identical
+// artifact ed82daa8…).
 const HASHES = {
-  apk: "e633ca3cef54434474c58648a489329c875ba1ab1ffcf6d15b77a4e1c2529750",
-  m7p7: "a3ce9d3a03e8307ec3eca6893ee7b8fe96e6d0b2f4723a22e8a00b6347192cd8",
-  m7p7zip: "9383ab00c82108913f02fd03471f0b3c5ca30e8deca2af45117499dee4f3184a",
-  m7p7tgz: "8a0d48605bd4cbe5b8eea905b82116fb6cc536e1bcfcc1922ffef120ed3b0132",
-  m7p7bundle: "3b67d58d2965de1884ba09c7175af254da59d26fee3d45c33fedd957d85ea6a2",
-  m7p6: "35ae7a488af89a3403823f78ecadeaacb5c6b2806f5a240d73320128e94fff37",
-  zip: "b0985c77d8c9e8100072b4f54d961c08aba0d79a02a75918cc5d5e8be753da12",
-  tgz: "c46e585dc90663f5349f654940bbde1a6437acd4790f647d6405e1d3b7884595",
-  bundle: "9982485d3c2e93213f9ec815f53228d74efa091773fc3ba9a9dc00a1f62f3938",
-  tests: "90009339d4baeae001f0417c4c926fb18256a8f4b96e62e3dbb074b55fe87ac5",
+  apk: "f316ec67ffa5a5ce6983caaea8644a7a5b4cefba9805aa78a225d693ae9bfaf2",
+  zip: "5f1f3eb2800f145a539019baf83c53192831a7f60759240e07eac07bfbc98401",
+  tgz: "788970c0e0f176b2e3f25fe51fa53e12194bac930656b94002b3aca6ec202e7c",
+  bundle: "1068ed17d37da2095abed2ba050941995bc4e2c33fda6ef96d283760fa1a9f96",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
-  report: "92015b7547b2e9b7dd6bd8888f5d641c8804a3e33cafaf8c069e811934af10ae",
 };
 
 function Sha({ text }: { text: string }) {
@@ -40,205 +36,59 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M7 Phase 7 build: Open Terminal Here{" "}
-          <span className="badge">M7 tip d1fe8b6 · vc44</span>
+          M7 Phase 8.1 build: file search + multi-select{" "}
+          <span className="badge">M7 tip e7f2630 · vc44</span>
         </h2>
         <p>
           <b>
-            LATEST BUILD — includes M7 Phases 1–7 on top of M6.0.4: storage
-            abstraction, file explorer, file operations, Android storage
-            bridge (SAF folders), the quick text editor, and now
-            &quot;Open Terminal Here&quot;. Linux directories in the Files
-            explorer gain a REAL launch action: a normal Alpine session
-            (titled &quot;Alpine Linux&quot;) whose guest working directory is
-            the exact browsed directory — <code>pwd</code> prints it
-            literally. Created through the UNCHANGED canonical session path:
-            navigation happens only after the session is actually ready,
-            never navigate-first. The directory travels as PTY argv through
-            the new injection-proof chain{" "}
-            {"cd -- '<dir>' && exec /bin/sh -l"} — POSIX single-quote
-            wrapping, the -- option terminator, and && (never ;) so the
-            interactive login shell follows only a SUCCESSFUL cd; proven by
-            execution through real /bin/sh, including a genuine injection
-            attempt whose <code>touch</code> never runs. Android areas
-            (PocketShell Downloads, SAF folders) get NO fake button — the
-            honest boundary note instead: copy or move files into PocketShell
-            Linux to work with them in Terminal. Existing sessions untouched.
-            JVM suite 600/600 green.
+            LATEST BUILD — includes M7 Phases 1–8.1 on top of M6.0.4 (one
+            build carries both new features). <b>Search:</b> a magnifier in
+            the Files header opens a focused search field — a literal,
+            case-insensitive NAME search of the CURRENTLY SELECTED storage
+            area only (PocketShell Linux, the Downloads shelf, or a granted
+            SAF folder; it can never escape the area). Symlinks appear as
+            results but are never followed; the query is data — never a
+            pattern, never a path. Honest limits are shown (200 matches /
+            2000 folders; skipped folders are counted), tapping a result
+            opens its parent folder and highlights it. <b>Multi-select:</b>
+            the header check icon turns the listing into a selection mode —
+            tap rows to toggle, then Copy / Move / Delete the whole selection
+            through the same per-entry engine as before, with per-item
+            Replace/Cancel dialogs on collisions and an honest aggregate
+            notice (a cancelled partial paste reports exactly what already
+            landed). A selection never survives leaving its folder. No
+            background indexing, no database, no content search, no new
+            permissions, no new dependencies. JVM suite 653/653 green.
           </b>
         </p>
-        <a className="btn" href="/PocketShell-v0.10.0-m6.0.4-m7p7-debug.apk">
-          Download M7P7 APK (debug, 30.3 MB)
-        </a>
-        <Sha text={HASHES.m7p7} />
-        <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          installs in place over M6.0.4 / M7P6 (same versionCode 44, same cert) — glibc layer ed82daa8… unchanged
-        </p>
-      </div>
-
-      <div className="card primary">
-        <h2>
-          M7 Phase 6 build: quick text editor{" "}
-          <span className="badge">M7 tip 25f421f · vc44</span>
-        </h2>
-        <p>
-          <b>
-            Includes M7 Phases 1–6 on top of M6.0.4: storage
-            abstraction, file explorer, file operations, Android storage bridge
-            (SAF folders), and now the quick text editor. &quot;Open&quot; on
-            regular files across all three storage domains — PocketShell Linux,
-            the Downloads shelf, user-granted SAF folders. Byte-honest (strict
-            UTF-8 or refusal — no silent corruption; BOM/CRLF round-trip
-            byte-exact; NUL binary sniff; 1 MiB cap with the real size),
-            concurrency-honest ((size, mtime) save gate + explicit overwrite
-            confirmations), input-honest (the ONE keyboard deck, no IME).
-            Dirty back guard. NOT a mini IDE by design. JVM suite 586/586
-            green.
-          </b>
-        </p>
-        <a className="btn" href="/PocketShell-v0.10.0-m6.0.4-m7p6-debug.apk">
-          Download M7P6 APK (debug, 30.3 MB)
-        </a>
-        <Sha text={HASHES.m7p6} />
-        <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          installs in place over M6.0.4 (same versionCode 44, same cert) — glibc layer ed82daa8… unchanged
-        </p>
-      </div>
-
-      <div className="card primary">
-        <h2>
-          M6.0.4: the adversarial closure audit — the runtime survives its own
-          failure modes{" "}
-          <span className="badge">versionCode 44</span>
-        </h2>
-        <p>
-          <b>
-            The M6.0.3 device gate scored 27/27 ALL GREEN. Before freezing the
-            runtime architecture, the phase was audited adversarially:
-            corruption drills, concurrency, loader ownership vs the gcompat
-            package, extractor security, environment contamination, doctor
-            prediction accuracy, and lifecycle timing. Three real engineering
-            issues were found — all fixed, all regression-pinned, none touched
-            the proven runtime architecture. The glibc layer itself is
-            byte-identical to the one that scored 27/27.
-          </b>
-        </p>
-        <ul className="steps">
-          <li>
-            <b>Integrity beyond the marker (C2/C4):</b> Alpine&apos;s{" "}
-            <code>gcompat</code> package provably owns
-            <code> /lib/ld-linux-aarch64.so.1</code> and ships a real ELF shim
-            there (verified from the actual package bytes) —{" "}
-            <code>apk fix/reinstall gcompat</code> could reclaim the loader
-            behind a perfectly valid marker. The layer fast path now runs a
-            structural integrity probe (the loader symlink must resolve to the
-            canonical Debian loader; load-bearing files must exist) and
-            self-heals by re-extraction on the next session. Deleted libraries
-            or tools are detected the same way.
-          </li>
-          <li>
-            <b>Symlink-safe re-extraction (C3/C12):</b> the layer legitimately
-            ships <code>lib/aarch64-linux-gnu → ../usr/lib/aarch64-linux-gnu</code>
-            {" "}BEFORE the files it points to — and the old symlink replacement
-            followed directory symlinks, so every in-place re-extraction first
-            wiped the entire multiarch directory, then rewrote it. Fixed:
-            symlink nodes are replaced as nodes, every recursive delete is
-            NOFOLLOW, and archive entries routed through earlier symlink
-            entries are refused fail-closed.
-          </li>
-          <li>
-            <b>Session prep off the UI thread (C1.1/C3):</b> the heavy guest
-            preparation (18 MB asset read + sha-256 + re-extraction path) used
-            to run synchronously in the click handler. Session creation is now
-            two-phase — prep on Dispatchers.IO, PTY spawn on the main thread —
-            and the layer ensure is single-flight, so concurrent sessions
-            serialize instead of racing an extraction.
-          </li>
-          <li>
-            <b>Permanent drill suite:</b>{" "}
-            <code>adversarial_closure_audit.sh</code> rides the tests tarball —
-            <code> probe</code> (doctor prediction accuracy, environment
-            contamination, filesystem ownership map, fast-path timing),{" "}
-            <code>drill-c2</code> (corruption), <code>drill-c4</code> (gcompat
-            loader reclaim), <code>drill-c5</code> (apk update/upgrade/add/del
-            survival), and <code>heal</code> (post-session self-heal
-            verification).
-          </li>
-          <li>
-            <b>Doctor accuracy is measured, not assumed (C7):</b> the audit
-            arms the doctor against real binaries and compares its verdict
-            with what actually executes — true positives, true negatives, and
-            an explicit FAIL on any false SUPPORTED/UNSUPPORTED. The sandbox
-            evidence battery (decision tree + malformed-input matrix) scores
-            20/20.
-          </li>
-          <li>
-            <b>Nothing else changed:</b> the glibc layer artifact sha is
-            byte-identical to the 27/27 gate (ed82daa8…), musl is untouched by
-            construction, no loader routing was modified, no wrappers added.
-            JVM suite 397 → 406 leaf cases, 0 failures, including the
-            built-APK asset pin against this exact APK.
-          </li>
-        </ul>
-        <a className="btn" href="/PocketShell-v0.10.0-m6.0.4-debug.apk">
-          Download APK (debug, 29 MB)
+        <a className="btn" href="/PocketShell-v0.10.0-m6.0.4-m7p8.1-debug.apk">
+          Download M7P8.1 APK (debug, 30.5 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          signing cert SHA-256: d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659 (same as v0.4.1–v0.10.0-m6.0.4)
+          installs in place over M6.0.4 / every M7 build (same versionCode 44, same cert) — glibc layer ed82daa8… unchanged.
+          Note: the first m7p8 APK was lost to a sandbox reset before delivery; this rebuilt artifact re-verified every
+          semantic pin (version, permission set, embedded layer asset, dex symbols) and carries P8 + P8.1.
         </p>
       </div>
 
       <div className="card">
         <h2>
-          Platform / Runtime Forensic Audit <span className="badge">PDF · 33 pages</span>
+          Previous builds — withdrawn after the sandbox reset{" "}
+          <span className="badge">history preserved</span>
         </h2>
         <p>
-          The complete read-only engineering audit of the real architecture:
-          repository provenance, the full Linux launch chain, Termux + proot
-          deep dives, the targetSdk-28 exec model, /proc attribution, the
-          ELF/libc strategy this build implements, the tool compatibility
-          matrix, answers to all 30 audit questions, and the Runtime 2.0
-          proposal.
+          A sandbox reset wiped the delivery surface: the m7p7.1
+          (Open Terminal Here p7.1 fixes), m7p6 (quick text editor) and
+          m6.0.4 (adversarial closure audit) APKs and their source cuts are
+          no longer servable — the exact bytes cannot be reproduced. Nothing
+          is lost that matters: the restored git bundle below carries the
+          COMPLETE milestone history M0 → m7p8.1, the P7.1 baseline was
+          re-verified from the user-supplied delivery bundle (sha
+          0f8fd0a3…), and every semantic pin of the current build is
+          re-established. The glibc layer artifact (rev=2) survived
+          byte-identical in-tree and is served again below.
         </p>
-        <a className="btn secondary" href="/PocketShell-Runtime-Forensic-Audit.pdf">
-          Download audit report (PDF, 200 KB)
-        </a>
-        <Sha text={HASHES.report} />
-      </div>
-
-      <div className="card">
-        <h2>Executable compatibility suite <span className="badge">runtime-tests</span></h2>
-        <p>
-          The permanent ARM64 compatibility suite (musl / static / glibc matrix
-          + <code>pocketshell-doctor</code> + the real Cline test) and the
-          Phase-C adversarial drill script. Run inside the PocketShell
-          terminal:
-        </p>
-        <p className="mono">
-          mkdir -p /tmp/pocketshell-tests &amp;&amp; curl -fsSL
-          &lt;this-site&gt;/pocketshell-runtime-tests-aarch64.tar.gz | tar -xz -C
-          /tmp/pocketshell-tests &amp;&amp; sh
-          /tmp/pocketshell-tests/run_on_device.sh
-        </p>
-        <p>
-          Then the closure drills (each prints its own verdict):
-          <span className="mono">
-            {" "}
-            sh /tmp/pocketshell-tests/adversarial_closure_audit.sh probe
-            &nbsp;·&nbsp; drill-c2 &nbsp;·&nbsp; drill-c4 &nbsp;·&nbsp;
-            drill-c5
-          </span>{" "}
-          — after a drill, open ONE new session and run{" "}
-          <span className="mono">adversarial_closure_audit.sh heal</span> to
-          prove the app self-heals the layer. The guided closure runner is{" "}
-          <span className="mono">device_gate.sh</span> (gate → resume-c2 →
-          resume-c4 → resume-c5; each destructive stage gated by baseline).
-        </p>
-        <a className="btn secondary" href="/pocketshell-runtime-tests-aarch64.tar.gz">
-          runtime-tests (718 KB)
-        </a>
-        <Sha text={HASHES.tests} />
       </div>
 
       <div className="card">
@@ -254,10 +104,9 @@ export default function Home() {
           v0.8.0-m4.1.0 (34, an intermediate that was never announced),
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Cline installation, the procfs
-          contract, every Phase 3 behavior and all Companion data (logins
-          included) are untouched. This update is APP-side only: the layer
-          marker and the glibc files stay byte-identical — the new integrity
-          probe simply starts guarding them on the next session prep.
+          contract, all Files explorer data and all Companion data are
+          untouched. The M7 phases are APP-side only: the layer marker and
+          the glibc files stay byte-identical (rev=2, ed82daa8…).
         </p>
       </div>
 
@@ -287,112 +136,104 @@ export default function Home() {
             evidence-driven fix along the way.
           </li>
           <li>
-            <b>v0.10.0-m6.0.0–m6.0.3:</b> Universal Runtime Compatibility —
+            <b>v0.10.0-m6.0.0–m6.0.4:</b> Universal Runtime Compatibility —
             real glibc 2.41 at canonical multiarch paths inside the Alpine
             guest, self-healing pinned delivery, install observability, the
-            doctor correctness gate (numeric semantic comparison), and the
-            27/27 device gate.
+            doctor correctness gate (numeric semantic comparison), the 27/27
+            device gate, and the adversarial closure audit (corruption,
+            loader-reclaim, concurrency — survived and self-healed).
           </li>
           <li>
-            <b>v0.10.0-m6.0.4 (this build):</b> the adversarial closure audit —
-            structural integrity probe behind the marker (gcompat loader
-            reclaim detection + self-heal), symlink-safe NOFOLLOW
-            re-extraction, session prep off the UI thread with single-flight
-            layer install, permanent drill suite, doctor prediction-accuracy
-            measurement, and the documented engineering boundary of the
-            compatibility claim (DUAL_LIBC.md §8).
+            <b>M7.0.0 phases 1–7:</b> one storage abstraction behind the Files
+            explorer (PocketShell Linux, the app Downloads shelf, user-granted
+            SAF folders), real file operations with collision semantics, the
+            byte-honest quick text editor, and &quot;Open Terminal Here&quot;
+            on Linux directories — a normal Alpine session in THE TAPPED
+            folder through the canonical launch path (injection-proof chain,
+            execution-proven), with the terminal &quot;+&quot; matching the
+            current session&apos;s environment.
           </li>
           <li>
-            <b>M7.0.0 phases 1–7 (this build):</b> one storage abstraction
-            behind the Files explorer (PocketShell Linux, the app Downloads
-            shelf, user-granted SAF folders), real file operations with
-            collision semantics, the byte-honest quick text editor, and
-            &quot;Open Terminal Here&quot; on Linux directories — a normal
-            Alpine session at the exact browsed directory through the
-            canonical launch path, with the honest boundary note instead of a
-            fake button on Android areas.
+            <b>M7.0.0 phase 8 (this build):</b> file name search inside the
+            selected storage area — recursive, literal, case-insensitive;
+            composed entirely from the unchanged storage abstraction;
+            symlink-safe by construction; explicit honest limits; errors that
+            never masquerade as empty results; its own serial worker so it
+            never blocks navigation or races it.
+          </li>
+          <li>
+            <b>M7.0.0 phase 8.1 (this build):</b> multi-select for copy /
+            move / delete — the same per-entry operations executed over a
+            selection with honest per-item outcomes; per-name Replace/Cancel
+            on collisions; nothing silent, ever.
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Quick checks (docs/TESTING.md §33 — the m6.0 gates)</h2>
+        <h2>Device gates for THIS build (docs/TESTING.md §38–§39)</h2>
         <ol className="steps">
           <li>
-            <b>Automated suite:</b> one fresh session, then the
-            runtime-tests command above → 27 rows PASS, ALL GREEN.
+            <b>Search (§38):</b> enter/exit search, basic + nested matches,
+            case-insensitivity, query-as-data ({"`..`"}, {"/"}, shell
+            metacharacters stay literal), per-area scope, revoked-grant
+            honesty, limit/skip banners, result activation into the parent.
           </li>
           <li>
-            <b>Doctor:</b> <code>pocketshell-doctor --selftest</code> → 15/15;
-            <code> pocketshell-doctor /bin/sh</code> → musl SUPPORTED;
-            <code> pocketshell-doctor</code> on the real Cline binary →
-            Required GLIBC_2.17, Version gate PASS, SUPPORTED.
+            <b>Multi-select (§39):</b> enter/exit selection, multi delete
+            (files + folder contents + symlink nodes only), multi copy within
+            and across areas, multi move, per-item Replace dialogs, honest
+            partial-cancel notice, selection dying at every boundary.
           </li>
           <li>
-            <b>Closure drills:</b> probe → all green; drill-c2 + one new
-            session + heal → every corruption state detected and fully
-            repaired; drill-c4 → the loader-ownership verdict with evidence;
-            drill-c5 → apk operations leave the layer intact.
-          </li>
-          <li>
-            <b>Cline:</b> version/help/node-spawn (deep test with
-            CLINE_DEEP_TEST=1 when credentials exist).
-          </li>
-          <li>
-            <b>musl regression:</b> apk update/search/install, node, npm,
-            git, curl, Kilo — all unchanged.
+            <b>Regression ladder:</b> single-entry operations, the editor,
+            Open Terminal Here (tapped folder), the terminal &quot;+&quot;
+            environment match, and the SAME 6 permissions (§39 G / §38 G).
           </li>
         </ol>
+        <p>
+          The M6 runtime gates (§33) keep their section in docs/TESTING.md;
+          the runtime-tests tarball is not re-served after the reset — it is
+          re-cut from the bundle sources at the next runtime gate.
+        </p>
       </div>
 
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Source at the M7 tip d1fe8b6 (M7 phases 1–7 included, incl. Open
-          Terminal Here). The zip intentionally contains no dotfiles; full
-          history rides in the git bundle — the complete milestone history
-          (M0 → M7P7), all design contracts, the procfs contract, and the
-          runtime documentation (docs/runtime/ + runtime-tests/ +
-          scripts/runtime/). Bundle main tip 0c979f1 = the P7 app tip
-          d1fe8b6 plus the delivery-page updates and server log; the
-          archived tree is cut at d1fe8b6.
+          Source at the M7 tip e7f2630 (M7 phases 1–8.1: storage abstraction,
+          explorer, operations, Android bridge, editor, Open Terminal Here,
+          file search, multi-select). The zip intentionally contains no
+          dotfiles; full history rides in the git bundle — the complete
+          milestone history (M0 → m7p81), all design contracts, the procfs
+          contract, and the runtime documentation. Bundle main tip e7f2630 =
+          the exact app tip this APK was built from; the archived tree is cut
+          at the same commit. History note: this bundle continues the
+          user-restored P7.1 delivery bundle (fb01540) — the reset-lost M7
+          commits were re-created from the platform snapshot and re-gated
+          (see worklog Tasks 22–24).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-m7p7-source.zip">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-m7p8.1-source.zip">
           source.zip (M7 tip)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-m7p7-source.tar.gz">
+        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-m7p8.1-source.tar.gz">
           source.tar.gz (M7 tip)
         </a>
-        <a className="btn secondary" href="/pocketshell-m7p7.gitbundle">
+        <a className="btn secondary" href="/pocketshell-m7p81.gitbundle">
           git bundle (full history, M7 tip)
-        </a>
-        <Sha text={HASHES.m7p7zip} />
-        <Sha text={HASHES.m7p7tgz} />
-        <Sha text={HASHES.m7p7bundle} />
-        <p>
-          Previous release cut — v0.10.0-m6.0.4 (M6.0.4 release tip ff4afa9;
-          M7 not included):
-        </p>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-source.zip">
-          source.zip (m6.0.4)
-        </a>
-        <a className="btn secondary" href="/PocketShell-v0.10.0-m6.0.4-source.tar.gz">
-          source.tar.gz (m6.0.4)
-        </a>
-        <a className="btn secondary" href="/pocketshell-m2.gitbundle">
-          git bundle (m6.0.4)
-        </a>
-        <a className="btn secondary" href="/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz">
-          glibc layer artifact (transparency copy)
         </a>
         <Sha text={HASHES.zip} />
         <Sha text={HASHES.tgz} />
         <Sha text={HASHES.bundle} />
+        <a className="btn secondary" href="/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz">
+          glibc layer artifact (transparency copy, rev=2 unchanged)
+        </a>
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m7p7.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7p81.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
-          with the same signing identity.
+          with the same signing identity (d96a6f66…8bf659, unchanged since
+          v0.4.1).
         </p>
       </div>
 
@@ -413,12 +254,12 @@ export default function Home() {
         performance · m6.0.0 universal runtime compatibility — real glibc
         inside Alpine, musl untouched, Cline runs · m6.0.1 install
         observability · m6.0.2 the actual install-path fix · m6.0.3 the doctor
-        correctness gate · v0.10.0-m6.0.4: the adversarial closure audit — the
-        runtime survives corruption, reclaims, and concurrency, and says so
-        honestly ·{" "}
-        <b>m7.0.0 phases 1–7 (this build): storage abstraction, file explorer,
-        file operations, Android storage bridge, quick text editor, Open
-        Terminal Here</b>.
+        correctness gate · v0.10.0-m6.0.4: the adversarial closure audit ·
+        m7.0.0 phases 1–7: storage abstraction, file explorer, file
+        operations, Android storage bridge, quick text editor, Open Terminal
+        Here ·{" "}
+        <b>m7.0.0 phases 8–8.1 (this build): file search + multi-select —
+        rebuilt after the reset, re-gated, and delivered</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
