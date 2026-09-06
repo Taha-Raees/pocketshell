@@ -228,7 +228,13 @@ fun PocketShellRoot(
                 keyboardBottomInset = keyboardInset,
                 onSelect = terminalViewModel::select,
                 onClose = terminalViewModel::closeSession,
-                onNewSession = terminalViewModel::newSession,
+                // p7.1: the "+" adds a session matching the CURRENT session's
+                // environment — a Linux shell while the user is in a Linux
+                // session (canonical openLinuxShell path), the historical
+                // Android shell otherwise. The kind decision lives in the
+                // ViewModel (spawn-time registration + the pinned guest
+                // label); the screen stays intent-only.
+                onNewSession = { terminalViewModel.newSessionMatchingCurrent() },
                 onBack = { screen = "home" },
                 // Phase 3.1: the Terminal screen consumes the system-bar insets
                 // itself so its Midnight chrome extends edge-to-edge (the deck
@@ -265,16 +271,16 @@ fun PocketShellRoot(
                         screen = "editor"
                     }
                 },
-                onOpenTerminal = {
-                    // Phase 7 "Open Terminal Here": resolve the CURRENT
-                    // explorer directory through the ops surface (pure area
-                    // gate — no I/O, no session creation here). On Ready the
-                    // TerminalViewModel spawns a NORMAL Alpine session in
-                    // that directory and only its onReady navigates — never
-                    // "navigate first and hope". NotSupported keeps the user
-                    // in Files with the honest boundary notice already
-                    // surfaced by the view model.
-                    when (val resolution = filesViewModel.terminalLaunch()) {
+                onOpenTerminal = { selectedEntry ->
+                    // Phase 7 "Open Terminal Here" (p7.1): resolve the TAPPED
+                    // directory entry through the ops surface (pure area gate
+                    // + the ONE validated child composition — no I/O, no
+                    // session creation here). On Ready the TerminalViewModel
+                    // spawns a NORMAL Alpine session IN THAT FOLDER and only
+                    // its onReady navigates — never "navigate first and hope".
+                    // NotSupported keeps the user in Files with the honest
+                    // boundary notice already surfaced by the view model.
+                    when (val resolution = filesViewModel.terminalLaunch(selectedEntry)) {
                         is app.pocketshell.files.TerminalLaunchResolution.Ready ->
                             terminalViewModel.openLinuxShellAt(
                                 resolution.launch.directory.value,

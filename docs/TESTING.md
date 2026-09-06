@@ -2055,8 +2055,12 @@ Context: Phase 7 adds "Open Terminal Here" for directories inside
 PocketShell Linux ONLY. The action sheet of a directory entry in the
 Linux area offers a real launch: a NORMAL Alpine terminal session is
 created (never reusing another session's PTY, never writing into a
-running session) whose guest working directory is the exact directory
-the explorer is browsing, established through the guest shell chain
+running session) whose guest working directory is THE TAPPED FOLDER
+(p7.1 — the directory entry whose sheet the action was opened for,
+resolved under the browsed location by the ONE validated child
+composition; the p7.0 device report caught the launch landing in the
+browsed parent instead — the browsed location must never be launched
+as a fallback), established through the guest shell chain
 `cd -- '<directory>' && exec /bin/sh -l` delivered as PTY argv (the
 proven command-app launch shape; the directory is POSIX single-quoted
 so spaces, apostrophes, double quotes, $, ;, &&, |, backticks and
@@ -2072,22 +2076,23 @@ at least one existing terminal session for the integrity checks (E).
 
 A. BASIC
 
-1.  Open Files; browse PocketShell Linux (the "Linux" area).
-2.  Navigate into a directory (e.g. create /root/projects/my app).
-3.  Tap any directory entry inside it (or long-press / "⋮") to open the
-    action sheet; confirm "Open Terminal Here" appears as a real action
-    (between "Open" and "New folder").
+1.  Open Files; browse PocketShell Linux (the "Linux" area), e.g. /root.
+2.  Create a directory (e.g. /root/projects/my app).
+3.  Long-press / "⋮" THAT directory entry to open its action sheet;
+    confirm "Open Terminal Here" appears as a real action (between
+    "Open" and "New folder").
 4.  Tap Open Terminal Here.
 5.  Confirm the Terminal screen appears only AFTER session creation
     (no empty/fake terminal tab, no flash of a dead session).
 6.  Run `pwd` at the prompt.
-7.  Confirm pwd prints the exact guest path the explorer was browsing
-    (e.g. /root/projects/my app).
+7.  Confirm pwd prints THE TAPPED FOLDER's exact guest path
+    (e.g. /root/projects/my app) — NOT the location the explorer was
+    browsing when the sheet opened (the p7.0 regression this pins out).
 
 B. NESTED DIRECTORY
 
-8.  Create and navigate into a deeply nested path
-    (e.g. /root/a/b/c/d/e) and repeat 3-7.
+8.  Create a deeply nested path (e.g. /root/a/b/c/d/e) and repeat
+    steps 3-7 with the LEAF tapped from its parent listing.
 9.  Run `pwd`.
 10. Confirm the exact nested path.
 
@@ -2097,10 +2102,11 @@ C. SPECIAL PATHS
     apostrophe ("it's-here"), a dollar sign ("$HOME" as a literal
     name), a semicolon ("semi;colon"), and other shell metacharacters
     where the filesystem allows ("a && b", "a | b", "`cmd`").
-12. For each: navigate into it, Open Terminal Here, run `pwd`, and
-    confirm pwd prints the literal directory path (no truncation at
-    the space, no shell expansion of $/backticks, no command ever
-    executed from the name, prompt lands inside the directory).
+12. For each: open its action sheet from the parent listing, tap Open
+    Terminal Here, run `pwd`, and confirm pwd prints the literal TAPPED
+    directory path (no truncation at the space, no shell expansion of
+    $/backticks, no command ever executed from the name, prompt lands
+    inside the directory).
 
 D. NORMAL TERMINAL (a real session, not a one-shot)
 
@@ -2148,3 +2154,19 @@ G. M6/GLIBC REGRESSION (all through the UNCHANGED runtime path)
 27. Confirm the APK permission list is UNCHANGED (5 permissions; no
     MANAGE/READ/WRITE_EXTERNAL_STORAGE, no new entries) — Phase 7
     adds no permissions, no manifest entries, no storage mounts.
+
+H. THE "+" BUTTON MATCHES THE CURRENT ENVIRONMENT (p7.1)
+
+28. In a LINUX session, tap "+" in the terminal's session bar: confirm
+    a NEW "Alpine Linux" session opens at a real Linux prompt
+    (`uname -a` shows Alpine) — NOT the Android /system/bin/sh shell.
+29. In an ANDROID terminal session, tap "+": confirm the historical
+    Android shell still opens there (the fallback is intentional).
+30. Confirm all previous sessions (both kinds) remain open, unchanged,
+    in order, with no text ever written into their PTYs.
+31. Rotate the screen (ViewModel recreation), enter a fresh "Alpine
+    Linux" session and repeat 28 — the pinned guest-label fallback
+    keeps "+" on Linux. Disclosed limit: a command-app/catalog session
+    after a rotation falls back to the Android shell (spawn-time
+    registration is the only source for those labels; nothing is
+    guessed).

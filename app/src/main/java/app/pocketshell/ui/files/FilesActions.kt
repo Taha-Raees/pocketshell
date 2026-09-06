@@ -218,8 +218,9 @@ fun EntryActionSheet(
             if (entry.kind == EntryKind.DIRECTORY) {
                 SheetAction("Open", Icons.Outlined.FolderOpen, onClick = { handlers.onOpen?.invoke() })
                 // Phase 7: the real action — a launchable terminal session in
-                // the browsed directory (PocketShell Linux areas only; the
-                // caller wires the handler, the sheet never fabricates one).
+                // THIS folder (p7.1: the tapped entry's name rides the intent;
+                // PocketShell Linux areas only; the caller wires the handler,
+                // the sheet never fabricates one).
                 if (handlers.onTerminal != null) {
                     val terminal = handlers.onTerminal
                     SheetAction("Open Terminal Here", Icons.Outlined.Terminal, onClick = { terminal?.invoke() })
@@ -249,7 +250,7 @@ fun EntryActionSheet(
             MidnightNote(
                 text = when {
                     entry.kind == EntryKind.DIRECTORY && handlers.onTerminal != null ->
-                        "Opens a new Linux terminal in the folder you are browsing."
+                        "Opens a new Linux terminal in this folder."
                     entry.kind == EntryKind.DIRECTORY ->
                         // The honest Android-boundary explanation — replaces
                         // the old Phase 4 deferral note. Never a fake launch.

@@ -122,4 +122,64 @@ class TerminalLaunchTest {
             }
         }
     }
+
+    // --------------------------------------- p7.1 — the TAPPED-folder resolution
+
+    @Test
+    fun `p7-1 the launch resolves the TAPPED folder not the browsed location`() {
+        // The p7.0 device report: tapping "Open Terminal Here" on a folder
+        // opened the terminal in the browsed parent. The resolution composes
+        // the SELECTED entry under the browsed location — never the browsed
+        // location itself.
+        val browsed = PathSafety.validatePath("/root")!!
+        val entries = listOf(
+            FsEntry("projects", EntryKind.DIRECTORY, null, null),
+            FsEntry("notes.txt", EntryKind.FILE, 10L, null),
+        )
+        val resolved = terminalLaunchDirectory(browsed, entries, "projects")!!
+        assertEquals("/root/projects", resolved.value)
+        // …and the resolved directory is genuinely NOT the browsed location.
+        assertTrue(resolved !== browsed)
+    }
+
+    @Test
+    fun `p7-1 metachar folder names compose as literal validated data`() {
+        // The name the user tapped is what pwd must print — composed through
+        // the SAME validated path system, still pure DATA (quoting happens
+        // once, later, at PTY-argv build time).
+        val browsed = PathSafety.validatePath("/root")!!
+        val entries = listOf(
+            FsEntry("my 'quoted' \$dir", EntryKind.DIRECTORY, null, null),
+            FsEntry("it's-here", EntryKind.DIRECTORY, null, null),
+        )
+        assertEquals(
+            "/root/my 'quoted' \$dir",
+            terminalLaunchDirectory(browsed, entries, "my 'quoted' \$dir")!!.value,
+        )
+        assertEquals(
+            "/root/it's-here",
+            terminalLaunchDirectory(browsed, entries, "it's-here")!!.value,
+        )
+    }
+
+    @Test
+    fun `p7-1 non-directory entries never resolve - no somewhere-else fallback`() {
+        val browsed = PathSafety.validatePath("/root")!!
+        val entries = listOf(FsEntry("notes.txt", EntryKind.FILE, 10L, null))
+        // A file (or symlink/other) can never become a terminal cwd; returning
+        // the browsed directory instead would be exactly the p7.0 bug again.
+        for (name in listOf("notes.txt", "missing-folder")) {
+            assertEquals(null, terminalLaunchDirectory(browsed, entries, name))
+        }
+    }
+
+    @Test
+    fun `p7-1 a name that cannot validate resolves to null - the honest refusal`() {
+        // Path traversal in a (hypothetical, sheet-forged) name is refused by
+        // the SAME PathSafety validation every navigation uses — no second
+        // validator, and never a silent fallback to the browsed directory.
+        val browsed = PathSafety.validatePath("/root")!!
+        val entries = listOf(FsEntry("..", EntryKind.DIRECTORY, null, null))
+        assertEquals(null, terminalLaunchDirectory(browsed, entries, ".."))
+    }
 }

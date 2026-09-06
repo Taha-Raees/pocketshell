@@ -17,6 +17,7 @@ import app.pocketshell.files.PendingTransfer
 import app.pocketshell.files.StorageArea
 import app.pocketshell.files.StorageAreas
 import app.pocketshell.files.TerminalLaunch
+import app.pocketshell.files.terminalLaunchDirectory
 import app.pocketshell.files.TerminalLaunchResolution
 import app.pocketshell.files.TerminalLaunchSupport
 import app.pocketshell.files.openTerminalHereProblem
@@ -558,27 +559,36 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     // ============================================ Phase 7 — Open Terminal Here
 
     /**
-     * Resolve the CURRENT explorer location into an "Open Terminal Here"
-     * launch — validate + resolve ONLY (the [editorLaunch] discipline; no
-     * I/O, no state change, no session creation: this class resolves intent,
-     * the TerminalViewModel owns sessions).
+     * Resolve the TAPPED directory entry ([selectedEntry], from the action
+     * sheet) into an "Open Terminal Here" launch — validate + resolve ONLY
+     * (the [editorLaunch] discipline; no I/O, no state change, no session
+     * creation: this class resolves intent, the TerminalViewModel owns
+     * sessions).
+     *
+     * p7.1 — the launch opens THE TAPPED FOLDER, not the browsed location
+     * (the p7.0 device report: tapping the action on a folder landed the
+     * terminal in the browsed parent instead). The resolution is the pure
+     * [terminalLaunchDirectory] — the same listing the user tapped from,
+     * the same DIRECTORY check the sheet applies, and the ONE validated
+     * child composition ([ExplorerOps.composeChild]); a stale sheet (the
+     * entry no longer in the listing) resolves to an honest refusal, never
+     * a somewhere-else launch.
      *
      * The gate is the pure [openTerminalHereProblem]: only the guest Linux
      * area can ever launch. For an Android area the honest boundary message
      * ([TerminalLaunchSupport.ANDROID_BOUNDARY_MESSAGE]) is surfaced here as
      * this class's standard notice and returned as [TerminalLaunchResolution.NotSupported]
      * — the UI stays in Files and no fake launch can happen. The
-     * [TerminalLaunchResolution.Ready] payload carries the SAME [AreaPath]
-     * instance the explorer state holds ([state.path]) — no second
-     * validation, no second path representation.
+     * [TerminalLaunchResolution.Ready] payload carries the validated child
+     * [AreaPath]; no second validation, no second path representation.
      */
-    override fun terminalLaunch(): TerminalLaunchResolution {
+    override fun terminalLaunch(selectedEntry: String): TerminalLaunchResolution {
         val state = _state.value
         val areaId = state.areaId ?: return TerminalLaunchResolution.NotSupported(
-            "Open a folder first — Terminal opens in the folder you are browsing.",
+            "Open a folder first — Terminal opens in the folder you choose.",
         )
         val dir = state.path ?: return TerminalLaunchResolution.NotSupported(
-            "Open a folder first — Terminal opens in the folder you are browsing.",
+            "Open a folder first — Terminal opens in the folder you choose.",
         )
         val problem = openTerminalHereProblem(areaId.kind)
         if (problem != null) {
@@ -586,11 +596,15 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
             _notice.value = OpsNotice(problem, isError = true, seq = noticeSeq)
             return TerminalLaunchResolution.NotSupported(problem)
         }
+        val directory = terminalLaunchDirectory(dir, state.entries, selectedEntry)
+            ?: return TerminalLaunchResolution.NotSupported(
+                "That folder is no longer in the listing — refresh and try again.",
+            )
         return TerminalLaunchResolution.Ready(
             TerminalLaunch(
                 areaId = areaId,
                 kind = areaId.kind,
-                directory = dir,
+                directory = directory,
             ),
         )
     }

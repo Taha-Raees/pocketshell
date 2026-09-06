@@ -134,17 +134,19 @@ interface FilesOpsSurface {
     // --------------------------------------------- Phase 7 — Open Terminal Here
 
     /**
-     * Resolve the CURRENT explorer location into an "Open Terminal Here"
-     * launch (M7.0.0 Phase 7) — the narrow terminal-launch intent: validate +
-     * resolve ONLY, exactly like every other intent here. No filesystem I/O,
-     * no session creation, no navigation ever happens inside this call —
-     * the caller receives either [TerminalLaunchResolution.Ready] (it then
-     * asks the TerminalViewModel for a real session and navigates only on
-     * its `onReady`) or [TerminalLaunchResolution.NotSupported] (the honest
-     * area-boundary reason, already surfaced as this VM's notice; the UI
+     * Resolve the TAPPED directory entry ([selectedEntry], from the action
+     * sheet) into an "Open Terminal Here" launch (M7.0.0 Phase 7; p7.1 — the
+     * launch opens THE TAPPED FOLDER, not the browsed location) — the narrow
+     * terminal-launch intent: validate + resolve ONLY, exactly like every
+     * other intent here. No filesystem I/O, no session creation, no
+     * navigation ever happens inside this call — the caller receives either
+     * [TerminalLaunchResolution.Ready] (it then asks the TerminalViewModel
+     * for a real session and navigates only on its `onReady`) or
+     * [TerminalLaunchResolution.NotSupported] (the honest area-boundary or
+     * stale-entry reason, already surfaced as this VM's notice; the UI
      * stays where it is).
      */
-    fun terminalLaunch(): TerminalLaunchResolution
+    fun terminalLaunch(selectedEntry: String): TerminalLaunchResolution
 }
 
 /** One operation outcome, rendered verbatim. [seq] re-triggers auto-dismiss. */

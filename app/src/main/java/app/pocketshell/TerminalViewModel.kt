@@ -67,6 +67,36 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     fun newSession(): Boolean = safeSpawn("Terminal") { createSession() }
 
     /**
+     * p7.1 — the terminal screen's "+": add a session that MATCHES the
+     * environment the user is in. When the current session (the selected
+     * one, else the newest live one) is a Linux guest session, a new Linux
+     * shell is spawned through the UNCHANGED canonical [openLinuxShell] path
+     * (runtime preflight → prepare on IO → spawn on Main → select — already
+     * on the terminal screen, so no navigation is needed); otherwise the
+     * historical Android-shell [newSession] runs. No session is closed,
+     * reused or written into.
+     *
+     * Guest knowledge has TWO honest sources: spawn-time registration
+     * ([guestSessionIds] — covers Linux shells, command apps and catalog
+     * apps) and the pinned guest label ([GUEST_SESSION_LABEL] — survives
+     * ViewModel recreation for the plain Linux shells, whose label the
+     * manager keeps). A session registered by neither falls back to the
+     * historical Android behavior — a wrong-guess spawn is never faked.
+     */
+    fun newSessionMatchingCurrent() {
+        val currentId = _selectedId.value
+            ?: sessions.value.lastOrNull { !it.isFinished }?.id
+        val current = sessions.value.firstOrNull { it.id == currentId }
+        val currentIsGuest = current != null &&
+            (current.id in guestSessionIds || current.label == GUEST_SESSION_LABEL)
+        if (currentIsGuest) {
+            openLinuxShell {}
+        } else {
+            newSession()
+        }
+    }
+
+    /**
      * Enter the installed Alpine guest (M2.3). Caller must only invoke this
      * when [runtimeState] is READY (Home routes otherwise). ASYNC since the
      * M6 Phase-C audit (C1.1/C3): the heavy guest prep (layer fast path —
@@ -94,12 +124,14 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 }
                 val ok = withContext(Dispatchers.Main) {
                     try {
-                        _selectedId.value = TerminalSessionManager.spawnLinuxSession(
+                        val newId = TerminalSessionManager.spawnLinuxSession(
                             application,
                             listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
-                            "Alpine Linux",
+                            GUEST_SESSION_LABEL,
                             sysDataBinds,
                         ).id
+                        guestSessionIds.add(newId)
+                        _selectedId.value = newId
                         true
                     } catch (t: Throwable) {
                         _launchError.value =
@@ -117,8 +149,10 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     /**
      * M7.0.0 Phase 7 — "Open Terminal Here": a NORMAL Alpine Linux session
-     * whose guest working directory starts at [directory] (the explorer's
-     * current, already-validated [app.pocketshell.files.AreaPath] value).
+     * whose guest working directory starts at [directory] (the validated
+     * [app.pocketshell.files.AreaPath] value of the folder the user tapped
+     * in the explorer — p7.1: the SELECTED entry, composed and validated by
+     * the same child composition every navigation uses).
      *
      * This MIRRORS the proven [openLinuxShell] path exactly — same runtime
      * preflight, same `prepareLinuxSession` on IO, same `spawnLinuxSession`
@@ -157,7 +191,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 }
                 val ok = withContext(Dispatchers.Main) {
                     try {
-                        _selectedId.value = TerminalSessionManager.spawnLinuxSession(
+                        val newId = TerminalSessionManager.spawnLinuxSession(
                             application,
                             listOf(
                                 ShellEnvironment.SHELL_PATH_GUEST,
@@ -168,9 +202,11 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                                     guestShell = ShellEnvironment.SHELL_PATH_GUEST,
                                 ),
                             ),
-                            "Alpine Linux",
+                            GUEST_SESSION_LABEL,
                             sysDataBinds,
                         ).id
+                        guestSessionIds.add(newId)
+                        _selectedId.value = newId
                         true
                     } catch (t: Throwable) {
                         _launchError.value =
@@ -284,10 +320,30 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     private companion object {
         /** A successful probe answer is trusted for this long on Home revisits. */
         const val COMMAND_PROBE_FRESHNESS_MS = 60_000L
+
+        /**
+         * p7.1 — the pinned fallback label of a plain Linux-shell session
+         * (openLinuxShell / openLinuxShellAt). One constant, referenced by
+         * both spawn sites and the "+" kind check, so the string can never
+         * drift apart. Command-app and catalog-app sessions carry their own
+         * display names — their guest kind is known from spawn-time
+         * registration instead.
+         */
+        const val GUEST_SESSION_LABEL = "Alpine Linux"
     }
 
     private var commandProbeInFlight = false
     private var lastCommandProbeAt = 0L
+
+    /**
+     * p7.1 — ids of sessions this ViewModel spawned as LINUX GUEST sessions
+     * (Linux shells, command apps, catalog apps). Main-thread only (every
+     * spawn site runs on Dispatchers.Main). Process-scoped truth: sessions
+     * die with the process, so the set can never outlive its sessions — but
+     * a ViewModel RECREATION (configuration change) starts empty, which is
+     * why the [GUEST_SESSION_LABEL] fallback exists.
+     */
+    private val guestSessionIds = mutableSetOf<Long>()
 
     /**
      * Launch a command app from the Home launcher — verify-then-launch, the
@@ -342,6 +398,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                             app.displayName,
                             sysDataBinds,
                         ).id
+                        guestSessionIds.add(newId)
                         _selectedId.value = newId
                         true
                     } catch (t: Throwable) {
@@ -477,6 +534,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                             entry.name,
                             sysDataBinds,
                         ).id
+                        guestSessionIds.add(newId)
                         _selectedId.value = newId
                         true
                     } catch (t: Throwable) {
