@@ -3,6 +3,7 @@ package app.pocketshell.apps
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -47,8 +48,10 @@ class CommandAppsTest {
         assertEquals("Kilo Code", CommandAppCatalog.byId("kilo")?.displayName)
         assertEquals(listOf("kilo"), CommandAppCatalog.byId("kilo")?.launchCommand)
         assertEquals("K", CommandAppCatalog.byId("kilo")?.monogram)
-        // The peer terminal agents seeded alongside it.
-        assertEquals("Gemini CLI", CommandAppCatalog.byId("gemini")?.displayName)
+        // The peer terminal agents seeded alongside it (M7.1 P2: Antigravity
+        // REPLACED Gemini CLI in the curated default set — see the dedicated
+        // P2 section below).
+        assertEquals("Antigravity", CommandAppCatalog.byId("agy")?.displayName)
         assertEquals("Codex", CommandAppCatalog.byId("codex")?.displayName)
         assertEquals("Aider", CommandAppCatalog.byId("aider")?.displayName)
         assertEquals("Qwen Code", CommandAppCatalog.byId("qwen")?.displayName)
@@ -89,8 +92,9 @@ class CommandAppsTest {
             )
         }
         assertFalse("no catalog id may collide with a package name", forbidden.contains("hermes"))
-        // Phase 3.4 expansion ids are applications, not toolchains.
-        for (id in listOf("kilo", "gemini", "codex", "aider", "qwen")) {
+        // Phase 3.4 expansion ids are applications, not toolchains
+        // (M7.1 P2: the Antigravity CLI's official binary name joined the set).
+        for (id in listOf("kilo", "agy", "codex", "aider", "qwen")) {
             assertFalse(
                 "$id must stay out of the forbidden package namespace",
                 id in forbidden,
@@ -393,5 +397,39 @@ class CommandAppsTest {
             guestLaunchChain(listOf("my-tool"), "sh"),
             guestCustomCommandChain("my-tool", "sh"),
         )
+    }
+
+    // ------------------------------------- M7.1 P2 — Antigravity replaces Gemini
+
+    /**
+     * The curated default launcher set is user-facing product surface: P2
+     * removes Gemini CLI from it and seats Antigravity. The command is NOT
+     * invented — `agy` is the binary name Google's own installer ships
+     * (docs/ANTIGRAVITY-PLATFORM.md §1, antigravity.google/cli/install.sh).
+     */
+    @Test
+    fun `antigravity is a curated default launcher and gemini is gone`() {
+        val agy = CommandAppCatalog.byId("agy")
+        assertNotNull("Antigravity must be in the curated default launcher set", agy)
+        assertEquals("Antigravity", agy!!.displayName)
+        assertEquals(listOf("agy"), agy.launchCommand)
+        assertEquals("agy", agy.probeName())
+        // Gemini CLI left the curated defaults — registry, ids, commands, and
+        // display names, with no stale trace anywhere in the catalog.
+        assertNull(CommandAppCatalog.byId("gemini"))
+        assertTrue(CommandAppCatalog.registry.none { it.id == "gemini" })
+        assertTrue(CommandAppCatalog.registry.none { it.displayName.contains("Gemini") })
+        assertTrue(CommandAppCatalog.registry.none { it.launchCommand.contains("gemini") })
+    }
+
+    @Test
+    fun `antigravity is probe-gated like every other launcher`() {
+        // The launcher is not an install claim (upstream ships no musl build
+        // today — docs/ANTIGRAVITY-PLATFORM.md): absent from the REAL guest
+        // answer means absent from Home, exactly like every other entry.
+        val absent = availableCommandApps(mapOf("hermes" to "/usr/bin/hermes"))
+        assertFalse(absent.any { it.id == "agy" })
+        val present = availableCommandApps(mapOf("agy" to "/usr/local/bin/agy"))
+        assertEquals(listOf("agy"), present.map { it.id })
     }
 }

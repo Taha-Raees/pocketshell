@@ -37,7 +37,6 @@ import app.pocketshell.launchers.LauncherBadges
 import app.pocketshell.launchers.LauncherTileIcon
 import app.pocketshell.launchers.LauncherViewModel
 import app.pocketshell.ui.home.HomeTokens
-import app.pocketshell.ui.home.MonogramTile
 import app.pocketshell.ui.system.MidnightCard
 import app.pocketshell.ui.system.MidnightFilledButton
 import app.pocketshell.ui.system.MidnightNote
@@ -221,6 +220,69 @@ fun LauncherSettingsScreen(
 
 // ------------------------------------------------------------------ rows
 
+/**
+ * THE launcher settings row (the P2 brief's slot contract, ONE shared
+ * composable so it cannot drift):
+ *
+ *   Row
+ *   ├── icon (fixed size)
+ *   ├── Spacer
+ *   ├── text column — Modifier.weight(1f), ALWAYS the remaining width
+ *   │     ├── title
+ *   │     └── subtitle (wraps naturally when genuinely necessary)
+ *   ├── optional action slot (intrinsically sized, e.g. a text action)
+ *   └── optional control slot (fixed content size, e.g. the switch)
+ *
+ * The M7.1 P2 screenshot bug is structurally impossible through this
+ * composable: page-level expanding buttons (MidnightQuietButton and
+ * MidnightFilledButton hard-fill their width from the inside) never sit in
+ * a row slot here, so the weighted text column can never be starved to a
+ * one-character-per-line column. LauncherRowLayoutTest pins that rule.
+ */
+@Composable
+private fun LauncherSettingRow(
+    launcherId: String,
+    iconFile: String?,
+    badge: String,
+    title: String,
+    subtitle: String,
+    subtitleMono: Boolean = false,
+    dimmed: Boolean = false,
+    action: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = null,
+    control: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LauncherTileIcon(launcherId = launcherId, iconFile = iconFile, badge = badge, size = 36.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (dimmed) HomeTokens.textDim else HomeTokens.textPrimary,
+            )
+            Text(
+                text = subtitle,
+                style = if (subtitleMono) {
+                    MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = TerminalTheme.mono,
+                        fontSize = 12.sp,
+                    )
+                } else {
+                    MaterialTheme.typography.bodySmall
+                },
+                color = HomeTokens.textDim,
+            )
+        }
+        action?.invoke(this)
+        control?.invoke(this)
+    }
+}
+
 @Composable
 private fun companionSettingsRows(
     defs: List<CompanionDef>,
@@ -231,42 +293,37 @@ private fun companionSettingsRows(
     onSetIcon: (String) -> Unit,
     onClearIcon: (String) -> Unit,
 ) {
-    val badges = remember(defs) { LauncherBadges.assign(defs.map { it.name }) }
+    val missingSeeds = remember(defs) {
+        BuiltInCompanions.SEEDS.filter { seed -> defs.none { it.id == seed.id } }
+    }
+    // ONE badge pass over every name this section can show — def rows AND
+    // deleted-seed restore rows share one collision space, so a seed whose
+    // definition was deleted can never render the same badge as an existing
+    // definition (the P1 behavior assigned the restore row in isolation).
+    val badges = remember(defs, missingSeeds) {
+        LauncherBadges.assign(defs.map { it.name } + missingSeeds.map { it.name })
+    }
     val byId = remember(defs) { defs.associateBy { it.id } }
     Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
         BuiltInCompanions.SEEDS.forEach { seed ->
             val def = byId[seed.id]
             if (def == null) {
-                // The seed definition was deleted — offer the honest restore.
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    MonogramTile(
-                        monogram = (LauncherBadges.assign(listOf(seed.name))).first(),
-                        size = 36.dp,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = seed.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = HomeTokens.textDim,
-                        )
-                        Text(
-                            text = "Not on this install",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = HomeTokens.textDim,
-                        )
-                    }
-                    MidnightQuietButton(
-                        text = "Restore",
-                        onClick = { onRestore(seed.id) },
-                        modifier = Modifier.padding(end = 4.dp),
-                    )
-                }
+                // The seed definition was deleted — offer the honest restore
+                // as a compact text action (P2 fix: never a page-level button
+                // inside a row).
+                val seedIndex = missingSeeds.indexOfFirst { it.id == seed.id }
+                LauncherSettingRow(
+                    launcherId = seed.id,
+                    iconFile = icons[seed.id],
+                    badge = badges[defs.size + seedIndex],
+                    title = seed.name,
+                    subtitle = "Not on this install",
+                    dimmed = true,
+                    action = {
+                        RowTextAction(text = "Restore", onClick = { onRestore(seed.id) })
+                        Spacer(Modifier.width(8.dp))
+                    },
+                )
             } else {
                 CompanionRow(
                     def = def,
@@ -296,41 +353,30 @@ private fun companionSettingsRows(
 @Composable
 private fun CompanionRow(
     def: CompanionDef,
-    badge: String?,
+    badge: String,
     iconFile: String?,
     visible: Boolean,
     onShowChanged: (String, Boolean) -> Unit,
     onSetIcon: (String) -> Unit,
     onClearIcon: (String) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        LauncherTileIcon(iconFile = iconFile, badge = badge ?: "?", size = 36.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = def.name,
-                style = MaterialTheme.typography.bodyLarge,
-                color = HomeTokens.textPrimary,
+    LauncherSettingRow(
+        launcherId = def.id,
+        iconFile = iconFile,
+        badge = badge,
+        title = def.name,
+        subtitle = def.url,
+        action = {
+            RowTextAction(
+                text = if (iconFile == null) "Icon" else "Clear icon",
+                onClick = { if (iconFile == null) onSetIcon(def.id) else onClearIcon(def.id) },
             )
-            Text(
-                text = def.url,
-                style = MaterialTheme.typography.bodySmall,
-                color = HomeTokens.textDim,
-                maxLines = 1,
-            )
-        }
-        RowTextAction(
-            text = if (iconFile == null) "Icon" else "Clear icon",
-            onClick = { if (iconFile == null) onSetIcon(def.id) else onClearIcon(def.id) },
-        )
-        Spacer(Modifier.width(8.dp))
-        MidnightSwitch(checked = visible, onCheckedChange = { onShowChanged(def.id, it) })
-    }
+            Spacer(Modifier.width(8.dp))
+        },
+        control = {
+            MidnightSwitch(checked = visible, onCheckedChange = { onShowChanged(def.id, it) })
+        },
+    )
 }
 
 @Composable
@@ -339,35 +385,25 @@ private fun builtInToolRows(
     icons: Map<String, String>,
     onShowChanged: (String, Boolean) -> Unit,
 ) {
-    val badges = remember(hiddenIds) {
+    val badges = remember {
         LauncherBadges.assign(CommandAppCatalog.registry.map { it.displayName })
     }
     Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
         CommandAppCatalog.registry.forEachIndexed { index, app ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                LauncherTileIcon(iconFile = icons[app.id], badge = badges[index], size = 36.dp)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = app.displayName,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = HomeTokens.textPrimary,
+            LauncherSettingRow(
+                launcherId = app.id,
+                iconFile = icons[app.id],
+                badge = badges[index],
+                title = app.displayName,
+                subtitle = app.launchCommand.joinToString(" "),
+                subtitleMono = true,
+                control = {
+                    MidnightSwitch(
+                        checked = app.id !in hiddenIds,
+                        onCheckedChange = { onShowChanged(app.id, it) },
                     )
-                    Text(
-                        text = app.launchCommand.joinToString(" "),
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 12.sp,
-                        color = HomeTokens.textDim,
-                        maxLines = 1,
-                    )
-                }
-                MidnightSwitch(checked = app.id !in hiddenIds, onCheckedChange = { onShowChanged(app.id, it) })
-            }
+                },
+            )
         }
     }
 }
@@ -394,7 +430,12 @@ private fun customToolRows(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        LauncherTileIcon(iconFile = icons[tool.id], badge = tool.name.take(1), size = 36.dp)
+                        LauncherTileIcon(
+                            launcherId = tool.id,
+                            iconFile = icons[tool.id],
+                            badge = tool.name.take(1),
+                            size = 36.dp,
+                        )
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
@@ -407,13 +448,15 @@ private fun customToolRows(
                                 fontFamily = TerminalTheme.mono,
                                 fontSize = 12.sp,
                                 color = HomeTokens.textDim,
-                                maxLines = 1,
                             )
                         }
                         MidnightSwitch(checked = tool.id !in hiddenIds, onCheckedChange = { onShowChanged(tool.id, it) })
                     }
                     Row(modifier = Modifier.padding(top = 2.dp)) {
                         RowTextAction("Icon", onClick = { onSetIcon(tool.id) })
+                        if (icons[tool.id] != null) {
+                            RowTextAction("Clear icon", onClick = { onClearIcon(tool.id) })
+                        }
                         RowTextAction("Edit", onClick = { onEdit(tool.id) })
                         RowTextAction("Remove", onClick = { onRemove(tool.id) }, destructive = true)
                     }

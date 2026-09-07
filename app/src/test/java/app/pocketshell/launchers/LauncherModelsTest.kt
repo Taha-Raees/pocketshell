@@ -203,4 +203,29 @@ class LauncherModelsTest {
             BuiltInCompanions.SEED_IDS,
         )
     }
+
+    // ---------------------------------------------- M7.1 P2 — retired defaults
+
+    @Test
+    fun `stale hidden ids from retired defaults stay inert`() {
+        // A device that hid Gemini CLI under P1 keeps a stale "gemini" id in
+        // the persisted hidden set. The registry no longer carries the id, so
+        // nothing can resurrect it — and the stale id must not disturb any
+        // CURRENT launcher's visibility (restore stays exact).
+        val hidden = setOf("gemini", "kilo")
+        val visible = app.pocketshell.launchers.visibleTools(
+            app.pocketshell.apps.CommandAppCatalog.registry, emptyList(), hidden,
+        )
+        assertFalse(visible.any { it.id == "gemini" }) // nothing stale exists to resurrect
+        assertFalse(visible.any { it.id == "kilo" }) // the real hidden id is still honored
+        val restored = app.pocketshell.launchers.visibleTools(
+            app.pocketshell.apps.CommandAppCatalog.registry, emptyList(), hidden - "kilo",
+        )
+        assertTrue(restored.any { it.id == "kilo" }) // restore brings back CURRENT ids only
+        assertEquals(
+            "unhide must restore every registry launcher (the retired gemini id never reappears)",
+            app.pocketshell.apps.CommandAppCatalog.registry.size,
+            restored.size,
+        )
+    }
 }

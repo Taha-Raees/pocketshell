@@ -126,3 +126,19 @@ versions (version catalog: `gradle/libs.versions.toml`).
 | Project | Usage in PocketShell | License | Note |
 |---|---|---|---|
 | Termux PRoot-Distro (https://github.com/termux/proot-distro, 5.8.0 @ f832a56) | M2.6.12: the probe-first /proc sysdata overlay model (setup_fake_sysdata / fake_sysdata_bindings) was studied and ADAPTED as GuestSysDataCompat.kt — original Kotlin implementation, narrower entry set, real-source content, app-private storage. No upstream code was copied. | GPL-3.0 | Architecture-only reference; documented in docs/M2.6-RESEARCH.md §7. |
+
+## Bundled: launcher brand icons (M7.1 P2)
+
+| Field | Value |
+|---|---|
+| Purpose | Home/Settings tiles for the curated launcher set (four companion websites + ten CLI launchers) |
+| Sources | Official first-party origins only, fetched once at BUILD time by `scripts/make_launcher_icons.py` (each URL documented in the script): openai.com / cdn.oaistatic.com (ChatGPT, Codex), claude.ai CDN (Claude, Claude Code), z-cdn.chatglm.cn (Z.ai, ZCode), github.githubassets.com (GitHub), nousresearch.com (Hermes Agent), opencode.ai (OpenCode), kilocode.ai (Kilo Code), cline.bot (Cline), antigravity.google (Antigravity), aider.chat GitHub org avatar (Aider), chat.qwen.ai CDN (Qwen Code) |
+| Files | `app/src/main/assets/launcher_icons/*.webp` — 192×192 lossless WebP, ~125 KB total |
+| Modifications | Normalization only: trim to content, one uniform content box, centered on a square canvas; two documented monochrome treatments (GitHub dark-scheme white mark; Codex white-on-dark from the official OpenAI flower source); brand tile backgrounds recorded in the script. Glyphs are never redrawn. |
+| Runtime behavior | Packaged in the APK — the app performs NO icon download, NO network icon discovery, works fully offline. Missing/unreadable assets degrade to the deterministic text badge. |
+| Trademark note | The marks are trademarks of their respective owners, bundled in nominative/fair use as launcher shortcuts to those products (the established launcher-shortcut pattern). PocketShell claims no affiliation; each tile launches or opens the real product the mark names. |
+
+No new third-party CODE dependencies were added by M7.1 P2 (the icon
+pipeline is a build-time developer script using Python/Pillow/cairosvg on
+the build host; the app consumes only the packaged .webp files through the
+existing `BitmapFactory` path).

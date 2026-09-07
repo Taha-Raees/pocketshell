@@ -2558,3 +2558,78 @@ G — Regression ladder
 27. App info: versionName 0.11.0-m7.0.0 / versionCode 45 and the SAME
     6 permissions — P1 adds no permissions, no manifest entries, no new
     dependencies.
+
+## 42. Manual acceptance — M7.1 P2 (launcher UI repair + official icons + Antigravity) — DEVICE GATE PENDING
+
+The screenshot that opened this phase: the Home-launchers settings row for a
+DELETED built-in companion seed rendered its title ("GitHub") and subtitle
+("Not on this install") one character per line, with a full-width Restore
+button stretched across the row. Root cause: MidnightQuietButton hard-fills
+its width (`Box(Modifier.fillMaxWidth())`) — a page-level component placed
+in an unweighted Row slot starves the weighted text column to zero. P2 fixes
+the row (Restore is now the compact text action every other row action uses)
+and unifies ALL built-in settings rows through one shared
+`LauncherSettingRow` (fixed icon → weighted text column → optional action →
+optional control). A source-contract JVM test
+(LauncherRowLayoutTest) pins that structure; this checklist is the visual
+gate on real hardware.
+
+### A — Launcher settings layout (the must-fix regression reference)
+
+1. Settings → Home launchers, delete a built-in companion (existing
+   Companion websites screen) so the "Not on this install" restore row
+   appears → the title is a NORMAL horizontal single line, the subtitle
+   sits under it, "Restore" is a compact right-aligned text action — the
+   screenshot's vertical collapse and stretched button are gone.
+2. Every companion row: icon left, title + URL left-aligned in the middle
+   (one line each at default widths), Icon/Clear-icon action and the toggle
+   right-aligned, toggle never pushed off screen.
+3. Every CLI tool row: title + mono command line; a long command (e.g.
+   Codex's or a custom long line) wraps naturally by words when genuinely
+   necessary — never character-by-character, never clipped by a control.
+4. Long display names ("Claude Code", "Antigravity", "Hermes Agent") stay
+   on one line at default widths and ellipsize cleanly only on the
+   narrowest screens; controls remain visible and aligned in every case.
+5. Small-width device (or split-screen narrow): repeat 1–4 — the text
+   column shrinks first, controls keep their sizes, nothing overlaps.
+6. Toggle alignment: all switches in a section sit on one vertical line.
+
+### B — Icons
+
+7. Home → Companions: ChatGPT (flower), Claude (starburst), Z.ai (Z tile),
+   GitHub (white octocat on the GitHub-dark tile) render from bundled
+   assets — no network needed (airplane mode: identical).
+8. Home → Your tools: Hermes, OpenCode, Claude Code (starburst), ZCode,
+   Kilo Code, Cline, Antigravity (gradient mark), Codex (white flower on
+   black), Aider, Qwen Code show their bundled marks at consistent visual
+   bounds; no mark dominates by shape (normalized inside one square).
+9. A custom companion/tool with NO icon still shows the deterministic
+   letter badge (bundled icons never displace the badge fallback for
+   custom launchers).
+10. A user-imported icon STILL wins over the bundled mark (import one for
+    a built-in, e.g. GitHub → the user image shows; Clear icon → the
+    bundled mark returns).
+11. Settings → Home launchers rows show the same bundled icons (36dp) —
+    same resolution order as Home (imported → bundled → badge).
+
+### C — Antigravity / Gemini CLI
+
+12. Home → Your tools (and the CLI tools settings section): Antigravity is
+    present in the curated default set (command `agy` shown in the row);
+    Gemini CLI appears NOWHERE (defaults, settings, restore).
+13. Tap Antigravity when `agy` is not installed → the honest not-found
+    banner ("'agy' command was not found (verified with the real guest
+    shell)") — a launcher on Home is not an install claim.
+14. If `agy` becomes available in the guest (upstream ships a musl build,
+    or the glibc route), the tap launches it through the SAME
+    verify-then-launch path as every other launcher.
+
+### D — Regression ladder
+
+15. §41 spot checks: hide/restore semantics, custom tool add/edit/remove,
+    badge collisions on the settings screen (a deleted-seed restore row
+    now shares the collision space with existing definitions — no
+    duplicate badge letters visible at once).
+16. Companion sheet/WebView behavior untouched (open a companion, tabs,
+    back); no new permissions (App info: versionName 0.11.0-m7.0.0 /
+    versionCode 45, the SAME 6 permissions).

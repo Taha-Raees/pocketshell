@@ -99,12 +99,18 @@ object CommandAppCatalog {
             description = "Autonomous coding agent for the terminal",
             monogram = "C",
         ),
+        // M7.1 P2: Antigravity REPLACES Gemini CLI in the curated default
+        // launcher set. The command is the official binary name (`agy`) —
+        // named by Google's own installer (docs/ANTIGRAVITY-PLATFORM.md §1,
+        // antigravity.google/cli/install.sh). Upstream ships no musl build
+        // today, so on many installs the honest tap-time probe answers
+        // "absent" — the launcher is a launcher, never an install claim.
         CommandApp(
-            id = "gemini",
-            displayName = "Gemini CLI",
-            launchCommand = listOf("gemini"),
-            description = "Google's AI agent for the terminal",
-            monogram = "G",
+            id = "agy",
+            displayName = "Antigravity",
+            launchCommand = listOf("agy"),
+            description = "Google's Antigravity coding agent for the terminal",
+            monogram = "A",
         ),
         CommandApp(
             id = "codex",

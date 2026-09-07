@@ -618,6 +618,7 @@ private fun ToolsSection(
             ) {
                 rowTools.forEachIndexed { colIndex, tool ->
                     LauncherGridEntry(
+                        launcherId = tool.id,
                         label = tool.label,
                         badge = badges[rowIndex * columns + colIndex],
                         iconFile = iconFiles[tool.id],
@@ -667,6 +668,7 @@ private fun CompanionsSection(
             ) {
                 rowDefs.forEachIndexed { colIndex, def ->
                     LauncherGridEntry(
+                        launcherId = def.id,
                         label = def.name,
                         badge = badges[rowIndex * columns + colIndex],
                         iconFile = iconFiles[def.id],
@@ -709,13 +711,15 @@ private fun SectionHeaderWithAction(
 }
 
 /**
- * One launcher entry: icon (or the deterministic text badge) + label — an
- * application on an OS home screen, not a card (§6). The tile is a
- * borderless tone step; press feedback is the soft scale, nothing draws a
- * box. Long-press = remove-from-Home (hide-only).
+ * One launcher entry: icon (the P2 curated bundled icon, the user's
+ * imported copy, or the deterministic text badge) + label — an application
+ * on an OS home screen, not a card (§6). The tile is a borderless tone
+ * step; press feedback is the soft scale, nothing draws a box. Long-press
+ * = remove-from-Home (hide-only).
  */
 @Composable
 private fun LauncherGridEntry(
+    launcherId: String,
     label: String,
     badge: String,
     iconFile: String?,
@@ -749,7 +753,7 @@ private fun LauncherGridEntry(
                     )
                 }
             } else {
-                LauncherTileIcon(iconFile = iconFile, badge = badge, size = 52.dp)
+                LauncherTileIcon(launcherId = launcherId, iconFile = iconFile, badge = badge, size = 52.dp)
             }
             Spacer(Modifier.height(8.dp))
             Text(
