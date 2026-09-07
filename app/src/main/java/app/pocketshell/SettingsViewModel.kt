@@ -25,7 +25,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsRepository.DEFAULT_FONT_SIZE,
     )
 
+    // M7.1 P3 — automatic external-keyboard handling; default ON.
+    val autoHideKeyboardOnExternal: StateFlow<Boolean> = repo.autoHideKeyboardOnExternal.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), true,
+    )
+
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { repo.setThemeMode(mode) }
     fun setDynamicColor(enabled: Boolean) = viewModelScope.launch { repo.setDynamicColor(enabled) }
     fun setDefaultFontSize(size: Int) = viewModelScope.launch { repo.setDefaultFontSize(size) }
+    fun setAutoHideKeyboardOnExternal(enabled: Boolean) =
+        viewModelScope.launch { repo.setAutoHideKeyboardOnExternal(enabled) }
 }

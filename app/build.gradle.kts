@@ -117,4 +117,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    // M7.1 P3 — virtual-time tests for the external-keyboard debounce
+    // (TestScope/advanceTimeBy); test-only, never packaged.
+    testImplementation(libs.kotlinx.coroutines.test)
 }

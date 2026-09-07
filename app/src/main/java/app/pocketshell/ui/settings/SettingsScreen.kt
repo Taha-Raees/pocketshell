@@ -51,9 +51,11 @@ fun SettingsScreen(
     themeMode: ThemeMode,
     dynamicColor: Boolean,
     defaultFontSize: Int,
+    autoHideKeyboardOnExternal: Boolean,
     onThemeMode: (ThemeMode) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onFontSize: (Int) -> Unit,
+    onAutoHideKeyboardOnExternal: (Boolean) -> Unit,
     onOpenCompanions: () -> Unit,
     onOpenLaunchers: () -> Unit,
     onBack: () -> Unit,
@@ -148,6 +150,39 @@ fun SettingsScreen(
                 ),
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
+
+            MidnightSectionDivider()
+            Spacer(Modifier.height(10.dp))
+
+            // ---- Keyboard (M7.1 P3) -----------------------------------------
+            MidnightSectionLabel("Keyboard")
+            Spacer(Modifier.height(2.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "On-screen keyboard",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = HomeTokens.textPrimary,
+                    )
+                    Text(
+                        "Automatically hide when an external keyboard is " +
+                            "connected — USB, Bluetooth, dock — and return " +
+                            "when it is unplugged",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.textDim,
+                    )
+                }
+                Spacer(Modifier.padding(4.dp))
+                MidnightSwitch(
+                    checked = autoHideKeyboardOnExternal,
+                    onCheckedChange = onAutoHideKeyboardOnExternal,
+                )
+            }
 
             MidnightSectionDivider()
             Spacer(Modifier.height(10.dp))

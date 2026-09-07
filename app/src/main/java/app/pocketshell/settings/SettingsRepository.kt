@@ -20,6 +20,10 @@ class SettingsRepository(private val context: Context) {
     private val dynamicKey = stringPreferencesKey("dynamic_color")
     private val fontSizeKey = intPreferencesKey("default_font_size")
 
+    // M7.1 P3 — auto-hide the shared deck while an external keyboard is
+    // attached. Default ON (spec PART C): absent key = automatic behavior.
+    private val autoHideKeyboardKey = stringPreferencesKey("auto_hide_keyboard_on_external")
+
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
         when (prefs[themeKey]) {
             "LIGHT" -> ThemeMode.LIGHT
@@ -33,6 +37,11 @@ class SettingsRepository(private val context: Context) {
         prefs[dynamicKey] == "true"
     }
 
+    /** Auto-hide the on-screen keyboard while an external keyboard is connected; default ON. */
+    val autoHideKeyboardOnExternal: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[autoHideKeyboardKey] != "false"
+    }
+
     /** Default terminal font size; the terminal itself may change it via pinch. */
     val defaultFontSize: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         prefs[fontSizeKey] ?: DEFAULT_FONT_SIZE
@@ -44,6 +53,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setDynamicColor(enabled: Boolean) {
         context.settingsDataStore.edit { it[dynamicKey] = if (enabled) "true" else "false" }
+    }
+
+    suspend fun setAutoHideKeyboardOnExternal(enabled: Boolean) {
+        context.settingsDataStore.edit { it[autoHideKeyboardKey] = if (enabled) "true" else "false" }
     }
 
     suspend fun setDefaultFontSize(size: Int) {

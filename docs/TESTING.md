@@ -2701,3 +2701,82 @@ untouched.
    the old centered Packages footer link is GONE from the page.
 10. Verify-then-launch honesty unchanged: a tap on any tool still runs
     the guest probe with the verifying spinner in the scrolled row.
+
+## 45. Manual acceptance — M7.1 P3 (external keyboard detection + automatic on-screen keyboard control) — DEVICE GATE PENDING
+
+The P3 brief: when a physical external keyboard (USB / Bluetooth / dock /
+DeX) connects while PocketShell is running, the shared on-screen deck hides
+itself, one in-app notice explains it ("External keyboard detected — the
+on-screen keyboard has been turned off. You can change this in Settings."),
+and the hardware keyboard types straight into the terminal; when it
+disconnects, the deck returns exactly as the user left it — no restart, no
+replug, no polling. A Settings toggle ("On-screen keyboard — automatically
+hide when an external keyboard is connected", default ON) owns the
+automatic behavior; turning it OFF keeps the deck fully manual. No new
+permissions, no new dependencies, no version bump, M6 frozen surfaces
+untouched. JVM coverage: the device predicate (ExternalKeyboardPredicateTest
+— touchscreens/mice/gamepads/virtual/button-clusters all rejected), the
+debounced transition machine (ExternalKeyboardDetectorTest — duplicates
+coalesce, sub-window BT flaps never flicker), the suppression policy
+(ExternalKeyboardPolicyTest — the user's manual state is never destroyed),
+and the integration contract (ExternalKeyboardIntegrationTest). REAL
+attach/detach can only be proven here, on hardware.
+
+External keyboard — USB
+
+1.  Launch PocketShell with NO keyboard attached: the deck appears
+    normally; no notice is shown anywhere.
+2.  Open a terminal session and type with the deck: normal input.
+3.  Attach a USB keyboard (OTG / dock): within ~a second the deck hides,
+    the terminal area expands to the bottom edge, and ONE notice appears
+    near the top: "External keyboard detected — the on-screen keyboard has
+    been turned off. You can change this in Settings."
+4.  Type on the hardware keyboard in the terminal: characters arrive
+    immediately (deck presses are not needed).
+5.  The notice auto-dismisses within ~5 s and NEVER re-appears while the
+    keyboard stays connected (navigate between screens, rotate, tap
+    around — no re-notify).
+6.  Files screen with the keyboard attached: the listing runs to the
+    bottom of the screen (M7.0 inset fix intact) and scrolls fully.
+7.  Unplug the USB keyboard: the deck returns automatically, the inset
+    recalculates on Terminal, Editor, Files, and Companion immediately —
+    no restart, no toggle needed.
+
+External keyboard — Bluetooth
+
+8.  Pair a BT keyboard: same connect behavior (deck hides, one notice,
+    hardware typing works). Repeat the unplug/turn-off: deck returns.
+9.  BT flaps: toggle the keyboard's connection a few times quickly — no
+    flickering of the deck beyond one hide/show cycle per stable change,
+    no notice spam.
+
+Launch with the keyboard already attached
+
+10. Connect the keyboard, then launch PocketShell cold (force-stop
+    first): the deck auto-hides during the first moments of the session
+    and the state is correct without replugging.
+
+Settings
+
+11. Settings → Keyboard: the "On-screen keyboard" toggle exists and is
+    ON by default. Turn it OFF; connect the keyboard: the deck does NOT
+    change; disconnect: the deck does NOT change (fully manual).
+12. Turn it back ON while the keyboard is connected: the deck hides
+    immediately. Disconnect: the deck returns. Toggle OFF → kill and
+    relaunch the app → toggle still OFF (persists across restart); ON
+    likewise.
+
+Manual controls and regression
+
+13. With the keyboard connected (deck hidden): tap the floating [⌨]
+    icon — the deck opens (manual override); disconnect the keyboard —
+    the deck STAYS open (the user wins; no forced restore fight).
+14. Hide the deck manually with NO keyboard attached, connect the
+    keyboard, disconnect it: the deck returns HIDDEN (the pre-connect
+    state is restored, not blindly opened).
+15. Companion over any screen with the keyboard attached: tapping a web
+    input does NOT pop the deck open while suppression is active; the
+    hardware keyboard types into the web input.
+16. Full keyboard regression: extra keys, CTRL/ALT/SHIFT (one-shot +
+    locked), arrow keys, deck animations, keyboard bottom inset on
+    Terminal / Editor / Files / Companion — all as before (§42 B steps).
