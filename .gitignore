@@ -48,5 +48,6 @@ tsconfig.tsbuildinfo
 # M7.1 P2 icon-pipeline caches (regenerable: scripts/make_launcher_icons.py
 # documents the official source URLs; the normalized .webp assets in
 # app/src/main/assets/launcher_icons/ ARE the tracked artifacts)
-scripts/icon_sources/
+scripts/icon_sources/*.raw
+scripts/icon_sources/contact_sheet.png
 .kotlin/

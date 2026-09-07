@@ -732,7 +732,8 @@ changes — §12/§13/§14 re-run as regressions. Contract:
       verify-then-launch pipeline as every other command app).
 - [ ] `npm uninstall -g @kilocode/cli` (or removing the binary) → the tile
       disappears on the next probe. Never renders when the command is absent.
-- [ ] The other seeded agents (gemini/codex/aider/qwen) do NOT appear unless
+- [ ] The other expansion agents (codex/qwen — and the M7.1-era entries
+      gemini/aider that have since LEFT the defaults) do NOT appear unless
       actually installed — expansion entries are probe-gated like every app.
 - [ ] Pre-existing entries unchanged: Hermes still appears iff available;
       nano/git/python still NEVER appear.
@@ -2596,13 +2597,16 @@ gate on real hardware.
 
 ### B — Icons
 
-7. Home → Companions: ChatGPT (flower), Claude (starburst), Z.ai (Z tile),
-   GitHub (white octocat on the GitHub-dark tile) render from bundled
-   assets — no network needed (airplane mode: identical).
-8. Home → Your tools: Hermes, OpenCode, Claude Code (starburst), ZCode,
-   Kilo Code, Cline, Antigravity (gradient mark), Codex (white flower on
-   black), Aider, Qwen Code show their bundled marks at consistent visual
-   bounds; no mark dominates by shape (normalized inside one square).
+7. Home → Companions: ChatGPT (white knot on the OpenAI-black tile),
+   Claude (terracotta starburst), Z.ai (Z tile), GitHub (white octocat on
+   the GitHub-dark tile) render from bundled assets — no network needed
+   (airplane mode: identical).
+8. Home → Your tools: Hermes (mascot on white), OpenCode (its own dark
+   tile glyph), Claude Code (starburst), ZCode, Kilo Code (pixel letters
+   on white), Cline (robot head on white), Antigravity (colored arc),
+   Codex (white knot on black), Qwen Code show their bundled marks at
+   consistent visual bounds; no mark dominates by shape (normalized
+   inside one square). Aider is absent from every surface.
 9. A custom companion/tool with NO icon still shows the deterministic
    letter badge (bundled icons never displace the badge fallback for
    custom launchers).
@@ -2633,3 +2637,28 @@ gate on real hardware.
 16. Companion sheet/WebView behavior untouched (open a companion, tabs,
     back); no new permissions (App info: versionName 0.11.0-m7.0.0 /
     versionCode 45, the SAME 6 permissions).
+
+## 43. Manual acceptance — M7.1 P2.1 (Aider removed + owner-supplied mark refresh) — DEVICE GATE PENDING
+
+A small increment on §42: the owner removed Aider from the curated
+CLI launcher set and supplied nine official brand SVGs (vendored
+in-tree at `scripts/icon_sources/*.svg`) that replace the fetched
+favicons for ChatGPT, Claude, Z.ai, GitHub, Hermes Agent, OpenCode,
+Kilo Code, Cline, and Antigravity. The bundled-asset pipeline,
+resolution order (imported → bundled → badge), and the M6 frozen
+surfaces are untouched.
+
+1. Home → Your tools: Aider appears NOWHERE (defaults, settings,
+   restore); the section shows nine CLI launchers.
+2. A stale persisted 'aider' hide id is inert (hide/restore list never
+   resurrects it; no crash, no empty row).
+3. The nine refreshed marks render from bundled assets (airplane mode:
+   identical): ChatGPT white knot on OpenAI-black, Claude terracotta
+   starburst, Z.ai tile, GitHub white octocat on GitHub-dark, Hermes
+   mascot on white, OpenCode dark tile glyph, Kilo Code pixel letters on
+   white, Cline robot head on white, Antigravity colored arc.
+4. The four untouched marks (Claude Code, ZCode, Codex, Qwen Code)
+   render exactly as §42 step 8 described.
+5. Letter-badge fallback still works for custom launchers and for any
+   bundled asset that fails to decode; a user-imported icon still wins
+   over every bundled mark.

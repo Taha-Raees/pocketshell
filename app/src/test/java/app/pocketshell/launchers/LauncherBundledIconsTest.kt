@@ -51,6 +51,7 @@ class LauncherBundledIconsTest {
         assertNull(LauncherBundledIcons.assetPathFor("builtin-chatgpt/../../secret"))
         assertNull(LauncherBundledIcons.assetPathFor("../builtin-zai"))
         assertNull(LauncherBundledIcons.assetPathFor("gemini"))
+        assertNull(LauncherBundledIcons.assetPathFor("aider"))
     }
 
     @Test

@@ -120,13 +120,6 @@ object CommandAppCatalog {
             monogram = "C",
         ),
         CommandApp(
-            id = "aider",
-            displayName = "Aider",
-            launchCommand = listOf("aider"),
-            description = "AI pair programming in your terminal",
-            monogram = "A",
-        ),
-        CommandApp(
             id = "qwen",
             displayName = "Qwen Code",
             launchCommand = listOf("qwen"),

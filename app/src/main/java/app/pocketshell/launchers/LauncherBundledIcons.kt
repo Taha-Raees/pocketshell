@@ -27,7 +27,8 @@ object LauncherBundledIcons {
      * `builtin-*` ids) and the built-in CLI registry ids. Keys must stay in
      * lockstep with [BuiltInCompanions.SEEDS] and
      * [app.pocketshell.apps.CommandAppCatalog.registry]; both directions are
-     * pinned by tests.
+     * pinned by tests. M7.1 P2.1: Aider left the curated set — its mapping
+     * left with it (a removed launcher never keeps a packaged asset).
      */
     private val PATHS: Map<String, String> = mapOf(
         // Companions (the P1 seed set)
@@ -35,7 +36,8 @@ object LauncherBundledIcons {
         "builtin-claude" to "$DIR/builtin-claude.webp",
         "builtin-zai" to "$DIR/builtin-zai.webp",
         "builtin-github" to "$DIR/builtin-github.webp",
-        // CLI tools (the full built-in registry, M7.1 P2 curated set)
+        // CLI tools (the full built-in registry, M7.1 P2.1 curated set —
+        // Aider removed by the owner, the nine owner-supplied marks refreshed)
         "hermes" to "$DIR/hermes.webp",
         "opencode" to "$DIR/opencode.webp",
         "claude" to "$DIR/claude.webp",
@@ -44,7 +46,6 @@ object LauncherBundledIcons {
         "cline" to "$DIR/cline.webp",
         "agy" to "$DIR/agy.webp",
         "codex" to "$DIR/codex.webp",
-        "aider" to "$DIR/aider.webp",
         "qwen" to "$DIR/qwen.webp",
     )
 

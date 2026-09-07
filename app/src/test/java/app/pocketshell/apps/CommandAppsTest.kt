@@ -53,7 +53,8 @@ class CommandAppsTest {
         // P2 section below).
         assertEquals("Antigravity", CommandAppCatalog.byId("agy")?.displayName)
         assertEquals("Codex", CommandAppCatalog.byId("codex")?.displayName)
-        assertEquals("Aider", CommandAppCatalog.byId("aider")?.displayName)
+        // (M7.1 P2.1: Aider left the curated set — absence pinned in the
+        // dedicated P2.1 test below.)
         assertEquals("Qwen Code", CommandAppCatalog.byId("qwen")?.displayName)
         // Expansion appends AFTER the brief's four — device launcher order
         // for already-known apps never shuffles.
@@ -93,8 +94,9 @@ class CommandAppsTest {
         }
         assertFalse("no catalog id may collide with a package name", forbidden.contains("hermes"))
         // Phase 3.4 expansion ids are applications, not toolchains
-        // (M7.1 P2: the Antigravity CLI's official binary name joined the set).
-        for (id in listOf("kilo", "agy", "codex", "aider", "qwen")) {
+        // (M7.1 P2: the Antigravity CLI's official binary name joined the set;
+        // M7.1 P2.1: Aider left the set entirely).
+        for (id in listOf("kilo", "agy", "codex", "qwen")) {
             assertFalse(
                 "$id must stay out of the forbidden package namespace",
                 id in forbidden,
@@ -420,6 +422,22 @@ class CommandAppsTest {
         assertTrue(CommandAppCatalog.registry.none { it.id == "gemini" })
         assertTrue(CommandAppCatalog.registry.none { it.displayName.contains("Gemini") })
         assertTrue(CommandAppCatalog.registry.none { it.launchCommand.contains("gemini") })
+    }
+
+    @Test
+    fun `aider is gone from the curated set with no stale trace`() {
+        // M7.1 P2.1: the owner removed Aider from the curated default
+        // launcher set — registry, ids, commands, and display names, with
+        // no stale trace anywhere in the catalog (the Gemini CLI pattern).
+        assertNull(CommandAppCatalog.byId("aider"))
+        assertTrue(CommandAppCatalog.registry.none { it.id == "aider" })
+        assertTrue(CommandAppCatalog.registry.none { it.displayName.contains("Aider") })
+        assertTrue(CommandAppCatalog.registry.none { it.launchCommand.contains("aider") })
+        // The rest of the expansion set keeps its registry order untouched.
+        assertEquals(
+            listOf("hermes", "opencode", "claude", "zcode", "kilo", "cline", "agy", "codex", "qwen"),
+            CommandAppCatalog.registry.map { it.id },
+        )
     }
 
     @Test
