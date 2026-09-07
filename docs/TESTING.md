@@ -2662,3 +2662,42 @@ surfaces are untouched.
 5. Letter-badge fallback still works for custom launchers and for any
    bundled asset that fails to decode; a user-imported icon still wins
    over every bundled mark.
+
+## 44. Manual acceptance — M7.1 P2.2 (theme-scheme icons + x-scroll home rows + packages affordance) — DEVICE GATE PENDING
+
+The user's P2.2 quick-fix brief, three parts: (1) bundled icon colors
+follow the app theme scheme — every curated mark now ships TWO variants
+(`{id}.webp` Midnight, `{id}-light.webp` Daylight), with glyph marks
+painted on the SAME theme plate the badge tiles use
+(`TerminalTheme.keyAlt`: #16233F dark / #EDF1F7 light); (2) Companions
+scroll in ONE horizontal row, tools in TWO, both with page dots;
+(3) the packages affordance lives in the "Your tools" header (Manage →
+packages page) and the old mid-page footer link is gone. No new
+permissions, no new dependencies, no version bump, M6 frozen surfaces
+untouched.
+
+1. Theme — dark: Home launcher icons read on Midnight (Hermes mascot,
+   Kilo letters, Cline robot in WHITE on the dark navy plate; ChatGPT
+   knot, GitHub octocat, Codex flower white on the same plate).
+2. Theme — light (Settings → Theme → Daylight): the SAME tiles flip to
+   the paper plate with ink glyphs (ChatGPT black knot, GitHub
+   near-black octocat, ink Cline/Hermes/Kilo/Codex) — nothing white-on-
+   white, nothing glaring.
+3. Theme — AMOLED and System follow the same rule; a live theme flip
+   swaps the marks WITHOUT leaving Home (no reopen needed).
+4. User-imported icons still win over every bundled mark and do NOT
+   change with the theme.
+5. Companions: exactly ONE row, x-scroll; four built-ins (ChatGPT,
+   Claude, Z.ai, GitHub) overflow one page on a phone and show 2 dots.
+6. Your tools: exactly TWO rows, x-scroll, nine CLI launchers (+
+   customs); dots show when content exceeds one page (3 visible columns
+   on a phone → 2 dots).
+7. Scroll dots: the accent pill tracks the visible page while scrolling;
+   with one page of content (wide tablet) no dots render.
+8. Long-press remove-from-Home still works on BOTH scrollers; the
+   remove dialog restores via Manage as before.
+9. Your tools header: "Manage" opens the PACKAGES page (not launcher
+   settings); Companions' "Manage" still opens Home-launcher settings;
+   the old centered Packages footer link is GONE from the page.
+10. Verify-then-launch honesty unchanged: a tap on any tool still runs
+    the guest probe with the verifying spinner in the scrolled row.

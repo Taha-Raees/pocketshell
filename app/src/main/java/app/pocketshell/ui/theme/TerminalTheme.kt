@@ -34,6 +34,14 @@ import app.pocketshell.R
  */
 object TerminalTheme {
 
+    /**
+     * M7.1 P2.2 — which vocabulary is currently applied (false = Midnight
+     * until the first [applyTheme]). Synced by [PocketShellTheme] BEFORE any
+     * child composes; theme-reactive consumers (the launcher icon loader)
+     * read this to pick the matching bundled asset variant.
+     */
+    var isLight by mutableStateOf(false); private set
+
     // ---- surface stack (outer → inner) --------------------------------------
     var screenBg by mutableStateOf(Color(0xFF0B1424)); private set
     var chrome by mutableStateOf(Color(0xFF101B30)); private set
@@ -118,6 +126,7 @@ object TerminalTheme {
      * flashes the wrong palette.
      */
     fun applyTheme(light: Boolean) {
+        isLight = light
         if (light) {
             // Daylight Sapphire — the same structure, paper surfaces, deepened
             // sapphire accents for contrast on light grounds.

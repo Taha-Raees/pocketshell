@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,9 +43,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +59,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,6 +76,8 @@ import app.pocketshell.launchers.visibleTools
 import app.pocketshell.runtime.RuntimeState
 import app.pocketshell.terminal.TerminalSessionManager
 import app.pocketshell.ui.theme.TerminalTheme
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 /**
  * Phase 3.3 "Home & System UI" — the PocketShell workspace
@@ -84,8 +91,9 @@ import app.pocketshell.ui.theme.TerminalTheme
  *   COMPANIONS  the companion websites as launcher entries (M7.1 P1) —
  *               taps raise the EXISTING companion sheet
  *   TOOLS       "Your tools" — the built-in CLI launchers + the user's
- *               custom tools as icon + label launcher entries (M7.1 P1);
- *               a launcher is NOT an install claim — availability is
+ *               custom tools as icon + label launcher entries (M7.1 P1),
+ *               TWO rows with x-scroll and page dots (M7.1 P2.2); a
+ *               launcher is NOT an install claim — availability is
  *               verified honestly at tap time (§6/§9)
  *   SESSIONS    flat continuation rows between hairline dividers (§2a)
  *   FLOATING    the single-purpose create control (§7)
@@ -94,7 +102,9 @@ import app.pocketshell.ui.theme.TerminalTheme
  * environment, the CLI Apps menu, the floating control, an actionable banner,
  * or a pressed row/tile. Text groupings are separated by spacing, section
  * labels and hairline dividers, never containers. Packages are infrastructure
- * and keep exactly ONE quiet affordance on this page in every state.
+ * and keep exactly ONE quiet affordance on this page in every state —
+ * since P2.2 that affordance is the tools header's Manage action (the
+ * footer link is retired).
  */
 @Composable
 fun HomeScreen(
@@ -148,6 +158,12 @@ fun HomeScreen(
             maxWidth >= 600.dp -> 4
             else -> 3
         }
+        // M7.1 P2.2 — the fixed launcher-entry width for the x-scroll rows:
+        // one page of `columns` entries exactly fills the content width
+        // (entries carry their own inner gutters), the same density the old
+        // wrapping grid had.
+        val entryWidth =
+            (maxWidth.coerceAtMost(HomeTokens.contentMaxWidth) - 40.dp) / columns
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -201,6 +217,7 @@ fun HomeScreen(
                         companions = homeCompanions,
                         iconFiles = companionIcons,
                         columns = columns,
+                        entryWidth = entryWidth,
                         onOpen = onOpenCompanion,
                         onLongPress = { id, label -> removeTarget = id to label },
                         onManage = onOpenLauncherSettings,
@@ -210,22 +227,27 @@ fun HomeScreen(
                 // Phase 5 §3 — the "CLI Apps ▾" dropdown is retired: it listed
                 // exactly the apps the "Your tools" grid below already shows,
                 // with the same launch pipeline. ONE clear path remains — the
-                // tools grid (and Packages for installing more).
+                // tools grid (and its Manage action for installing more).
                 Spacer(Modifier.height(14.dp))
                 SectionDivider()
                 Spacer(Modifier.height(12.dp))
 
+                // M7.1 P2.2 — the divider above IS the alignment the brief
+                // asked for: the single packages affordance now lives IN the
+                // tools header ("Your tools … Manage"), opening the packages
+                // page; the old mid-page footer link is gone.
                 ToolsSection(
                     tools = visibleTools(
                         CommandAppCatalog.registry, customTools, hiddenLauncherIds,
                     ),
                     iconFiles = toolIcons,
                     columns = columns,
+                    entryWidth = entryWidth,
                     verifyingApp = verifyingApp,
                     onOpenCommandApp = onOpenCommandApp,
                     onOpenCustomTool = onOpenCustomTool,
                     onLongPress = { id, label -> removeTarget = id to label },
-                    onManage = onOpenLauncherSettings,
+                    onOpenPackages = onExplorePackages,
                 )
 
                 if (activeSessions.isNotEmpty()) {
@@ -234,12 +256,6 @@ fun HomeScreen(
                     Spacer(Modifier.height(8.dp))
                     SessionsSection(activeSessions, onOpenSession)
                 }
-
-                // Exactly ONE packages affordance (§9) — now unconditional:
-                // the launcher grid is permanent, so the empty state that
-                // used to carry this link no longer exists.
-                Spacer(Modifier.height(14.dp))
-                PackagesFooterLink(onExplorePackages)
 
                 // bottom clearance (the Companion bar zone rides here)
                 Spacer(Modifier.height(24.dp))
@@ -577,28 +593,95 @@ private fun FilesLauncherRow(onOpenFiles: () -> Unit) {
     }
 }
 
+// ---------------------------------------------------- horizontal launcher scroll
+
+/**
+ * M7.1 P2.2 — the ONE horizontal launcher scroller (the user's brief):
+ * fixed-width launcher entries in an x-scrollable viewport, with page dots
+ * beneath. Companions lay their entries in ONE row; tools lay theirs in
+ * TWO (the caller supplies per-column stacks). The dots appear only when
+ * the content actually spans more than one page, and the active dot
+ * follows the scroll fraction — no snapping machinery, just honest
+ * wayfinding over the same scroll state.
+ */
+@Composable
+private fun LauncherScroller(
+    pages: Int,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val state = rememberScrollState()
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(state),
+        verticalAlignment = Alignment.Top,
+    ) {
+        content()
+    }
+    if (pages > 1) {
+        Spacer(Modifier.height(2.dp))
+        ScrollDots(count = pages, state = state)
+    }
+}
+
+/** The scroller's page dots: the accent pill marks the visible page. */
+@Composable
+private fun ScrollDots(count: Int, state: ScrollState, modifier: Modifier = Modifier) {
+    val fraction = if (state.maxValue > 0) {
+        state.value.toFloat() / state.maxValue.toFloat()
+    } else 0f
+    val active = (fraction * (count - 1)).roundToInt().coerceIn(0, count - 1)
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(count) { index ->
+            val selected = index == active
+            val dotWidth by animateDpAsState(
+                targetValue = if (selected) 16.dp else 6.dp,
+                animationSpec = tween(150, easing = FastOutSlowInEasing),
+                label = "launcherScrollDot",
+            )
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 3.dp)
+                    .size(width = dotWidth, height = 6.dp)
+                    .background(
+                        if (selected) HomeTokens.accent else HomeTokens.hairline,
+                        CircleShape,
+                    ),
+            )
+        }
+    }
+}
+
 // --------------------------------------------------------------- tools section
 
 /**
- * "Your tools" (M7.1 P1) — the built-in CLI launchers + the user's custom
- * tools as launcher entries on the canvas. A launcher is NOT an install
- * claim: every tile is visible by default and honesty lives at tap time
- * (the existing verify-then-launch path). No container is drawn around any
- * of this.
+ * "Your tools" (M7.1 P1/P2.2) — the built-in CLI launchers + the user's
+ * custom tools as launcher entries on the canvas, TWO rows with x-scroll
+ * and page dots. A launcher is NOT an install claim: every tile is visible
+ * by default and honesty lives at tap time (the existing verify-then-launch
+ * path). No container is drawn around any of this. The header's Manage
+ * action opens the PACKAGES page — the single packages affordance (§9),
+ * aligned with the section it installs into (M7.1 P2.2).
  */
 @Composable
 private fun ToolsSection(
     tools: List<ToolLauncher>,
     iconFiles: Map<String, String>,
     columns: Int,
+    entryWidth: Dp,
     verifyingApp: String?,
     onOpenCommandApp: (CommandApp) -> Unit,
     onOpenCustomTool: (CustomTool) -> Unit,
     onLongPress: (id: String, label: String) -> Unit,
-    onManage: () -> Unit,
+    onOpenPackages: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-        SectionHeaderWithAction("Your tools", "Manage", onManage)
+        SectionHeaderWithAction("Your tools", "Manage", onOpenPackages)
         Spacer(Modifier.height(10.dp))
         if (tools.isEmpty()) {
             // Every launcher hidden by the user — one quiet honest line.
@@ -612,29 +695,29 @@ private fun ToolsSection(
         // Deterministic text badges over the VISIBLE launchers (collision
         // rule: shortest meaningful prefix, greedy in display order).
         val badges = remember(tools) { LauncherBadges.assign(tools.map { it.label }) }
-        tools.chunked(columns).forEachIndexed { rowIndex, rowTools ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-            ) {
-                rowTools.forEachIndexed { colIndex, tool ->
-                    LauncherGridEntry(
-                        launcherId = tool.id,
-                        label = tool.label,
-                        badge = badges[rowIndex * columns + colIndex],
-                        iconFile = iconFiles[tool.id],
-                        verifying = verifyingApp == tool.label,
-                        onClick = {
-                            when (tool) {
-                                is ToolLauncher.Builtin -> onOpenCommandApp(tool.app)
-                                is ToolLauncher.Custom -> onOpenCustomTool(tool.tool)
-                            }
-                        },
-                        onLongClick = { onLongPress(tool.id, tool.label) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                repeat(columns - rowTools.size) {
-                    Spacer(Modifier.weight(1f))
+        // TWO rows, x-scroll: entries are consumed in column pairs so the
+        // reading order continues the old wrapping grid's row-major flow.
+        val toolColumns = remember(tools) { tools.chunked(2) }
+        LauncherScroller(pages = ceil(toolColumns.size / columns.toFloat()).toInt()) {
+            toolColumns.forEachIndexed { colIndex, columnTools ->
+                Column(modifier = Modifier.width(entryWidth)) {
+                    columnTools.forEachIndexed { rowInColumn, tool ->
+                        LauncherGridEntry(
+                            launcherId = tool.id,
+                            label = tool.label,
+                            badge = badges[colIndex * 2 + rowInColumn],
+                            iconFile = iconFiles[tool.id],
+                            verifying = verifyingApp == tool.label,
+                            onClick = {
+                                when (tool) {
+                                    is ToolLauncher.Builtin -> onOpenCommandApp(tool.app)
+                                    is ToolLauncher.Custom -> onOpenCustomTool(tool.tool)
+                                }
+                            },
+                            onLongClick = { onLongPress(tool.id, tool.label) },
+                            modifier = Modifier.width(entryWidth),
+                        )
+                    }
                 }
             }
         }
@@ -644,16 +727,17 @@ private fun ToolsSection(
 // ----------------------------------------------------------- companions section
 
 /**
- * M7.1 P1 — Companions on Home. The preinstalled (seeded) + custom
- * companion websites as launcher entries. A tap opens the companion
- * through the EXISTING tab/sheet machinery; long-press offers the same
- * hide-only remove-from-Home as the tools.
+ * M7.1 P1/P2.2 — Companions on Home. The preinstalled (seeded) + custom
+ * companion websites as launcher entries, ONE row with x-scroll and page
+ * dots. A tap opens the companion through the EXISTING tab/sheet machinery;
+ * long-press offers the same hide-only remove-from-Home as the tools.
  */
 @Composable
 private fun CompanionsSection(
     companions: List<CompanionDef>,
     iconFiles: Map<String, String>,
     columns: Int,
+    entryWidth: Dp,
     onOpen: (String) -> Unit,
     onLongPress: (id: String, label: String) -> Unit,
     onManage: () -> Unit,
@@ -662,24 +746,18 @@ private fun CompanionsSection(
         SectionHeaderWithAction("Companions", "Manage", onManage)
         Spacer(Modifier.height(10.dp))
         val badges = remember(companions) { LauncherBadges.assign(companions.map { it.name }) }
-        companions.chunked(columns).forEachIndexed { rowIndex, rowDefs ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-            ) {
-                rowDefs.forEachIndexed { colIndex, def ->
-                    LauncherGridEntry(
-                        launcherId = def.id,
-                        label = def.name,
-                        badge = badges[rowIndex * columns + colIndex],
-                        iconFile = iconFiles[def.id],
-                        onClick = { onOpen(def.id) },
-                        onLongClick = { onLongPress(def.id, def.name) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                repeat(columns - rowDefs.size) {
-                    Spacer(Modifier.weight(1f))
-                }
+        // ONE row, x-scroll (M7.1 P2.2).
+        LauncherScroller(pages = ceil(companions.size / columns.toFloat()).toInt()) {
+            companions.forEachIndexed { index, def ->
+                LauncherGridEntry(
+                    launcherId = def.id,
+                    label = def.name,
+                    badge = badges[index],
+                    iconFile = iconFiles[def.id],
+                    onClick = { onOpen(def.id) },
+                    onLongClick = { onLongPress(def.id, def.name) },
+                    modifier = Modifier.width(entryWidth),
+                )
             }
         }
     }
@@ -847,32 +925,6 @@ private fun SessionsSection(
                 modifier = Modifier.padding(start = 10.dp),
             )
         }
-    }
-}
-
-// ------------------------------------------------------------------ footer
-
-/**
- * The single quiet packages affordance for the tools-present state (§9) —
- * when the empty state is shown, ITS link is the only one on the page.
- */
-@Composable
-private fun PackagesFooterLink(onExplorePackages: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = "Packages",
-            style = MaterialTheme.typography.bodySmall,
-            color = HomeTokens.textDim.copy(alpha = 0.85f),
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .clickable(role = Role.Button) { onExplorePackages() }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        )
     }
 }
 

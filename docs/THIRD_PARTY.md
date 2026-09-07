@@ -127,15 +127,15 @@ versions (version catalog: `gradle/libs.versions.toml`).
 |---|---|---|---|
 | Termux PRoot-Distro (https://github.com/termux/proot-distro, 5.8.0 @ f832a56) | M2.6.12: the probe-first /proc sysdata overlay model (setup_fake_sysdata / fake_sysdata_bindings) was studied and ADAPTED as GuestSysDataCompat.kt — original Kotlin implementation, narrower entry set, real-source content, app-private storage. No upstream code was copied. | GPL-3.0 | Architecture-only reference; documented in docs/M2.6-RESEARCH.md §7. |
 
-## Bundled: launcher brand icons (M7.1 P2 / P2.1)
+## Bundled: launcher brand icons (M7.1 P2 / P2.1 / P2.2)
 
 | Field | Value |
 |---|---|
 | Purpose | Home/Settings tiles for the curated launcher set (four companion websites + nine CLI launchers — Aider removed by the owner in P2.1) |
 | Sources | M7.1 P2.1: NINE marks are owner-supplied official brand SVGs vendored IN-TREE (`scripts/icon_sources/*.svg`, zonalogo.com mirrors of the official marks — offline, byte-reproducible): ChatGPT (OpenAI knot), Claude (starburst), Z.ai, GitHub (octocat), Hermes Agent, OpenCode, Kilo Code, Cline, Antigravity. The remaining four keep the M7.1 P2 build-time first-party fetch (each URL documented in `scripts/make_launcher_icons.py`): claude.ai CDN (Claude Code), z-cdn.chatglm.cn (ZCode), cdn.oaistatic.com (Codex), chat.qwen.ai CDN (Qwen Code) |
-| Files | `app/src/main/assets/launcher_icons/*.webp` — 192×192 lossless WebP (13 assets) |
-| Modifications | Normalization only: trim to content, one uniform content box, centered on a square canvas; documented monochrome/plate treatments (GitHub dark-scheme white mark on the GitHub-dark tile; ChatGPT white knot on the OpenAI-black tile; Codex white-on-dark; Claude glyph recolored to the Claude terracotta; the black Cline/Hermes/Kilo glyphs on white plates); brand tile backgrounds recorded in the script. Glyphs are never redrawn. |
-| Runtime behavior | Packaged in the APK — the app performs NO icon download, NO network icon discovery, works fully offline. Missing/unreadable assets degrade to the deterministic text badge. |
+| Files | `app/src/main/assets/launcher_icons/*.webp` — 192×192 lossless WebP — 26 assets since P2.2: EVERY curated mark ships a TWO-VARIANT theme pair (`{id}.webp` Midnight/dark, `{id}-light.webp` Daylight/light) |
+| Modifications | Normalization only: trim to content, one uniform content box, centered on a square canvas. P2.2 theme-scheme treatments: monochrome glyphs ride the APP'S OWN plate tones (`TerminalTheme.keyAlt` #16233F dark / #EDF1F7 light — the same surface the badge tiles paint) with per-theme glyph inversion (white-on-dark, ink-on-light; GitHub uses its own #24292F light ink, ChatGPT its OpenAI-black); self-contained brand tiles (Z.ai, OpenCode) and colored transparent marks (Claude terracotta, Antigravity, Claude Code, Qwen) are theme-proof and identical across the pair. Full per-mark table recorded in `scripts/make_launcher_icons.py`. Glyphs are never redrawn. |
+| Runtime behavior | Packaged in the APK — the app performs NO icon download, NO network icon discovery, works fully offline. The tile picks the variant matching the CURRENT theme (`TerminalTheme.isLight`) and re-resolves on a theme flip; a user-imported icon outranks both variants and is theme-independent. Missing/unreadable assets degrade to the deterministic text badge. |
 | Trademark note | The marks are trademarks of their respective owners, bundled in nominative/fair use as launcher shortcuts to those products (the established launcher-shortcut pattern). PocketShell claims no affiliation; each tile launches or opens the real product the mark names. |
 
 No new third-party CODE dependencies were added by M7.1 P2 (the icon

@@ -17,21 +17,26 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.home.MonogramTile
+import app.pocketshell.ui.theme.TerminalTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * M7.1 P1/P2 — the shared launcher tile (PART D/E): the ONE icon path for
- * the Home grids and the management screen. Resolution order:
+ * M7.1 P1/P2/P2.2 — the shared launcher tile (PART D/E): the ONE icon path
+ * for the Home grids and the management screen. Resolution order:
  *
  *   1. the user's IMPORTED icon copy (decodes from app storage) — an
  *      explicit user choice outranks everything;
- *   2. the BUNDLED curated icon (P2, packaged in the APK) for curated ids;
+ *   2. the BUNDLED curated icon for the CURRENT THEME (P2.2: the dark or
+ *      light variant packaged in the APK, so the mark follows the theme
+ *      scheme) for curated ids;
  *   3. the deterministic text badge on the established monogram plate.
  *
  * Every failure path — missing file, deleted import source, invalid bytes,
  * missing/unreadable asset — degrades to the badge, never to a broken
- * image. Offline by construction: both sources are local.
+ * image. Offline by construction: both sources are local. A theme flip
+ * re-runs the resolution (the produceState key includes the theme), so a
+ * curated tile swaps to the other variant without any call-site change.
  */
 @Composable
 fun LauncherTileIcon(
@@ -41,9 +46,10 @@ fun LauncherTileIcon(
     size: Dp,
 ) {
     val context = LocalContext.current
-    val bitmap = produceState<Bitmap?>(initialValue = null, launcherId, iconFile) {
+    val light = TerminalTheme.isLight
+    val bitmap = produceState<Bitmap?>(initialValue = null, launcherId, iconFile, light) {
         value = withContext(Dispatchers.IO) {
-            loadUserIcon(context, iconFile) ?: loadBundledIcon(context, launcherId)
+            loadUserIcon(context, iconFile) ?: loadBundledIcon(context, launcherId, light)
         }
     }
     val image = bitmap.value?.asImageBitmap()
@@ -76,9 +82,9 @@ private fun loadUserIcon(context: Context, iconFile: String?): Bitmap? {
     }.getOrNull()
 }
 
-/** The packaged curated icon for [launcherId], or null when absent/unreadable. */
-private fun loadBundledIcon(context: Context, launcherId: String): Bitmap? {
-    val path = LauncherBundledIcons.assetPathFor(launcherId) ?: return null
+/** The packaged curated icon for [launcherId]'s theme variant, or null. */
+private fun loadBundledIcon(context: Context, launcherId: String, light: Boolean): Bitmap? {
+    val path = LauncherBundledIcons.assetPathFor(launcherId, light) ?: return null
     return runCatching {
         context.assets.open(path).use { stream ->
             BitmapFactory.decodeStream(stream)
