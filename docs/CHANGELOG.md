@@ -3,6 +3,46 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.0-m7.0.0] — 2026-09-07 — M7.0 release (Linux/Android files, search, editor, terminal integration)
+
+The M7.0 milestone: a real file explorer across the PocketShell Linux area,
+the app-owned PocketShell Downloads shelf, and user-granted Android folders
+(SAF), with copy/move/paste/delete, single and multi-select, a quick text
+editor, Open Terminal Here, and recursive name search — closed by the P9
+integration pass and three device-reported search-UX fixes.
+
+- **P9 search scrolling (root cause)**: the Files screen never cleared the
+  shared keyboard deck's inset — the Terminal, Editor, and Companion
+  surfaces push themselves above the root-mounted deck, but Files did not,
+  so the listing AND search-results viewport extended behind the deck. A
+  result list shorter than the (too tall) viewport had nothing to scroll
+  while its tail sat hidden under the deck ("cannot scroll"); a long one
+  could never reveal its last rows. FilesScreen now follows the established
+  inset rule (deck height when mounted, navigation-bars padding when
+  collapsed), so every row of both surfaces is reachable.
+- **P9 search-result actions**: long-pressing a result lands on the
+  result's parent directory (the tap behavior) and opens the SAME
+  contextual action sheet as an explorer row — resolved from the FRESH
+  listing, so Open / Open Terminal Here (Linux area, directories only) /
+  Copy / Move / Share / Export / Rename / Delete all route through the
+  existing per-entry operations with the landed directory as context.
+  No second operations engine; vanished entries never open a stale sheet.
+- **P9 one close behavior**: the duplicated field-row close arrow is gone.
+  The header X (the same icon that opens search) and system Back close
+  search; the in-field ✕ only clears the query. Search triggering itself is
+  unchanged — no Search button, no submit UI.
+- **M7 features carried by this release** (each phase's detail lives in its
+  own entry/commit): P1–P4 explorer + per-entry operations; P5 SAF bridge
+  (system picker grants, share/import/export); P6 quick text editor +
+  P6.1 Downloads labels; P7/P7.1 Open Terminal Here (tapped folder) +
+  environment-matching terminal "+"; P8 recursive name search inside the
+  selected area (literal, case-insensitive, symlink-safe, honestly
+  limited); P8.1 multi-select copy/move/delete through the unchanged
+  per-entry engine with honest aggregates.
+- Version: versionCode 45, versionName 0.11.0-m7.0.0. The 6-permission set,
+  the M6 frozen architecture, and the embedded rev=2 glibc layer asset are
+  byte-for-byte unchanged; full JVM suite 653 green.
+
 ## [0.10.0-m6.0.4] — 2026-09-06 — M6 Phase-C adversarial closure audit
 
 The M6.0.3 device gate reached 27/27 ALL GREEN (doctor correctness proven on

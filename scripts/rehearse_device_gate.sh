@@ -25,7 +25,7 @@ RT="$REPO/runtime-tests"
 GATE="$RT/device_gate.sh"
 AUDIT="$RT/adversarial_closure_audit.sh"
 MARKER_TXT="PocketShell glibc runtime layer 2.41-12.deb13u3 (glibc 2.41) rev=2"
-STAMP_TXT="0.10.0-m6.0.4 (versionCode 44)"
+STAMP_TXT="0.11.0-m7.0.0 (versionCode 45)"
 
 rp=0; rf=0
 assert_ok() { # label condition-rc
