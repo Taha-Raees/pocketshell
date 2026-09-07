@@ -11,8 +11,8 @@ const VERSION = "v0.11.0-m7.0.0-m7.1p2";
 // and withdrawn below; its history rides in the bundle.
 const HASHES = {
   apk: "ae6f64458c18d9cffd380596a9c4525dc87db2e9c79b2813b413dff71f09c74f",
-  zip: "10e459c2bd4a609d49062ee4cba16a669b0c2c38afea696956e22805a41eeaac",
-  tgz: "d694fafb528e9f2471a7cdad8c009248ca6321923bbbe45700cedcfbb2ffde20",
+  zip: "e1dbbe6dd7d6ae29bc1ec43a0b1e840f3523c2f84384937764827bee8fdf3e14",
+  tgz: "260f0163e7fac473a736e98a930c0544921eeffb4d41b91dfd4fd73058410cf3",
   bundle: "3e1dcaafbf2bb67566b32f47c991033524d6513fdc2088a75cd3ba287dadf0ee",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
