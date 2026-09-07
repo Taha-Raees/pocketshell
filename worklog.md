@@ -1800,3 +1800,20 @@ Work Log:
 Stage Summary:
 - Commit chain: 3abb2e8 (M7.1 P1) → ebe8c77 (web) → 63c9c28 (worklog) → 1b15bde (M7.1 P2 implementation) → <delivery commit>.
 - M7.1 P2 is complete and delivered: the screenshot bug is root-caused (fillMaxWidth page-level button in an unweighted row slot) and structurally fixed through ONE shared weighted row shape; 14 official marks ship offline inside the APK with badge fallback and imported-icon priority; Antigravity (agy) seats in the curated defaults with the honest probe while Gemini CLI is gone everywhere it was a default. 690/690 JVM green, vc45/0.11.0-m7.0.0 unchanged, 6 permissions unchanged, frozen boundaries untouched, artifacts HTTP-verified 5/5 and re-feedable from upload/. The §42 device gate (16 steps) is the remaining visual pass on hardware.
+
+---
+Task ID: 30 (Run server — post-delivery reset recovery of the M7.1 P2 delivery set)
+Agent: main (Super Z)
+Task: The user's "Run server" request. Audit found the delivery surface broken by another sandbox reset (public/ deleted, download/ binaries wiped, only download/README.md + glibc-sidecar SHA files survived); the upload/ insurance copies survived intact. Restore the full delivery set, re-serve, and verify end-to-end.
+
+Work Log:
+- AUDIT: git tip 5e5c5e3 / clean tree (dev.log noise only); the M7.1 P2 delivery commit chain intact (… 1b15bde → 9e8ec29 → 5e5c5e3). page.tsx HASHES pins all 5 artifacts; download/README.md carries the byte sizes. public/ gone; download/ binaries gone.
+- RESTORE (scripts/restore_delivery_m71p2.sh, committed): upload/ insurance APK (ae6f6445…/30,447,567 B) + git bundle (3e1dcaaf…/37,318,556 B) verified against pins then copied byte-identically into public/ + download/; glibc artifact copied byte-identically from the in-tree tracked asset (ed82daa8…/6,764,916 B); source.zip/tar.gz rebuilt around the DELIVERED bundle bytes at the SAME pinned tip 1b15bde (git archive, same excludes, RESTORE.txt, zeroed mtimes, sorted tar, gzip -n) — 3/5 reproduced byte-identically; zip/tgz did NOT (archive bytes not re-cut-stable across sandbox toolchain builds, exactly as the cutter's header discloses): zip same size 49,831,949 B sha e1dbbe6d…, tgz 49,616,672 B sha 260f0163….
+- RE-PIN per the cutter's re-cut contract: page.tsx HASHES zip/tgz updated; download/README.md gained a RESTORE NOTE (what was restored byte-identically vs re-cut and why) + updated zip/tgz pins; delivery commit b1215c0.
+- INSURANCE UPGRADE: fresh zip/tgz copies staged into upload/ alongside the APK + bundle — any future reset now restores the ENTIRE set byte-identically (glibc regenerable from the tracked in-tree asset).
+- SERVER: the sandbox now reaps call-spawned listeners (and even setsid-detached watchdogs) at every tool-call boundary; dev_watchdog.sh's own header documents the historical behavior. Server lifecycle verified via the single-call protocol: scripts/verify_http_m71p2.sh (committed) starts bun run dev, waits for :3000, checks 8 page markers, then downloads all five artifacts and enforces wire sha256 + byte size against the page pins IN ONE tool call.
+- HTTP VERIFICATION (single call): page 45,174 B, markers 8/8 (m7.1p2 / 1b15bde / Antigravity / all five pins); artifacts 5/5 PASS at exact byte sizes (30,447,567 / 49,831,949 / 49,616,672 / 37,318,556 / 6,764,916 B), full 64-hex wire sha equality.
+
+Stage Summary:
+- Commit chain: … → 1b15bde (M7.1 P2) → 9e8ec29 (web) → 5e5c5e3 (README pins) → b1215c0 (restore re-pin) → this worklog.
+- The M7.1 P2 delivery set is fully re-served and re-verified 5/5 byte-exact on the wire; upload/ insurance now covers the complete set; no Android code touched (no version/permission/freeze implications); the §42 device gate remains the only outstanding item from P2 proper.
