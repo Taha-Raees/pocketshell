@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -66,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -106,7 +108,15 @@ import java.util.Locale
  *                        area only (recursive, literal case-insensitive
  *                        substring — the query is data, never a pattern);
  *                        tapping a result exits search and opens the
- *                        result's PARENT directory with the entry marked
+ *                        result's PARENT directory with the entry marked;
+ *                        LONG-pressing a result lands the same way and then
+ *                        opens the SAME contextual action sheet as the
+ *                        explorer rows (Phase 9) — every action routes
+ *                        through the existing per-entry ops, resolved
+ *                        against the parent the user landed in; the header
+ *                        X is the ONE close affordance (Phase 9 removed the
+ *                        duplicated field-row arrow; the in-field ✕ only
+ *                        clears the query)
  *   Open Terminal Here → Phase 7: a real launch offered for directory
  *                        entries in the PocketShell Linux area only — it
  *                        opens THE TAPPED FOLDER (p7.1); Android-owned
@@ -136,6 +146,18 @@ fun FilesScreen(
     onSearchExit: () -> Unit,
     /** Phase 8: activate a result — exit search, open its PARENT directory. */
     onOpenSearchResult: (FileSearch.SearchResult) -> Unit,
+    /**
+     * Phase 9: the measured height of the shared keyboard deck mounted at
+     * the app root (0.dp when the deck is collapsed). The whole screen —
+     * the listing AND the search results — must end ABOVE the deck, exactly
+     * like the Terminal and Editor screens: without this the list viewport
+     * extends behind the deck, so results beyond the visible sliver are
+     * unreachable (a short result list has nothing to scroll at all — the
+     * reported "cannot scroll" device symptom) and a long one can never
+     * reveal its tail. Zero inset falls back to a navigation-bars padding
+     * so a closed deck never hides rows behind the gesture bar either.
+     */
+    keyboardBottomInset: Dp,
     /** Phase 6: open the listing FILE [name] in the quick text editor. */
     onOpenFile: (String) -> Unit,
     /**
@@ -171,6 +193,24 @@ fun FilesScreen(
 
     // The tapped / long-pressed entry whose action sheet is open.
     var selected by remember { mutableStateOf<FsEntry?>(null) }
+
+    // Phase 9: a long-pressed SEARCH RESULT parks its name here, then rides
+    // the SAME landing as a tap (exit search → open the result's parent).
+    // When the fresh listing of that parent arrives, the REAL listing entry
+    // is promoted into [selected] — the exact action sheet, handlers and
+    // per-entry ops the explorer rows use, now resolved against the parent
+    // the user actually landed in. A vanished entry (or any other nav)
+    // drops the intent honestly — never a sheet over a stale snapshot.
+    var searchActionTarget by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state, searchActionTarget) {
+        val target = searchActionTarget ?: return@LaunchedEffect
+        if (state.highlight != target) {
+            searchActionTarget = null
+            return@LaunchedEffect
+        }
+        selected = state.entries.firstOrNull { it.name == target }
+        searchActionTarget = null
+    }
 
     // Phase 8: search mode is a UI-local rendering switch; the search STATE
     // (walk, results, cancellation) lives in the ViewModel. Opening clears
@@ -216,7 +256,15 @@ fun FilesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = HomeTokens.contentMaxWidth)
-                .align(Alignment.TopCenter),
+                .align(Alignment.TopCenter)
+                // Phase 9: the deck-clearance rule (the TerminalScreen/Editor
+                // pattern) — the screen ends ABOVE the one keyboard, so both
+                // the explorer listing and the search results own the FULL
+                // remaining height and can scroll every row into view.
+                .then(
+                    if (keyboardBottomInset == 0.dp) Modifier.navigationBarsPadding()
+                    else Modifier.padding(bottom = keyboardBottomInset),
+                ),
         ) {
             FilesHeader(
                 state = state,
@@ -239,7 +287,6 @@ fun FilesScreen(
                         searchQuery = it
                         onSearchQuery(it)
                     },
-                    onExit = { closeSearch() },
                 )
             } else if (selectionMode) {
                 // Phase 8.1: the selection bar replaces the location row —
@@ -324,6 +371,13 @@ fun FilesScreen(
                     areaName = state.areaName,
                     onOpenResult = { result ->
                         searchMode = false
+                        onOpenSearchResult(result)
+                    },
+                    // Phase 9: long-press — the SAME landing, then the SAME
+                    // action sheet as an explorer row (via searchActionTarget).
+                    onResultActions = { result ->
+                        searchMode = false
+                        searchActionTarget = result.entry.name
                         onOpenSearchResult(result)
                     },
                 )
@@ -916,17 +970,21 @@ private fun SelectionBar(
 
 /**
  * The search-mode field row: a focused single-line text field with the
- * scope named honestly ("Search in <area>"), an in-field clear affordance,
- * and a close affordance. Typing dispatches [onQuery] for every change —
- * each call supersedes the previous walk in the ViewModel; a BLANK query
- * is the input state and never scans.
+ * scope named honestly ("Search in <area>") and an in-field clear
+ * affordance. Typing dispatches [onQuery] for every change — each call
+ * supersedes the previous walk in the ViewModel; a BLANK query is the input
+ * state and never scans.
+ *
+ * Phase 9: there is NO close button here. Closing search is the header X's
+ * job (top-right, the same icon that opened it) or the system back — one
+ * clear close behavior, never two adjacent controls for one action. The
+ * in-field ✕ is a DIFFERENT concept: it clears the query only.
  */
 @Composable
 private fun SearchFieldRow(
     areaName: String,
     query: String,
     onQuery: (String) -> Unit,
-    onExit: () -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
@@ -988,34 +1046,21 @@ private fun SearchFieldRow(
                 )
             }
         }
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(role = Role.Button, onClickLabel = "Close search") { onExit() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
-                contentDescription = "Close search",
-                tint = HomeTokens.textDim,
-                modifier = Modifier.size(24.dp),
-            )
-        }
     }
 }
 
 /**
  * The search-mode body: ONLY renders the search publication state — running
  * spinner, honest limit/skip disclosures, no-results, results — and sends
- * activations. It never sees a [app.pocketshell.files.StorageArea] and never
- * decides what a match is.
+ * activations and long-presses. It never sees a
+ * [app.pocketshell.files.StorageArea] and never decides what a match is.
  */
 @Composable
 private fun SearchBody(
     search: FilesSearchState,
     areaName: String,
     onOpenResult: (FileSearch.SearchResult) -> Unit,
+    onResultActions: (FileSearch.SearchResult) -> Unit,
 ) {
     when (val s = search) {
         FilesSearchState.Idle -> Column(
@@ -1094,6 +1139,7 @@ private fun SearchBody(
                                 result = result,
                                 areaName = areaName,
                                 onClick = { onOpenResult(result) },
+                                onLongPress = { onResultActions(result) },
                             )
                         }
                     }
@@ -1105,19 +1151,33 @@ private fun SearchBody(
 
 /** One search result: kind icon, the name, and the relative location that
  * distinguishes duplicates (the area's own navigation spine — for SAF
- * areas this is the honest document-tree spine, never a fake POSIX path). */
+ * areas this is the honest document-tree spine, never a fake POSIX path).
+ *
+ * Phase 9: tap = activate (the P8 behavior, unchanged); long-press = the
+ * explorer-style action surface — the caller lands on the result's parent
+ * and opens the SAME contextual sheet as an explorer row, so every action
+ * routes through the existing per-entry ops. No second file manager.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SearchRow(
     result: FileSearch.SearchResult,
     areaName: String,
     onClick: () -> Unit,
+    onLongPress: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
             .clip(RoundedCornerShape(10.dp))
-            .clickable(role = Role.Button, onClickLabel = "Open ${result.entry.name}") { onClick() }
+            .combinedClickable(
+                role = Role.Button,
+                onClickLabel = "Open ${result.entry.name}",
+                onLongClickLabel = "Actions for ${result.entry.name}",
+                onClick = onClick,
+                onLongClick = onLongPress,
+            )
             .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

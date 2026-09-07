@@ -2357,3 +2357,98 @@ G — Regression ladder (P2–P8)
 25. App info: still versionName 0.10.0-m6.0.4 / versionCode 44 and the SAME
     6 permissions — Phase 8.1 adds no permissions, no manifest entries, no
     new dependencies.
+
+## 40. Manual acceptance — M7.0.0 Phase 9 / FINAL RELEASE (search interaction fixes + M7 integration + version 0.11.0-m7.0.0) — DEVICE GATE PENDING
+
+Build under test: `PocketShell-v0.11.0-m7.0.0-debug.apk` (versionCode 45,
+versionName 0.11.0-m7.0.0 — the M7.0 release build; installs in place over
+every earlier M7 build, same debug cert).
+
+What Phase 9 IS: three device-reported search-UX fixes — (1) the search
+results (and the whole Files screen) now end ABOVE the shared keyboard deck
+(the Terminal/Editor inset rule), so a short result list is fully visible
+and a long one scrolls every row into view — previously the list viewport
+extended behind the deck and results were unreachable; (2) long-pressing a
+search result lands on the result's parent and opens the SAME contextual
+action sheet as an explorer row (Open / Open Terminal Here / New folder /
+New file / Copy / Move / Share / Export / Rename / Delete — only the actions
+valid for the entry's kind and area are exposed); (3) the duplicated
+field-row close arrow is gone — the header X is the ONE close affordance,
+the in-field ✕ only clears the query. What it is NOT: no change to how
+search is triggered (same header icon, no Search button, no submit UI), no
+change to search semantics (limits, generation guard, serial worker,
+symlink behavior, query-as-data, error honesty, area boundaries), no new
+operations engine (the sheet routes through the existing per-entry ops on
+the landed parent), no new permissions or dependencies.
+
+A — Search scrolling (the fix)
+ 1. Search a query with 2–3 results → every result is visible; the list
+    ends above the keyboard deck; nothing hides behind it.
+ 2. Search a query with MANY results (more than fit the screen) → drag the
+    results list up → it scrolls naturally; results beyond the initial
+    viewport arrive; the tail of the list is reachable above the deck.
+ 3. With the keyboard deck toggled OFF, search again → the list ends above
+    the gesture bar; the last rows are reachable.
+ 4. The search field row stays usable while results scroll (focus, typing,
+    the in-field clear all keep working).
+
+B — Search controls (one close behavior)
+ 5. The ONLY close controls are the header X (top-right, the same icon that
+    opened search) and the system Back — both exit search mode.
+ 6. There is NO second arrow/close control in or beside the field row
+    (the Phase 8 duplicate is removed).
+ 7. The in-field ✕ (visible while the query is non-empty) CLEARS the query
+    only — it does not leave search mode.
+ 8. No Search button, no submit/Enter UI, no extra icon appeared anywhere —
+    search triggers exactly as in §38 (type to search).
+
+C — Search-result actions (long-press)
+ 9. Long-press a FILE result → the screen lands in the result's parent
+    directory (entry marked, the §38 tap behavior) and the SAME action
+    sheet opens: Copy / Move / Share / Export / Rename / Delete (Share and
+    Export for files only); Kind shows File with its real size/date.
+10. Long-press a DIRECTORY result → lands in its parent; the sheet shows
+    Open / Open Terminal Here (Linux area only) / New folder / New file /
+    Copy / Move / Rename / Delete.
+11. Tap "Open" on a long-pressed directory result → navigates INTO it;
+    tap "Open" (edit) on a file result → the editor opens it.
+12. Actions work against the LANDED directory: Copy on a search result →
+    navigate elsewhere → Paste here → the file arrives (the operation used
+    the result's real parent, never the pre-search location).
+13. Android-owned areas (shelf, SAF): the directory sheet shows the honest
+    Android-boundary note instead of Open Terminal Here — no launch button.
+14. Long-press a SYMLINK result → the sheet shows Kind: Symlink and Target;
+    Copy/Move/Delete act on the link (targets untouched), no descent.
+15. Special-character names: long-press a result whose name contains
+    quotes/spaces/& → the sheet title and every action treat it literally.
+16. Vanished entry: long-press a result, then (before acting) delete its
+    parent via another path/session if reproducible → the landing lists
+    honestly (or errors honestly); NO sheet opens over a stale entry.
+17. Protected paths stay protected: a Linux result under a frozen runtime
+    prefix refuses deletion through the sheet with the area's own reason.
+
+D — Multi-select regression (§39 spot ladder)
+18. Multi copy → paste (same area + cross-area) → "Copied N items."
+19. Multi move → sources gone, destination has them.
+20. Multi delete with folder contents → per-kind warnings, then deleted.
+21. Collision: Replace completes the item and the rest; Cancel reports
+    what already landed + "Cancelled at …" — partial never hidden.
+
+E — Editor regression (§35 spot)
+22. Open a text file from the listing → edit → Save → back → the guard
+    only fires when dirty; binary/oversized files still refuse honestly.
+
+F — Terminal regression (§37 spot)
+23. Open Terminal Here on a nested folder and on a folder whose name
+    contains metacharacters → the session's pwd IS that folder (p7.1).
+24. Existing sessions keep their integrity; "+" still matches the current
+    session's environment.
+
+G — Android / SAF boundaries (§36 spot)
+25. The switcher still reads "PocketShell Downloads" (app shelf) vs the
+    granted real "Download" (its own name); both still work.
+26. Real Android Download via SAF: copy a file in from the shelf, see it
+    in the system Files app; kill + reopen the app → the grant reattaches.
+27. App info: versionName 0.11.0-m7.0.0 / versionCode 45 and the SAME
+    6 permissions — Phase 9 adds no permissions, no manifest entries,
+    no new dependencies.

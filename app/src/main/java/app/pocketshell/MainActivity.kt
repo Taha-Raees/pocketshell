@@ -297,6 +297,10 @@ fun PocketShellRoot(
                     }
                 },
                 onOpenDiagnostics = { screen = "diagnostics" },
+                // P9: the deck-clearance inset (the Terminal/Editor pattern) —
+                // the Files screen (listing AND search results) ends above the
+                // shared keyboard so every row can scroll into view.
+                keyboardBottomInset = keyboardInset,
                 modifier = Modifier.padding(padding),
             )
 
