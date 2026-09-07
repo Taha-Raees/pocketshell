@@ -1,19 +1,19 @@
-const VERSION = "v0.11.0-m7.0.0-m7.1p2.1";
+const VERSION = "v0.11.0-m7.0.0-m7.1p2.2";
 
-// SHA pins — the M7.1 PHASE 2.1 delivery. The payload cutter stages from the
-// pinned phase tip (e0a2471) with zeroed mtimes; the embedded git bundle's
+// SHA pins — the M7.1 PHASE 2.2 delivery. The payload cutter stages from the
+// pinned phase tip (6004805) with zeroed mtimes; the embedded git bundle's
 // pack bytes are not re-cut-stable, so these pins refer to the ONE delivered
-// cut. Semantic pins: versionCode 45, versionName 0.11.0-m7.0.0 (P2.1 does
+// cut. Semantic pins: versionCode 45, versionName 0.11.0-m7.0.0 (P2.2 does
 // NOT bump the version), cert d96a6f66…8bf659, embedded layer asset
 // 898131ff… /17,920,000 B == GlibcRuntimePin. The glibc layer is UNCHANGED
-// rev=2 (byte-identical artifact ed82daa8…). The M7.1 P2 APK
-// (ae6f6445…) is superseded by this build (same version stamp, new content)
+// rev=2 (byte-identical artifact ed82daa8…). The M7.1 P2.1 APK
+// (97c04120…) is superseded by this build (same version stamp, new content)
 // and withdrawn below; its history rides in the bundle.
 const HASHES = {
-  apk: "97c04120ec56af2761c7923bbcd699cd96c8a9f17ccf7990aff4507d33a4a066",
-  zip: "1bb4c41fc0f02373074c43f1397a194a1755f2b7b154453bef824105c0477231",
-  tgz: "a38213b3cd0138cf0a6805b74ed17d1f444f5b1f808d319930da74e39f12e64b",
-  bundle: "fb0887b5b93a859f833164eff55f4fa305d6e0a3fd5eccb4c0fc889b40c7d35f",
+  apk: "7e0e99a92a3234be11308ce487ee82199a3fef7d9276eee13cab107c2567b6c1",
+  zip: "0e2b9d3d5932ebf415b989b8594c9fa9f2b3dc3cbb2e5cb8d3b8750d164e45c4",
+  tgz: "a45a0f02d4d46a2bd1a3d03783f7dcc8bbdba7498822ceeeebf431050370add4",
+  bundle: "1e8822fc280edca4395ff93a9e580cc579cf8b898a1cbdb143b12aaa4e9bcf27",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
 
@@ -35,39 +35,42 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M7.1 Phase 2.1: Aider removed + owner-supplied official marks{" "}
-          <span className="badge">phase tip e0a2471 · vc45</span>
+          M7.1 Phase 2.2: theme-scheme icons + x-scroll home rows + the
+          packages affordance aligned{" "}
+          <span className="badge">phase tip 6004805 · vc45</span>
         </h2>
         <p>
           <b>
-            <b>AIDER IS GONE</b> from the curated default CLI launcher set —
-            registry, ids, commands, display names, and the bundled-asset
-            mapping, with no stale trace anywhere (the Gemini CLI removal
-            pattern, pinned by a dedicated test; a stale persisted hide id is
-            inert). <b>Nine official marks re-rendered from owner-supplied
-            official brand SVGs</b> vendored in-tree (zonalogo.com mirrors,
-            fully offline and byte-reproducible): ChatGPT (white knot on the
-            OpenAI-black tile), Claude (terracotta starburst), Z.ai (Z tile),
-            GitHub (white octocat on the GitHub-dark tile), Hermes Agent
-            (mascot on white plate), OpenCode (its own dark tile glyph), Kilo
-            Code (pixel letters on white — the vector ships no fill), Cline
-            (robot head on white plate), Antigravity (colored arc). Claude
-            Code, ZCode, Codex, and Qwen Code keep their P2 marks — the
-            curated set is now 13. Everything else rides from P2 unchanged:
-            the settings-row repair through ONE shared weighted row, the
-            bundled offline icon layer with the imported-copy → bundled →
-            badge resolution, and Antigravity (<code>agy</code>) as the honest
-            verify-then-launch launcher that replaced Gemini CLI. No new
-            permissions, no new dependencies, the M6-frozen companion package
-            untouched, JVM suite 691/691 green.
+            <b>ICONS FOLLOW THE THEME SCHEME</b> — every curated launcher mark
+            now ships a two-variant theme pair ({`{id}`}.webp Midnight,{" "}
+            {`{id}`}-light.webp Daylight), rendered by the offline pipeline on
+            the app's OWN plate tones (the same theme surface the badge tiles
+            paint: #16233F dark / #EDF1F7 light). Monochrome glyphs invert per
+            theme — the Hermes mascot, Kilo letters, and Cline robot render
+            WHITE on the dark plate (they vanished as black marks on Midnight)
+            and ink-on-light; ChatGPT's knot, GitHub's octocat, and Codex's
+            flower adapt with their own brand inks; self-contained brand tiles
+            (Z.ai, OpenCode) and colored transparent marks (Claude terracotta,
+            Antigravity, Claude Code, Qwen) are theme-proof. A live theme flip
+            swaps the marks without leaving Home. <b>X-SCROLL HOME ROWS</b>:
+            Companions in ONE horizontal row, Your tools in TWO, both with
+            scroll dots (the accent pill tracks the visible page).{" "}
+            <b>THE PACKAGES BUTTON LEFT THE MIDDLE OF THE SCREEN</b>: it now
+            lives in the "Your tools" header — Manage, right where the section
+            lives below its divider — and opens the packages page; the old
+            footer link is retired. Companions keep their launcher-settings
+            Manage; verify-then-launch honesty, hide-only removal, and the
+            badge fallback are unchanged. No new permissions, no new
+            dependencies, the M6-frozen companion package untouched, JVM suite
+            696/696 green.
           </b>
         </p>
-        <a className="btn" href="/PocketShell-v0.11.0-m7.0.0-m7p2.1-debug.apk">
-          Download M7.1 P2.1 APK (debug, 30.3 MB)
+        <a className="btn" href="/PocketShell-v0.11.0-m7.0.0-m7p2.2-debug.apk">
+          Download M7.1 P2.2 APK (debug, 30.7 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          versionCode 45 / versionName 0.11.0-m7.0.0 (unchanged — P2.1 does not
+          versionCode 45 / versionName 0.11.0-m7.0.0 (unchanged — P2.2 does not
           bump the version) — installs in place over every earlier build (same
           cert) — glibc layer ed82daa8… unchanged.
         </p>
@@ -79,14 +82,15 @@ export default function Home() {
           <span className="badge">history preserved</span>
         </h2>
         <p>
-          The M7.1 P2 APK (ae6f6445…, 30,447,567 B) and its source set are
+          The M7.1 P2.1 APK (97c04120…, 30,342,970 B) and its source set are
           SUPERSEDED by this build: same version stamp (vc45 / 0.11.0-m7.0.0 —
-          P2.1 deliberately does not guess the next version number), new
-          content (Aider removed, the nine owner-supplied marks). Their exact
-          bytes are no longer served; the complete history rides in the bundle
-          below (P2 tip 1b15bde, now one commit below this tip e0a2471).
-          Earlier withdrawals stand: the M7.1 P1 APK (4d7349f7…), the M7.0
-          release APK (8826d30d…), the m7p8.1 (vc44) and the reset-lost
+          the P2.2 quick fix deliberately does not guess the next version
+          number), new content (theme-variant icons, the x-scroll rows, the
+          packages affordance). Their exact bytes are no longer served; the
+          complete history rides in the bundle below (P2.1 tip e0a2471, now one
+          commit below this tip 6004805). Earlier withdrawals stand: the M7.1
+          P2 APK (ae6f6445…), the M7.1 P1 APK (4d7349f7…), the M7.0 release
+          APK (8826d30d…), the m7p8.1 (vc44) and the reset-lost
           m7p8/m7p7.1/m7p6/m6.0.4 sets — their content and history are fully
           contained in this bundle. The glibc layer artifact (rev=2) is
           byte-identical and served below.
@@ -96,8 +100,9 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 45 installs <b>in place over the M7.1 P2 build (also 45
-          — same stamp, new bytes), the M7.1 P1 build (also 45), the M7.0
+          versionCode 45 installs <b>in place over the M7.1 P2.1 build (also
+          45 — same stamp, new bytes), the M7.1 P2 build (also 45), the M7.1
+          P1 build (also 45), the M7.0
           release (also 45), v0.10.0-m6.0.4
           (44),
           v0.10.0-m6.0.3 (43),
@@ -111,7 +116,7 @@ export default function Home() {
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Cline installation, the procfs
           contract, all Files explorer data, all Companion data and the
-          launcher visibility/icon settings are untouched. M7.1 P2.1 is
+          launcher visibility/icon settings are untouched. M7.1 P2.2 is
           APP-side only: the layer marker and the glibc files stay
           byte-identical (rev=2, ed82daa8…).
         </p>
@@ -175,40 +180,50 @@ export default function Home() {
             curated defaults with the same honest probe.
           </li>
           <li>
-            <b>M7.1 P2.1 (this build):</b> Aider removed from the curated set
-            with no stale trace, and nine marks re-rendered from the
-            owner-supplied official brand SVGs (vendored in-tree, offline,
-            byte-reproducible) with the documented tile/plate treatments —
-            Claude Code, ZCode, Codex, and Qwen Code unchanged (13 curated
-            launchers total).
+            <b>M7.1 P2.1:</b> Aider removed from the curated set with no stale
+            trace, and nine marks re-rendered from the owner-supplied official
+            brand SVGs (vendored in-tree, offline, byte-reproducible).
+          </li>
+          <li>
+            <b>M7.1 P2.2 (this build):</b> every curated mark ships a
+            two-variant theme pair on the app's own plate tones (theme-reactive
+            icon colors, live theme flips), Companions scroll in one row and
+            tools in two — both with scroll dots — and the packages affordance
+            is the tools header's Manage action (the mid-page footer link
+            retired).
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Device gates for THIS build (docs/TESTING.md §43)</h2>
+        <h2>Device gates for THIS build (docs/TESTING.md §44)</h2>
         <ol className="steps">
           <li>
-            <b>Aider absence:</b> Home → Your tools shows nine CLI launchers;
-            Aider appears nowhere (defaults, settings, restore); a stale
-            persisted hide id is inert.
+            <b>Theme — dark:</b> launcher icons read on Midnight (Hermes, Kilo,
+            Cline, ChatGPT, GitHub, Codex in white on the dark navy plate).
           </li>
           <li>
-            <b>The nine refreshed marks render offline</b> (airplane mode
-            identical) — ChatGPT white knot on OpenAI-black, Claude terracotta
-            starburst, Z.ai tile, GitHub white octocat on GitHub-dark, Hermes
-            mascot on white, OpenCode dark tile glyph, Kilo Code pixel letters
-            on white, Cline robot head on white, Antigravity colored arc.
+            <b>Theme — light:</b> the same tiles flip to the paper plate with
+            ink glyphs — nothing white-on-white, nothing glaring.
           </li>
           <li>
-            <b>The four untouched marks</b> (Claude Code, ZCode, Codex, Qwen
-            Code) render exactly as §42 step 8 described.
+            <b>Theme — AMOLED/System</b> follow the same rule; a live theme
+            flip swaps the marks without leaving Home.
           </li>
           <li>
-            <b>Fallbacks intact:</b> the letter badge still covers custom
-            launchers and any asset that fails to decode; a user-imported icon
-            still outranks every bundled mark; §42 layout checks (the row
-            repair) still pass.
+            <b>One row / two rows:</b> Companions x-scroll in one row (2 dots
+            on a phone), Your tools in two rows (dots when content overflows);
+            the accent pill tracks the visible page; no dots on a single page.
+          </li>
+          <li>
+            <b>The packages affordance:</b> Your tools → Manage opens the
+            packages page; Companions → Manage still opens Home-launcher
+            settings; the old centered Packages footer link is gone.
+          </li>
+          <li>
+            <b>Fallbacks intact:</b> user-imported icons still outrank every
+            bundled mark (and do NOT flip with the theme); the letter badge
+            still covers custom launchers and any asset that fails to decode.
           </li>
         </ol>
         <p>
@@ -221,28 +236,29 @@ export default function Home() {
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Source at the M7.1 P2.1 tip e0a2471 (the Aider removal with its test
-          pins, the nine owner-supplied brand SVGs vendored in-tree at
-          scripts/icon_sources/ with the locals-first icon pipeline, the
-          refreshed marks, §43, and the full P2 + P1 + M7.0 release below it).
-          The zip intentionally contains no dotfiles; full history rides in the
-          git bundle — the complete milestone history (M0 → m7.1 p2.1), all
-          design contracts, the procfs contract, and the runtime documentation.
-          Bundle main tip e0a2471 = the exact app tip this APK was built from;
-          the archived tree is cut at the same commit. History note: this
-          bundle continues the user-restored P7.1 delivery bundle (fb01540)
-          through the M7.0 release chain (47bed42 → 709d126 → dd81bc8), the P1
-          launcher phase (3abb2e8), and the P2 UI-repair phase (1b15bde — see
-          worklog Tasks 22–30).
+          Source at the M7.1 P2.2 tip 6004805 (the theme-variant icon pipeline
+          and the 26 packaged assets, the theme-reactive tile loader, the
+          x-scroll home rows with scroll dots, the packages affordance
+          realigned into the tools header, §44, and the full P2.1 + P2 + P1 +
+          M7.0 release below it). The zip intentionally contains no dotfiles;
+          full history rides in the git bundle — the complete milestone history
+          (M0 → m7.1 p2.2), all design contracts, the procfs contract, and the
+          runtime documentation. Bundle main tip 6004805 = the exact app tip
+          this APK was built from; the archived tree is cut at the same commit.
+          History note: this bundle continues the user-restored P7.1 delivery
+          bundle (fb01540) through the M7.0 release chain (47bed42 → 709d126 →
+          dd81bc8), the P1 launcher phase (3abb2e8), the P2 UI-repair phase
+          (1b15bde), and the P2.1 owner-marks phase (e0a2471 — see worklog
+          Tasks 22–32).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.11.0-m7.0.0-m7p2.1-source.zip">
-          source.zip (M7.1 P2.1 tip)
+        <a className="btn secondary" href="/PocketShell-v0.11.0-m7.0.0-m7p2.2-source.zip">
+          source.zip (M7.1 P2.2 tip)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.11.0-m7.0.0-m7p2.1-source.tar.gz">
-          source.tar.gz (M7.1 P2.1 tip)
+        <a className="btn secondary" href="/PocketShell-v0.11.0-m7.0.0-m7p2.2-source.tar.gz">
+          source.tar.gz (M7.1 P2.2 tip)
         </a>
-        <a className="btn secondary" href="/pocketshell-m7.1-p2.1.gitbundle">
-          git bundle (full history, M7.1 P2.1 tip)
+        <a className="btn secondary" href="/pocketshell-m7.1-p2.2.gitbundle">
+          git bundle (full history, M7.1 P2.2 tip)
         </a>
         <Sha text={HASHES.zip} />
         <Sha text={HASHES.tgz} />
@@ -252,7 +268,7 @@ export default function Home() {
         </a>
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m7.1-p2.1.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7.1-p2.2.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
           with the same signing identity (d96a6f66…8bf659, unchanged since
           v0.4.1).
@@ -286,10 +302,13 @@ export default function Home() {
         companion + CLI tool grids, hide/restore, custom tools, deterministic
         badges · m7.1 p2: launcher UI repair — the settings-row collapse
         root-caused, official bundled icons, Antigravity (agy) replaces Gemini
-        CLI ·{" "}
-        <b>m7.1 p2.1 (this build): Aider removed with no stale trace; nine
-        marks re-rendered from the owner-supplied official brand SVGs
-        (in-tree, offline, byte-reproducible)</b>.
+        CLI · m7.1 p2.1: Aider removed with no stale trace; nine marks
+        re-rendered from the owner-supplied official brand SVGs (in-tree,
+        offline, byte-reproducible) ·{" "}
+        <b>m7.1 p2.2 (this build): icon colors follow the theme scheme
+        (two-variant marks on the app's own plates), Companions one x-scroll
+        row, tools two with scroll dots, the packages affordance aligned into
+        the tools header</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
