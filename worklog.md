@@ -1747,3 +1747,18 @@ Work Log:
 
 Stage Summary:
 - Phase 9 complete end-to-end on the no-approval-gate workflow: the scroll symptom had a real, provable root cause (the deck inset the Files screen never applied), the long-press reuses the one action sheet over fresh listings, the redundant close is gone, M7 integration holds, and the release stamp is vc45 / 0.11.0-m7.0.0 with the 6-permission set and frozen architecture untouched. Delivery (APK/source/bundle + page re-pin + upload/ insurance) executes immediately after the release commit per the standing protocol.
+
+---
+Task ID: 27 (M7.0.0 release delivery + reset insurance)
+Agent: main (Super Z)
+Task: Deliver the M7.0 release set NOW per the standing reset protocol (the user's P9 PART I/J: delivery is mandatory, artifacts immediately, recovery copies staged, bundle restorable).
+
+Work Log:
+- Payload cut from the release tip 709d126 via scripts/make_payload_m7p9.sh (m7p81 cutter adapted; NEW platform-noise excludes — .initial_snapshot.json / dev-server-*.log / dev.log entered the tracked tree via the platform snapshot commit 0882dd1; zero dot-path entries in the cut; sanity keys incl. FileSearch.kt / MultiSelectOps.kt / scripts/p9_apk_audit.sh / the glibc asset all present): source.zip fc354ee3…/49,477,060 B, source.tar.gz a5a86f5f…/49,283,718 B, pocketshell-m7.0.0.gitbundle b1931f9c…/37,150,738 B with main tip == the APK build tip (clone-verified: 256 commits, "The bundle records a complete history"), glibc layer artifact re-served byte-identical (ed82daa8…/6,764,916 B — regenerated from the APK-embedded tar via gzip -n and PROVEN sha-equal to the previously served copy).
+- APK staged as PocketShell-v0.11.0-m7.0.0-debug.apk (8826d30d…/30,164,873 B) into public/ + download/; page.tsx re-pinned (M7.0 release card with the three P9 fixes + carried features, superseded-withdrawal card for the m7p8.1 vc44 set with the honest reason, update-in-place through vc16..44, §40 device-gate summary, source card on the release pins, footer extended); download/README.md rewritten (new pins, superseded + reset-loss withdrawal lists).
+- HTTP verification (next dev on :3000): page 200 rendering v0.11.0-m7.0.0/709d126/vc45; all five artifacts 200 at EXACT byte sizes; ALL FIVE WIRE sha256 == published pins (5/5, full 64-hex comparison); stale m7p8.1 APK 404 with zero stale page references (the single m7p8.1 mention is the withdrawal note).
+- RESET INSURANCE: recovery copies of the bundle + APK staged into upload/ (the platform-managed surface that survives resets — proven by the P8 recovery); bundle restore drill passed (fresh clone from the bundle lands on 709d126).
+- Commit chain at release: fb01540 (P7.1, user-restored) → 51cd18b (P8 redo) → e7f2630 (P8.1) → 48ac398 (delivery) → b1a6a6e (protocol) → 47bed42 (P9) → 709d126 (release finalization) → dd81bc8 (web delivery) → this worklog record.
+
+Stage Summary:
+- M7.0 is RELEASED and recoverable: every artifact is served, hash-pinned, HTTP-verified byte-exact, and re-feedable after any reset (bundle in upload/ + the user's own copy). The release awaits the §40 device gate; the reset protocol held end-to-end — delivery was part of the phase, not an afterthought.
