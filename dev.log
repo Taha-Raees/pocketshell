@@ -855,3 +855,1436 @@ $ next dev -p 3000
  GET / 200 in 179ms
  GET / 200 in 130ms
  GET / 200 in 121ms
+ GET / 200 in 1107ms
+ GET / 200 in 1044ms
+ GET / 200 in 1199ms
+ GET / 200 in 136ms
+ GET / 200 in 150ms
+ GET / 200 in 140ms
+ GET / 200 in 179ms
+ GET / 200 in 118ms
+ GET / 200 in 200ms
+ GET / 200 in 137ms
+ GET / 200 in 140ms
+ GET / 200 in 105ms
+ GET / 200 in 120ms
+ GET / 200 in 159ms
+ GET / 200 in 133ms
+ GET / 200 in 113ms
+ GET / 200 in 982ms
+ GET / 200 in 119ms
+ GET / 200 in 110ms
+ GET / 200 in 145ms
+ GET / 200 in 141ms
+ GET / 200 in 148ms
+ GET / 200 in 103ms
+ GET / 200 in 131ms
+ GET / 200 in 137ms
+ GET / 200 in 131ms
+ GET / 200 in 106ms
+ GET / 200 in 950ms
+ GET / 200 in 121ms
+ GET / 200 in 102ms
+ GET / 200 in 147ms
+ GET / 200 in 151ms
+ GET / 200 in 328ms
+ GET / 200 in 113ms
+ GET / 200 in 133ms
+ GET / 200 in 144ms
+ GET / 200 in 145ms
+ GET / 200 in 134ms
+ GET / 200 in 113ms
+ GET / 200 in 108ms
+ GET / 200 in 126ms
+ GET / 200 in 178ms
+ GET / 200 in 201ms
+ GET / 200 in 192ms
+ GET / 200 in 1035ms
+ GET / 200 in 123ms
+ GET / 200 in 109ms
+ GET / 200 in 148ms
+ GET / 200 in 139ms
+ GET / 200 in 956ms
+ GET / 200 in 108ms
+ GET / 200 in 122ms
+ GET / 200 in 149ms
+ GET / 200 in 138ms
+ GET / 200 in 365ms
+ GET / 200 in 110ms
+ GET / 200 in 127ms
+ GET / 200 in 201ms
+ GET / 200 in 264ms
+ GET / 200 in 106ms
+ GET / 200 in 1034ms
+ GET / 200 in 105ms
+ GET / 200 in 129ms
+ GET / 200 in 218ms
+ GET / 200 in 149ms
+ GET / 200 in 230ms
+ GET / 200 in 485ms
+ GET / 200 in 104ms
+ GET / 200 in 124ms
+ GET / 200 in 142ms
+ GET / 200 in 137ms
+ GET / 200 in 105ms
+ GET / 200 in 209ms
+ GET / 200 in 194ms
+ GET / 200 in 931ms
+ GET / 200 in 167ms
+ GET / 200 in 132ms
+ GET / 200 in 1456ms
+ GET / 200 in 281ms
+ GET / 200 in 825ms
+ GET / 200 in 234ms
+ GET / 200 in 135ms
+ GET / 200 in 156ms
+ GET / 200 in 149ms
+ GET / 200 in 137ms
+ GET / 200 in 153ms
+ GET / 200 in 184ms
+ GET / 200 in 112ms
+ GET / 200 in 141ms
+ GET / 200 in 1043ms
+ GET / 200 in 104ms
+ GET / 200 in 130ms
+ GET / 200 in 155ms
+ GET / 200 in 151ms
+ GET / 200 in 158ms
+ GET / 200 in 139ms
+ GET / 200 in 120ms
+ GET / 200 in 154ms
+ GET / 200 in 125ms
+ GET / 200 in 106ms
+ GET / 200 in 120ms
+ GET / 200 in 228ms
+ GET / 200 in 109ms
+ GET / 200 in 1082ms
+ GET / 200 in 103ms
+ GET / 200 in 743ms
+ GET / 200 in 141ms
+ GET / 200 in 128ms
+ GET / 200 in 154ms
+ GET / 200 in 884ms
+ GET / 200 in 959ms
+ GET / 200 in 164ms
+ GET / 200 in 137ms
+ GET / 200 in 936ms
+ GET / 200 in 150ms
+ GET / 200 in 189ms
+ GET / 200 in 931ms
+ GET / 200 in 112ms
+ GET / 200 in 144ms
+ GET / 200 in 159ms
+ GET / 200 in 141ms
+ GET / 200 in 160ms
+ GET / 200 in 132ms
+ GET / 200 in 1065ms
+ GET / 200 in 150ms
+ GET / 200 in 133ms
+ GET / 200 in 152ms
+ GET / 200 in 180ms
+ GET / 200 in 1099ms
+ GET / 200 in 106ms
+ GET / 200 in 681ms
+ GET / 200 in 149ms
+ GET / 200 in 146ms
+ GET / 200 in 970ms
+ GET / 200 in 891ms
+ GET / 200 in 148ms
+ GET / 200 in 868ms
+ GET / 200 in 132ms
+ GET / 200 in 151ms
+ GET / 200 in 977ms
+ GET / 200 in 267ms
+ GET / 200 in 335ms
+ GET / 200 in 563ms
+ GET / 200 in 359ms
+ GET / 200 in 336ms
+ GET / 200 in 663ms
+ GET / 200 in 321ms
+ GET / 200 in 287ms
+ GET / 200 in 241ms
+ GET / 200 in 398ms
+ GET / 200 in 374ms
+ GET / 200 in 613ms
+ GET / 200 in 729ms
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.9s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.7s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.9s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 4.3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.7s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.9s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.8s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1629ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.1s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.7s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1659ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1718ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1632ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.7s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.7s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 4.1s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.1s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.9s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.9s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.9s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.9s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.7s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.8s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.7s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 4s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.8s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1746ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.6s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.8s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.8s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1694ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.1s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.4s
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1746ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1776ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1677ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1818ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1664ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1787ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1995ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1687ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1661ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1719ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1668ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1834ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1699ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1787ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1875ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1674ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1805ms
+ ○ Compiling / ...
+$ next dev -p 3000
+ ⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+[?25h
+ ✓ Compiled / in 5s (539 modules)
+ GET / 200 in 2202ms
+ GET / 200 in 217ms
+ GET / 200 in 302ms
+ GET / 200 in 131ms
+ GET / 200 in 307ms
+ GET / 200 in 123ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 532ms (530 modules)
+ GET /PocketShell-v0.11.0-m7.0.0-m7p2.2-debug.apk 404 in 739ms
+ GET / 200 in 129ms
+ GET / 200 in 236ms
+ GET / 200 in 286ms
+ GET / 200 in 124ms
+ GET / 200 in 186ms
+ GET / 200 in 109ms
+ GET / 200 in 132ms
+ GET / 200 in 405ms
+ GET / 200 in 122ms
+ GET / 200 in 315ms
+ GET / 200 in 314ms
+ GET / 200 in 129ms
+ GET / 200 in 330ms
+ GET /PocketShell-v0.11.0-m7.0.0-m7p2.2-debug.apk 404 in 32ms
+ GET / 200 in 110ms
+ GET / 200 in 359ms
+ GET / 200 in 230ms
+ GET / 200 in 271ms
+ GET / 200 in 135ms
+ GET / 200 in 239ms
+ GET / 200 in 130ms
+ GET / 200 in 332ms
+ GET / 200 in 232ms
+ GET / 200 in 115ms
+ GET / 200 in 150ms
+ GET / 200 in 266ms
+ GET / 200 in 105ms
+ GET / 200 in 124ms
+ GET / 200 in 159ms
+ GET / 200 in 373ms
+ GET / 200 in 134ms
+ GET / 200 in 111ms
+ GET / 200 in 333ms
+ GET / 200 in 154ms
+ GET / 200 in 165ms
+ GET / 200 in 219ms
+ GET / 200 in 107ms
+ GET / 200 in 152ms
+ GET / 200 in 165ms
+ GET / 200 in 140ms
+ GET / 200 in 138ms
+ GET / 200 in 162ms
+ GET / 200 in 131ms
+ GET / 200 in 131ms
+ GET / 200 in 170ms
+ GET / 200 in 388ms
+ GET / 200 in 114ms
+ GET / 200 in 134ms
+ GET / 200 in 333ms
+ GET / 200 in 120ms
+ GET / 200 in 147ms
+ GET / 200 in 283ms
+ GET / 200 in 116ms
+ GET / 200 in 134ms
+ GET / 200 in 144ms
+ GET / 200 in 401ms
+ GET / 200 in 123ms
+ GET / 200 in 240ms
+ GET / 200 in 137ms
+ GET / 200 in 394ms
+ GET / 200 in 131ms
+ GET / 200 in 149ms
+ GET / 200 in 365ms
+ GET / 200 in 390ms
+ GET / 200 in 132ms
+ GET / 200 in 240ms
+ GET / 200 in 323ms
+ GET / 200 in 123ms
+ GET / 200 in 145ms
+ GET / 200 in 176ms
+ GET / 200 in 111ms
+ GET / 200 in 132ms
+ GET / 200 in 148ms
+ GET / 200 in 106ms
+ GET / 200 in 140ms
+ GET / 200 in 133ms
+ GET / 200 in 388ms
+ GET / 200 in 125ms
+ GET / 200 in 286ms
+ GET / 200 in 158ms
+ GET / 200 in 406ms
+ GET / 200 in 177ms
+ GET / 200 in 373ms
+ GET / 200 in 147ms
+ GET / 200 in 135ms
+ GET / 200 in 172ms
+ GET / 200 in 110ms
+ GET / 200 in 137ms
+ GET / 200 in 170ms
+ GET / 200 in 450ms
+ GET / 200 in 110ms
+ GET / 200 in 129ms
+ GET / 200 in 199ms
+ GET / 200 in 107ms
+ GET / 200 in 126ms
+ GET / 200 in 143ms
+ GET / 200 in 413ms
+ GET / 200 in 108ms
+ GET / 200 in 472ms
+ GET / 200 in 132ms
+ GET / 200 in 477ms
+ GET / 200 in 137ms
+ GET / 200 in 387ms
+ GET / 200 in 400ms
+ GET / 200 in 137ms
+ GET / 200 in 138ms
+ GET / 200 in 197ms
+ GET / 200 in 114ms
+ GET / 200 in 145ms
+ GET / 200 in 149ms
+ GET / 200 in 460ms
+ GET / 200 in 115ms
+ GET / 200 in 163ms
+ GET / 200 in 154ms
+ GET / 200 in 409ms
+ GET / 200 in 124ms
+ GET / 200 in 150ms
+ GET / 200 in 262ms
+ GET / 200 in 164ms
+ GET / 200 in 132ms
+ GET / 200 in 189ms
+ GET / 200 in 143ms
+ GET / 200 in 287ms
+ GET / 200 in 112ms
+ GET / 200 in 145ms
+ GET / 200 in 164ms
+ GET / 200 in 511ms
+ GET / 200 in 103ms
+ GET / 200 in 134ms
+ GET / 200 in 154ms
+ GET / 200 in 452ms
+ GET / 200 in 103ms
+ GET / 200 in 303ms
+ GET / 200 in 147ms
+ GET / 200 in 239ms
+ GET / 200 in 125ms
+ GET / 200 in 242ms
+ GET / 200 in 122ms
+ GET / 200 in 119ms
+ GET / 200 in 373ms
+ GET / 200 in 129ms
+ GET / 200 in 137ms
+ GET / 200 in 149ms
+ GET / 200 in 108ms
+ GET / 200 in 129ms
+ GET / 200 in 145ms
+ GET / 200 in 456ms
+ GET / 200 in 106ms
+ GET / 200 in 137ms
+ GET / 200 in 331ms
+ GET / 200 in 484ms
+ GET / 200 in 127ms
+ GET / 200 in 141ms
+ GET / 200 in 216ms
+ GET / 200 in 113ms
+ GET / 200 in 151ms
+ GET / 200 in 158ms
+ GET / 200 in 506ms
+ GET / 200 in 117ms
+ GET / 200 in 508ms
+ GET / 200 in 308ms
+ GET / 200 in 142ms
+ GET / 200 in 448ms
+ GET / 200 in 124ms
+ GET / 200 in 428ms
+ GET / 200 in 457ms
+ GET / 200 in 152ms
+ GET / 200 in 144ms
+ GET / 200 in 269ms
+ GET / 200 in 114ms
+ GET / 200 in 137ms
+ GET / 200 in 148ms
+ GET / 200 in 637ms
+ GET / 200 in 192ms
+ GET / 200 in 114ms
+ GET / 200 in 324ms
+ GET / 200 in 407ms
+ GET / 200 in 127ms
+ GET / 200 in 331ms
+ GET / 200 in 168ms
+ GET / 200 in 494ms
+ GET / 200 in 116ms
+ GET / 200 in 137ms
+ GET / 200 in 382ms
+ GET / 200 in 333ms
+ GET / 200 in 179ms
+ GET / 200 in 143ms
+ GET / 200 in 313ms
+ GET / 200 in 116ms
+ GET / 200 in 136ms
+ GET / 200 in 155ms
+ GET / 200 in 338ms
+ GET / 200 in 110ms
+ GET / 200 in 131ms
+ GET / 200 in 163ms
+ GET / 200 in 240ms
+ GET / 200 in 117ms
+ GET / 200 in 132ms
+ GET / 200 in 169ms
+ GET / 200 in 529ms
+ GET / 200 in 113ms
+ GET / 200 in 129ms
+ GET / 200 in 542ms
+ GET / 200 in 160ms
+ GET / 200 in 325ms
+ GET / 200 in 125ms
+ GET / 200 in 231ms
+ GET / 200 in 113ms
+ GET / 200 in 158ms
+ GET / 200 in 435ms
+ GET / 200 in 132ms
+ GET / 200 in 152ms
+ GET / 200 in 291ms
+ GET / 200 in 114ms
+ GET / 200 in 144ms
+ GET / 200 in 157ms
+ GET / 200 in 244ms
+ GET / 200 in 106ms
+ GET / 200 in 128ms
+ GET / 200 in 150ms
+ GET / 200 in 256ms
+ GET / 200 in 112ms
+ GET / 200 in 127ms
+ GET / 200 in 539ms
+ GET / 200 in 246ms
+ GET / 200 in 142ms
+ GET / 200 in 235ms
+ GET / 200 in 117ms
+ GET / 200 in 125ms
+ GET / 200 in 168ms
+ GET / 200 in 238ms
+ GET / 200 in 154ms
+ GET / 200 in 488ms
+ GET / 200 in 131ms
+ GET / 200 in 177ms
+ GET / 200 in 311ms
+ GET / 200 in 115ms
+ GET / 200 in 145ms
+ GET / 200 in 162ms
+ GET / 200 in 139ms
+ GET / 200 in 117ms
+ GET / 200 in 467ms
+ GET / 200 in 104ms
+ GET / 200 in 134ms
+ GET / 200 in 214ms
+ GET / 200 in 231ms
+ GET / 200 in 103ms
+ GET / 200 in 126ms
+ GET / 200 in 146ms
+ GET / 200 in 211ms
+ GET / 200 in 109ms
+ GET / 200 in 128ms
+ GET / 200 in 170ms
+ GET / 200 in 382ms
+ GET / 200 in 168ms
+ GET / 200 in 148ms
+ GET / 200 in 122ms
+ GET / 200 in 134ms
+ GET / 200 in 118ms
+ GET / 200 in 158ms
+ GET / 200 in 470ms
+ GET / 200 in 128ms
+ GET / 200 in 146ms
+ GET / 200 in 584ms
+ GET / 200 in 119ms
+ GET / 200 in 433ms
+ GET / 200 in 292ms
+ GET / 200 in 136ms
+ GET / 200 in 146ms
+ GET / 200 in 231ms
+ GET / 200 in 114ms
+ GET / 200 in 143ms
+ GET / 200 in 156ms
+ GET / 200 in 422ms
+ GET / 200 in 108ms
+ GET / 200 in 140ms
+ GET / 200 in 611ms
+ GET / 200 in 151ms
+ GET / 200 in 530ms
+ GET / 200 in 138ms
+ GET / 200 in 135ms
+ GET / 200 in 391ms
+ GET / 200 in 119ms
+ GET / 200 in 142ms
+ GET / 200 in 201ms
+ GET / 200 in 257ms
+ GET / 200 in 167ms
+ GET / 200 in 282ms
+ GET / 200 in 135ms
+ GET / 200 in 170ms
+ GET / 200 in 179ms
+ GET / 200 in 257ms
+ GET / 200 in 123ms
+ GET / 200 in 398ms
+ GET / 200 in 125ms
+ GET / 200 in 597ms
+ GET / 200 in 149ms
+ GET / 200 in 139ms
+ GET / 200 in 495ms
+ GET / 200 in 116ms
+ GET / 200 in 146ms
+ GET / 200 in 146ms
+ GET / 200 in 141ms
+ GET / 200 in 157ms
+ GET / 200 in 680ms
+ GET / 200 in 104ms
+ GET / 200 in 327ms
+ GET / 200 in 276ms
+ GET / 200 in 125ms
+ GET / 200 in 164ms
+ GET / 200 in 581ms
+ GET / 200 in 118ms
+ GET / 200 in 154ms
+ GET / 200 in 696ms
+ GET / 200 in 145ms
+ GET / 200 in 602ms
+ GET / 200 in 131ms
+ GET / 200 in 163ms
+ GET / 200 in 248ms
+ GET / 200 in 116ms
+ GET / 200 in 140ms
+ GET / 200 in 206ms
+ GET / 200 in 239ms
+ GET / 200 in 109ms
+ GET / 200 in 229ms
+ GET / 200 in 635ms
+ GET / 200 in 285ms
+ GET / 200 in 634ms
+ GET / 200 in 529ms
+ GET / 200 in 175ms
+ GET / 200 in 187ms
+ GET / 200 in 134ms
+ GET / 200 in 227ms
+ GET / 200 in 130ms
+ GET / 200 in 197ms
+ GET / 200 in 143ms
+ GET / 200 in 336ms
+ GET / 200 in 108ms
+ GET / 200 in 126ms
+ GET / 200 in 147ms
+ GET / 200 in 239ms
+ GET / 200 in 113ms
+ GET / 200 in 132ms
+ GET / 200 in 348ms
+ GET / 200 in 158ms
+ GET / 200 in 134ms
+ GET / 200 in 150ms
+ GET / 200 in 146ms
+ GET / 200 in 111ms
+ GET / 200 in 162ms
+ GET / 200 in 310ms
+ GET / 200 in 132ms
+ GET / 200 in 248ms
+ GET / 200 in 145ms
+ GET / 200 in 252ms
+ GET / 200 in 113ms
+ GET / 200 in 142ms
+ GET / 200 in 166ms
+ GET / 200 in 221ms
+ GET / 200 in 108ms
+ GET / 200 in 151ms
+ GET / 200 in 136ms
+ GET / 200 in 333ms
+ GET / 200 in 147ms
+ GET / 200 in 626ms
+ GET / 200 in 188ms
+ GET / 200 in 138ms
+ GET / 200 in 206ms
+ GET / 200 in 191ms
+ GET / 200 in 674ms
+ GET / 200 in 213ms
+ GET / 200 in 125ms
+ GET / 200 in 145ms
+ GET / 200 in 291ms
+ GET / 200 in 115ms
+ GET / 200 in 148ms
+ GET / 200 in 154ms
+ GET / 200 in 822ms
