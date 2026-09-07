@@ -1834,3 +1834,16 @@ Work Log:
 
 Stage Summary:
 - M7.1 P2.1 is complete and delivered: the curated launcher set is now 13 (Aider gone with a dedicated absence pin), nine marks render from owner-supplied official brand SVGs vendored in-tree with documented tile/plate treatments, the icon pipeline is locals-first and byte-reproducible offline. 691/691 JVM green, vc45/0.11.0-m7.0.0 unchanged, 6 permissions unchanged, frozen boundaries untouched, artifacts HTTP-verified 5/5 byte-exact, stale set 404, insurance refreshed in upload/. The §43 device gate (5 steps) is the remaining visual pass on hardware.
+
+---
+Task ID: 32 (Support — "Seeing this instead of download page" screenshot triage)
+Agent: main (Super Z)
+Task: User reported the download page looks wrong, attaching a Samsung Browser screenshot.
+
+Work Log:
+- Screenshot read directly: it shows the chat.z.ai WORKSPACE FILE BROWSER (project tree app/docs/gradle/... + Publish button + "No content" panel) — the code view, not the app preview. Same user-side view confusion as the previously documented incident (worklog: "the user was in the chat workspace browser, not the app preview").
+- Delivery surface audited anyway: tip 800bffb (platform snapshot) over 03bec9f (Task 31 worklog); chain e0a2471 (P2.1) → 5a0996c (web) intact; public/ + download/ carry the full P2.1 set; :3000 answering 200.
+- scripts/verify_http_m71p21.sh single-call run: page 45,712 B (exact Task 31 match), markers 8/8 + stale-href absent, 5/5 artifacts PASS at exact byte sizes with wire sha256 == published pins, stale m7p2 APK 404. VERDICT: PASS (exit 0). Zero server-side defects; no artifacts touched.
+
+Stage Summary:
+- No code or artifact changes — the delivery surface is healthy and current; user re-pointed to the correct entry https://preview-chat-af9ee1f3-ca8c-465f-89b3-fb2137e3b7e6.space-z.ai/ (chat_id matches the IM gateway metadata).
