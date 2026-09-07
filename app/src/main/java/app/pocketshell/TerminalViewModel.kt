@@ -5,8 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.pocketshell.apps.CommandApp
 import app.pocketshell.apps.availableCommandApps
+import app.pocketshell.apps.guestCustomCommandChain
 import app.pocketshell.apps.guestLaunchChain
 import app.pocketshell.apps.guestTerminalChain
+import app.pocketshell.apps.probeName
+import app.pocketshell.launchers.CustomTool
+import app.pocketshell.launchers.commandHead
 import app.pocketshell.packages.CliAppCatalog
 import app.pocketshell.packages.CliAppCatalogEntry
 import app.pocketshell.packages.InstalledCatalogApp
@@ -351,26 +355,75 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
      * command probe (login-shell semantics), then a NEW dedicated guest
      * session whose PTY receives the app's launch command. Refusals land in
      * [launchError]; the app never dies and never fakes.
+     *
+     * M7.1 P1: the body moved into the shared [launchGuestCommand] core so
+     * the custom tools launch through EXACTLY this proven path — the
+     * behavior is byte-identical.
      */
     fun openCommandApp(app: CommandApp, onReady: () -> Unit) {
+        launchGuestCommand(
+            displayName = app.displayName,
+            probeName = app.probeName(),
+            commandChain = guestLaunchChain(
+                launchCommand = app.launchCommand,
+                guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+            ),
+            onReady = onReady,
+        )
+    }
+
+    /**
+     * M7.1 P1 — launch a user-defined custom tool through the ONE proven
+     * guest path. The command is user configuration: the tap-time probe
+     * checks the command's HEAD token with the real guest shell (an absent
+     * binary is an honest refusal, never a broken session), and the FULL
+     * validated line travels verbatim through [guestCustomCommandChain]
+     * into the same `sh -l -c …; exec` structure every other launch uses.
+     * No new spawn system; the same refusals, the same banner.
+     */
+    fun openCustomTool(tool: CustomTool, onReady: () -> Unit) {
+        launchGuestCommand(
+            displayName = tool.name,
+            probeName = tool.commandHead(),
+            commandChain = guestCustomCommandChain(
+                command = tool.command,
+                guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+            ),
+            onReady = onReady,
+        )
+    }
+
+    /**
+     * The ONE verify-then-launch core for command-line launchers: runtime
+     * gate → fresh single-command guest probe → guest prep (IO) → PTY
+     * spawn (Main, the upstream MainThreadHandler contract) → select +
+     * navigate on real success. Extracted verbatim from openCommandApp in
+     * M7.1 P1 — no behavior change for registry apps.
+     */
+    private fun launchGuestCommand(
+        displayName: String,
+        probeName: String,
+        commandChain: String,
+        onReady: () -> Unit,
+    ) {
         val application = getApplication<Application>()
         if (!PackageGateway.isRuntimeReady()) {
             safeFailure(
-                "${app.displayName} needs the Linux runtime — install or repair it from Diagnostics",
+                "$displayName needs the Linux runtime — install or repair it from Diagnostics",
             )
             return
         }
         _launchError.value = null
-        _verifyingApp.value = app.displayName
+        _verifyingApp.value = displayName
         viewModelScope.launch {
             try {
                 val execPath = withContext(Dispatchers.IO) {
-                    PackageGateway.commandPath(app.launchCommand.first())
+                    PackageGateway.commandPath(probeName)
                 }
                 if (execPath == null) {
                     safeFailure(
-                        "${app.displayName} is not available in the Linux environment right now — " +
-                            "the '${app.launchCommand.first()}' command was not found " +
+                        "$displayName is not available in the Linux environment right now — " +
+                            "the '$probeName' command was not found " +
                             "(verified with the real guest shell)",
                     )
                     return@launch
@@ -390,12 +443,9 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                                 ShellEnvironment.SHELL_PATH_GUEST,
                                 "-l",
                                 "-c",
-                                guestLaunchChain(
-                                    launchCommand = app.launchCommand,
-                                    guestShell = ShellEnvironment.SHELL_PATH_GUEST,
-                                ),
+                                commandChain,
                             ),
-                            app.displayName,
+                            displayName,
                             sysDataBinds,
                         ).id
                         guestSessionIds.add(newId)
@@ -403,7 +453,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                         true
                     } catch (t: Throwable) {
                         _launchError.value =
-                            "${app.displayName} could not start: ${t.message ?: t.javaClass.simpleName}"
+                            "$displayName could not start: ${t.message ?: t.javaClass.simpleName}"
                         false
                     }
                 }
@@ -411,7 +461,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                     onReady()
                 }
             } catch (t: Throwable) {
-                safeFailure("${app.displayName} could not start: ${t.message ?: t.javaClass.simpleName}")
+                safeFailure("$displayName could not start: ${t.message ?: t.javaClass.simpleName}")
             } finally {
                 _verifyingApp.value = null
             }

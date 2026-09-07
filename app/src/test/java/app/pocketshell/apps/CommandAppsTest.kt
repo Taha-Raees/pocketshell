@@ -355,4 +355,43 @@ class CommandAppsTest {
     private fun assertNotEquals(expected: String, actual: String) {
         assertFalse("expected not to equal '$expected'", expected == actual)
     }
+
+    // ------------------------------------------------- M7.1 P1 — custom tools
+
+    @Test
+    fun `cline is in the registry as a plain single-token launcher`() {
+        val cline = CommandAppCatalog.byId("cline")
+        assertNotNull("Cline must be a built-in launcher (M7.1 named set)", cline)
+        assertEquals(listOf("cline"), cline!!.launchCommand)
+        assertEquals("cline", cline.probeName())
+        assertTrue(cline.displayName.isNotBlank())
+    }
+
+    @Test
+    fun `guestCustomCommandChain carries the user line verbatim with the exec fallback`() {
+        assertEquals(
+            "my-tool --serve; exec /bin/sh -l",
+            guestCustomCommandChain("my-tool --serve", "/bin/sh"),
+        )
+        // user configuration is DATA: no quoting, no rewriting, no parsing
+        assertEquals(
+            "npm install -g something; exec sh -l",
+            guestCustomCommandChain("npm install -g something", "sh"),
+        )
+    }
+
+    @Test
+    fun `guestCustomCommandChain pins the structural contract`() {
+        val chain = guestCustomCommandChain("my-tool", "sh")
+        // the exact same delivery structure as the registry chain
+        assertTrue("must end with the login-shell exec fallback", chain.endsWith("; exec sh -l"))
+        // single line only — the upstream hygiene validation forbids newlines
+        assertFalse(chain.contains('\n'))
+        // structural equality with guestLaunchChain's output shape for a
+        // single token proves ONE delivery mechanism, two entry types
+        assertEquals(
+            guestLaunchChain(listOf("my-tool"), "sh"),
+            guestCustomCommandChain("my-tool", "sh"),
+        )
+    }
 }

@@ -90,6 +90,15 @@ object CommandAppCatalog {
             description = "Open-source AI coding agent for the terminal",
             monogram = "K",
         ),
+        // M7.1 P1: Cline joins the named built-in launcher set
+        // (Kilo Code, Cline, Hermes, Claude Code, Codex).
+        CommandApp(
+            id = "cline",
+            displayName = "Cline",
+            launchCommand = listOf("cline"),
+            description = "Autonomous coding agent for the terminal",
+            monogram = "C",
+        ),
         CommandApp(
             id = "gemini",
             displayName = "Gemini CLI",
@@ -203,6 +212,36 @@ fun guestTerminalChain(
  */
 private fun posixSingleQuoted(value: String): String =
     "'" + value.replace("'", "'\\''") + "'"
+
+/**
+ * M7.1 Phase 1 — the CUSTOM-TOOL launch chain: the SIBLING of
+ * [guestLaunchChain] for USER-CONFIGURED command lines.
+ *
+ * Why a sibling: [guestLaunchChain] receives registry ARGV TOKENS and
+ * quotes each defensively — a custom tool's command is one USER-OWNED
+ * shell line ("my-tool --serve --port 8080"), and quoting it as a single
+ * token would make the guest search for a binary with spaces in its name.
+ * The command travels verbatim into the SAME delivery structure —
+ * `sh -l -c "<command>; exec <guestShell>"` — exactly what typing the line
+ * at the prompt would run, with the identical trailing-exec contract: the
+ * login shell reads its profiles, runs the line, and when it exits the
+ * user lands at a real prompt.
+ *
+ * Safety posture (P1 brief PART H): the command is USER CONFIGURATION,
+ * treated as data end to end — this function never parses, validates or
+ * rewrites it (hygiene validation lives in CustomToolValidation; existence
+ * checking is the tap-time guest probe on the command's head token). The
+ * user owns the guest environment; this is the same trust boundary as the
+ * terminal itself, reached through the SAME session machinery — never a
+ * new shell path.
+ *
+ * Pure and test-pinned by [CommandAppsTest] (single-line contract,
+ * trailing exec, verbatim transport).
+ */
+fun guestCustomCommandChain(
+    command: String,
+    guestShell: String,
+): String = "$command; exec $guestShell -l"
 
 /**
  * Classification (pure, test-pinned): the registry subset the REAL guest

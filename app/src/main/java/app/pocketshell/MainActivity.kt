@@ -50,6 +50,7 @@ import app.pocketshell.keyboard.KeyboardInputRouter
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
 import app.pocketshell.keyboard.TerminalKeyboardDeck
+import app.pocketshell.launchers.LauncherViewModel
 import app.pocketshell.settings.ThemeMode
 import app.pocketshell.ui.apps.ExploreAppsScreen
 import app.pocketshell.ui.diagnostics.DiagnosticsScreen
@@ -157,6 +158,17 @@ fun PocketShellRoot(
     // Phase 4: created once here so Companion state (definitions, tabs,
     // height, the in-process WebView pool's identity) survives screen switches.
     val companionViewModel: app.pocketshell.companion.CompanionViewModel = viewModel()
+    val companionDefs by companionViewModel.defs.collectAsStateWithLifecycle()
+
+    // M7.1 P1: launcher state (hidden ids, custom tools, icon copies) lives
+    // at root like every other process-scoped state holder. The one-shot
+    // built-in companion seeding runs here (idempotent, flag-guarded).
+    val launcherViewModel: app.pocketshell.launchers.LauncherViewModel = viewModel()
+    LaunchedEffect(Unit) { launcherViewModel.seedBuiltInCompanionsIfNeeded() }
+    val hiddenLauncherIds by launcherViewModel.hiddenIds.collectAsStateWithLifecycle()
+    val customTools by launcherViewModel.customTools.collectAsStateWithLifecycle()
+    val companionIcons by launcherViewModel.companionIcons.collectAsStateWithLifecycle()
+    val toolIcons by launcherViewModel.toolIcons.collectAsStateWithLifecycle()
 
     // M7 Phase 3: the explorer's location/state is process-scoped too —
     // Home↔Files round-trips and rotation never reset the user's directory.
@@ -322,7 +334,16 @@ fun PocketShellRoot(
                 onDynamicColor = settingsViewModel::setDynamicColor,
                 onFontSize = settingsViewModel::setDefaultFontSize,
                 onOpenCompanions = { screen = "companionSettings" },
+                onOpenLaunchers = { screen = "launcherSettings" },
                 onBack = { screen = "home" },
+                modifier = Modifier.padding(padding),
+            )
+
+            "launcherSettings" -> app.pocketshell.ui.settings.LauncherSettingsScreen(
+                launcherViewModel = launcherViewModel,
+                companionDefs = companionDefs,
+                onOpenCompanionSettings = { screen = "companionSettings" },
+                onBack = { screen = "settings" },
                 modifier = Modifier.padding(padding),
             )
 
@@ -366,10 +387,23 @@ fun PocketShellRoot(
                     // when a real session was created (refusal = honest banner).
                     terminalViewModel.openCommandApp(app) { screen = "terminal" }
                 },
+                onOpenCustomTool = { tool ->
+                    // M7.1 P1: custom tools launch through the SAME
+                    // verify-then-launch core (probe + guest chain).
+                    terminalViewModel.openCustomTool(tool) { screen = "terminal" }
+                },
                 onExplorePackages = { screen = "explore" },
                 onOpenFiles = { screen = "files" },
                 onOpenSettings = { screen = "settings" },
                 onOpenDiagnostics = { screen = "diagnostics" },
+                companions = companionDefs,
+                companionIcons = companionIcons,
+                customTools = customTools,
+                toolIcons = toolIcons,
+                hiddenLauncherIds = hiddenLauncherIds,
+                onOpenCompanion = companionViewModel::openCompanion,
+                onRemoveFromHome = launcherViewModel::hideFromHome,
+                onOpenLauncherSettings = { screen = "launcherSettings" },
                 // Phase 3.2: Home is an edge-to-edge launcher — it consumes
                 // the status-bar inset itself (like the Terminal branch).
                 modifier = Modifier,

@@ -1,11 +1,9 @@
 package app.pocketshell.ui.home
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -38,9 +37,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +60,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.TerminalViewModel
 import app.pocketshell.apps.CommandApp
-import app.pocketshell.packages.PackageOperationState
+import app.pocketshell.apps.CommandAppCatalog
+import app.pocketshell.companion.CompanionDef
+import app.pocketshell.launchers.CustomTool
+import app.pocketshell.launchers.LauncherBadges
+import app.pocketshell.launchers.LauncherTileIcon
+import app.pocketshell.launchers.ToolLauncher
+import app.pocketshell.launchers.visibleCompanions
+import app.pocketshell.launchers.visibleTools
 import app.pocketshell.runtime.RuntimeState
 import app.pocketshell.terminal.TerminalSessionManager
 import app.pocketshell.ui.theme.TerminalTheme
@@ -69,8 +80,13 @@ import app.pocketshell.ui.theme.TerminalTheme
  *   IDENTITY    PocketShell mark + wordmark + tagline · Info / Settings
  *   FOUNDATION  the two environments — Terminal and Linux — as borderless
  *               tone-step surfaces (§8)
- *   TOOLS       "Your tools" — command apps as icon + label launcher entries
- *               or the lightweight inline empty state (§6/§9)
+ *   FILES       the one quiet Files entry (M7 Phase 3)
+ *   COMPANIONS  the companion websites as launcher entries (M7.1 P1) —
+ *               taps raise the EXISTING companion sheet
+ *   TOOLS       "Your tools" — the built-in CLI launchers + the user's
+ *               custom tools as icon + label launcher entries (M7.1 P1);
+ *               a launcher is NOT an install claim — availability is
+ *               verified honestly at tap time (§6/§9)
  *   SESSIONS    flat continuation rows between hairline dividers (§2a)
  *   FLOATING    the single-purpose create control (§7)
  *
@@ -92,30 +108,30 @@ fun HomeScreen(
     onOpenLinuxShell: () -> Unit,
     onOpenSession: (Long) -> Unit,
     onOpenCommandApp: (CommandApp) -> Unit,
+    onOpenCustomTool: (CustomTool) -> Unit,
     onExplorePackages: () -> Unit,
     onOpenFiles: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
+    companions: List<CompanionDef>,
+    companionIcons: Map<String, String>,
+    customTools: List<CustomTool>,
+    toolIcons: Map<String, String>,
+    hiddenLauncherIds: Set<String>,
+    onOpenCompanion: (String) -> Unit,
+    onRemoveFromHome: (String) -> Unit,
+    onOpenLauncherSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val commandApps by terminalViewModel.commandApps.collectAsStateWithLifecycle()
+    // M7.1 P1 — the Home launcher model. The old Home-visible guest probe
+    // pre-pass is retired: launcher tiles are NOT install claims (a launcher
+    // is not an app), so availability is verified honestly at TAP time by
+    // the existing verify-then-launch path (guest probe → spawn → honest
+    // refusal banner). The spinner below still runs during that verification.
     val verifyingApp by terminalViewModel.verifyingApp.collectAsStateWithLifecycle()
-    val operation by terminalViewModel.packageOperation.collectAsStateWithLifecycle()
-    val creating by terminalViewModel.creating.collectAsStateWithLifecycle()
 
-    // Probe availability whenever Home is visible with a READY runtime …
-    // (m5.1: the probe is a real guest spawn — Home revisits inside the
-    // freshness window skip it; forced after operations, which may add apps.)
-    LaunchedEffect(runtimeState) {
-        if (runtimeState == RuntimeState.READY) terminalViewModel.refreshCommandApps()
-    }
-    // … and after any package operation lands (a fresh install may add apps).
-    LaunchedEffect(operation?.id, operation?.state) {
-        val state = operation?.state
-        if (state == PackageOperationState.SUCCESS || state == PackageOperationState.FAILED) {
-            if (runtimeState == RuntimeState.READY) terminalViewModel.refreshCommandApps(force = true)
-        }
-    }
+    // Long-press "Remove from Home" confirmation target (id to label).
+    var removeTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     // Phase 5 §2 — the floating create control is GONE. Session creation
     // lives where the sessions live: the Terminal screen's own "+" and its
@@ -172,6 +188,25 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
                 FilesLauncherRow(onOpenFiles = onOpenFiles)
 
+                // M7.1 P1 — Companions: the preinstalled (seeded) + custom
+                // companion websites as launcher entries. A tap raises the
+                // EXISTING companion sheet through the existing tab
+                // machinery — no new web stack, no companion-specific code.
+                val homeCompanions = remember(companions, hiddenLauncherIds) {
+                    visibleCompanions(companions, hiddenLauncherIds)
+                }
+                if (homeCompanions.isNotEmpty()) {
+                    Spacer(Modifier.height(14.dp))
+                    CompanionsSection(
+                        companions = homeCompanions,
+                        iconFiles = companionIcons,
+                        columns = columns,
+                        onOpen = onOpenCompanion,
+                        onLongPress = { id, label -> removeTarget = id to label },
+                        onManage = onOpenLauncherSettings,
+                    )
+                }
+
                 // Phase 5 §3 — the "CLI Apps ▾" dropdown is retired: it listed
                 // exactly the apps the "Your tools" grid below already shows,
                 // with the same launch pipeline. ONE clear path remains — the
@@ -181,12 +216,16 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
 
                 ToolsSection(
-                    state = commandApps,
-                    verifyingApp = verifyingApp,
-                    runtimeReady = runtimeState == RuntimeState.READY,
+                    tools = visibleTools(
+                        CommandAppCatalog.registry, customTools, hiddenLauncherIds,
+                    ),
+                    iconFiles = toolIcons,
                     columns = columns,
+                    verifyingApp = verifyingApp,
                     onOpenCommandApp = onOpenCommandApp,
-                    onExplorePackages = onExplorePackages,
+                    onOpenCustomTool = onOpenCustomTool,
+                    onLongPress = { id, label -> removeTarget = id to label },
+                    onManage = onOpenLauncherSettings,
                 )
 
                 if (activeSessions.isNotEmpty()) {
@@ -196,16 +235,40 @@ fun HomeScreen(
                     SessionsSection(activeSessions, onOpenSession)
                 }
 
-                if (commandApps.apps.isNotEmpty()) {
-                    // Exactly ONE packages affordance when tools exist — the
-                    // empty state carries it when they don't (§9).
-                    Spacer(Modifier.height(14.dp))
-                    PackagesFooterLink(onExplorePackages)
-                }
+                // Exactly ONE packages affordance (§9) — now unconditional:
+                // the launcher grid is permanent, so the empty state that
+                // used to carry this link no longer exists.
+                Spacer(Modifier.height(14.dp))
+                PackagesFooterLink(onExplorePackages)
 
                 // bottom clearance (the Companion bar zone rides here)
                 Spacer(Modifier.height(24.dp))
             }
+        }
+
+        // M7.1 P1 — remove-from-Home confirmation (PART C: hide-only, never
+        // uninstall/delete; restorable from Settings → Home launchers).
+        removeTarget?.let { target ->
+            AlertDialog(
+                onDismissRequest = { removeTarget = null },
+                title = { Text("Remove ${target.second} from Home?") },
+                text = {
+                    Text(
+                        "The launcher stays configured and restorable in " +
+                            "Settings → Home launchers. Nothing is uninstalled " +
+                            "or deleted.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        onRemoveFromHome(target.first)
+                        removeTarget = null
+                    }) { Text("Remove") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { removeTarget = null }) { Text("Cancel") }
+                },
+            )
         }
     }
 }
@@ -517,97 +580,154 @@ private fun FilesLauncherRow(onOpenFiles: () -> Unit) {
 // --------------------------------------------------------------- tools section
 
 /**
- * "Your tools" (§6) — command apps as launcher entries on the canvas, or the
- * lightweight honest states (§9). No container is drawn around any of this.
+ * "Your tools" (M7.1 P1) — the built-in CLI launchers + the user's custom
+ * tools as launcher entries on the canvas. A launcher is NOT an install
+ * claim: every tile is visible by default and honesty lives at tap time
+ * (the existing verify-then-launch path). No container is drawn around any
+ * of this.
  */
 @Composable
 private fun ToolsSection(
-    state: TerminalViewModel.CommandAppsState,
-    verifyingApp: String?,
-    runtimeReady: Boolean,
+    tools: List<ToolLauncher>,
+    iconFiles: Map<String, String>,
     columns: Int,
+    verifyingApp: String?,
     onOpenCommandApp: (CommandApp) -> Unit,
-    onExplorePackages: () -> Unit,
+    onOpenCustomTool: (CustomTool) -> Unit,
+    onLongPress: (id: String, label: String) -> Unit,
+    onManage: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-        HomeSectionLabel("Your tools")
+        SectionHeaderWithAction("Your tools", "Manage", onManage)
         Spacer(Modifier.height(10.dp))
-        when {
-            state.apps.isEmpty() && !state.probeError.isNullOrEmpty() -> {
-                // Probe failed, nothing previously confirmed: the honest
-                // "could not check" — never a fake "none" (v0.4.4 rule).
-                Text(
-                    text = "App availability could not be checked — ${state.probeError}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeTokens.textDim,
-                )
-            }
-            state.apps.isEmpty() && runtimeReady && !state.checked -> {
-                // Probe in flight: one quiet line, the launcher never flashes
-                // a fake "none installed" while the guest is being asked.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        strokeWidth = 2.dp,
-                        color = HomeTokens.accent,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = "Checking the Linux environment…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = HomeTokens.textDim,
+        if (tools.isEmpty()) {
+            // Every launcher hidden by the user — one quiet honest line.
+            Text(
+                text = "All launchers are hidden — restore them from Manage.",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+            )
+            return@Column
+        }
+        // Deterministic text badges over the VISIBLE launchers (collision
+        // rule: shortest meaningful prefix, greedy in display order).
+        val badges = remember(tools) { LauncherBadges.assign(tools.map { it.label }) }
+        tools.chunked(columns).forEachIndexed { rowIndex, rowTools ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            ) {
+                rowTools.forEachIndexed { colIndex, tool ->
+                    LauncherGridEntry(
+                        label = tool.label,
+                        badge = badges[rowIndex * columns + colIndex],
+                        iconFile = iconFiles[tool.id],
+                        verifying = verifyingApp == tool.label,
+                        onClick = {
+                            when (tool) {
+                                is ToolLauncher.Builtin -> onOpenCommandApp(tool.app)
+                                is ToolLauncher.Custom -> onOpenCustomTool(tool.tool)
+                            }
+                        },
+                        onLongClick = { onLongPress(tool.id, tool.label) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
-            }
-            state.apps.isEmpty() -> {
-                EmptyToolsState(runtimeReady = runtimeReady, onExplorePackages = onExplorePackages)
-            }
-            else -> {
-                state.apps.chunked(columns).forEach { rowApps ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                    ) {
-                        rowApps.forEach { app ->
-                            CommandAppEntry(
-                                app = app,
-                                verifying = verifyingApp == app.displayName,
-                                onClick = { onOpenCommandApp(app) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        repeat(columns - rowApps.size) {
-                            Spacer(Modifier.weight(1f))
-                        }
-                    }
-                }
-                if (state.probeError != null) {
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        text = "Availability last checked before an error: ${state.probeError}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = HomeTokens.textDim.copy(alpha = 0.8f),
-                    )
+                repeat(columns - rowTools.size) {
+                    Spacer(Modifier.weight(1f))
                 }
             }
         }
     }
 }
 
+// ----------------------------------------------------------- companions section
+
 /**
- * One launcher entry: icon + label — an application on an OS home screen, not
- * a card (§6). The monogram plate is a borderless tone step; press feedback
- * is the soft scale, nothing draws a box.
+ * M7.1 P1 — Companions on Home. The preinstalled (seeded) + custom
+ * companion websites as launcher entries. A tap opens the companion
+ * through the EXISTING tab/sheet machinery; long-press offers the same
+ * hide-only remove-from-Home as the tools.
  */
 @Composable
-private fun CommandAppEntry(
-    app: CommandApp,
-    verifying: Boolean,
+private fun CompanionsSection(
+    companions: List<CompanionDef>,
+    iconFiles: Map<String, String>,
+    columns: Int,
+    onOpen: (String) -> Unit,
+    onLongPress: (id: String, label: String) -> Unit,
+    onManage: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        SectionHeaderWithAction("Companions", "Manage", onManage)
+        Spacer(Modifier.height(10.dp))
+        val badges = remember(companions) { LauncherBadges.assign(companions.map { it.name }) }
+        companions.chunked(columns).forEachIndexed { rowIndex, rowDefs ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            ) {
+                rowDefs.forEachIndexed { colIndex, def ->
+                    LauncherGridEntry(
+                        label = def.name,
+                        badge = badges[rowIndex * columns + colIndex],
+                        iconFile = iconFiles[def.id],
+                        onClick = { onOpen(def.id) },
+                        onLongClick = { onLongPress(def.id, def.name) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                repeat(columns - rowDefs.size) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+/** Section label with one quiet trailing action (the workspace's wayfinding). */
+@Composable
+private fun SectionHeaderWithAction(
+    label: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HomeSectionLabel(label)
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = actionLabel,
+            style = MaterialTheme.typography.labelLarge,
+            color = HomeTokens.accent,
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(role = Role.Button) { onAction() }
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
+}
+
+/**
+ * One launcher entry: icon (or the deterministic text badge) + label — an
+ * application on an OS home screen, not a card (§6). The tile is a
+ * borderless tone step; press feedback is the soft scale, nothing draws a
+ * box. Long-press = remove-from-Home (hide-only).
+ */
+@Composable
+private fun LauncherGridEntry(
+    label: String,
+    badge: String,
+    iconFile: String?,
+    verifying: Boolean = false,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PressableScale(
         onClick = onClick,
-        onClickLabel = "Open ${app.displayName}",
+        onClickLabel = "Open $label",
+        onLongPress = onLongClick,
         modifier = modifier,
         pressedScale = 0.96f,
     ) {
@@ -629,11 +749,11 @@ private fun CommandAppEntry(
                     )
                 }
             } else {
-                MonogramTile(monogram = app.monogram, size = 52.dp)
+                LauncherTileIcon(iconFile = iconFile, badge = badge, size = 52.dp)
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                text = app.displayName,
+                text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = HomeTokens.textPrimary,
                 maxLines = 1,
@@ -644,41 +764,9 @@ private fun CommandAppEntry(
     }
 }
 
-/**
- * The empty launcher (§9): three quiet text lines directly on the canvas —
- * no container, no placeholder icons, nothing that dominates. This carries
- * the page's ONLY "Explore packages" affordance in this state.
- */
-@Composable
-private fun EmptyToolsState(runtimeReady: Boolean, onExplorePackages: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "No CLI apps yet.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = HomeTokens.textPrimary,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = if (runtimeReady) {
-                "Install an interactive command application and it will appear here."
-            } else {
-                "Install the Linux runtime first — interactive command apps live " +
-                    "inside your Linux environment and launch from here."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = HomeTokens.textDim,
-        )
-        Text(
-            text = "Explore packages",
-            style = MaterialTheme.typography.labelLarge,
-            color = HomeTokens.accent,
-            modifier = Modifier
-                .padding(top = 6.dp, start = 4.dp, end = 4.dp, bottom = 4.dp)
-                .clickable(role = Role.Button) { onExplorePackages() }
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-        )
-    }
-}
+// The launcher tile composable lives in the launchers domain
+// (app.pocketshell.launchers.LauncherTileIcon) so the management screen
+// shares the ONE icon/badge path.
 
 // ---------------------------------------------------------------- sessions
 
@@ -787,12 +875,14 @@ private fun PackagesFooterLink(onExplorePackages: () -> Unit) {
 // ------------------------------------------------------------------- helpers
 
 /** Soft press feedback (80ms scale) shared by the launch surfaces. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PressableScale(
     onClick: () -> Unit,
     onClickLabel: String?,
     modifier: Modifier = Modifier,
     pressedScale: Float = 0.98f,
+    onLongPress: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -805,12 +895,15 @@ private fun PressableScale(
     Box(
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clickable(
+            .combinedClickable(
                 interactionSource = interaction,
                 indication = null,
                 role = Role.Button,
                 onClickLabel = onClickLabel,
-            ) { onClick() },
+                onLongClickLabel = if (onLongPress != null) "Launcher options" else null,
+                onClick = { onClick() },
+                onLongClick = onLongPress,
+            ),
     ) {
         content()
     }

@@ -2452,3 +2452,109 @@ G — Android / SAF boundaries (§36 spot)
 27. App info: versionName 0.11.0-m7.0.0 / versionCode 45 and the SAME
     6 permissions — Phase 9 adds no permissions, no manifest entries,
     no new dependencies.
+
+## 41. Manual acceptance — M7.1 P1 (Home launchers: companion + CLI tool
+launchers, hide/restore, custom tools, text badges) — DEVICE GATE PENDING
+
+Build under test: the vc45 `0.11.0-m7.0.0` build with M7.1 P1 (installs in
+place over the M7.0 release, same debug cert, version stamp unchanged —
+P1 does not bump the version; the next number is deliberately NOT guessed
+here).
+
+What P1 IS: Home gains a Companions section (the four preinstalled
+companion websites ChatGPT / Claude / Z.ai / GitHub, seeded once through
+the existing companion storage) and a launcher-style "Your tools" grid
+(the built-in CLI registry incl. the new Cline entry + user-defined custom
+tools). Long-press removes a launcher from Home (HIDE-only, restorable in
+Settings → Home launchers). Custom tools launch through the SAME
+verify-then-launch guest path as the built-in registry apps. What it is
+NOT: no package manager, no app store, no CLI discovery, no install-state
+claims (a launcher on Home never means "installed" — the tap-time guest
+probe answers that honestly), no companion APIs/SDKs/Android-app
+integration (companions stay websites on the existing web canvas), no new
+permissions, no frozen-architecture changes (the companion package is
+touched ZERO — seeds ride its public API).
+
+A — Companions on Home
+ 1. First launch after install → Home shows a Companions section with
+    ChatGPT, Claude, Z.ai, GitHub (letter badges C / Cl / Z / G).
+ 2. Tap ChatGPT → the EXISTING companion sheet raises (~55% default) and
+    loads chatgpt.com on the same web canvas as before; the tab strip
+    shows the tab; long-press badge behaviors unchanged.
+ 3. Tap each of the four → each opens its own site; switching tabs,
+    closing tabs, and the "+" (default companion) all behave as in M6.
+ 4. Sign in to one companion, kill + reopen the app → the session
+    survives (web data lives in the existing private web storage).
+
+B — Companion management
+ 5. Settings → Launchers → Companions: the four built-ins each have a
+    show-on-Home switch; a deleted built-in shows "Restore" instead.
+ 6. Hide ChatGPT from Home (long-press → Remove from Home → confirm) →
+    the tile disappears; the definition and its web data stay; Settings
+    → Launchers shows the switch OFF; turning it ON brings the tile back.
+ 7. Delete a built-in in Settings → Companion websites (existing screen)
+    → gone everywhere; Settings → Launchers shows "Restore" → restoring
+    re-adds it with the SAME fixed identity.
+ 8. Add a custom companion (existing Companion settings screen) → it
+    appears on Home with a text badge; long-press → Remove from Home
+    hides it; the Launchers screen can show it again; delete there stays
+    possible only in the Companion screen.
+ 9. Set an icon for a companion in Settings → Launchers (system image
+    picker) → the Home tile shows the image; delete the ORIGINAL image
+    in the system Files app first → the launcher icon STILL works (the
+    import was copied into PocketShell storage).
+
+C — Your tools (built-in CLI launchers)
+10. Home → Your tools shows the registry launchers (Hermes Agent,
+    OpenCode, Claude Code, ZCode, Kilo Code, Cline, Gemini CLI, Codex,
+    Aider, Qwen Code) with letter badges; collisions resolve (Claude
+    Code → Cl, Codex → Co, Cline → C).
+11. Tap a tool whose command is NOT installed → the honest launch-error
+    banner: "'<cmd>' command was not found (verified with the real guest
+    shell)". NO fake session, NO crash, NO install claim on the tile.
+12. Install one (e.g. `apk add` / npm the CLI inside the Linux shell),
+    return to Home, tap its tile again → the verify-then-launch path
+    confirms and a REAL Linux session opens running the tool.
+13. Tap a tool while the runtime is NOT ready (fresh install) → the
+    honest "needs the Linux runtime" banner.
+
+D — Custom tools
+14. Settings → Launchers → + Add Custom Tool: Name + Command (e.g.
+    "htop --tree") → Add to Home → the tile appears on Home.
+15. Tap it → a real Linux session runs the command (same verify-then-
+    launch path); when the command exits, a live prompt remains.
+16. A custom tool whose head command is absent → the honest not-found
+    banner naming the probed command.
+17. Edit a custom tool (Launchers → Edit) → changes persist; Remove →
+    the tool AND its icon copy are gone (nothing else is touched).
+18. Custom tool validation: blank name/command refused; a multi-line
+    command is refused (single-line rule stated in the UI).
+
+E — Icons and badges
+19. A custom tool with an imported icon shows the image on Home; one
+    without shows its letter badge; deleting the imported icon via the
+    Launchers screen falls back to the badge.
+20. Home badge collisions stay deterministic per section (companions:
+    C / Cl / Z / G; tools: Claude Code → Cl, Cline → C, Codex → Co).
+
+F — Remove-from-Home semantics
+21. Long-press ANY launcher tile → confirm dialog states hide-only
+    semantics ("Nothing is uninstalled or deleted") → confirming hides
+    ONLY that tile; the dialog's Cancel changes nothing.
+22. After hiding everything in a section, the section collapses (tools
+    section shows one quiet "All launchers are hidden" line); Manage
+    links restore.
+
+G — Regression ladder
+23. Files: search scrolls above the deck (§40 A), long-press actions on
+    results still land on the fresh listing (§40 C), multi-select
+    copy/move/delete still aggregate honestly (§39).
+24. Terminal: Open Terminal Here from a directory with hostile
+    characters still lands inside it; sessions from launcher taps are
+    normal Alpine sessions (session list, "+", retention all unchanged).
+25. Editor: open/save/dirty-guard unchanged.
+26. Android/SAF: Downloads shelf + real SAF Download still label and
+    work; no permission prompts re-appear.
+27. App info: versionName 0.11.0-m7.0.0 / versionCode 45 and the SAME
+    6 permissions — P1 adds no permissions, no manifest entries, no new
+    dependencies.

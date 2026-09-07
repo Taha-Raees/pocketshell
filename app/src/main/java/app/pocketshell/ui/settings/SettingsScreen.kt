@@ -55,6 +55,7 @@ fun SettingsScreen(
     onDynamicColor: (Boolean) -> Unit,
     onFontSize: (Int) -> Unit,
     onOpenCompanions: () -> Unit,
+    onOpenLaunchers: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -147,6 +148,41 @@ fun SettingsScreen(
                 ),
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
+
+            MidnightSectionDivider()
+            Spacer(Modifier.height(10.dp))
+
+            // ---- Launchers (M7.1 P1) ----------------------------------------
+            MidnightSectionLabel("Launchers")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button, onClickLabel = "Manage Home launchers") {
+                        onOpenLaunchers()
+                    }
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Home launchers",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = HomeTokens.textPrimary,
+                    )
+                    Text(
+                        "Companion websites + CLI tools — show, hide, add",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.textDim,
+                    )
+                }
+                Text(
+                    text = "›",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 18.sp,
+                    color = HomeTokens.textDim,
+                )
+            }
 
             MidnightSectionDivider()
             Spacer(Modifier.height(10.dp))
