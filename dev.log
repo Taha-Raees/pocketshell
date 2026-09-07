@@ -1,14 +1,70 @@
 
-> pocketshell-download@0.4.1 start
-> next start -p 3000
+> pocketshell-download@0.4.1 dev
+> next dev -p 3000
 
- ⨯ Failed to start server
-Error: listen EADDRINUSE: address already in use :::3000
-    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
-    at new Promise (<anonymous>) {
-  code: 'EADDRINUSE',
-  errno: -98,
-  syscall: 'listen',
-  address: '::',
-  port: 3000
-}
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+ ✓ Ready in 1591ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.8s (539 modules)
+ GET / 200 in 4284ms
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1485ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1512ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.8s (539 modules)
+ GET / 200 in 4209ms
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1456ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3s (539 modules)
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.5.159:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1441ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.5s (539 modules)
+ GET / 200 in 64ms
+ GET / 200 in 55ms
+ GET / 200 in 92ms
+ GET / 200 in 63ms
+ GET / 200 in 57ms
+ GET / 200 in 184ms
+ GET / 200 in 106ms
+ GET / 200 in 51ms
+ GET / 200 in 52ms
