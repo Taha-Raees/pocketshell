@@ -2119,3 +2119,21 @@ Work Log:
 
 Stage Summary:
 - M7.2 P4 is complete per the mandate: authoritative runtime events now drive honest Android notifications. The consumer subscribes once (Application scope, the replay-free correctness argument), the pure truth contract decides every surface, identity is deterministic, dedup is defensive without a second state machine, one calm channel was added, the FGS is untouched and pinned, zero permission machinery was added, stale surfaces die three ways, and no shipped string can claim completed/success/finished/failed. 1932/1932 JVM green with 0 skipped; APK audited at the inherited stamp. The §53 device gate owns the remaining on-hardware verification. Chain: 1c9ce59 -> bede512 (impl) -> 49039e2 (docs) -> this record. Delivery (APK + bundle + page re-pin) follows as Task 43-delivery. P5 NOT started per the mandate — STOPPED after P4.
+
+---
+Task ID: 43-delivery
+Agent: main (Super Z)
+Task: The P4 mandate's delivery protocol (Part R): P4 IS user-visible — deliver BOTH the debug APK and a NEW git bundle cut at the record tip, with SHA-256 pins, the clone drill, insurance copies in upload/, the download/ ledger update, the delivery page re-pinned to P4 (the phase is user-visible — the page must not stay pinned to P3b), and HTTP wire verification.
+
+Work Log:
+- Staged the audited APK as download/PocketShell-v0.11.2-m7.1.1-m72p4-debug.apk (30,859,664 B, sha256 ab73b24a…3442f, byte-identical to the Part-Q build: versionCode 47 / 0.11.2-m7.1.1, cert d96a6f66…8bf659, the unchanged 6-permission set, the P4 symbol groups in the dex).
+- Cut pocketshell-m7.2-p4.gitbundle at the record tip 5b236df — the first attempt (refs/heads/main only, after a segfaulting --all=main invocation) produced a HEAD-less bundle that cloned without a checkout; RE-CUT with --all (records HEAD + main): 37,858,998 B, sha256 f3d14319…c9d452, git bundle verify: complete history, HEAD → 5b236df.
+- CLONE DRILL GREEN on the re-cut bundle: clone HEAD == 5b236df == the cut, 327 commits, clean tree, both P4 notification sources + docs/M7.2-P4-NOTIFICATION-CONSUMPTION.md + TESTING §53 + worklog Task 43 present in the cloned tree, versionCode 47 / 0.11.2-m7.1.1 confirmed.
+- Insurance copies staged byte-identical in upload/ (APK ab73b24a…, bundle f3d14319…); download/README.md ledger updated: header now "Current: v0.11.2-m7.1.1-m72p4" with the pair pins, the P3b pair marked superseded (insurance survives), the P3c bundle-only convention noted as ended (P4 delivers BOTH), and the CUT NOTE rewritten for the P4 tip (the P2-era note retired).
+- DELIVERY PAGE re-pinned to the P4 pair (app/page.tsx): VERSION/HASHES re-pinned (APK ab73b24a…, bundle f3d14319…, glibc ed82daa8… unchanged); the primary card now tells the P4 story (the truth contract, the subscribe-once lifecycle owner, identity/dedup, the calm channel, the three-way stale cleanup, the untouched FGS, zero permission machinery, 1932/1932 JVM, the §53 gate, the honest scope with no completion claims); the P3b pair moved to superseded with 0f091e7 AND 66d91da noted as direct ancestors of 5b236df and P3c's bundle-only convention explicitly ended; the update-in-place card extended to P3a/P2/P1/P3b; the scope list gained the P3c and P4 bullets (P3b un-bolded); the device-gates card rewritten around §53's ten steps (with §51 retained as the runtime-layer pass); the source card re-cut at 5b236df with the full chain; the footer gained the p3c + p4 milestones (p4 bolded as this build). Next build green (static prerender).
+- HTTP WIRE VERIFICATION (single call, end-to-end): next start on :3210 → page 200 (57,686 B, the P4 pins present) + APK/bundle/glibc all 200 with sha256 EXACTLY matching the pins (ab73b24a… / f3d14319… / ed82daa8…); server killed after the check (the sandbox reaps background processes at tool-call boundaries — the platform preview serving is armed by the web_dev completion flow).
+
+Stage Summary:
+- download/ holds the P4 pair (APK ab73b24a… + bundle f3d14319…) with the byte-verified glibc transparency copy; upload/ holds the byte-identical insurance copies; the page serves the P4 set.
+- Clone drill GREEN (tip 5b236df, 327 commits, clean tree, all P4 content present).
+- P5 NOT started per the mandate — the phase and its delivery are closed.

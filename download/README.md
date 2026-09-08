@@ -1,24 +1,32 @@
 # download/ — delivery masters
 
-Current: **v0.11.2-m7.1.1-m72p2** (M7.2 P2 — the session lifecycle engine &
-structured exit status; the second M7.2 production code phase, internal
-infrastructure exactly on the P0 audit's provable state machine; phase
-build on the inherited versionCode 47 / versionName 0.11.2-m7.1.1 stamp
-per the M7.x phase-build precedent — the -m72p2 suffix is filename-only;
-the M7.1.1 fix release v0.11.2-m7.1.1 remains the frozen fix-record below
-it in history).
+Current: **v0.11.2-m7.1.1-m72p4** (M7.2 P4 — notification consumption of the
+runtime event engine; the FIRST USER-VISIBLE M7.2 phase: the P3c event stream
+now drives honest Android notifications — confirmed running / runtime unknown /
+no-longer-detected / the session's own exit fact — with no completion claim
+anywhere; phase build on the inherited versionCode 47 / versionName
+0.11.2-m7.1.1 stamp per the M7.x phase-build precedent — the -m72p4 suffix is
+filename-only; the M7.1.1 fix release v0.11.2-m7.1.1 remains the frozen
+fix-record below it in history).
 
-CUT NOTE: this set was cut fresh from the P2 record tip 3b144be (chain
-0c9a792 implementation → 577e1e9 tests → 133e656 docs/tooling → the Task
-40 worklog record) on the re-provisioned toolchain (Temurin 21.0.12.1+1,
-cmdline-tools 11076708, platform-36, build-tools 36.0.0, NDK
-28.2.13676358). The M7.2 P1 set is SUPERSEDED by this phase build (same
-stamp, same cert, the notification foundation unchanged — the P2 build
-carries the lifecycle engine on top) and is withdrawn from the serving
-surface — its insurance copies SURVIVE in upload/ byte-exact (APK
-e63fb9b5…, zip b4c9eb53…, tar.gz 147441d4…, bundle 23c9117e…), and its
-content and history ride in this bundle (the P1 record tip a7c635e is a
-direct ancestor of 3b144be).
+The P4 pair (APK + bundle) is the CURRENT SERVED SET on the delivery page.
+The M7.2 P3b pair (the previous served set) is superseded by this phase build
+(same stamp, same cert — the P4 build adds the notification consumer layer on
+top of P3b/P3c) and is withdrawn from the serving surface — its insurance copy
+SURVIVES in upload/ byte-exact (APK fc1edb51…), and its content and history
+ride in this bundle (the P3b record tip 0f091e7 and the P3c record tip 66d91da
+are direct ancestors of the P4 record tip 5b236df). P3c's bundle-only
+convention ends here: P4 IS user-visible, so it delivers BOTH the APK and the
+bundle (docs/TESTING.md §53 owns the on-device notification-shade gate).
+
+CUT NOTE: the P4 set was cut fresh from the P4 record tip 5b236df (chain
+bede512 implementation+tests → 49039e2 docs → the Task 43 worklog record) on
+the re-provisioned toolchain (Temurin 21.0.12.1+1, cmdline-tools 11076708,
+platform-36, build-tools 36.0.0, NDK 28.2.13676358 — reinstalled by
+scripts/install_toolchain.sh after the latest sandbox reset, per worklog
+1c9ce59). The M7.2 P1-era note below is retained for the insurance-copy
+ledger: that set is SUPERSEDED by the later phase builds (same stamp, same
+cert) and its insurance copies SURVIVE in upload/ byte-exact.
 
 RESTORE NOTE (insurance, carried): upload/ holds byte-identical copies of
 the FULL current set (APK, bundle, zip, tar.gz — glibc regenerable from
@@ -83,10 +91,15 @@ re-cut-stable across sandbox toolchain builds, as always disclosed.
 - PocketShell-v0.11.2-m7.1.1-m72p2-source.tar.gz  sha256 ea19e8232d9c4294046f730843e763c2f7e05bb077ff2dafee817eda3d326300  (50,144,080 B — same cut, sorted tar, gzip -n)
 - pocketshell-m7.2-p2.gitbundle  sha256 d821d94fe21181574a706ceba88368e4defd336f01ec340393af947b91b0c548  (37,687,491 B — full history M0 → main tip 3b144be, the P2 record tip (implementation 0c9a792 → tests 577e1e9 → docs 133e656 → worklog 3b144be) that the source archives are cut at; the APK was built from the identical app sources (the app tree is unchanged since 0c9a792); bundle pack bytes are not re-cut-stable, so the pins refer to this ONE delivered cut — re-cutting requires re-pinning)
 
+- PocketShell-v0.11.2-m7.1.1-m72p4-debug.apk  sha256 ab73b24ab52e40662de45ad5c0c2aacb50494e1889d8428717266f080634442f  (30,859,664 B, versionCode 47 / 0.11.2-m7.1.1 — the inherited phase stamp; the P4 notification-consumption build: same cert d96a6f66…8bf659, the unchanged 6-permission set, the P4 symbols (AgentRuntimeNotificationConsumer / AgentRuntimeNotificationMapping / AGENT_RUNTIME_BASE / CHANNEL_AGENT_RUNTIME) in the dex; the notification surfaces are device-verifiable in the shade per TESTING §53 — the ten-step gate: FGS regression, confirmed running, no duplicates, withdrawal on no-longer-detected, factual exit wording (code/signal preserved), honest uncertainty, the three permission arms, no stale surfaces after force-stop, multi-session isolation, the shade-wide honesty sweep)
+  Installs IN PLACE over the M7.2 P3b/P3a/P2/P1 phase builds (vc47 — same versionCode, signature-identical). The manual gate is docs/TESTING.md §53 (10 steps; requires a supported agent install in the guest for the runtime arms).
+
+- pocketshell-m7.2-p4.gitbundle  sha256 f3d14319480396ebd3832212523a99c90ee16075b0fee88a3a38935d81c9d452  (37,858,998 B — full history M0 → HEAD tip 5b236df, the P4 record tip (implementation+tests bede512 → docs 49039e2 → worklog 5b236df); P4 = the notification consumption layer per docs/M7.2-P4-NOTIFICATION-CONSUMPTION.md — the ONE consumer subscribed once at Application start folding the P3c events through the pure truth contract, deterministic per-session identity (AGENT_RUNTIME_BASE + sessionId), defensive dedup (posted/everPosted/tombstones), the calm agent_runtime channel, the untouched FGS, zero new permission machinery, three-way stale cleanup; 1932/1932 JVM forced rerun, 0 skipped; clone drill green — clone HEAD == 5b236df == this cut, 327 commits, clean tree, P4 sources + doc + TESTING §53 present, versionCode 47 / 0.11.2-m7.1.1; insurance copy byte-identical in upload/; the delivery page re-pinned to the P4 pair — P4 IS user-visible)
+
 - pocketshell-m7.2-p3c.gitbundle  sha256 3ca73dc9101cd7304f88c101e5a4628ec3350a9aed40a2692a88873ddb441532  (37,816,877 B — the M7.2 P3c INTERNAL/INFRASTRUCTURE bundle: full history M0 → main tip 66d91da, the P3c record tip (implementation+tests f782272 → docs 15d2ee4 → worklog 66d91da); P3c = the runtime transition & event engine per docs/M7.2-P3C-EVENT-ENGINE.md — the pure AgentRuntimeTransitions reducer folding P3b observations + the manager's authoritative session state into the typed AgentRuntimeEvent vocabulary (Launched / ConfirmedRunning with pids+grade / NoLongerDetected — never completion / RuntimeUnknown / SessionEnded with the session's own waitpid status or the removal cause), per-session dedup (same-state = no event), staleness rejection, the replay-free SharedFlow the future notification phase consumes; 1850/1850 JVM forced rerun, 0 skipped; APK audited but NOT the delivery (no user-visible change — TESTING §52); clone drill green — clone HEAD == 66d91da == this cut, 322 commits, clean tree, P3c sources + doc + TESTING §52 present, versionCode 47 / 0.11.2-m7.1.1; insurance copy byte-identical in upload/; the served page stays pinned to the P3b pair — P3c posts no page re-pin)
 - pocketshell-m7.2-p3b.gitbundle  sha256 e6d22571be67cebc4c0793af9278b3010fcdffa40b7e78e2b81ea0bdd3569c05  (37,771,483 B — the M7.2 P3b INTERNAL/RUNTIME CHECKPOINT bundle: full history M0 → main tip 0f091e7, the P3b record tip (implementation+tests 5993fd3 → docs 3683fd1 → worklog 0f091e7); P3b = the runtime agent detection layer per docs/M7.2-P3B-RUNTIME-DETECTION.md — the /proc descendant scanner with fork-proven correlation (ppid-chain ∪ process-group), graded PROCFS_EXE/PROCFS_CMDLINE exact-token matching, the four-state NOT_APPLICABLE/UNKNOWN/NOT_RUNNING/RUNNING contract, gated 2-second polling; 1764/1764 JVM forced rerun, 0 skipped; clone drill green — clone HEAD == 0f091e7 == this cut, 315 commits, clean tree, P3b sources + docs present, versionCode 47 / 0.11.2-m7.1.1; insurance copy byte-identical in upload/)
 
-- PocketShell-v0.11.2-m7.1.1-m72p3b-debug.apk  sha256 fc1edb518bdb853f2d42a89d12d20209b36974578dd894e54941bd71804e704e  (30,802,996 B, versionCode 47 / 0.11.2-m7.1.1 — the inherited phase stamp; the P3b runtime-detection build: same cert d96a6f66…8bf659, the unchanged 6-permission set, all P3b symbols in the dex; the runtime scanner is device-verifiable via adb logcat per TESTING §51 — NO agent-status UI exists in P3b by design, the only observable channel is the AgentRuntimeDetector log)
+- [SUPERSEDED by the P4 phase build above; insurance copy survives in upload/] PocketShell-v0.11.2-m7.1.1-m72p3b-debug.apk  sha256 fc1edb518bdb853f2d42a89d12d20209b36974578dd894e54941bd71804e704e  (30,802,996 B, versionCode 47 / 0.11.2-m7.1.1 — the inherited phase stamp; the P3b runtime-detection build: same cert d96a6f66…8bf659, the unchanged 6-permission set, all P3b symbols in the dex; the runtime scanner is device-verifiable via adb logcat per TESTING §51 — NO agent-status UI exists in P3b by design, the only observable channel is the AgentRuntimeDetector log)
   Installs IN PLACE over the M7.2 P2/P3a phase builds (vc47 — same versionCode, signature-identical). The manual gate is docs/TESTING.md §51 (12 steps; requires a real agent install in the guest).
 
 - pocketshell-m7.2-p3a.gitbundle  sha256 45bdecea4c0008bc472c3e97feade3e9776acfec3ff9f0ebbc9d2b65adad3211  (37,723,474 B — the M7.2 P3a INTERNAL CHECKPOINT bundle (no new APK, no source archives, no page re-pin — the P2 set above stays the served build): full history M0 → main tip 5fe3602, the P3a record tip (signal model + tests f4c8afd → docs 8ff2e12 → worklog 5fe3602); P3a = the trusted-agent-signal audit + the LaunchIdentity truth-boundary model per docs/M7.2-P3A-DETECTION-MATRIX.md, JVM-verified only (833/833, TESTING §50) with NO user-visible change; clone drill green — clone HEAD == 5fe3602 == this cut, 310 commits, clean tree; insurance copy byte-identical in upload/)
