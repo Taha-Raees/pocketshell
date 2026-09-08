@@ -1,0 +1,613 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :terminal-emulator:testDebugUnitTest
+> Task :terminal-emulator:preBuild UP-TO-DATE
+> Task :terminal-emulator:preDebugBuild UP-TO-DATE
+> Task :terminal-emulator:generateDebugResValues
+> Task :terminal-emulator:processDebugNavigationResources
+> Task :terminal-emulator:generateDebugResources
+> Task :terminal-emulator:javaPreCompileDebug
+> Task :terminal-emulator:preDebugUnitTestBuild UP-TO-DATE
+> Task :terminal-emulator:javaPreCompileDebugUnitTest
+> Task :terminal-emulator:processDebugJavaRes NO-SOURCE
+> Task :terminal-emulator:processDebugUnitTestJavaRes NO-SOURCE
+> Task :terminal-emulator:packageDebugResources
+> Task :terminal-emulator:parseDebugLocalResources
+> Task :terminal-emulator:generateDebugRFile
+> Task :terminal-emulator:generateDebugUnitTestStubRFile
+
+> Task :terminal-emulator:compileDebugJavaWithJavac
+Note: /home/z/my-project/terminal-emulator/src/main/java/com/termux/terminal/TerminalSession.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :terminal-emulator:bundleLibRuntimeToJarDebug
+> Task :terminal-emulator:bundleLibCompileToJarDebug
+> Task :terminal-emulator:compileDebugUnitTestJavaWithJavac
+
+> Task :terminal-emulator:testDebugUnitTest
+
+ApcTest > testApcConsumed STARTED
+
+ApcTest > testApcConsumed PASSED
+
+ByteQueueTest > testCompleteWrites STARTED
+
+ByteQueueTest > testCompleteWrites PASSED
+
+ByteQueueTest > testWriteNotesClosing STARTED
+
+ByteQueueTest > testWriteNotesClosing PASSED
+
+ByteQueueTest > testReadNonBlocking STARTED
+
+ByteQueueTest > testReadNonBlocking PASSED
+
+ByteQueueTest > testQueueWraparound STARTED
+
+ByteQueueTest > testQueueWraparound PASSED
+
+ControlSequenceIntroducerTest > testManyParameters STARTED
+
+ControlSequenceIntroducerTest > testManyParameters PASSED
+
+ControlSequenceIntroducerTest > testCsi3J STARTED
+
+ControlSequenceIntroducerTest > testCsi3J PASSED
+
+ControlSequenceIntroducerTest > testCsiSGRParameters STARTED
+
+ControlSequenceIntroducerTest > testCsiSGRParameters PASSED
+
+ControlSequenceIntroducerTest > testCsiS STARTED
+
+ControlSequenceIntroducerTest > testCsiS PASSED
+
+ControlSequenceIntroducerTest > testCsiT STARTED
+
+ControlSequenceIntroducerTest > testCsiT PASSED
+
+ControlSequenceIntroducerTest > testCsiX STARTED
+
+ControlSequenceIntroducerTest > testCsiX PASSED
+
+ControlSequenceIntroducerTest > testUnderlineVariants STARTED
+
+ControlSequenceIntroducerTest > testUnderlineVariants PASSED
+
+ControlSequenceIntroducerTest > testReportPixelSize STARTED
+
+ControlSequenceIntroducerTest > testReportPixelSize PASSED
+
+ControlSequenceIntroducerTest > testRepeat STARTED
+
+ControlSequenceIntroducerTest > testRepeat PASSED
+
+CursorAndScreenTest > testReportCursorPosition STARTED
+
+CursorAndScreenTest > testReportCursorPosition PASSED
+
+CursorAndScreenTest > testDeleteCharacters STARTED
+
+CursorAndScreenTest > testDeleteCharacters PASSED
+
+CursorAndScreenTest > testCursorBack STARTED
+
+CursorAndScreenTest > testCursorBack PASSED
+
+CursorAndScreenTest > testCursorDown STARTED
+
+CursorAndScreenTest > testCursorDown PASSED
+
+CursorAndScreenTest > testDeleteLinesKeepsStyles STARTED
+
+CursorAndScreenTest > testDeleteLinesKeepsStyles PASSED
+
+CursorAndScreenTest > testCursorForward STARTED
+
+CursorAndScreenTest > testCursorForward PASSED
+
+CursorAndScreenTest > testInsertMode STARTED
+
+CursorAndScreenTest > testInsertMode PASSED
+
+CursorAndScreenTest > testCursorSaveRestoreTextStyle STARTED
+
+CursorAndScreenTest > testCursorSaveRestoreTextStyle PASSED
+
+CursorAndScreenTest > testClearingOfAutowrap STARTED
+
+CursorAndScreenTest > testClearingOfAutowrap PASSED
+
+CursorAndScreenTest > testCursorUp STARTED
+
+CursorAndScreenTest > testCursorUp PASSED
+
+CursorAndScreenTest > testCursorSaveRestoreLocation STARTED
+
+CursorAndScreenTest > testCursorSaveRestoreLocation PASSED
+
+CursorAndScreenTest > testCursorHorizontalPositionAbsolute STARTED
+
+CursorAndScreenTest > testCursorHorizontalPositionAbsolute PASSED
+
+CursorAndScreenTest > testBackspaceAcrossWrappedLines STARTED
+
+CursorAndScreenTest > testBackspaceAcrossWrappedLines PASSED
+
+DecSetTest > testWrapAroundMode STARTED
+
+DecSetTest > testWrapAroundMode PASSED
+
+DecSetTest > testEnableDisableCursor STARTED
+
+DecSetTest > testEnableDisableCursor PASSED
+
+DecSetTest > testBracketedPasteMode STARTED
+
+DecSetTest > testBracketedPasteMode PASSED
+
+DeviceControlStringTest > testReportColorsAndName STARTED
+
+DeviceControlStringTest > testReportColorsAndName PASSED
+
+DeviceControlStringTest > testReallyLongDeviceControlString STARTED
+
+DeviceControlStringTest > testReallyLongDeviceControlString PASSED
+
+DeviceControlStringTest > testReportKeys STARTED
+
+DeviceControlStringTest > testReportKeys PASSED
+
+HistoryTest > testHistory STARTED
+
+HistoryTest > testHistory PASSED
+
+HistoryTest > testHistoryWithScrollRegion STARTED
+
+HistoryTest > testHistoryWithScrollRegion PASSED
+
+KeyHandlerTest > testTermCaps STARTED
+
+KeyHandlerTest > testTermCaps PASSED
+
+KeyHandlerTest > testKeyCodes STARTED
+
+KeyHandlerTest > testKeyCodes PASSED
+
+OperatingSystemControlTest > testSettingDynamicColors STARTED
+
+OperatingSystemControlTest > testSettingDynamicColors PASSED
+
+OperatingSystemControlTest > testReportSpecialColors STARTED
+
+OperatingSystemControlTest > testReportSpecialColors PASSED
+
+OperatingSystemControlTest > testResettingTerminalResetsColor STARTED
+
+OperatingSystemControlTest > testResettingTerminalResetsColor PASSED
+
+OperatingSystemControlTest > testTitleStack STARTED
+
+OperatingSystemControlTest > testTitleStack PASSED
+
+OperatingSystemControlTest > testResetColor STARTED
+
+OperatingSystemControlTest > testResetColor PASSED
+
+OperatingSystemControlTest > testSetColor STARTED
+
+OperatingSystemControlTest > testSetColor PASSED
+
+OperatingSystemControlTest > testSetTitle STARTED
+
+OperatingSystemControlTest > testSetTitle PASSED
+
+RectangularAreasTest > testSelectiveEraseInDisplay STARTED
+
+RectangularAreasTest > testSelectiveEraseInDisplay PASSED
+
+RectangularAreasTest > testSelectiveEraseInLine STARTED
+
+RectangularAreasTest > testSelectiveEraseInLine PASSED
+
+RectangularAreasTest > testRectangularCopy STARTED
+
+RectangularAreasTest > testRectangularCopy PASSED
+
+RectangularAreasTest > testSelectiveEraseInRectangle STARTED
+
+RectangularAreasTest > testSelectiveEraseInRectangle PASSED
+
+RectangularAreasTest > testChangeAttributesInRectangularArea STARTED
+
+RectangularAreasTest > testChangeAttributesInRectangularArea PASSED
+
+RectangularAreasTest > testReverseAttributesInRectangularArea STARTED
+
+RectangularAreasTest > testReverseAttributesInRectangularArea PASSED
+
+RectangularAreasTest > testEraseRectangularArea STARTED
+
+RectangularAreasTest > testEraseRectangularArea PASSED
+
+RectangularAreasTest > testFillRectangularArea STARTED
+
+RectangularAreasTest > testFillRectangularArea PASSED
+
+ResizeTest > testResizeWhenInAltBuffer STARTED
+
+ResizeTest > testResizeWhenInAltBuffer PASSED
+
+ResizeTest > testVerticalResize STARTED
+
+ResizeTest > testVerticalResize PASSED
+
+ResizeTest > testResizeWithWideChars STARTED
+
+ResizeTest > testResizeWithWideChars PASSED
+
+ResizeTest > testResizeWithMoreWideChars STARTED
+
+ResizeTest > testResizeWithMoreWideChars PASSED
+
+ResizeTest > testShrinkingInAltBuffer STARTED
+
+ResizeTest > testShrinkingInAltBuffer PASSED
+
+ResizeTest > testResizeWithLineWrappingContinuing STARTED
+
+ResizeTest > testResizeWithLineWrappingContinuing PASSED
+
+ResizeTest > testResizeWhenHasHistory STARTED
+
+ResizeTest > testResizeWhenHasHistory PASSED
+
+ResizeTest > testResizeAfterHistoryWraparound STARTED
+
+ResizeTest > testResizeAfterHistoryWraparound PASSED
+
+ResizeTest > testCursorPositionWhenShrinking STARTED
+
+ResizeTest > testCursorPositionWhenShrinking PASSED
+
+ResizeTest > testHorizontalResize STARTED
+
+ResizeTest > testHorizontalResize PASSED
+
+ResizeTest > testResizeWithCombiningCharInLastColumn STARTED
+
+ResizeTest > testResizeWithCombiningCharInLastColumn PASSED
+
+ResizeTest > testResizeAfterNewlineWhenInAltBuffer STARTED
+
+ResizeTest > testResizeAfterNewlineWhenInAltBuffer PASSED
+
+ResizeTest > testLineWrap STARTED
+
+ResizeTest > testLineWrap PASSED
+
+ScreenBufferTest > testGetSelectedText STARTED
+
+ScreenBufferTest > testGetSelectedText PASSED
+
+ScreenBufferTest > testGetSelectedTextJoinFullLines STARTED
+
+ScreenBufferTest > testGetSelectedTextJoinFullLines PASSED
+
+ScreenBufferTest > testBlockSet STARTED
+
+ScreenBufferTest > testBlockSet PASSED
+
+ScreenBufferTest > testGetWordAtLocation STARTED
+
+ScreenBufferTest > testGetWordAtLocation PASSED
+
+ScreenBufferTest > testBasics STARTED
+
+ScreenBufferTest > testBasics PASSED
+
+ScrollRegionTest > testScrollRegionResetWithOriginMode STARTED
+
+ScrollRegionTest > testScrollRegionResetWithOriginMode PASSED
+
+ScrollRegionTest > testScrollRegionTop STARTED
+
+ScrollRegionTest > testScrollRegionTop PASSED
+
+ScrollRegionTest > testScrollRegionRight STARTED
+
+ScrollRegionTest > testScrollRegionRight PASSED
+
+ScrollRegionTest > testScrollRegionOnAllSides STARTED
+
+ScrollRegionTest > testScrollRegionOnAllSides PASSED
+
+ScrollRegionTest > testBackwardIndex STARTED
+
+ScrollRegionTest > testBackwardIndex PASSED
+
+ScrollRegionTest > testScrollRegionLeft STARTED
+
+ScrollRegionTest > testScrollRegionLeft PASSED
+
+ScrollRegionTest > testScrollRegionBottom STARTED
+
+ScrollRegionTest > testScrollRegionBottom PASSED
+
+ScrollRegionTest > testNELRespectsLeftMargin STARTED
+
+ScrollRegionTest > testNELRespectsLeftMargin PASSED
+
+ScrollRegionTest > testSdRespectsLeftMargin STARTED
+
+ScrollRegionTest > testSdRespectsLeftMargin PASSED
+
+ScrollRegionTest > testScrollDownBelowScrollRegion STARTED
+
+ScrollRegionTest > testScrollDownBelowScrollRegion PASSED
+
+ScrollRegionTest > testForwardIndex STARTED
+
+ScrollRegionTest > testForwardIndex PASSED
+
+ScrollRegionTest > testScrollRegionDoesNotLimitCursorMovement STARTED
+
+ScrollRegionTest > testScrollRegionDoesNotLimitCursorMovement PASSED
+
+ScrollRegionTest > testRiRespectsLeftMargin STARTED
+
+ScrollRegionTest > testRiRespectsLeftMargin PASSED
+
+ScrollRegionTest > testScrollDownWithScrollRegion STARTED
+
+ScrollRegionTest > testScrollDownWithScrollRegion PASSED
+
+ScrollRegionTest > testClearingWhenScrollingWithMargins STARTED
+
+ScrollRegionTest > testClearingWhenScrollingWithMargins PASSED
+
+ScrollRegionTest > testDECCOLMResetsScrollMargin STARTED
+
+ScrollRegionTest > testDECCOLMResetsScrollMargin PASSED
+
+ScrollRegionTest > testScrollOutsideVerticalRegion STARTED
+
+ScrollRegionTest > testScrollOutsideVerticalRegion PASSED
+
+TerminalRowTest > testAscii STARTED
+
+TerminalRowTest > testAscii PASSED
+
+TerminalRowTest > testSurrogateCharsWithNormalDisplayWidth STARTED
+
+TerminalRowTest > testSurrogateCharsWithNormalDisplayWidth PASSED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidthOverlapping STARTED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidthOverlapping PASSED
+
+TerminalRowTest > testDoubleWidthSurrogage STARTED
+
+TerminalRowTest > testDoubleWidthSurrogage PASSED
+
+TerminalRowTest > testUnicode STARTED
+
+TerminalRowTest > testUnicode PASSED
+
+TerminalRowTest > testReplacementChar STARTED
+
+TerminalRowTest > testReplacementChar PASSED
+
+TerminalRowTest > testSimpleDiaresis STARTED
+
+TerminalRowTest > testSimpleDiaresis PASSED
+
+TerminalRowTest > testInsertWideAtLastColumn STARTED
+
+TerminalRowTest > testInsertWideAtLastColumn PASSED
+
+TerminalRowTest > testCrashATE145 STARTED
+
+TerminalRowTest > testCrashATE145 PASSED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithSelf STARTED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithSelf PASSED
+
+TerminalRowTest > testNormalization STARTED
+
+TerminalRowTest > testNormalization PASSED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidth STARTED
+
+TerminalRowTest > testNormalCharsWithDoubleDisplayWidth PASSED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithNormalDisplayWidth STARTED
+
+TerminalRowTest > testOverwritingDoubleDisplayWidthWithNormalDisplayWidth PASSED
+
+TerminalRowTest > testOneColumn STARTED
+
+TerminalRowTest > testOneColumn PASSED
+
+TerminalRowTest > testStaticConstants STARTED
+
+TerminalRowTest > testStaticConstants PASSED
+
+TerminalRowTest > testDoubleWidth STARTED
+
+TerminalRowTest > testDoubleWidth PASSED
+
+TerminalTest > testSoftTerminalReset STARTED
+
+TerminalTest > testSoftTerminalReset PASSED
+
+TerminalTest > testScrollDownInAltBuffer STARTED
+
+TerminalTest > testScrollDownInAltBuffer PASSED
+
+TerminalTest > testParseColor STARTED
+
+TerminalTest > testParseColor PASSED
+
+TerminalTest > testBel STARTED
+
+TerminalTest > testBel PASSED
+
+TerminalTest > testTab STARTED
+
+TerminalTest > testTab PASSED
+
+TerminalTest > testPaste STARTED
+
+TerminalTest > testPaste PASSED
+
+TerminalTest > testSetCursorStyle STARTED
+
+TerminalTest > testSetCursorStyle PASSED
+
+TerminalTest > testBackgroundColorErase STARTED
+
+TerminalTest > testBackgroundColorErase PASSED
+
+TerminalTest > testSelectGraphics STARTED
+
+TerminalTest > testSelectGraphics PASSED
+
+TerminalTest > testDeviceStatusReport STARTED
+
+TerminalTest > testDeviceStatusReport PASSED
+
+TerminalTest > testMouseClick STARTED
+
+TerminalTest > testMouseClick PASSED
+
+TerminalTest > testNormalization STARTED
+
+TerminalTest > testNormalization PASSED
+
+TerminalTest > testAutomargins STARTED
+
+TerminalTest > testAutomargins PASSED
+
+TerminalTest > testLineDrawing STARTED
+
+TerminalTest > testLineDrawing PASSED
+
+TerminalTest > testScreen STARTED
+
+TerminalTest > testScreen PASSED
+
+TerminalTest > testCursorPositioning STARTED
+
+TerminalTest > testCursorPositioning PASSED
+
+TerminalTest > testReportTerminalSize STARTED
+
+TerminalTest > testReportTerminalSize PASSED
+
+TextStyleTest > testEncodingSingle STARTED
+
+TextStyleTest > testEncodingSingle PASSED
+
+TextStyleTest > testEncodingCombinations STARTED
+
+TextStyleTest > testEncodingCombinations PASSED
+
+TextStyleTest > testEncodingProtected STARTED
+
+TextStyleTest > testEncodingProtected PASSED
+
+TextStyleTest > testEncodingStrikeThrough STARTED
+
+TextStyleTest > testEncodingStrikeThrough PASSED
+
+TextStyleTest > testEncoding24Bit STARTED
+
+TextStyleTest > testEncoding24Bit PASSED
+
+UnicodeInputTest > testWideCharacterDeletion STARTED
+
+UnicodeInputTest > testWideCharacterDeletion PASSED
+
+UnicodeInputTest > testUnassignedCodePoint STARTED
+
+UnicodeInputTest > testUnassignedCodePoint PASSED
+
+UnicodeInputTest > testOverlongUtf8Encoding STARTED
+
+UnicodeInputTest > testOverlongUtf8Encoding PASSED
+
+UnicodeInputTest > testStuff STARTED
+
+UnicodeInputTest > testStuff PASSED
+
+UnicodeInputTest > testIllFormedUtf8SuccessorByteNotConsumed STARTED
+
+UnicodeInputTest > testIllFormedUtf8SuccessorByteNotConsumed PASSED
+
+UnicodeInputTest > testWideCharacterWithoutWrapping STARTED
+
+UnicodeInputTest > testWideCharacterWithoutWrapping PASSED
+
+UnicodeInputTest > testWideCharOverwriting STARTED
+
+UnicodeInputTest > testWideCharOverwriting PASSED
+
+UnicodeInputTest > testCombiningCharacterInFirstColumn STARTED
+
+UnicodeInputTest > testCombiningCharacterInFirstColumn PASSED
+
+UnicodeInputTest > testSimpleCombining STARTED
+
+UnicodeInputTest > testSimpleCombining PASSED
+
+UnicodeInputTest > testCombiningCharacterInLastColumn STARTED
+
+UnicodeInputTest > testCombiningCharacterInLastColumn PASSED
+
+UnicodeInputTest > testWideCharacterInLastColumn STARTED
+
+UnicodeInputTest > testWideCharacterInLastColumn PASSED
+
+WcWidthTest > testPrintableAscii STARTED
+
+WcWidthTest > testPrintableAscii PASSED
+
+WcWidthTest > testSomeWide STARTED
+
+WcWidthTest > testSomeWide PASSED
+
+WcWidthTest > testSomeNonWide STARTED
+
+WcWidthTest > testSomeNonWide PASSED
+
+WcWidthTest > testCombining STARTED
+
+WcWidthTest > testCombining PASSED
+
+WcWidthTest > testSofthyphen STARTED
+
+WcWidthTest > testSofthyphen PASSED
+
+WcWidthTest > testWordJoiner STARTED
+
+WcWidthTest > testWordJoiner PASSED
+
+WcWidthTest > testEmojis STARTED
+
+WcWidthTest > testEmojis PASSED
+
+WcWidthTest > testHangul STARTED
+
+WcWidthTest > testHangul PASSED
+
+WcWidthTest > testSomeWidthOne STARTED
+
+WcWidthTest > testSomeWidthOne PASSED
+
+[Incubating] Problems report is available at: file:///home/z/my-project/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 28s
+14 actionable tasks: 14 executed
+Configuration cache entry stored.

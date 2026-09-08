@@ -2945,3 +2945,84 @@ Regression sweep (with and without the keyboard connected):
     Ctrl-combos via the hardware keys reach the session.
 16. The deck with no keyboard: every key still dispatches (letters,
     modifiers, extra keys) — the M6 one-keyboard behavior unchanged.
+
+## 48. Manual acceptance — M7.2 P1 (notification foundation: POST_NOTIFICATIONS runtime request, channels, tap routing) — DEVICE GATE PENDING
+
+Build under test: `PocketShell-v0.11.2-m7.1.1-m72p1-debug.apk`
+(versionCode 47 / versionName `0.11.2-m7.1.1` — the M7.x phase-build
+precedent: phase builds ride the inherited stamp, the suffix is
+filename-only), git tip of the M7.2 P1 chain.
+
+What P1 IS: infrastructure only. The declared-but-never-requested
+`POST_NOTIFICATIONS` runtime permission is now requested exactly once per
+install on Android 13+, a new `session_events` channel exists beside the
+untouched `terminal_sessions` FGS channel, notification taps are processed
+on both activity paths, and a startup sweep cancels coordinator-owned
+stale event notifications. What P1 is NOT: no event notification is ever
+posted by production code yet (no real lifecycle signal exists to report
+until P2), no agent detection, no waiting-for-input heuristics, no
+`/proc` scanning.
+
+Verified WITHOUT a device (this build's honest floor):
+
+-   Full JVM suite forced rerun: 780/780 (app 635 + terminal-emulator 145,
+    0 failures / 0 errors) including the four NEW suites:
+    `NotificationPermissionPolicyTest` (6 — the complete anti-nag truth
+    table), `NotificationIdsTest` (7 — deterministic identity, FGS-space
+    separation, silent-wraparound refusals), `NotificationRouteTest`
+    (7 — the routing parser), `NotificationIntegrationTest` (14 —
+    structural pins: both intent paths, gate placement, flag-before-launch
+    ordering, coordinator boundaries, untouched FGS channel, unchanged
+    declared permissions).
+-   APK audit on the exact bytes: aapt2 badging vc47 / `0.11.2-m7.1.1`
+    targetSdk 28; the UNCHANGED 6-permission merged set (INTERNET,
+    ACCESS_NETWORK_STATE, FOREGROUND_SERVICE,
+    FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS,
+    DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION); 26 launcher icon assets;
+    dex carries the seven `notifications` symbols; cert
+    d96a6f66…8bf659 unchanged.
+-   Sweep honesty: no production path posts an event notification in P1,
+    so the stale sweep cannot be user-exercised yet — it is pinned
+    structurally and by JVM identity/ledger tests; a device-level sweep
+    test arrives with P2's first real posts (§48 record updated then).
+
+Device gate (the 12 steps below require a real Android 13+ phone; the
+permission system and OEM notification surfaces cannot be exercised from
+a JVM):
+
+1.  Fresh install (or clear-data the app) on an Android 13+ device; open
+    the app and wait on Home: NO permission dialog may appear (the gate
+    fires only when the first session exists).
+2.  Create the first terminal session (Open Terminal): the native
+    Android notification-permission dialog appears exactly once, without
+    an app-made interstitial.
+3.  Grant the permission: the app continues normally; the terminal is
+    unaffected.
+4.  Background the app with the session running: the `TerminalService`
+    foreground notification ("session(s) running") is now VISIBLE in the
+    shade (on the M7.1.1 build it was invisible without the permission).
+5.  Deny path: clear app data (permission resets to denied-and-unasked),
+    first session → deny the dialog: NO crash, the terminal keeps
+    working, the FGS service still starts and keeps the session alive in
+    the background (only the notification is hidden).
+6.  Anti-nag: on the denied install, relaunch the app and create more
+    sessions (including after a full process kill): the dialog NEVER
+    re-appears. (The one-shot flag is persisted before the dialog opens.)
+7.  Channels: with a session running, `adb shell dumpsys notification`
+    lists BOTH channels — `terminal_sessions` (existing FGS) and
+    `session_events` (new, Importance Default) — created exactly once
+    each.
+8.  Warm tap routing: with the app open, tap the FGS notification in the
+    shade: the app comes to front and behaves normally (the
+    previously-unhandled `onNewIntent` path now processes the intent —
+    logcat `PocketShellNotif` shows the route line).
+9.  Cold tap routing: swipe the app away (or force-stop), then tap the
+    FGS notification: the app cold-starts to Home and behaves normally.
+10. Pre-13 behavior (if a pre-Android-13 device is available): no
+    permission dialog ever; the FGS notification shows as before.
+11. Regression: the M7.1.1 §47 keyboard sweep still passes (P1 touches no
+    keyboard code) and terminal basics are unchanged (spawn, output,
+    close, background retention via the FGS).
+12. Honesty check: no notification in the shade ever claims an agent or
+    command completed — P1 posts nothing; anything claiming otherwise is
+    a defect.

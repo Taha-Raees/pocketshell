@@ -51,8 +51,9 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.1.1 — external keyboard detection fix (v0.11.2-m7.1.1,
-versionCode 47; M7.1 release and freeze below it: v0.11.1-m7.1.0)**
+Current state: **M7.2 P1 — notification foundation (phase build
+`-m72p1` on the inherited v0.11.2-m7.1.1 / versionCode 47 stamp; M7.1.1
+fix release and M7.1 release below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -67,9 +68,17 @@ model (persistent On-screen keyboard preference + hardware state + explicit
 user request), the gated terminal-canvas tap, the confirm deadline against
 event storms, the configuration-change cross-check as a second detection
 mechanism, and both-direction transition notices — event-driven, no
-polling, no new permissions. Full JVM suite 746/746 green (app 601 +
-terminal-emulator 145, forced clean rerun at the stamp) and
-`assembleDebug` produces a working APK; the **manual on-device acceptance
-checklists** in `docs/TESTING.md` remain the hardware pass — the M7.1.1
-real-device gate is §47 and a green build alone never completes a
+polling, no new permissions. M7.2 P0 produced the full architecture audit
+(`docs/M7.2-P0-AUDIT.md`); M7.2 P1 built the notification foundation —
+POST_NOTIFICATIONS requested exactly once per install on Android 13+
+(when the first session exists, never re-asked), the
+`notifications/` coordinator layer (event channel, deterministic ids,
+DataStore posted-id ledger, startup stale sweep, FLAG_IMMUTABLE tap
+intents), and intent routing on both activity paths — infrastructure
+only: no event notifications posted yet, no agent detection, no
+heuristics. Full JVM suite 780/780 green (app 635 + terminal-emulator
+145, forced clean rerun at the tip) and `assembleDebug` produces a
+working APK; the **manual on-device acceptance checklists** in
+`docs/TESTING.md` remain the hardware pass — the M7.1.1 gate is §47 and
+the M7.2 P1 gate is §48, and a green build alone never completes a
 milestone.

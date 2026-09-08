@@ -3,6 +3,54 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p1] — 2026-09-08 — M7.2 P1 notification foundation
+
+The first M7.2 production code: infrastructure only, per the approved P0
+audit (`docs/M7.2-P0-AUDIT.md`). Phase build on the inherited
+vc47 / `0.11.2-m7.1.1` stamp (the M7.x phase-build precedent — the
+`-m72p1` suffix is filename-only). No new permissions; TerminalService
+and the M7.1.1 keyboard system untouched.
+
+- **POST_NOTIFICATIONS is finally requested at runtime** (the P0 audit's
+  largest ready-made gap): on Android 13+ the native permission dialog is
+  shown exactly once per install, fired when the FIRST terminal session
+  exists — the moment notifications become meaningful. The request flag
+  is persisted to the new `notifications` DataStore BEFORE the dialog
+  opens, so rotation, activity recreation and process death can never
+  re-arm it; a denial (or the system's own implicit prompt being denied —
+  the pre-33-targetSdk behavior) is respected and never re-asked; denial
+  never blocks any terminal functionality. Pre-13 devices never see a
+  request.
+- **NotificationCoordinator** (`app.pocketshell.notifications/`) — the
+  ONE output/integration layer for M7.2 notifications: owns the new
+  `session_events` channel (importance Default, created idempotently
+  here and only here — the `terminal_sessions` FGS channel stays
+  TerminalService's), posts with deterministic ids (`EVENT_BASE +
+  sessionId`, refusing silent wraparound), builds `FLAG_IMMUTABLE`
+  content intents carrying the tap-routing extra, and records posted ids
+  in a DataStore ledger. It owns no session/agent state, scans nothing,
+  times nothing, infers nothing — the no-second-truth-source rule.
+- **Startup stale-notification sweep**: at app start the coordinator
+  cancels exactly the coordinator-owned event notifications that
+  outlived the process (process death loses session state —
+  START_NOT_STICKY, no restoration), and can never touch the FGS
+  notification (id 1) or anything posted outside the coordinator.
+  P1 posts no production events yet, so the sweep is dormant until P2's
+  first real posts.
+- **Tap routing on both activity paths**: MainActivity now processes
+  notification intents at cold start (onCreate) AND for the existing
+  instance (onNewIntent — unhandled since forever, the P0 audit §8.4
+  finding) through one exhaustive `NotificationRoute` handler; unknown
+  extras stay honestly unrouted.
+- **Tests**: +34 JVM tests (780/780 total, forced rerun): the permission
+  truth table, deterministic identity, the routing parser, and 14
+  structural integration pins over the real sources.
+- **Deliberately NOT in P1**: no production event notifications, no
+  agent detection, no completion claims, no waiting-for-input
+  heuristics, no `/proc` scanning, no OSC 133 (P2+ scope, per the audit).
+- Real-device verification of the permission flows, both tap paths and
+  the channel layout is the mandatory docs/TESTING.md §48 gate.
+
 ## [0.11.2-m7.1.1] — 2026-09-08 — M7.1.1 external-keyboard detection fix
 
 The M7.1 P3 real-device failure fix (Samsung SM-F711B / Galaxy Z Flip 3,

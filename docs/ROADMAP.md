@@ -897,7 +897,35 @@ notification-permission request; P2 stays session-level; P3 splits into
 metadata propagation (P3a) and the device-verified /proc scanner (P3b);
 P7 is conditional on real signals only.
 
-**Next milestone (NOT started): M7.2 P1 — notification foundation**
-(channels, the POST_NOTIFICATIONS runtime request, the coordinator
-skeleton, the stale-notification startup sweep). It starts after the §47
-real-device gate passes, on top of the M7.1.1 stamp.
+**M7.2 P1 — notification foundation ✅ (2026-09-08, first M7.2 production
+code, phase build on the inherited vc47 / `0.11.2-m7.1.1` stamp —
+filename suffix `-m72p1`):** infrastructure only, per the P0 audit. The
+declared-but-never-requested POST_NOTIFICATIONS is now requested at
+runtime on Android 13+ — exactly once per install, fired when the first
+terminal session exists, flag persisted BEFORE the dialog (no re-ask on
+recreation/restart/process death), system-implicit-prompt denials
+respected, denial never blocks terminal functionality. The new
+`notifications/` package: NotificationCoordinator (the ONE
+output/integration layer — owns the `session_events` channel beside the
+untouched `terminal_sessions` FGS channel, deterministic
+EVENT_BASE+sessionId ids, FLAG_IMMUTABLE routing intents, the DataStore
+posted-id ledger, the startup stale-notification sweep that cancels only
+coordinator-owned ids), NotificationPermissionPolicy (the pure anti-nag
+decision function), NotificationRoute (the tap-routing vocabulary —
+OpenApp in P1). MainActivity now processes notification intents on both
+paths (cold start onCreate + the previously-unhandled singleTask
+onNewIntent). TerminalService and the M7.1.1 keyboard system untouched;
+declared permission set unchanged; 780/780 JVM green (app 635 + TE 145)
+incl. 34 new notifications tests; APK audited on the exact bytes. P1
+posts NO production event notifications — no agent detection, no
+waiting-for-input heuristics, no /proc scanning, no OSC 133. The
+real-device pass is TESTING §48 (12 steps).
+
+**Next milestone (NOT started): M7.2 P2 — session lifecycle engine &
+structured exit status** (SpawnOrigin/AgentHint structured launch
+metadata through the real spawn path into SessionEntry; the waitpid exit
+status surfaced into the entry as a structured value distinguishing
+exited(code)/signaled(signal)/none; explicit race-safe lifecycle
+transitions; lifecycle observation for downstream consumers). P0 §1.3/§5
+and §10.3 are the design baseline; the source tree remains the
+implementation authority.
