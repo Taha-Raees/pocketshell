@@ -10,7 +10,7 @@ const VERSION = "v0.11.2-m7.1.1-m72p4";
 // stay withdrawn).
 const HASHES = {
   apk: "ab73b24ab52e40662de45ad5c0c2aacb50494e1889d8428717266f080634442f",
-  bundle: "f3d14319480396ebd3832212523a99c90ee16075b0fee88a3a38935d81c9d452",
+  bundle: "9c6e4a1bcc258ca65fefcf8102ffd7095a71ef40e7dec19c99e6717fd8e2e5a7",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
 
@@ -120,7 +120,8 @@ export default function Home() {
           notification consumer on top of the P3a identity layer, the P3b
           detector and the P3c event engine, and its bundle contains the
           entire chain (the P3b record tip 0f091e7 AND the P3c record tip
-          66d91da are direct ancestors of this record tip 5b236df). The P3b
+          66d91da are direct ancestors of this record tip 5b236df and of the
+          delivery tip e385021). The P3b
           bytes are no longer served (the upload/ insurance copies survive
           byte-exact). The M7.2 P3c checkpoint stays bundle-only by design
           (bundle 3ca73dc9… — no user-visible change existed to serve); P4 IS
@@ -390,8 +391,13 @@ export default function Home() {
           design contracts, the procfs contract, the P3a detection matrix, the
           P3b runtime-detection investigation, the P3c event-engine contract,
           the P4 notification contract, and the runtime documentation.
-          Bundle main tip 5b236df = the tip the bundle is cut at; the APK was
-          built from the identical app sources at that tip. History note: this
+          Bundle main tip e385021 = the tip the bundle is cut at (the P4
+          DELIVERY tip: the worklog record 5b236df + the delivery record
+          7444d28 + the mandated page re-pin 2e8f0c6 + the measured-counts
+          doc correction e385021 — one commit beyond the record tip taken
+          deliberately so the bundle's own contract doc carries the exact
+          verification numbers; the APK was
+          built from the identical app sources at that tip). History note: this
           bundle continues the user-restored P7.1 delivery bundle (fb01540)
           through the M7.0 release chain (47bed42 → 709d126 → dd81bc8), the
           M7.1 phases (3abb2e8 → 1b15bde → e0a2471 → 6004805 → 93ee631), the
@@ -401,11 +407,13 @@ export default function Home() {
           lifecycle engine (0c9a792 → 577e1e9 → 133e656 → 3b144be — Task 40),
           the P3a audit (f4c8afd → 8ff2e12 → 5fe3602 → 6f15d09 — Task 41),
           the P3b detector (5993fd3 → 3683fd1 → 0f091e7 — Task 42), the P3c
-          event engine (f782272 → 15d2ee4 → 66d91da — Task 43), and the P4
-          notification consumer (bede512 → 49039e2 → 5b236df — Task 43-delivery).
+          event engine (f782272 → 15d2ee4 → 66d91da — Task 43), the P4
+          notification consumer (bede512 → 49039e2 → 5b236df — Task 43), and
+          the delivery chain (7444d28 → 2e8f0c6 → e385021 — Task
+          43-delivery).
         </p>
         <a className="btn secondary" href="/pocketshell-m7.2-p4.gitbundle">
-          git bundle (full history, M7.2 P4 record tip)
+          git bundle (full history, M7.2 P4 delivery tip)
         </a>
         <Sha text={HASHES.bundle} />
         <a className="btn secondary" href="/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz">

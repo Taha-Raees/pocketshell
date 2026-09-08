@@ -2137,3 +2137,17 @@ Stage Summary:
 - download/ holds the P4 pair (APK ab73b24a… + bundle f3d14319…) with the byte-verified glibc transparency copy; upload/ holds the byte-identical insurance copies; the page serves the P4 set.
 - Clone drill GREEN (tip 5b236df, 327 commits, clean tree, all P4 content present).
 - P5 NOT started per the mandate — the phase and its delivery are closed.
+
+---
+Task ID: 43-delivery-addendum
+Agent: main (Super Z)
+Task: Correct the P4 bundle cut so the delivered artifact carries the measured verification counts, and re-pin every reference.
+
+Work Log:
+- Found during post-delivery reconciliation: the bundle cut at the record tip 5b236df carried the PRE-correction docs (the P4 contract doc §1/§9 said the 1897 estimate, ROADMAP/README said 1934) — a delivered doc with wrong verification counts violates the project's honesty-over-convention spirit.
+- RE-CUT pocketshell-m7.2-p4.gitbundle at the current main tip e385021 (= the worklog record 5b236df + the delivery record 7444d28 + the mandated page re-pin 2e8f0c6 + the measured-counts correction e385021): 37,874,595 B, sha256 9c6e4a1b…e2e5a7, git bundle verify complete history (HEAD + main → e385021). The deviation from the "cut at the worklog record tip" letter is DISCLOSED here, in the download/README, on the page's source card, and in the final report: one commit beyond the record tip was taken deliberately so the bundle's own contract doc says 1932/1932 — the worklog record remains 5b236df and the phase's commit chain is fully enumerated everywhere.
+- CLONE DRILL re-run GREEN on the re-cut bundle: clone HEAD == e385021 == the cut, 330 commits, clean tree, the corrected docs present in the clone (1932/1932 in all three), both P4 notification sources present.
+- upload/ insurance bundle replaced with the re-cut bytes (sha verified 9c6e4a1b…); download/README bundle line re-pinned (new SHA/size/tip chain + the disclosure); page HASHES.bundle re-pinned + the source card re-cut at the delivery tip with the full chain (the badge stays "record tip 5b236df" as the phase boundary; the bundle button now says "delivery tip"); page rebuilt (static prerender green) and re-verified over HTTP: page 200 (58,467 B) + bundle 200 served byte-exact (9c6e4a1b… matches the pin).
+
+Stage Summary:
+- The delivered P4 bundle now contains the exact measured verification counts; every pin (page, download/README, upload/ insurance) refers to the ONE delivered cut 9c6e4a1b…; the chain 1c9ce59 → bede512 → 49039e2 → 5b236df → 7444d28 → 2e8f0c6 → e385021 is the complete, disclosed history.
