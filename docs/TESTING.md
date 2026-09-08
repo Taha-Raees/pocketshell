@@ -3433,3 +3433,93 @@ paths.
 
 Pass requires all eight. Record deviations verbatim (routing target included
 — "opened session 3 instead of 2" is a FAIL even when the app looks fine).
+
+## 55. Manual acceptance — M7.2 P6 (runtime notification device-state transitions) — DEVICE GATE REQUIRED (partial: the naturally reproducible subset)
+
+P6 is a verification phase with zero production delta (the rebuild is
+byte-identical to the P5 APK — same bytes, same gates). This section is the
+hardware checklist for the transitions that ARE naturally reproducible, and
+an honest record of the ones that are NOT. Setup: one Android 13+ device,
+the P6 debug APK (byte-identical to P5 — no reinstall needed if §54 already
+passed on this build), `adb logcat -s PocketShellNotif AgentRuntimeEvents
+AgentRuntimeDetector` attached, one supported agent launcher ready (per the
+§50 registry). The full transition matrix is JVM-pinned
+(AgentRuntimeNotificationTransitionMatrixTest); what hardware owns here is
+the VISIBLE behavior of the reproducible subset.
+
+### Part A — Confirm running (the P5 baseline, re-proven)
+
+1.  Start a supported runtime in a fresh session. EXPECT within a few
+    seconds: one "… is running" notification (ongoing, `agent_runtime`
+    channel), no duplicates.
+2.  Tap it. EXPECT: PocketShell opens with THAT session selected (the §54
+    step-2 behavior, unchanged).
+
+### Part B — Runtime transition tests (verified reproduction paths only)
+
+B1. **Withdrawal — RUNNING → NOT_RUNNING (reproducible).** With the agent
+    running and its notification visible, quit the agent INSIDE the session
+    (its own exit command / Ctrl-C back to the shell prompt) WITHOUT
+    closing the tab. EXPECT within a few seconds: the running notification
+    DISAPPEARS. Nothing replaces it — no "completed", no "success", no
+    "finished", no "stopped" wording anywhere in the shade. Logcat shows
+    NO_LONGER_DETECTED ("disappearance is not completion").
+B2. **Reappearance — NOT_RUNNING → RUNNING (reproducible).** In the SAME
+    session, launch the agent again. EXPECT: the running notification
+    returns — ONE notification, not a second card, not a storm; the same
+    in-place surface (logcat: one CONFIRMED_RUNNING, one posted id = the
+    same `AGENT_RUNTIME_BASE + sessionId`).
+B3. **Birth silence — UNKNOWN at birth (reproducible).** In a fresh
+    session, launch the agent and watch the shade between spawn and the
+    first confirmation. EXPECT: NO "runtime unknown" notification appears
+    at birth (birth UNKNOWN emits nothing — the launch expectation is not
+    an uncertainty claim).
+B4. **Mid-flight UNKNOWN — NOT DEVICE-REPRODUCIBLE IN P6.** A visible
+    running→unknown→running cycle requires a failed procfs scan or a
+    matched pid alive-but-unmatched — neither is deterministically
+    producible on hardware without fabricating evidence (forbidden; no
+    debug buttons, no fake injection). These arms are JVM-pinned
+    (transition-matrix tests 1–3, 5–9). If a transient unknown surface is
+    ever observed naturally: EXPECT the SAME notification updates in place
+    to "… runtime unknown", then back to running on real evidence — never
+    a second card, never a state claim.
+
+### Part C — No-longer-detected honesty (overlaps B1; standalone form)
+
+With an agent running, background PocketShell, then kill the agent process
+from OUTSIDE the app UI if the §51 infrastructure allows a natural kill
+(e.g. `kill` the agent pid from a second session — a user action, not an
+injection). EXPECT: the running notification disappears; NO replacement
+notification of any kind appears; the shade never shows completion /
+success / failure wording. If no natural out-of-band kill is available,
+B1 is the gate for this transition.
+
+### Part D — Session end (reproducible)
+
+1.  With the agent having been announced (a running or unknown surface was
+    shown at some point), type `exit` in the session. EXPECT: one
+    "Session ended" notification with body "Terminal session N exited
+    (code 0)" — factual only; code 0 must NOT read as success/completion.
+2.  Repeat in a fresh agent session with `exit 3`. EXPECT: "Terminal
+    session N exited (code 3)".
+3.  Close a running agent session's TAB instead. EXPECT: no exit fact —
+    the surface (if any) is simply withdrawn (SESSION_REMOVED has no exit
+    status to state).
+
+### Part E — Regression (P5 must survive P6)
+
+Re-run §54 steps 2, 3 and 6 on this build (running-tap routing,
+multi-session isolation, stale-tap degradation). EXPECT: identical
+behavior — P6 added no production change, so a deviation here means an
+environment problem, not a P6 regression.
+
+### Part F — FGS
+
+Open a plain shell. EXPECT: the "Terminal sessions" retention notification
+(id 1, `terminal_sessions`) behaves exactly as recorded in §53 step 1.
+Close the shell. EXPECT: service stops, notification disappears.
+
+Pass requires every step marked reproducible (A1–2, B1–B3, C or B1, D1–3,
+E, F). B4 is a documentation gate: its NOT DEVICE-REPRODUCIBLE status is
+the expected outcome and must not be "fixed" by weakening production logic
+or adding fake injection. Record deviations verbatim.

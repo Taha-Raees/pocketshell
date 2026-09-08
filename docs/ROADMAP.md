@@ -1102,7 +1102,29 @@ untouched. Full contract: `docs/M7.2-P5-NOTIFICATION-INTERACTION.md`; device
 gate: TESTING §54 (eight steps). 1986/1986 JVM, 0 skipped; APK at the
 inherited vc47 / 0.11.2-m7.1.1 stamp.
 
-**Next milestone (NOT started, not yet mandated): M7.2 P6** — unassigned
+**M7.2 P6 — COMPLETE (2026-09-09): agent runtime notification device-state
+refinement (verification phase, zero production delta)** — the runtime
+state transitions the P3c/P4 architecture already implements were audited,
+pinned as a continuous device story, and gated on hardware where naturally
+reproducible: running → unknown → running updates ONE deterministic
+notification identity in place (no duplicates, no second card);
+RUNNING/UNKNOWN → NOT_RUNNING cancels it (never re-worded as
+completed/success/finished); an ever-announced session's end yields only
+the factual exit statement (exit 0 is never success). The mid-flight
+notification-level UNKNOWN cycle is honestly documented as NOT
+device-reproducible in P6 (no natural trigger without fabricated evidence;
+stays JVM-pinned) — TESTING §55 records the reproducible subset (withdrawal,
+in-session reappearance, birth silence, exit/exit-3 facts, tab-close, the
+P5 tap regression, FGS). Implementation delta: one new pure test class
+(`AgentRuntimeNotificationTransitionMatrixTest`, 11 tests/variant); the
+rebuild is byte-identical to the P5 APK (sha `69ab4402…c57f`), the strongest
+proof of zero production change. No completion/success/failure/
+waiting-for-input detection was added; the detector architecture stays
+frozen. Full contract: `docs/M7.2-P6-RUNTIME-STATE-TRANSITIONS.md`; device
+gate: TESTING §55 (the naturally reproducible subset). 2008/2008 JVM,
+0 skipped; APK at the inherited vc47 / 0.11.2-m7.1.1 stamp.
+
+**Next milestone (NOT started, not yet mandated): M7.2 P7** — unassigned
 by design; the completion-detection / waiting-for-input tiers remain
 REJECTED until a phase arrives with real, authoritative evidence (the P0
 audit's line stands). Any future consumer (per-agent channels, rich

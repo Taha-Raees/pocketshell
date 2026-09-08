@@ -3,6 +3,28 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p6] — 2026-09-09 — M7.2 P6 runtime notification device-state refinement (verification phase)
+
+The eighth M7.2 phase, and a verification phase by design: P6 adds NO
+production behavior and NO new detection power. The runtime state
+transitions the P3c event engine and the P4 truth contract already
+implement were audited end-to-end, pinned as one continuous JVM story
+(new `AgentRuntimeNotificationTransitionMatrixTest`, 11 tests/variant:
+the RUNNING→UNKNOWN→RUNNING in-place cycle on ONE deterministic
+notification identity, the RUNNING/UNKNOWN→NOT_RUNNING cancellation-only
+arms, UNKNOWN at session end yielding the factual exit statement, the
+duplicate-delivery storm, the flapping anti-accumulation case, and the
+exit-0-never-success pin through the whole fold), and gated on hardware
+where naturally reproducible (TESTING §55: withdrawal, in-session
+reappearance, birth silence, `exit` / `exit 3` facts, tab-close, the §54
+tap regression, FGS). The mid-flight notification-level UNKNOWN cycle is
+honestly documented as NOT device-reproducible in P6. The debug APK
+rebuild is byte-identical to the P5 audited build (sha256 `69ab4402…c57f`)
+— the strongest possible proof of zero production delta; versionCode 47 /
+0.11.2-m7.1.1 unchanged. Full JVM suite forced rerun: 2008/2008 (app
+859×2 = 848+11 new, terminal-emulator 145×2), 0 failures / 0 errors /
+0 skipped. Full contract: docs/M7.2-P6-RUNTIME-STATE-TRANSITIONS.md.
+
 ## [0.11.2-m7.1.1-m72p5] — 2026-09-09 — M7.2 P5 notification interaction, session context & honest state transitions
 
 The seventh M7.2 phase, and the second user-visible one: the honest

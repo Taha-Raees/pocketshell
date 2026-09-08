@@ -51,10 +51,10 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P5 — notification interaction & session context (the
-second user-visible M7.2 phase, on the inherited v0.11.2-m7.1.1 /
-versionCode 47 stamp; M7.2 P4, P3c, P3b, P3a, P2, P1, the M7.1.1 fix
-release and M7.1 release below it)**
+Current state: **M7.2 P6 — runtime notification device-state refinement
+(the verification phase, zero production delta, on the inherited
+v0.11.2-m7.1.1 / versionCode 47 stamp; M7.2 P5, P4, P3c, P3b, P3a, P2,
+P1, the M7.1.1 fix release and M7.1 release below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -126,8 +126,10 @@ notification can never recreate a session or respawn a process), and the
 PendingIntent identity stays deterministic (request code = the notification
 id). The shade's wording is byte-identical to P4 — P5 changed what a tap
 DOES, never what the shade may SAY — with zero new permissions, channels or
-manifest entries and the FGS untouched. Full JVM suite
-1986/1986 green (app 848 + terminal-emulator 145 per variant, 0 skipped,
+manifest entries and the FGS untouched. M7.2 P6 verified those transitions
+as a continuous device story with zero production delta (the rebuild is
+byte-identical to the P5 APK). Full JVM suite
+2008/2008 green (app 859 + terminal-emulator 145 per variant, 0 skipped,
 forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
@@ -135,5 +137,7 @@ the hardware pass — the M7.1.1 gate is §47, the M7.2 P1 gate is §48, the
 M7.2 P2 parity gate is §49, the M7.2 P3b runtime-detection gate is §51
 (the per-agent /proc shape table), P3c requires no device gate (§52
 records its observability note), the M7.2 P4 notification-shade gate
-is §53 (ten steps), and the M7.2 P5 notification-interaction gate is §54
-(eight steps — a green build alone never completes the phase).
+is §53 (ten steps), the M7.2 P5 notification-interaction gate is §54
+(eight steps — a green build alone never completes the phase), and the
+M7.2 P6 transition gate is §55 (the naturally reproducible subset — the
+mid-flight unknown cycle is honestly recorded as not device-reproducible).
