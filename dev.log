@@ -2329,3 +2329,20 @@ $ next dev -p 3000
  GET / 200 in 62ms
  GET / 200 in 91ms
  GET / 200 in 62ms
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.11.160:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1539ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.9s (539 modules)
+ GET / 200 in 531ms
+ GET / 200 in 73ms
+ GET / 200 in 60ms
+ GET / 200 in 187ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 567ms (530 modules)
+ GET /PocketShell-v0.11.1-m7.1.0-debug.apk 404 in 760ms
