@@ -201,15 +201,34 @@ sealed class SpawnOrigin {
 }
 
 /**
- * How an [AgentHint] was established. P2 carries exactly ONE value: the
- * spawn-time launcher metadata (a real fact recorded before the first byte
- * flows — audit PART D Case A). The procfs-graded values below are
- * deliberately NOT declared yet: they belong to the P3b scanner phase and
- * are added there as compile-time-forced extensions, never pre-invented.
+ * How an identity claim was established. P2 carried exactly ONE value: the
+ * spawn-time launcher metadata. M7.2 P3b adds the two procfs grades as the
+ * compile-time-forced extension the ROADMAP names (the P3a structural pin
+ * "no PROCFS grades pre-invented" evolves WITH this phase — they are now
+ * real, device-verified-shape evidence produced only by the P3b scanner,
+ * never by spawn metadata):
+ *
+ *   - [PROCFS_EXE]     — /proc/<pid>/exe resolved basename equals the
+ *     agent's launch token (the strongest process shape: the actual
+ *     executable image — single-file binaries, bun-compiled CLIs).
+ *   - [PROCFS_CMDLINE] — /proc/<pid>/cmdline carries the token as an exact
+ *     argv element (argv[0], or the kernel shebang contract's script path
+ *     at argv[1]) — the shape interpreter-hosted CLIs produce (exe reads
+ *     the interpreter; the script path rides argv[1]).
+ *
+ * Confidence is DATA (P0 audit Case C): consumers can see HOW a claim was
+ * established and weight it accordingly. Nothing here ever upgrades a
+ * LAUNCH_METADATA claim into a process claim or vice versa.
  */
 enum class AgentMatchedBy {
     /** The launcher tap itself named the command (registry/custom-tool/catalog metadata at spawn). */
     LAUNCH_METADATA,
+
+    /** The actual executable image matched (readlink /proc/<pid>/exe basename == token). */
+    PROCFS_EXE,
+
+    /** The command line matched by exact argv element (argv[0] or the shebang script path at argv[1]). */
+    PROCFS_CMDLINE,
 }
 
 /**

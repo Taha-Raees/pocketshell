@@ -69,6 +69,17 @@ object TerminalSessionManager {
         val origin: SpawnOrigin,
         /** Spawn-time agent identity for named-launcher sessions; null for plain shells. */
         val agent: AgentHint?,
+        /**
+         * The fork-proven direct-child PID (M7.2 P3b — the correlation root
+         * for the runtime scanner). Recorded ON THE REAL fork signal, on the
+         * main thread, exactly when [SessionPhase.STARTING] transitions to
+         * [SessionPhase.RUNNING]; `0` while STARTING (the lazy fork has not
+         * happened yet — there is no process to correlate). Read by evidence
+         * consumers through this StateFlow so the visibility of the upstream
+         * `mShellPid` write is always properly published; nothing outside the
+         * manager ever reads TerminalSession.getPid() for lifecycle purposes.
+         */
+        val shellPid: Int = 0,
     ) {
         val displayLabel: String get() = title ?: label
 
@@ -291,6 +302,12 @@ object TerminalSessionManager {
                 agent = agent,
             )
             _sessions.update { it + entry }
+            // M7.2 P3b: wake the runtime evidence provider. The detector is an
+            // OBSERVER of this object's authoritative StateFlow — it owns no
+            // lifecycle, decides nothing and mutates nothing here; this hook
+            // only guarantees the scanner exists while sessions exist (it
+            // parks itself whenever no eligible session remains).
+            RuntimeAgentDetector.ensureStarted()
             syncService(context)
             return entry
         } finally {
@@ -361,7 +378,14 @@ object TerminalSessionManager {
                 if (entry.id != id) return@map entry
                 when (val transition = entry.lifecycleState.onProcessStarted()) {
                     is LifecycleTransition.Accepted -> {
-                        val updated = entry.copy(lifecycleState = transition.next)
+                        // Record the REAL fork-proven direct-child PID with the
+                        // transition that proves it (M7.2 P3b correlation root).
+                        // Main thread here — the same thread upstream set mShellPid
+                        // on — so the read is consistent with the fork signal.
+                        val updated = entry.copy(
+                            lifecycleState = transition.next,
+                            shellPid = entry.session.getPid(),
+                        )
                         emit(
                             SessionLifecycleEvent.Started(
                                 sessionId = id,

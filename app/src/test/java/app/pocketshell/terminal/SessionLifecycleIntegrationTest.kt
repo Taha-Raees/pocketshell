@@ -372,18 +372,19 @@ class SessionLifecycleIntegrationTest {
     // ------------------------------------------------- typed model boundaries
 
     @Test
-    fun `the vocabulary declares exactly one matching grade in P2`() {
+    fun `the vocabulary declares the three graded evidence sources after P3b`() {
         val code = source(*lifecyclePath.toTypedArray()).second
         assertEquals(
-            "P2 declares exactly LAUNCH_METADATA — the procfs grades are P3b compile-time extensions",
+            "AgentMatchedBy is declared exactly once",
             1,
             Regex("enum class AgentMatchedBy").findAll(code).count(),
         )
         assertTrue(code.contains("LAUNCH_METADATA"))
-        assertFalse(
-            "no procfs grade may be pre-invented before the P3b scanner exists",
-            code.contains("PROCFS_EXE") || code.contains("PROCFS_CMDLINE"),
-        )
+        // M7.2 P3b: the ROADMAP-named compile-time-forced extension is now
+        // real — the two procfs grades exist and are produced ONLY by the
+        // P3b scanner (the spawn sites still carry LAUNCH_METADATA only).
+        assertTrue(code.contains("PROCFS_EXE"))
+        assertTrue(code.contains("PROCFS_CMDLINE"))
     }
 
     @Test

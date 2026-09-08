@@ -1,5 +1,6 @@
 package app.pocketshell.terminal
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -194,23 +195,45 @@ class LaunchIdentityIntegrationTest {
     // ------------------------------------- the false-running / completion rules
 
     @Test
-    fun `no agent running or completion API exists in the app's main sources`() {
+    fun `no agent completion API exists anywhere - and the running-state vocabulary is confined to the P3b seam`() {
         val root = File(rootCandidate("app/src/main/java/app/pocketshell"))
         org.junit.Assume.assumeTrue("main source root not found", root.isDirectory)
-        val offenders = root.walkTopDown()
+        // (a) COMPLETION claims are still banned EVERYWHERE (P3a rule, now
+        // stronger: P3b's runtime model explicitly stops at NOT_RUNNING).
+        val completionTokens = listOf(
+            "agentCompleted", "isAgentComplete", "isAgentFinished",
+            "AgentCompleted", "CompletionState", "onAgentFinished",
+        )
+        // (b) the RUNNING-state vocabulary is the P3b deliverable — but it
+        // may exist ONLY in the evidence seam (detection model, detector,
+        // repository projection). Every other file stays free of it.
+        val runningTokens = listOf("AgentRuntimeState", "AgentRuntimeDetection")
+        val seamFiles = setOf(
+            "AgentRuntimeDetection.kt", "RuntimeAgentDetector.kt",
+            "AgentActivityRepository.kt", "SessionLifecycle.kt",
+        )
+        val completionOffenders = mutableListOf<String>()
+        val runningOffenders = mutableListOf<String>()
+        root.walkTopDown()
             .filter { it.isFile && it.extension == "kt" }
-            .map { it.readText() }
-            .flatMap { text ->
-                listOf(
-                    "isAgentRunning", "agentRunning", "isAgentActive",
-                    "agentIsRunning", "isAgentFinished", "agentCompleted",
-                    "isAgentComplete",
-                ).filter { text.contains(it) }
+            .forEach { file ->
+                val text = file.readText()
+                completionTokens.filter { text.contains(it) }.forEach {
+                    completionOffenders += "${file.name}:$it"
+                }
+                if (file.name !in seamFiles) {
+                    runningTokens.filter { text.contains(it) }.forEach {
+                        runningOffenders += "${file.name}:$it"
+                    }
+                }
             }
-            .toList()
         assertTrue(
-            "no agent running/completed API may exist (the truth boundary holds by construction): $offenders",
-            offenders.isEmpty(),
+            "no agent completion API may exist anywhere (the truth boundary holds by construction): $completionOffenders",
+            completionOffenders.isEmpty(),
+        )
+        assertTrue(
+            "the running-state vocabulary must stay confined to the P3b evidence seam: $runningOffenders",
+            runningOffenders.isEmpty(),
         )
     }
 
@@ -245,7 +268,7 @@ class LaunchIdentityIntegrationTest {
     }
 
     @Test
-    fun `the P2 vocabulary is not mutated by P3a`() {
+    fun `the P2 vocabulary is not mutated by P3b beyond the compile-time-forced procfs grades`() {
         val lifecycle = source(*lifecyclePath.toTypedArray())
         val (rawLifecycle, code) = lifecycle
         // SpawnOrigin stays sealed with exactly the six P2 launch kinds.
@@ -253,15 +276,20 @@ class LaunchIdentityIntegrationTest {
         for (kind in listOf("Shell", "LinuxShell", "FilesTerminal", "CommandApp", "CatalogApp", "CustomTool")) {
             assertTrue("SpawnOrigin must keep the $kind kind", code.contains(kind))
         }
-        // AgentMatchedBy still declares exactly LAUNCH_METADATA — P3b's
-        // procfs grades are compile-time-forced extensions, not pre-invented.
+        // AgentMatchedBy: P3a shipped exactly LAUNCH_METADATA; the ROADMAP
+        // named P3b's two procfs grades as the compile-time-forced extension.
+        // The enum now declares EXACTLY those three values — no others.
         val enumStart = rawLifecycle.indexOf("enum class AgentMatchedBy")
         val enumEnd = rawLifecycle.indexOf("}", enumStart)
-        val enumBody = rawLifecycle.substring(enumStart, enumEnd)
-        assertTrue(enumBody.contains("LAUNCH_METADATA"))
-        assertFalse(
-            "P3a must not pre-invent the P3b procfs grades",
-            enumBody.contains("PROCFS"),
+        val enumBody = stripCommentsAndStrings(rawLifecycle.substring(enumStart, enumEnd))
+        for (grade in listOf("LAUNCH_METADATA", "PROCFS_EXE", "PROCFS_CMDLINE")) {
+            assertTrue("AgentMatchedBy must declare $grade", enumBody.contains(grade))
+        }
+        val declaredValues = Regex("[A-Z_]+,").findAll(enumBody).map { it.value.dropLast(1) }.toSet()
+        assertEquals(
+            "AgentMatchedBy must declare exactly the three graded evidence sources",
+            setOf("LAUNCH_METADATA", "PROCFS_EXE", "PROCFS_CMDLINE"),
+            declaredValues,
         )
     }
 

@@ -2,6 +2,7 @@ package app.pocketshell.terminal
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
@@ -107,4 +108,62 @@ object AgentActivityRepository {
                 }
             }
             .distinctUntilChanged()
+
+    /**
+     * M7.2 P3b — the runtime-evidence projection: WHAT each live session
+     * claims at the process level, with the four-state honesty contract
+     * ([AgentRuntimeState]). A pure derived view over the manager's
+     * authoritative state PLUS the [RuntimeAgentDetector]'s graded procfs
+     * evidence — this projection still stores nothing and decides nothing;
+     * the detector is the only evidence producer, the manager the only
+     * lifecycle authority.
+     *
+     * Mapping (each arm pinned structurally):
+     *   - plain shells (identity `null`) are absent, exactly as in
+     *     [classifiedLaunches] — no launcher named a command, no claim;
+     *   - [LaunchIdentity.KnownAgent] -> the detector's current observation,
+     *     or UNKNOWN before the first scan (never invented running);
+     *   - [LaunchIdentity.KnownNonAgentTool] and
+     *     [LaunchIdentity.CustomOrUnknown] -> NOT_APPLICABLE: the scanner
+     *     does not run for them, and this state says so explicitly;
+     *   - a FINISHED session is absent: its process tree is gone and the
+     *     session layer's own waitpid-proven lifecycle (FINISHED +
+     *     [ExitStatus]) is the truth that story — the runtime projection
+     *     adds no completion claim to it, ever.
+     *
+     * There is deliberately NO completed/success state in this vocabulary
+     * (P0 audit line, Part E of the P3b mandate): process disappearance is
+     * at most NOT_RUNNING, and session ending is the session layer's fact.
+     */
+    data class AgentRuntimeActivity(
+        val sessionId: Long,
+        val label: String,
+        val identity: LaunchIdentity,
+        val state: AgentRuntimeState,
+    )
+
+    val runtimeActivities: Flow<List<AgentRuntimeActivity>> =
+        combine(
+            TerminalSessionManager.sessions,
+            RuntimeAgentDetector.observations,
+        ) { list, observations ->
+            list.mapNotNull { entry ->
+                if (entry.isFinished) return@mapNotNull null
+                val identity = LaunchIdentity.of(entry.origin, entry.agent)
+                    ?: return@mapNotNull null // plain shell: no claim, absent
+                val state = when (identity) {
+                    is LaunchIdentity.KnownAgent ->
+                        observations[entry.id]?.state ?: AgentRuntimeState.UNKNOWN
+                    is LaunchIdentity.KnownNonAgentTool -> AgentRuntimeState.NOT_APPLICABLE
+                    is LaunchIdentity.CustomOrUnknown -> AgentRuntimeState.NOT_APPLICABLE
+                }
+                AgentRuntimeActivity(
+                    sessionId = entry.id,
+                    label = entry.displayLabel,
+                    identity = identity,
+                    state = state,
+                )
+            }
+        }
+        .distinctUntilChanged()
 }
