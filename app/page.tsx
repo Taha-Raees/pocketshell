@@ -1,20 +1,20 @@
-const VERSION = "v0.11.2-m7.1.1-m72p1";
+const VERSION = "v0.11.2-m7.1.1-m72p2";
 
-// SHA pins — the M7.2 P1 (notification foundation) delivery. The payload
-// cutter stages from the pinned record tip (a7c635e) with zeroed mtimes; the
-// embedded git bundle's pack bytes are not re-cut-stable, so these pins refer
-// to the ONE delivered cut. Semantic pins: versionCode 47, versionName
-// 0.11.2-m7.1.1 (the M7.x phase-build precedent — the -m72p1 suffix is
-// filename-only), cert d96a6f66…8bf659, embedded layer asset 898131ff… /
-// 17,920,000 B == GlibcRuntimePin. The glibc layer is UNCHANGED rev=2
-// (byte-identical artifact ed82daa8…). The M7.1.1 fix APK (5d876141…) is
-// superseded by this phase build and withdrawn below; its content and
-// history ride in the bundle.
+// SHA pins — the M7.2 P2 (session lifecycle engine & structured exit status)
+// delivery. The payload cutter stages from the pinned record tip (3b144be)
+// with zeroed mtimes; the embedded git bundle's pack bytes are not
+// re-cut-stable, so these pins refer to the ONE delivered cut. Semantic
+// pins: versionCode 47, versionName 0.11.2-m7.1.1 (the M7.x phase-build
+// precedent — the -m72p2 suffix is filename-only), cert d96a6f66…8bf659,
+// embedded layer asset 898131ff… / 17,920,000 B == GlibcRuntimePin. The
+// glibc layer is UNCHANGED rev=2 (byte-identical artifact ed82daa8…). The
+// M7.2 P1 APK (e63fb9b5…) is superseded by this phase build and withdrawn
+// below; its content and history ride in the bundle.
 const HASHES = {
-  apk: "e63fb9b539f4b786307f6597b3a54427c7b8b63bedd1a081f50880719d18bf5b",
-  zip: "b4c9eb53d66e847a751d447c9c3dbc223a7f0b756f096e71965b998e270f8eb1",
-  tgz: "147441d49354021cd261e57ac7d6098b7a127f0e96bd7a35731dc53d9cdf659b",
-  bundle: "23c9117e4586e034abe59673ea90566982a171fe7568c0f004305500b4a722f9",
+  apk: "4a144d23710e7cd3893d1cdb59b0e3892a7b585ba1d4ed9015a7988360d2dfce",
+  zip: "996148b0fe4573ef14f44b43880efa8b2d02a6304fa2438e4d23773c7c78714e",
+  tgz: "ea19e8232d9c4294046f730843e763c2f7e05bb077ff2dafee817eda3d326300",
+  bundle: "d821d94fe21181574a706ceba88368e4defd336f01ec340393af947b91b0c548",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
 
@@ -36,63 +36,73 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M7.2 P1 — NOTIFICATION FOUNDATION: the declared-but-never-requested
-          permission is finally asked, the coordinator layer exists{" "}
-          <span className="badge">record tip a7c635e · vc47</span>
+          M7.2 P2 — SESSION LIFECYCLE ENGINE &amp; STRUCTURED EXIT STATUS: the
+          typed lifecycle model on real signals only{" "}
+          <span className="badge">record tip 3b144be · vc47</span>
         </h2>
         <p>
           <b>
-            First M7.2 production code, infrastructure only, per the approved
-            P0 audit (docs/M7.2-P0-AUDIT.md). <b>The permission fix</b>:
-            POST_NOTIFICATIONS was declared in the manifest since M2.4 and
-            never requested at runtime — on Android 13+ every notification
-            (including the session-retention foreground-service notification)
-            was invisible until the user found Settings on their own. Now the
-            native dialog is shown EXACTLY ONCE per install, fired when the
-            FIRST terminal session exists (the moment notifications become
-            meaningful), with the request flag persisted to the new
-            notifications DataStore BEFORE the dialog opens — so rotation,
-            activity recreation and process death mid-dialog can never re-ask
-            — and with a denial (or the system&apos;s own implicit prompt
-            being denied) respected forever after: never nagged, never
-            blocked. <b>The coordinator</b> (app.pocketshell.notifications/):
-            ONE output/integration layer owning the new session_events channel
-            beside the untouched terminal_sessions FGS channel, deterministic
-            notification ids (EVENT_BASE + sessionId, refusing silent
-            wraparound), FLAG_IMMUTABLE content intents carrying the routing
-            extra, a DataStore ledger of posted ids, and the startup
-            stale-notification sweep that cancels exactly what this
-            coordinator posted and never the FGS notification (id 1) or
-            anything else. <b>The routing</b>: MainActivity now processes
-            notification intents on BOTH paths — cold start (onCreate) and
-            the existing-instance singleTask path (onNewIntent, unhandled
-            since forever per the P0 audit §8.4 finding) — through one
-            exhaustive route handler. <b>VERIFICATION</b>: FULL JVM suite
-            forced --rerun-tasks 780/780 green (app 635 + terminal-emulator
-            145, 0 failures, 0 errors) including 34 new notifications tests
-            (the complete anti-nag truth table, identity collision/FGS-space
-            proofs, the routing parser, 14 structural integration pins); a
-            fresh APK audited on the exact bytes: aapt2 badging
+            Second M7.2 production code, internal infrastructure only, built
+            exactly on the P0 audit&apos;s provable state machine
+            (docs/M7.2-P0-AUDIT.md §10.3). <b>The lifecycle model</b>: every
+            session entry now carries a typed SessionLifecycleState — STARTING
+            (the entry exists, the PTY child is NOT forked yet: the audit&apos;s
+            lazy-fork fact, observed via the previously-discarded
+            setTerminalShellPid callback), RUNNING (the real fork signal),
+            FINISHED (the real waitpid delivery) — with REMOVED modeled by tab
+            removal plus a typed event, never a stored flag; the private
+            constructor makes invalid combinations unrepresentable (FINISHED
+            always carries its exit status; STARTING/RUNNING never do), and the
+            stored isFinished boolean is retired — the getter is DERIVED, no
+            second truth inside the record. <b>Structured exit status</b>:
+            ExitStatus.Exited(code) / ExitStatus.Signaled(signal) — a faithful
+            mapping of exactly what JNI.waitFor/waitpid provides (positive =
+            WEXITSTATUS, negative = negated WTERMSIG); nothing invented, no
+            polling, no &quot;unknown&quot; variant. <b>One owner, race-safe
+            transitions</b>: TerminalSessionManager stays the single
+            authoritative lifecycle owner; duplicate or out-of-order callbacks
+            are REJECTED with a logged reason and can never corrupt a recorded
+            status; a finish delivery for a removed session is logged, never
+            swallowed; the close path is guarded against the upstream kill(0)
+            hazard (isRunning() is true for a never-forked mShellPid==0, where
+            SIGKILL would hit the caller&apos;s whole process group).{" "}
+            <b>Structured launch identity</b>: every spawn site passes its
+            SpawnOrigin (Shell / LinuxShell / FilesTerminal / CommandApp(id) /
+            CatalogApp(id) / CustomTool(id)); the three named-launcher paths
+            carry AgentHint(displayName, command, matchedBy=LAUNCH_METADATA) —
+            real spawn-time metadata only, never a process claim. <b>Typed
+            events + the derived read model</b>: the manager emits
+            SessionLifecycleEvent (Started/Finished/Removed, full identity
+            block) only at the mutation sites, and AgentActivityRepository is
+            the ONE derived projection — it stores nothing, decides nothing,
+            touches no notifications. <b>VERIFICATION</b>: FULL JVM suite
+            forced --rerun-tasks 810/810 green (app 665 + terminal-emulator
+            145, 0 failures, 0 errors, 0 SKIPPED) including 30 new lifecycle
+            tests (the pure transition truth table + 14 structural integration
+            pins) and the verification-honesty fix: the P1 structural pins had
+            been silently skipping under the module-dir runner and now RUN and
+            pass; a fresh APK audited on the exact bytes: aapt2 badging
             versionCode=&apos;47&apos; versionName=&apos;0.11.2-m7.1.1&apos;
-            targetSdk 28, the UNCHANGED 6-permission merged set, 26 launcher
-            icon assets, the seven notifications dex symbols, the pinned cert
-            d96a6f66…8bf659. <b>HONEST SCOPE</b>: P1 posts NO production event
-            notifications — no agent detection, no completion claims, no
-            waiting-for-input heuristics, no /proc scanning, no OSC 133 (P2+
-            scope). The mandatory REAL-DEVICE gate is docs/TESTING.md §48
-            (12 steps: no-ask-before-first-session, grant/deny, anti-nag
-            relaunches, dual channels, warm+cold taps, pre-13, the §47
-            keyboard regression) — a green build never claims the hardware
-            pass.
+            targetSdk 28, the UNCHANGED 6-permission merged set, the six new
+            P2 dex symbols, the pinned cert d96a6f66…8bf659. <b>HONEST
+            SCOPE</b>: P2 posts NO notifications (the P1 sweep stays dormant),
+            no agent detection, no completion/waiting claims, no /proc
+            scanning, no OSC 133, no persistence (lifecycle state is
+            in-memory, process-scoped like the sessions themselves), and NO
+            user-visible UI change. The mandatory REAL-DEVICE gate is
+            docs/TESTING.md §49 (10 steps — a parity regression pass over the
+            five spawn paths, natural/non-zero exits, tab-close, FGS policy,
+            process death and the §47/§48 sweeps) — a green build never claims
+            the hardware pass.
           </b>
         </p>
-        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p1-debug.apk">
-          Download M7.2 P1 APK (debug, 30.5 MB)
+        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p2-debug.apk">
+          Download M7.2 P2 APK (debug, 30.8 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
           versionCode 47 / versionName 0.11.2-m7.1.1 (the M7.x phase-build
-          precedent — phase builds ride the inherited stamp, the -m72p1
+          precedent — phase builds ride the inherited stamp, the -m72p2
           suffix is filename-only) — installs in place over every earlier
           build (same cert) — glibc layer ed82daa8… unchanged.
         </p>
@@ -104,22 +114,22 @@ export default function Home() {
           <span className="badge">history preserved</span>
         </h2>
         <p>
-          The M7.1.1 fix APK (5d876141…, 30,451,377 B, vc47 / 0.11.2-m7.1.1)
-          and its source set are SUPERSEDED by this phase build: same stamp
-          (vc47), same cert, the keyboard system unchanged — the P1 build
-          simply carries the notification foundation on top, and its source
-          archives are cut at a tip that contains the entire M7.1.1 chain.
-          The M7.1.1 bytes are no longer served (the upload/ insurance copies
-          survive byte-exact); the complete history rides in the bundle below
-          (the fix tip 3cbfec2 is a direct ancestor of this record tip
-          a7c635e). Earlier withdrawals stand: the M7.1 release APK
-          (2d298c85…), the M7.1 P3 APK (46fb0d8b…), the M7.1 P2.2 APK
-          (7e0e99a9…), the M7.1 P2.1 APK (97c04120…), the M7.1 P2 APK
-          (ae6f6445…), the M7.1 P1 APK (4d7349f7…), the M7.0 release APK
-          (8826d30d…), the m7p8.1 (vc44) and the reset-lost
+          The M7.2 P1 APK (e63fb9b5…, 30,473,480 B, vc47 / 0.11.2-m7.1.1) and
+          its source set are SUPERSEDED by this phase build: same stamp
+          (vc47), same cert, the notification foundation unchanged — the P2
+          build simply carries the lifecycle engine on top, and its source
+          archives are cut at a tip that contains the entire P1 chain. The P1
+          bytes are no longer served (the upload/ insurance copies survive
+          byte-exact); the complete history rides in the bundle below (the P1
+          record tip a7c635e is a direct ancestor of this record tip
+          3b144be). Earlier withdrawals stand: the M7.1.1 fix APK (5d876141…),
+          the M7.1 release APK (2d298c85…), the M7.1 P3 APK (46fb0d8b…), the
+          M7.1 P2.2 APK (7e0e99a9…), the M7.1 P2.1 APK (97c04120…), the M7.1
+          P2 APK (ae6f6445…), the M7.1 P1 APK (4d7349f7…), the M7.0 release
+          APK (8826d30d…), the m7p8.1 (vc44) and the reset-lost
           m7p8/m7p7.1/m7p6/m6.0.4 sets — their content and history are fully
           contained in this bundle, as is the M7.2 P0 audit
-          (docs/M7.2-P0-AUDIT.md, the P0 bundle 17475b7f… was a docs-only
+          (docs/M7.2-P0-AUDIT.md, the P0 bundle 0d8c5eb0… was a docs-only
           direct-URL artifact). The glibc layer artifact (rev=2) is
           byte-identical and served below.
         </p>
@@ -128,9 +138,9 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 47 installs <b>in place over the M7.1.1 fix release
+          versionCode 47 installs <b>in place over the M7.2 P1 phase build
           (47 — same versionCode, updated content, same pinned cert), the
-          M7.1 release (46), the
+          M7.1.1 fix release (47), the M7.1 release (46), the
           M7.1 phase builds (all
           45 — P1, P2, P2.1, P2.2, P3), the M7.0 release (45),
           v0.10.0-m6.0.4
@@ -146,11 +156,11 @@ export default function Home() {
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Cline installation, the procfs
           contract, all Files explorer data, all Companion data and the
-          launcher visibility/icon settings are untouched. M7.2 P1 is APP-side
+          launcher visibility/icon settings are untouched. M7.2 P2 is APP-side
           only: the layer marker and the glibc files stay byte-identical
-          (rev=2, ed82daa8…), and the notifications DataStore starts empty —
-          the first session after the update triggers the one-time Android 13+
-          permission dialog.
+          (rev=2, ed82daa8…), the notifications DataStore is unchanged, and
+          the lifecycle engine adds no persistence at all — in-memory, like
+          the sessions themselves.
         </p>
       </div>
 
@@ -215,7 +225,7 @@ export default function Home() {
             is never forced back on).
           </li>
           <li>
-            <b>M7.2 P1 (this build):</b> the notification foundation — the
+            <b>M7.2 P1:</b> the notification foundation — the
             POST_NOTIFICATIONS runtime request exactly once per install on
             Android 13+ (first-session trigger, flag-before-dialog anti-nag,
             system-prompt denials respected, denial never blocks the
@@ -225,42 +235,51 @@ export default function Home() {
             both activity paths — infrastructure only, no event notifications
             posted yet, no agent detection, no heuristics.
           </li>
+          <li>
+            <b>M7.2 P2 (this build):</b> the session lifecycle engine &amp;
+            structured exit status — the typed STARTING→RUNNING→FINISHED
+            machine (REMOVED as removal-plus-event, never a flag), the
+            waitpid exit status surfaced as exited(code)/signaled(signal),
+            structured SpawnOrigin/AgentHint identity at every spawn site,
+            race-safe one-owner transitions (duplicate-callback idempotency,
+            the kill(0) close guard), typed lifecycle events and the derived
+            AgentActivityRepository — in-memory only, no notifications, no
+            agent claims, no UI change.
+          </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Device gates (docs/TESTING.md — §48 is the M7.2 P1 gate)</h2>
+        <h2>Device gates (docs/TESTING.md — §49 is the M7.2 P2 gate)</h2>
         <ol className="steps">
           <li>
-            <b>Permission — the once-per-install ask (§48):</b> fresh install
-            on Android 13+ → open the app → NO dialog on Home; create the
-            first session → the native POST_NOTIFICATIONS dialog appears
-            exactly once; grant → background the app → the session-retention
-            FGS notification is finally VISIBLE in the shade.
+            <b>Spawn matrix + exits (§49):</b> all five launch paths still
+            spawn real sessions; a natural <code>exit</code> keeps the tab
+            with its (exited) marker, <code>exit 3</code> shows
+            [Process completed (code 3)] — the same waitpid delivery the
+            engine now records internally.
           </li>
           <li>
-            <b>Deny + anti-nag (§48):</b> deny the dialog → no crash, the
-            terminal keeps working, the FGS service still keeps the session
-            alive (only the notification is hidden); relaunch, create more
-            sessions, kill and restart the process — the dialog NEVER
-            re-appears.
+            <b>Close + FGS (§49):</b> closing a busy tab removes it without a
+            crash and leaves other sessions working; the retention
+            notification appears iff ≥ 1 session exists and clears when the
+            last tab goes — the FGS policy unchanged.
           </li>
           <li>
-            <b>Channels + taps (§48):</b> dumpsys lists BOTH channels
-            (terminal_sessions + session_events, created exactly once each);
-            tapping the FGS notification works warm (app open → onNewIntent
-            path) and cold (swiped away → cold start); no notification ever
-            claims an agent or command completed.
+            <b>Process death + hygiene (§49):</b> kill from recents with
+            sessions open → relaunch starts clean, no stale notifications;
+            three sessions, close the middle one, the others unaffected.
           </li>
           <li>
-            <b>Keyboard regression (§47):</b> the M7.1.1 external-keyboard
-            sweep still passes — USB/BT flows, the canvas-tap-stays-hidden
-            rule, the settings matrix (P1 touches no keyboard code).
+            <b>Honesty + parity (§49):</b> nothing claims an agent is
+            running/completed/waiting; no notification beyond the P1 FGS one;
+            side-by-side with the m72p1 build there is NO user-visible
+            difference — any visible difference is a defect, not a feature.
           </li>
           <li>
-            <b>Home + launchers + terminal (§41-§45):</b> launchers render and
-            launch, sessions spawn/close/background as before — the FGS
-            lifecycle policy (runs iff ≥ 1 session) is unchanged.
+            <b>Keyboard + notification regression (§47/§48):</b> the
+            external-keyboard sweep and the P1 permission/anti-nag/channel
+            checks still pass (P2 touches neither subsystem).
           </li>
         </ol>
         <p>
@@ -273,32 +292,34 @@ export default function Home() {
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Source at the M7.2 P1 record tip a7c635e (the notification
-          foundation chain c6ced97 → 0ed5da0 → fd54aa0 → the Task 39 worklog
-          record, on top of the M7.1.1 fix 3cbfec2 and the M7.2 P0 audit
-          c8d0059/024cd28, with the full M7.1 release + P3 + P2.2 + P2.1 + P2
-          + P1 + M7.0 chain below). The zip intentionally contains no
-          dotfiles; full history rides in the git bundle — the complete
-          milestone history (M0 → m7.2-p1), all design contracts, the procfs
-          contract, and the runtime documentation. Bundle main tip a7c635e =
-          the tip the source archives are cut at; the APK was built from the
-          identical app sources (the app tree is unchanged since 0ed5da0 —
-          the two commits after it touch only docs, scripts and the worklog).
-          History note: this bundle continues the user-restored P7.1 delivery
-          bundle (fb01540) through the M7.0 release chain (47bed42 → 709d126
-          → dd81bc8), the M7.1 phases (3abb2e8 → 1b15bde → e0a2471 → 6004805
-          → 93ee631), the M7.1 release closure (4e86e50 — Task 35), the
-          M7.1.1 fix (3cbfec2 — Task 36), and the M7.2 P0 audit
-          (c8d0059 → 024cd28 — Task 38).
+          Source at the M7.2 P2 record tip 3b144be (the lifecycle chain
+          0c9a792 → 577e1e9 → 133e656 → the Task 40 worklog record, on top of
+          the M7.2 P1 chain c6ced97 → 0ed5da0 → fd54aa0 → a7c635e, the
+          M7.1.1 fix 3cbfec2 and the M7.2 P0 audit c8d0059/024cd28, with the
+          full M7.1 release + P3 + P2.2 + P2.1 + P2 + P1 + M7.0 chain below).
+          The zip intentionally contains no dotfiles; full history rides in
+          the git bundle — the complete milestone history (M0 → m7.2-p2), all
+          design contracts, the procfs contract, and the runtime
+          documentation. Bundle main tip 3b144be = the tip the source
+          archives are cut at; the APK was built from the identical app
+          sources (the app tree is unchanged since 0c9a792 — the commits
+          after it touch only tests, docs, scripts and the worklog). History
+          note: this bundle continues the user-restored P7.1 delivery bundle
+          (fb01540) through the M7.0 release chain (47bed42 → 709d126 →
+          dd81bc8), the M7.1 phases (3abb2e8 → 1b15bde → e0a2471 → 6004805 →
+          93ee631), the M7.1 release closure (4e86e50 — Task 35), the M7.1.1
+          fix (3cbfec2 — Task 36), the M7.2 P0 audit (c8d0059 → 024cd28 —
+          Task 38), and the M7.2 P1 foundation (c6ced97 → 0ed5da0 → fd54aa0 →
+          a7c635e — Task 39).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-m72p1-source.zip">
-          source.zip (M7.2 P1 record tip)
+        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-m72p2-source.zip">
+          source.zip (M7.2 P2 record tip)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-m72p1-source.tar.gz">
-          source.tar.gz (M7.2 P1 record tip)
+        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-m72p2-source.tar.gz">
+          source.tar.gz (M7.2 P2 record tip)
         </a>
-        <a className="btn secondary" href="/pocketshell-m7.2-p1.gitbundle">
-          git bundle (full history, M7.2 P1 record tip)
+        <a className="btn secondary" href="/pocketshell-m7.2-p2.gitbundle">
+          git bundle (full history, M7.2 P2 record tip)
         </a>
         <Sha text={HASHES.zip} />
         <Sha text={HASHES.tgz} />
@@ -308,7 +329,7 @@ export default function Home() {
         </a>
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m7.2-p1.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7.2-p2.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
           with the same signing identity (d96a6f66…8bf659, unchanged since
           v0.4.1).
@@ -361,13 +382,18 @@ export default function Home() {
         m7.2 p0: the notification &amp; agent-activity architecture audit —
         what PocketShell can actually know (session-level lifecycle reliable,
         agent-level unknowable today, waiting-for-input has no real signal),
-        the phase plan validated ·{" "}
-        <b>m7.2 p1 (this build): the notification foundation — POST_NOTIFICATIONS
-        asked exactly once per install on Android 13+ at the first session,
-        the coordinator layer (event channel, deterministic ids, ledger,
-        stale sweep, routing intents), tap routing on both activity paths,
-        780/780 JVM, infrastructure only — no agent claims, no heuristics,
-        the §48 real-device gate mandatory</b>.
+        the phase plan validated · m7.2 p1: the notification foundation —
+        POST_NOTIFICATIONS asked exactly once per install on Android 13+ at
+        the first session, the coordinator layer (event channel,
+        deterministic ids, ledger, stale sweep, routing intents), tap routing
+        on both activity paths, infrastructure only ·{" "}
+        <b>m7.2 p2 (this build): the session lifecycle engine &amp; structured
+        exit status — the typed STARTING→RUNNING→FINISHED machine on real
+        signals only (fork callback + waitpid), exited(code)/signaled(signal)
+        surfaced into the entry, SpawnOrigin/AgentHint launch identity at
+        every spawn site, race-safe one-owner transitions, typed events + the
+        derived read model, 810/810 JVM with 0 skipped — no notifications, no
+        agent claims, no heuristics, the §49 parity gate mandatory</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
