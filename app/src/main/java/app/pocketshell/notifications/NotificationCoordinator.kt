@@ -155,8 +155,10 @@ object NotificationCoordinator {
      *
      * The caller supplies factual content only; the coordinator derives the
      * deterministic id, ensures the channel, builds the tap intent with the
-     * routing extra, and records the id in the ledger so the next app start
-     * can sweep it if it outlived this process.
+     * routing extras (P5: agent-runtime taps carry the session-targeted
+     * route — navigation only, never agent rediscovery), and records the id
+     * in the ledger so the next app start can sweep it if it outlived this
+     * process.
      */
     fun post(request: EventNotification): Boolean {
         val context = appContext ?: return false
@@ -177,7 +179,7 @@ object NotificationCoordinator {
             .setSmallIcon(app.pocketshell.R.drawable.ic_launcher_foreground)
             .setContentTitle(request.title)
             .setContentText(request.text)
-            .setContentIntent(contentIntent(context, id))
+            .setContentIntent(contentIntent(context, id, request.kind, request.sessionId))
             // A repeated delivery of the SAME surface (an in-place state
             // update on an existing id) must never re-alert — the calm rule.
             .setOnlyAlertOnce(true)
@@ -228,15 +230,40 @@ object NotificationCoordinator {
 
     /**
      * Content intent for a notification tap: opens MainActivity (singleTask)
-     * carrying the routing extra. The notification id is the request code so
-     * per-session PendingIntents stay distinct under FLAG_UPDATE_CURRENT.
+     * carrying the routing extras. The notification id is the request code so
+     * per-session PendingIntents stay distinct under FLAG_UPDATE_CURRENT
+     * (Part I: session A's tap can never collide with session B's — the id
+     * spaces are per-session deterministic).
+     *
+     * M7.2 P5 — the route is kind-aware (one exhaustive `when`):
+     *   SESSION_ACTIVITY -> the P1 "open app" route (behavior unchanged);
+     *   AGENT_RUNTIME    -> the session-targeted route carrying the SAME
+     *                       authoritative session id the notification identity
+     *                       already used — tap → land in that session's
+     *                       terminal context (resolved against the manager's
+     *                       live list at consumption time; staleness degrades
+     *                       to a normal app open). Navigation only: no PID,
+     *                       no /proc, no detector, no process rediscovery.
      */
-    private fun contentIntent(context: Context, notificationId: Int): PendingIntent =
+    private fun contentIntent(
+        context: Context,
+        notificationId: Int,
+        kind: EventKind,
+        sessionId: Long,
+    ): PendingIntent =
         PendingIntent.getActivity(
             context,
             notificationId,
             Intent(context, MainActivity::class.java).apply {
-                putExtra(NotificationRoute.EXTRA_ROUTE, NotificationRoute.ROUTE_OPEN_APP)
+                when (kind) {
+                    EventKind.SESSION_ACTIVITY -> {
+                        putExtra(NotificationRoute.EXTRA_ROUTE, NotificationRoute.ROUTE_OPEN_APP)
+                    }
+                    EventKind.AGENT_RUNTIME -> {
+                        putExtra(NotificationRoute.EXTRA_ROUTE, NotificationRoute.ROUTE_OPEN_SESSION)
+                        putExtra(NotificationRoute.EXTRA_SESSION_ID, sessionId)
+                    }
+                }
             },
             // MUTABLE is only needed for parity/RichPi extras — none here.
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,

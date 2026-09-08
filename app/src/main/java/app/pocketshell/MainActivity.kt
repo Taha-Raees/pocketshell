@@ -57,6 +57,7 @@ import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
 import app.pocketshell.keyboard.TerminalKeyboardDeck
 import app.pocketshell.launchers.LauncherViewModel
+import app.pocketshell.notifications.AgentRuntimeNotificationRouting
 import app.pocketshell.notifications.NotificationPermissionGate
 import app.pocketshell.notifications.NotificationRoute
 import app.pocketshell.settings.ThemeMode
@@ -72,6 +73,19 @@ import app.pocketshell.ui.theme.TerminalTheme
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
+
+    /**
+     * M7.2 P5 — a session-targeted notification tap waiting to be consumed
+     * by the UI (the id of the session the user tapped). Activity-scoped
+     * state because the ONE intent handler runs before composition exists
+     * (cold start) and the navigation state (screen/selection) lives inside
+     * it: the handoff is one nullable Long, resolved and cleared exactly once
+     * by [PocketShellRoot] through the pure routing model. Stale-safe by
+     * construction: an id the manager no longer lists resolves to "open
+     * normally" — never a recreation (Part F).
+     */
+    private var pendingSessionTarget by mutableStateOf<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -108,6 +122,8 @@ class MainActivity : ComponentActivity() {
                     terminalViewModel = viewModel(),
                     settingsViewModel = settingsViewModel,
                     defaultFontSize = defaultFontSize,
+                    notificationSessionTarget = pendingSessionTarget,
+                    onConsumeNotificationSessionTarget = { pendingSessionTarget = null },
                 )
             }
         }
@@ -130,9 +146,22 @@ class MainActivity : ComponentActivity() {
             is NotificationRoute.OpenApp -> {
                 // "Open the app" needs no in-app action — the system resume
                 // IS the action on both paths. Logged as the routing-chain's
-                // one production diagnostic (session-targeted routes arrive
-                // with the P8 phase and will select the session here).
+                // one production diagnostic.
                 Log.d("PocketShellNotif", "notification route: $route")
+            }
+            is NotificationRoute.OpenSession -> {
+                // M7.2 P5 — hand the authoritative session id to the UI for
+                // consumption (Part D): navigation only — the id is carried
+                // verbatim from the notification identity, resolved against
+                // the manager's live list by the pure routing model, and
+                // never re-derived here (no PID, no /proc, no detector, no
+                // process rediscovery). A stale id degrades to a normal open
+                // at consumption time.
+                Log.d(
+                    "PocketShellNotif",
+                    "notification route: session target ${route.sessionId}",
+                )
+                pendingSessionTarget = route.sessionId
             }
             null -> {}
         }
@@ -164,6 +193,10 @@ fun PocketShellRoot(
     terminalViewModel: TerminalViewModel,
     settingsViewModel: SettingsViewModel,
     defaultFontSize: Int,
+    /** M7.2 P5 — a session-targeted notification tap awaiting consumption (null = none). */
+    notificationSessionTarget: Long? = null,
+    /** M7.2 P5 — clears the pending target once it has been resolved (consumed exactly once). */
+    onConsumeNotificationSessionTarget: () -> Unit = {},
 ) {
     // keyboardState lives at root so the state survives screen switches while
     // remaining per-process (cleared on session switch inside TerminalScreen).
@@ -276,6 +309,29 @@ fun PocketShellRoot(
     val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
     val runtimeState by terminalViewModel.runtimeState.collectAsStateWithLifecycle()
     val launchError by terminalViewModel.launchError.collectAsStateWithLifecycle()
+
+    // M7.2 P5 — consume a session-targeted notification tap EXACTLY ONCE
+    // (the tap that armed [notificationSessionTarget] may have been a cold
+    // start or an onNewIntent; either way it lands here). The authoritative
+    // session id is resolved against the manager's LIVE list through the
+    // PURE routing model: a listed id (finished-but-listed included — the
+    // tab honestly shows its end state) selects that session and opens the
+    // terminal; a stale id is dropped — the system resume already WAS the
+    // normal open, and nothing is recreated or faked (Part F). Idempotent:
+    // an Activity recreation re-delivers the launch intent and re-resolves
+    // to the same outcome. Navigation only — no detector, no /proc, no PID.
+    LaunchedEffect(notificationSessionTarget) {
+        val target = notificationSessionTarget ?: return@LaunchedEffect
+        val resolution = AgentRuntimeNotificationRouting.resolve(
+            NotificationRoute.OpenSession(target),
+            terminalViewModel.sessions.value.map { it.id }.toSet(),
+        )
+        if (resolution is AgentRuntimeNotificationRouting.Resolution.OpenSession) {
+            terminalViewModel.select(resolution.sessionId)
+            screen = "terminal"
+        }
+        onConsumeNotificationSessionTarget()
+    }
 
     // M7.2 P1 — the once-per-install notification-permission gate: silent
     // no-op pre-Android 13 / already granted / already asked; fires when the

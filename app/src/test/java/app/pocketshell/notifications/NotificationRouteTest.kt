@@ -31,10 +31,11 @@ class NotificationRouteTest {
 
     @Test
     fun `unknown route values parse to null - honestly unrecognized`() {
-        assertNull(NotificationRoute.parse("session"))
-        assertNull(NotificationRoute.parse("OPEN_APP"))
-        assertNull(NotificationRoute.parse("open_app "))
-        assertNull(NotificationRoute.parse("null"))
+        assertNull(NotificationRoute.parse("session", null))
+        assertNull(NotificationRoute.parse("session", 2L))
+        assertNull(NotificationRoute.parse("OPEN_APP", null))
+        assertNull(NotificationRoute.parse("open_app ", null))
+        assertNull(NotificationRoute.parse("null", null))
     }
 
     @Test
@@ -43,6 +44,58 @@ class NotificationRouteTest {
         // MainActivity reads) — the strings must never drift silently.
         assertEquals("app.pocketshell.notification.ROUTE", NotificationRoute.EXTRA_ROUTE)
         assertEquals("open_app", NotificationRoute.ROUTE_OPEN_APP)
+    }
+
+    // ------------------------------------------------ M7.2 P5 (session route)
+
+    @Test
+    fun `the session route value and id extra are stable constants`() {
+        assertEquals("open_session", NotificationRoute.ROUTE_OPEN_SESSION)
+        assertEquals("app.pocketshell.notification.SESSION_ID", NotificationRoute.EXTRA_SESSION_ID)
+        // The three extra keys must stay distinct — one contract surface.
+        assertEquals(
+            3,
+            setOf(
+                NotificationRoute.EXTRA_ROUTE,
+                NotificationRoute.ROUTE_OPEN_SESSION,
+                NotificationRoute.EXTRA_SESSION_ID,
+            ).size,
+        )
+    }
+
+    @Test
+    fun `a session route with a positive id parses to OpenSession carrying that exact id`() {
+        assertEquals(
+            NotificationRoute.OpenSession(2L),
+            NotificationRoute.parse(NotificationRoute.ROUTE_OPEN_SESSION, 2L),
+        )
+        assertEquals(
+            NotificationRoute.OpenSession(Long.MAX_VALUE),
+            NotificationRoute.parse(NotificationRoute.ROUTE_OPEN_SESSION, Long.MAX_VALUE),
+        )
+    }
+
+    @Test
+    fun `a session route with a missing or malformed id degrades to OpenApp - never a crash`() {
+        // Part F: the honest fallback IS a real route (open normally).
+        assertEquals(NotificationRoute.OpenApp, NotificationRoute.parse(NotificationRoute.ROUTE_OPEN_SESSION, null))
+        assertEquals(NotificationRoute.OpenApp, NotificationRoute.parse(NotificationRoute.ROUTE_OPEN_SESSION, 0L))
+        assertEquals(NotificationRoute.OpenApp, NotificationRoute.parse(NotificationRoute.ROUTE_OPEN_SESSION, -1L))
+        assertEquals(NotificationRoute.OpenApp, NotificationRoute.parse(NotificationRoute.ROUTE_OPEN_SESSION, Long.MIN_VALUE))
+    }
+
+    @Test
+    fun `the open-app route ignores the session id extra entirely`() {
+        assertEquals(NotificationRoute.OpenApp, NotificationRoute.parse(NotificationRoute.ROUTE_OPEN_APP, null))
+        assertEquals(NotificationRoute.OpenApp, NotificationRoute.parse(NotificationRoute.ROUTE_OPEN_APP, 7L))
+    }
+
+    @Test
+    fun `fromIntent over the JVM intent shell still parses null (no extras on the JVM)`() {
+        // unitTests.returnDefaultValues: getStringExtra answers null — the
+        // no-route path is the JVM-executable one; extras-carrying taps are
+        // device-verified (docs/TESTING.md §54).
+        assertNull(NotificationRoute.fromIntent(Intent()))
     }
 
     @Test
