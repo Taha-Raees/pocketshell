@@ -206,11 +206,16 @@ class LaunchIdentityIntegrationTest {
         )
         // (b) the RUNNING-state vocabulary is the P3b deliverable — but it
         // may exist ONLY in the evidence seam (detection model, detector,
-        // repository projection). Every other file stays free of it.
+        // repository projection) and, since M7.2 P3c, in the event layer
+        // that CONSUMES it (the ROADMAP-authorized consumer boundary: the
+        // event engine folds the detector's published observations into
+        // transitions — it performs no detection of its own). Every other
+        // file stays free of it.
         val runningTokens = listOf("AgentRuntimeState", "AgentRuntimeDetection")
         val seamFiles = setOf(
             "AgentRuntimeDetection.kt", "RuntimeAgentDetector.kt",
             "AgentActivityRepository.kt", "SessionLifecycle.kt",
+            "AgentRuntimeEvents.kt", "AgentRuntimeEventEngine.kt",
         )
         val completionOffenders = mutableListOf<String>()
         val runningOffenders = mutableListOf<String>()

@@ -308,6 +308,12 @@ object TerminalSessionManager {
             // only guarantees the scanner exists while sessions exist (it
             // parks itself whenever no eligible session remains).
             RuntimeAgentDetector.ensureStarted()
+            // M7.2 P3c: wake the transition/event engine — an OBSERVER like
+            // the detector above. It consumes the detector's published
+            // observations plus this object's authoritative state and emits
+            // deduplicated typed events; it detects nothing itself, owns no
+            // lifecycle, and posts no notifications.
+            AgentRuntimeEventEngine.ensureStarted()
             syncService(context)
             return entry
         } finally {

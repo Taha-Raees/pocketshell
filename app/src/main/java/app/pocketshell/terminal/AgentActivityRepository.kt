@@ -47,6 +47,22 @@ object AgentActivityRepository {
         TerminalSessionManager.lifecycleEvents
 
     /**
+     * M7.2 P3c — the deduplicated runtime-transition event stream,
+     * re-exposed for downstream consumers exactly like [lifecycleEvents]:
+     * this projection stores nothing, decides nothing and produces nothing
+     * — [AgentRuntimeEventEngine] is the only producer, folding the P3b
+     * detector's observations and this manager's authoritative state
+     * through the pure [AgentRuntimeTransitions] step. Every emission IS a
+     * transition (Launched / ConfirmedRunning / NoLongerDetected /
+     * RuntimeUnknown / SessionEnded); identical-state re-observations never
+     * appear, and there is NO replay for late collectors (a future
+     * notification consumer must never re-fire on activity recreation or
+     * collector restart).
+     */
+    val agentRuntimeEvents: SharedFlow<AgentRuntimeEvent> =
+        AgentRuntimeEventEngine.events
+
+    /**
      * Sessions launched through a NAMED launcher (agent hint present) whose
      * direct child has not exited yet (STARTING or RUNNING). "Running" is
      * session-level truth (the direct child); it makes no claim about any
