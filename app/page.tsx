@@ -1,20 +1,19 @@
-const VERSION = "v0.11.1-m7.1.0";
+const VERSION = "v0.11.2-m7.1.1";
 
-// SHA pins — the OFFICIAL M7.1 RELEASE delivery. The payload cutter stages
-// from the pinned release tip (4e86e50) with zeroed mtimes; the embedded git
+// SHA pins — the M7.1.1 FIX RELEASE delivery. The payload cutter stages
+// from the pinned fix tip (3cbfec2) with zeroed mtimes; the embedded git
 // bundle's pack bytes are not re-cut-stable, so these pins refer to the ONE
-// delivered cut. Semantic pins: versionCode 46, versionName 0.11.1-m7.1.0
-// (the official M7.1 stamp, per the M5.1.0 sub-milestone precedent), cert
-// d96a6f66…8bf659, embedded layer asset 898131ff… /17,920,000 B ==
-// GlibcRuntimePin. The glibc layer is UNCHANGED rev=2 (byte-identical
-// artifact ed82daa8…, restored from the tracked in-tree asset after the
-// sandbox reset). The M7.1 P3 APK (46fb0d8b…) is superseded by this release
-// and withdrawn below; its history rides in the bundle.
+// delivered cut. Semantic pins: versionCode 47, versionName 0.11.2-m7.1.1
+// (the sub-milestone precedent), cert d96a6f66…8bf659, embedded layer asset
+// 898131ff… /17,920,000 B == GlibcRuntimePin. The glibc layer is UNCHANGED
+// rev=2 (byte-identical artifact ed82daa8…). The M7.1 release APK
+// (2d298c85…) is superseded by this fix and withdrawn below; its history
+// rides in the bundle.
 const HASHES = {
-  apk: "2d298c85958f53db0497a2894b33fda70f60de8fe59ec5a14f725b146527eaa0",
-  zip: "0b4e8843f071e80d9296c0ce0792d04e5192a6f285d7e40215826d642cb44b35",
-  tgz: "d00d076f2daaec38260e7fa2a5bc1f503a6801e3d37e7d00e46cb1c7f67f18c4",
-  bundle: "7f6772220d4944ac47f64e5bcb68c654f155bfe1fda2a984911d20e3dcc34eab",
+  apk: "5d8761418324950815588f170149342a6aea5fe90b963dfda3364e3d787e5dc1",
+  zip: "d8c1ef85bb850c3ba6fad363912d559a2129b22f03ddbea59c6e64fa7034bd1b",
+  tgz: "d183c3eb4e7461ac5f5ec59204cf9d056bb502b32465e402221fbae01b53a954",
+  bundle: "af73c57b216206ce7e61acaf7bdf2ffe5dbf9b60b91772821d2dc26869a5632f",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
 
@@ -36,47 +35,56 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M7.1 RELEASE — closed and frozen: launchers, themed marks,
-          external-keyboard intelligence{" "}
-          <span className="badge">release tip 4e86e50 · vc46</span>
+          M7.1.1 FIX RELEASE — the external-keyboard detection rebuilt from
+          the real-device failure{" "}
+          <span className="badge">fix tip 3cbfec2 · vc47</span>
         </h2>
         <p>
           <b>
-            THE OFFICIAL M7.1 RELEASE STAMP. Five phases, one release:{" "}
-            <b>P1</b> Home launchers (Companions + Your tools grids,
-            hide/restore, custom tools over the ONE verify-then-launch path);{" "}
-            <b>P2</b> the launcher UI repair at the row-shape root cause +
-            bundled official marks + Antigravity replacing Gemini CLI;{" "}
-            <b>P2.1</b> Aider removed with no stale trace + nine marks
-            re-rendered from the owner-supplied official brand SVGs;{" "}
-            <b>P2.2</b> the two-variant theme icon system (26 assets, live
-            theme flips) + one x-scroll Companions row + two tools rows with
-            scroll dots + the packages affordance in the tools header;{" "}
-            <b>P3</b> live external-keyboard detection — when a physical
-            keyboard (USB, Bluetooth, dock, DeX) connects, the on-screen deck
-            hides itself and the hardware keyboard types straight into the
-            terminal, and when it disconnects the deck returns exactly as the
-            user left it (event-driven, no polling, no new permissions, ONE
-            transient in-app notice per real transition, the Settings
-            &quot;On-screen keyboard&quot; toggle default ON, manual controls
-            fully preserved). <b>RELEASE VERIFICATION AT THIS STAMP</b>: the
-            FULL JVM suite forced --rerun-tasks — 734/734 effective green
-            (app 589 + terminal-emulator 145, 0 failures, 0 errors) — and a
-            fresh APK audited end-to-end: aapt2 badging versionCode=&apos;46&apos;
-            versionName=&apos;0.11.1-m7.1.0&apos;, the UNCHANGED 6-permission
-            set, exactly 26 launcher icon entries, the P3 + P2.2 dex symbols
-            present with every stale symbol absent, targetSdk 28, the pinned
-            cert d96a6f66…8bf659. M7.1 is now FROZEN — no further M7.1 work;
-            the next milestone (M7.2, notification &amp; agent-activity) starts
-            AFTER this freeze.
+            M7.1 P3 passed every JVM suite and FAILED on the real phone
+            (Samsung SM-F711B / Galaxy Z Flip 3, One UI). This release fixes
+            the audited causes — it does not patch blindly: <b>Fix 1</b> the
+            terminal-canvas tap no longer cancels the auto-hide (the primary
+            defect — the most-used gesture in a terminal app popped the deck
+            straight back up after every connect; the gate now lives in the
+            ONE authoritative state model); <b>Fix 2</b> a hard 2,000 ms
+            confirm deadline ends debounce starvation — the old stability
+            window restarted on every input-device event with no ceiling, so
+            periodic Bluetooth LE re-announcements could defer detection
+            forever; <b>Fix 3</b> a SECOND detection mechanism — the
+            Application-level configuration-change cross-check feeds the same
+            coalescing detector, covering OEM stacks that miss
+            InputDeviceListener callbacks for Bluetooth HID reconnections;{" "}
+            <b>Fix 4</b> both-direction notices — exactly one per confirmed
+            transition (&quot;External keyboard detected — onscreen keyboard
+            disabled.&quot; and &quot;External keyboard disconnected.&quot;),
+            still in-app only, zero new permissions; <b>Fix 5</b> the
+            persistent On-screen keyboard preference (DataStore, default ON)
+            — detection is a temporary runtime override that never writes it;
+            a disconnect re-evaluates the preference, an OFF preference is
+            never forced back on, and the user&apos;s explicit [⌨] / deck
+            actions always win. ONE authoritative model
+            (ExternalKeyboardVisibilityModel) owns the state; the root holds
+            no local copy. <b>VERIFICATION AT THIS STAMP</b>: the FULL JVM
+            suite forced --rerun-tasks — 746/746 green (app 601 +
+            terminal-emulator 145, 0 failures, 0 errors) — and a fresh APK
+            audited end-to-end: aapt2 badging versionCode=&apos;47&apos;
+            versionName=&apos;0.11.2-m7.1.1&apos;, the UNCHANGED 6-permission
+            set, exactly 26 launcher icon entries, the new VisibilityModel +
+            Detector dex symbols present, targetSdk 28, the pinned cert
+            d96a6f66…8bf659. The mandatory REAL-DEVICE gate is
+            docs/TESTING.md §47 (16 steps: USB + Bluetooth, all four
+            transitions, the settings matrix, the canvas-tap regression) — a
+            green build never claims the hardware pass. M7.2 (notification
+            &amp; agent-activity) starts only AFTER that gate passes.
           </b>
         </p>
-        <a className="btn" href="/PocketShell-v0.11.1-m7.1.0-debug.apk">
-          Download M7.1 release APK (debug, 30.4 MB)
+        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-debug.apk">
+          Download M7.1.1 fix APK (debug, 30.5 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          versionCode 46 / versionName 0.11.1-m7.1.0 (the official M7.1
+          versionCode 47 / versionName 0.11.2-m7.1.1 (the sub-milestone fix
           stamp) — installs in place over every earlier build (same cert) —
           glibc layer ed82daa8… unchanged.
         </p>
@@ -88,28 +96,29 @@ export default function Home() {
           <span className="badge">history preserved</span>
         </h2>
         <p>
-          The M7.1 P3 APK (46fb0d8b…, 30,448,845 B) and its source set are
-          SUPERSEDED by this official release: the phase builds deliberately
-          shipped on the inherited stamp (vc45 / 0.11.0-m7.0.0) without
-          guessing the release version; the release now stamps the same
-          content lineage as v0.11.1-m7.1.0 / versionCode 46. The P3 bytes
-          are no longer served (the upload/ insurance copies survive
-          byte-exact); the complete history rides in the bundle
-          below (P3 tip 93ee631 is a direct ancestor of this release tip
-          4e86e50). Earlier withdrawals stand: the M7.1 P2.2 APK (7e0e99a9…),
-          the M7.1 P2.1 APK (97c04120…), the M7.1 P2 APK (ae6f6445…), the
-          M7.1 P1 APK (4d7349f7…), the M7.0 release APK (8826d30d…), the
-          m7p8.1 (vc44) and the reset-lost m7p8/m7p7.1/m7p6/m6.0.4 sets —
-          their content and history are fully contained in this bundle. The
-          glibc layer artifact (rev=2) is byte-identical and served below
-          (restored from the tracked in-tree asset after the sandbox reset).
+          The M7.1 release APK (2d298c85…, 30,448,845 B, vc46 /
+          0.11.1-m7.1.0) and its source set are SUPERSEDED by this fix
+          release: the release is FROZEN and remains the milestone record,
+          but its external-keyboard behavior is what the real-device gate
+          rejected — M7.1.1 supersedes it with the same architecture rebuilt.
+          The M7.1 release bytes are no longer served (the upload/ insurance
+          copies survive byte-exact); the complete history rides in the
+          bundle below (the M7.1 release tip 4e86e50 is a direct ancestor of
+          this fix tip 3cbfec2). Earlier withdrawals stand: the M7.1 P3 APK
+          (46fb0d8b…), the M7.1 P2.2 APK (7e0e99a9…), the M7.1 P2.1 APK
+          (97c04120…), the M7.1 P2 APK (ae6f6445…), the M7.1 P1 APK
+          (4d7349f7…), the M7.0 release APK (8826d30d…), the m7p8.1 (vc44)
+          and the reset-lost m7p8/m7p7.1/m7p6/m6.0.4 sets — their content and
+          history are fully contained in this bundle. The glibc layer
+          artifact (rev=2) is byte-identical and served below.
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 46 installs <b>in place over the M7.1 phase builds (all
+          versionCode 47 installs <b>in place over the M7.1 release (46), the
+          M7.1 phase builds (all
           45 — P1, P2, P2.1, P2.2, P3), the M7.0 release (45),
           v0.10.0-m6.0.4
           (44),
@@ -124,9 +133,9 @@ export default function Home() {
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Cline installation, the procfs
           contract, all Files explorer data, all Companion data and the
-          launcher visibility/icon settings are untouched. The M7.1 release
-          is APP-side only: the layer marker and the glibc files stay
-          byte-identical (rev=2, ed82daa8…).
+          launcher visibility/icon settings are untouched. M7.1.1 is APP-side
+          only: the layer marker and the glibc files stay byte-identical
+          (rev=2, ed82daa8…).
         </p>
       </div>
 
@@ -168,79 +177,55 @@ export default function Home() {
             byte-honest quick text editor, Open Terminal Here (a normal Alpine
             session in THE TAPPED folder), recursive file search composed from
             the unchanged storage abstraction, multi-select with honest
-            aggregates, and the P9 interaction fixes (scrollable results above
-            the keyboard deck, long-press actions on the landed folder, one
-            close behavior).
+            aggregates, and the P9 interaction fixes.
           </li>
           <li>
-            <b>M7.1 P1:</b> Home launchers — the Companions grid (four seeded
-            companion websites) + the Your tools grid (registry + custom
-            tools), hide-only remove with restore, custom tool add/edit/remove
-            through the ONE verify-then-launch guest path, deterministic text
-            badges, copied icon imports.
+            <b>M7.1 (frozen, v0.11.1-m7.1.0):</b> Home launchers (the
+            Companions + Your tools grids, hide/restore, custom tools over
+            verify-then-launch), the launcher UI repair, the curated official
+            two-variant theme marks (26 assets), one x-scroll Companions row +
+            two tools rows with scroll dots, the tools-header packages
+            affordance, and live external-keyboard detection.
           </li>
           <li>
-            <b>M7.1 P2:</b> the launcher settings rows fixed at the root cause
-            (ONE shared weighted-row shape — no more one-character-per-line
-            collapse, no stretched in-row buttons), the bundled official
-            launcher marks (offline, normalized, badge fallback), and
-            Antigravity (<code>agy</code>) replacing Gemini CLI in the
-            curated defaults with the same honest probe.
-          </li>
-          <li>
-            <b>M7.1 P2.1:</b> Aider removed from the curated set with no stale
-            trace, and nine marks re-rendered from the owner-supplied official
-            brand SVGs (vendored in-tree, offline, byte-reproducible).
-          </li>
-          <li>
-            <b>M7.1 P2.2:</b> every curated mark ships a
-            two-variant theme pair on the app&apos;s own plate tones (theme-reactive
-            icon colors, live theme flips), Companions scroll in one row and
-            tools in two — both with scroll dots — and the packages affordance
-            is the tools header&apos;s Manage action (the mid-page footer link
-            retired).
-          </li>
-          <li>
-            <b>M7.1 P3:</b> live external-keyboard detection — the on-screen
-            deck hides itself when a USB/Bluetooth/dock keyboard connects and
-            returns when it disconnects, one transient in-app notice per
-            transition, the &quot;On-screen keyboard&quot; Settings toggle
-            (default ON), the user&apos;s manual state never destroyed, manual
-            controls fully preserved.
-          </li>
-          <li>
-            <b>M7.1 RELEASE (this build):</b> the official stamp
-            (v0.11.1-m7.1.0 / versionCode 46), the clean-rerun release
-            verification (734/734 JVM at the stamp), the fresh-APK audits
-            (badging, permissions, icons, dex, cert), the release QA record
-            (docs/TESTING.md §46), and the freeze — M7.2 not started.
+            <b>M7.1.1 (this build):</b> the external-keyboard system rebuilt
+            after the real-device failure — the ONE authoritative
+            ExternalKeyboardVisibilityModel (persistent On-screen keyboard
+            preference + hardware state + explicit user request → effective
+            visibility), the GATED terminal-canvas tap (it no longer undoes
+            the auto-hide), the 2 s confirm deadline against event storms,
+            the configuration-change cross-check as a second detection
+            mechanism, both-direction transition notices (connect AND
+            disconnect), and the preference-aware restore (an OFF preference
+            is never forced back on).
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Device gates (docs/TESTING.md §41-§45 + §46 release QA)</h2>
+        <h2>Device gates (docs/TESTING.md — §47 is the M7.1.1 gate)</h2>
         <ol className="steps">
           <li>
-            <b>External keyboard — USB flow (§45):</b> attach a USB keyboard
-            while a terminal session is open — the deck hides within ~a
-            second, ONE notice appears (&quot;External keyboard
-            detected…&quot;), and the hardware keyboard types immediately;{" "}
-            <b>unplug — the deck returns by itself, exactly as the user left
-            it</b> (manually-open returns open, manually-hidden returns
-            hidden, a mid-suppression reopen cancels suppression).
+            <b>External keyboard — USB flow (§47):</b> connect while a
+            terminal is open — the deck hides within ~0.5–2 s, ONE
+            &quot;External keyboard detected&quot; banner, no spam;{" "}
+            <b>then tap the terminal canvas — the deck STAYS hidden</b> (the
+            M7.1 failure); the floating [⌨] still opens it on demand;{" "}
+            <b>unplug — the deck returns per the preference</b> with the
+            &quot;External keyboard disconnected.&quot; banner.
           </li>
           <li>
-            <b>Bluetooth + launch-attached (§45):</b> the same
-            connect/disconnect behavior with no notice spam and no deck
-            flicker across quick BT flaps; starting the app cold with the
-            keyboard already connected lands in the correct state.
+            <b>Bluetooth + launch-attached (§47):</b> the same behavior over
+            BT (reconnect, sleep/wake), no flicker across flaps, and starting
+            the app cold with the keyboard already attached disables the deck
+            immediately.
           </li>
           <li>
-            <b>Settings + persistence (§45):</b> the &quot;On-screen
-            keyboard&quot; toggle is ON by default; OFF keeps the deck fully
-            manual; flipping it mid-connection applies immediately; it
-            persists across restarts.
+            <b>Settings matrix (§47):</b> &quot;On-screen keyboard&quot; OFF
+            while connected → the deck stays hidden after disconnect and
+            across restart (the persistent preference); OFF with no keyboard
+            → the deck closes now; ON again → the override applies while
+            connected and the deck returns on disconnect.
           </li>
           <li>
             <b>Home + launchers (§41-§44):</b> one x-scroll Companions row,
@@ -264,29 +249,30 @@ export default function Home() {
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Source at the M7.1 RELEASE tip 4e86e50 (the official version stamp,
-          the release QA docs, and the full P3 + P2.2 + P2.1 + P2 + P1 +
-          M7.0 release chain below it). The zip intentionally contains no
-          dotfiles; full history rides in the git bundle — the complete
-          milestone history (M0 → the m7.1 release), all design contracts,
-          the procfs contract, and the runtime documentation. Bundle main tip
-          4e86e50 = the exact app tip this APK was built from; the archived
-          tree is cut at the same commit. History note: this bundle continues
-          the user-restored P7.1 delivery bundle (fb01540) through the M7.0
-          release chain (47bed42 → 709d126 → dd81bc8), the P1 launcher phase
-          (3abb2e8), the P2 UI-repair phase (1b15bde), the P2.1 owner-marks
-          phase (e0a2471 — worklog Tasks 22–32), the P2.2 theme-icons phase
-          (6004805 — Task 33), the P3 external-keyboard phase (93ee631 — Task
-          34), and this release closure (4e86e50 — Task 35).
+          Source at the M7.1.1 FIX tip 3cbfec2 (the rebuilt keyboard state
+          system, the TESTING §47 real-device gate, and the full M7.1 release
+          + P3 + P2.2 + P2.1 + P2 + P1 + M7.0 chain below it). The zip
+          intentionally contains no dotfiles; full history rides in the git
+          bundle — the complete milestone history (M0 → the m7.1.1 fix), all
+          design contracts, the procfs contract, and the runtime
+          documentation. Bundle main tip 3cbfec2 = the exact app tip this APK
+          was built from; the archived tree is cut at the same commit.
+          History note: this bundle continues the user-restored P7.1 delivery
+          bundle (fb01540) through the M7.0 release chain (47bed42 → 709d126
+          → dd81bc8), the P1 launcher phase (3abb2e8), the P2 UI-repair phase
+          (1b15bde), the P2.1 owner-marks phase (e0a2471 — worklog Tasks
+          22–32), the P2.2 theme-icons phase (6004805 — Task 33), the P3
+          external-keyboard phase (93ee631 — Task 34), the M7.1 release
+          closure (4e86e50 — Task 35), and this fix (3cbfec2).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.11.1-m7.1.0-source.zip">
-          source.zip (M7.1 release tip)
+        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-source.zip">
+          source.zip (M7.1.1 fix tip)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.11.1-m7.1.0-source.tar.gz">
-          source.tar.gz (M7.1 release tip)
+        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-source.tar.gz">
+          source.tar.gz (M7.1.1 fix tip)
         </a>
-        <a className="btn secondary" href="/pocketshell-m7.1.gitbundle">
-          git bundle (full history, M7.1 release tip)
+        <a className="btn secondary" href="/pocketshell-m7.1.1.gitbundle">
+          git bundle (full history, M7.1.1 fix tip)
         </a>
         <Sha text={HASHES.zip} />
         <Sha text={HASHES.tgz} />
@@ -296,7 +282,7 @@ export default function Home() {
         </a>
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m7.1.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7.1.1.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
           with the same signing identity (d96a6f66…8bf659, unchanged since
           v0.4.1).
@@ -339,10 +325,14 @@ export default function Home() {
         detection — the on-screen deck hides itself on connect and returns on
         disconnect, one transient notice per transition, the On-screen
         keyboard Settings toggle, manual controls preserved, no new
-        permissions ·{" "}
-        <b>v0.11.1-m7.1.0 (this build): the OFFICIAL M7.1 RELEASE — five
-        phases closed under one stamp, the clean-rerun release verification
-        (734/734 JVM), the fresh-APK audits green, M7.1 tagged and FROZEN</b>.
+        permissions · v0.11.1-m7.1.0: the OFFICIAL M7.1 RELEASE — five phases
+        closed under one stamp, the clean-rerun release verification
+        (734/734 JVM), M7.1 tagged and FROZEN ·{" "}
+        <b>v0.11.2-m7.1.1 (this build): the M7.1.1 external-keyboard fix —
+        the real-device failure causes rebuilt (the gated canvas tap, the
+        confirm deadline, the config-change cross-check, both-direction
+        notices, the persistent preference), ONE authoritative visibility
+        model, 746/746 JVM, the §47 real-device gate mandatory</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
