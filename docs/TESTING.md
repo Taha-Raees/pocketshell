@@ -3373,3 +3373,63 @@ AgentRuntimeDetector` attached, and a supported agent launcher ready (per the
 
 Pass requires all ten. Record deviations verbatim (wording included) — a
 notification that overstates the evidence is a FAIL even when it looks nice.
+
+## 54. Manual acceptance — M7.2 P5 (notification interaction & session-targeted routing) — DEVICE GATE REQUIRED
+
+P5 IS user-visible twice over: the shade looks the same as P4 (byte-identical
+wording) but the surfaces are now TAPPABLE into the session they name. This
+section is the physical-device gate; a JVM pass does NOT substitute for it.
+Setup: one Android 13+ device, the P5 debug APK installed in place of the P4
+build (same versionCode 47 — installs over it, data survives), `adb logcat -s
+PocketShellNotif AgentRuntimeEvents AgentRuntimeDetector` attached, and a
+supported agent launcher ready (per the §50 registry). The JVM-pinned routing
+matrix (AgentRuntimeNotificationRoutingTest) already proves the decision
+logic; what only hardware can prove is that the REAL PendingIntents carry the
+REAL extras and land in the REAL activity across cold/warm/process-death
+paths.
+
+1.  **FGS regression first.** Open a plain shell. EXPECT: the "Terminal
+    sessions" retention notification behaves exactly as before P5 (id 1,
+    `terminal_sessions`); close it. EXPECT: service stops, notification
+    disappears. The tap-routing change must not have altered the FGS in any
+    way.
+2.  **Running-notification tap routes to the RIGHT session.** Start one
+    supported agent in a fresh session (note the session number in the
+    notification body). Press Home. Tap the "… is running" notification.
+    EXPECT: PocketShell opens directly on the Terminal screen with THAT
+    session selected (its scrollback/tab visible), not the Home screen, not
+    another session. Run a command in that session to confirm focus.
+3.  **Multi-session isolation.** With 3+ sessions open (one agent, others
+    plain shells), select a DIFFERENT session, then tap the agent
+    notification again. EXPECT: the agent's session becomes selected; the
+    plain-shell sessions are never selected by it.
+4.  **Multiple agent runtimes (if more than one supported agent is
+    available).** Run two DIFFERENT supported agents in two sessions. EXPECT:
+    two distinct agent notifications; tapping each routes to ITS OWN session
+    — never cross-routing (the request-code identity is per-session).
+5.  **Runtime-unknown tap.** If reproducible with the existing §51
+    infrastructure (e.g. force-stop the guest process underneath a running
+    agent to trigger the detector's uncertainty), tap the "runtime unknown"
+    surface. EXPECT: PocketShell opens into that session; no
+    running/completed/stopped claim appears anywhere.
+6.  **Stale tap (closed session).** With an agent running, close ITS session
+    tab from inside PocketShell (the P4 exit-fact/withdrawal behavior fires).
+    If an agent-runtime notification for that session is still present,
+    tap it. EXPECT: no crash, no session recreation, no respawn — PocketShell
+    simply opens (normally wherever the user was); the notification does not
+    resurrect anything. (P4's tombstone usually cancels the surface first;
+    the tap path is the second line of defense and must degrade the same
+    way.)
+7.  **Process death.** With an agent notification present, kill PocketShell
+    from Recents. Relaunch VIA THE NOTIFICATION if Android still shows it
+    (usually swept by the P1 startup sweep — then relaunch normally).
+    EXPECT in both arms: no fake session restoration, no running claim about
+    any agent, no duplicate session creation; the app opens like a normal
+    fresh start.
+8.  **Shade-wide honesty sweep.** Across steps 2–7, search the shade and
+    logcat for completed/success/finished/failed claims about agents: EXPECT
+    ZERO. P5 changed what taps DO, never what the shade may SAY; the P4 §53
+    wording gate remains in force verbatim.
+
+Pass requires all eight. Record deviations verbatim (routing target included
+— "opened session 3 instead of 2" is a FAIL even when the app looks fine).

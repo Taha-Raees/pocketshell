@@ -51,10 +51,10 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P4 — notification consumption of the runtime event
-engine (the first user-visible M7.2 phase, on the inherited
-v0.11.2-m7.1.1 / versionCode 47 stamp; M7.2 P3c, P3b, P3a, P2, P1, the
-M7.1.1 fix release and M7.1 release below it)**
+Current state: **M7.2 P5 — notification interaction & session context (the
+second user-visible M7.2 phase, on the inherited v0.11.2-m7.1.1 /
+versionCode 47 stamp; M7.2 P4, P3c, P3b, P3a, P2, P1, the M7.1.1 fix
+release and M7.1 release below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -115,13 +115,25 @@ dedup + tombstones, one calm `agent_runtime` channel, the FGS retention
 notification untouched, zero new permission machinery, and stale surfaces
 removed in-process, across processes and after process death — with the
 honesty line pinned over the shipped strings: no notification can claim
-completed/success/finished/failed. Full JVM suite
-1932/1932 green (app 821 + terminal-emulator 145 per variant, 0 skipped,
+completed/success/finished/failed. M7.2 P5 made those honest surfaces
+ACTIONABLE: tapping a running / runtime-unknown / eligible session-ended
+notification now opens PocketShell into the terminal context of the session
+the notification already names — the route carries only the authoritative
+session id (no PID, no /proc, no detector, no rediscovery), a pure routing
+model resolves it against the manager's live list (a listed id selects
+through the existing ViewModel seam; a stale id opens the app normally — a
+notification can never recreate a session or respawn a process), and the
+PendingIntent identity stays deterministic (request code = the notification
+id). The shade's wording is byte-identical to P4 — P5 changed what a tap
+DOES, never what the shade may SAY — with zero new permissions, channels or
+manifest entries and the FGS untouched. Full JVM suite
+1986/1986 green (app 848 + terminal-emulator 145 per variant, 0 skipped,
 forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
 the hardware pass — the M7.1.1 gate is §47, the M7.2 P1 gate is §48, the
 M7.2 P2 parity gate is §49, the M7.2 P3b runtime-detection gate is §51
 (the per-agent /proc shape table), P3c requires no device gate (§52
-records its observability note), and the M7.2 P4 notification-shade gate
-is §53 (ten steps — a green build alone never completes the phase).
+records its observability note), the M7.2 P4 notification-shade gate
+is §53 (ten steps), and the M7.2 P5 notification-interaction gate is §54
+(eight steps — a green build alone never completes the phase).

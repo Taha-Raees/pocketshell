@@ -1087,9 +1087,24 @@ symbols in the dex). Full contract: `docs/M7.2-P4-NOTIFICATION-CONSUMPTION.md`;
 device gate: TESTING §53 (ten steps — the shade must be verified on
 hardware).
 
-**Next milestone (NOT started, not yet mandated): M7.2 P5** — unassigned
+**M7.2 P5 — COMPLETE (2026-09-09): notification interaction & session
+context** — the honest notifications became actionable: an agent-runtime
+notification's tap now opens PocketShell into the terminal context of the
+session the notification already names (confirmed-running / runtime-unknown
+/ eligible session-ended all route; a stale id opens the app normally — a
+notification can never resurrect a process). The route carries ONLY the
+authoritative session id; resolution is a PURE model against the manager's
+live list (JVM-pinned over the full Part-J matrix); identity stays
+deterministic (request code = notification id = base + sessionId). P4's
+wording is byte-unchanged — P5 changed what a tap DOES, never what a shade
+may SAY. Zero new permissions, zero new channels, zero manifest delta, FGS
+untouched. Full contract: `docs/M7.2-P5-NOTIFICATION-INTERACTION.md`; device
+gate: TESTING §54 (eight steps). 1986/1986 JVM, 0 skipped; APK at the
+inherited vc47 / 0.11.2-m7.1.1 stamp.
+
+**Next milestone (NOT started, not yet mandated): M7.2 P6** — unassigned
 by design; the completion-detection / waiting-for-input tiers remain
 REJECTED until a phase arrives with real, authoritative evidence (the P0
 audit's line stands). Any future consumer (per-agent channels, rich
-content, re-surfacing policy) extends the P4 truth contract — never around
-it.
+content, re-surfacing policy) extends the P4/P5 truth contract — never
+around it.

@@ -3,6 +3,31 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p5] — 2026-09-09 — M7.2 P5 notification interaction, session context & honest state transitions
+
+The seventh M7.2 phase, and the second user-visible one: the honest
+agent-runtime notifications became actionable. Tapping a running /
+runtime-unknown / eligible session-ended surface now opens PocketShell into
+the terminal context of the session the notification already names. The
+route carries only the authoritative session id (no PID, no /proc, no
+detector, no rediscovery); a new pure model
+(`AgentRuntimeNotificationRouting`) resolves the tap against the session
+manager's live list — a listed id selects the session through the existing
+ViewModel seam; a stale id opens the app normally. A notification can never
+recreate a session, respawn a process, or fake a selection. PendingIntents
+stay deterministic (request code = the notification id = base + sessionId),
+so per-session taps can never collide or mutate another session's surface.
+P4's truth contract is byte-unchanged: no completion/success/finished/failed
+claim exists anywhere in what the shade may say; the unknown surface stays
+uncertain; NoLongerDetected still withdraws; exit codes stay verbatim.
+Zero new permissions, channels, or manifest entries; the FGS retention
+notification and every frozen subsystem untouched. JVM suite forced rerun:
+1986/1986 (app 848×2 = 821+27 new, terminal-emulator 145×2), 0 failures /
+0 errors / 0 skipped. APK at the inherited versionCode 47 /
+0.11.2-m7.1.1 stamp (the -m72p5 suffix is filename-only). Device gate:
+TESTING §54 (eight steps — the tap paths are hardware-verifiable only).
+Full contract: docs/M7.2-P5-NOTIFICATION-INTERACTION.md.
+
 ## [0.11.2-m7.1.1-m72p4] — 2026-09-09 — M7.2 P4 notification consumption of the runtime event engine
 
 The sixth M7.2 phase, and the first USER-VISIBLE one: P3c's deduplicated
