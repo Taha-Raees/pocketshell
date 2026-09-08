@@ -2405,3 +2405,7 @@ $ next dev -p 3000
  GET / 200 in 129ms
  GET / 200 in 454ms
  GET / 200 in 176ms
+ GET /download/pocketshell-m7.2-p3a.gitbundle 404 in 74ms
+ GET /pocketshell-m7.2-p3a.gitbundle 404 in 43ms
+ GET /pocketshell-m7.2-p3a.gitbundle 404 in 52ms
+ GET / 200 in 160ms
