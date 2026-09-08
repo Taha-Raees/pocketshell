@@ -978,11 +978,47 @@ no-agent-running-API pin); APK audited at the inherited stamp (cert and
 6-permission set unchanged). JVM-verified only by design — TESTING §50
 records the honest floor and requires NO device gate for this phase.
 
-**Next milestone (NOT started): M7.2 P3b — the device-verified /proc
-descendant scanner** (graded `PROCFS_EXE`/`PROCFS_CMDLINE` evidence
-through the manager, extending `AgentMatchedBy` as compile-time-forced
-extensions; works for manual and nested cases; requires its own real-device
-pass to verify each registry agent's actual `/proc` shape). P0 PART D/E,
-the P2 event/identity seams and the P3a `LaunchIdentity` classification
-are the design baseline; the source tree remains the implementation
-authority.
+**M7.2 P3b — runtime agent detection via /proc ✅ (2026-09-09, the
+device-verified /proc descendant scanner, phase build on the inherited
+vc47 / `0.11.2-m7.1.1` stamp):** the second truth level implemented —
+"PocketShell has runtime process evidence that agent X is currently
+running". The full investigation (real process architecture, controlled
+procfs experiments E1–E5, correlation audit, matching rules, polling
+discipline, limitations, truth guarantees) is
+`docs/M7.2-P3B-RUNTIME-DETECTION.md`. Core mechanism: every session's
+fork-proven direct-child PID (`SessionEntry.shellPid`, recorded on the
+real fork signal) is the correlation root; a process is attributed to the
+session ONLY via PPID-chain descent OR process-group membership under
+that root (the root called setsid, so both domains are kernel-safe —
+orphans keep their group, regrouped descendants keep their chain, and a
+random same-name process elsewhere can satisfy neither). Matching is
+exact-token with two graded shapes (`AgentMatchedBy` + the ROADMAP-named
+`PROCFS_EXE`/`PROCFS_CMDLINE` compile-time-forced extensions): the exe
+image basename, or an exact argv element (argv[0], or the kernel shebang
+contract's script path at argv[1] — experiment-proven). The four-state
+contract (`NOT_APPLICABLE / UNKNOWN / NOT_RUNNING / RUNNING`) never
+invents certainty: a scanner that never saw the agent answers UNKNOWN
+(not-started-yet vs already-exited is indistinguishable); proven
+disappearance is NOT_RUNNING, never completion; scan failure is UNKNOWN,
+never absence. The scanner activates ONLY for live `LaunchIdentity.
+KnownAgent` sessions (custom tools and non-agent catalog tools are
+NOT_APPLICABLE — PART K/L), ticks every 2s ONLY while such sessions
+exist, and parks with zero scheduled work otherwise (no alarms, no
+wake locks, no work after the last agent session dies). One lifecycle
+authority: the detector is an observer of the manager's StateFlow and
+owns no transitions; `AgentActivityRepository.runtimeActivities` is the
+derived read model. No notifications, no UI, no output parsing, no OSC
+133, no completion claims. 1764/1764 JVM forced-rerun green (app 737 =
+688+49 new + TE 145, both variants, 0 skipped) incl. 38 pure
+matching/correlation/state tests and 11 structural boundary pins; APK
+audited at the inherited stamp (cert and 6-permission set unchanged; all
+P3b symbols in the dex). Device-gated remainder: TESTING §51 (each
+registry agent's real /proc shape, hidepid/SELinux listing behavior).
+
+**Next milestone (NOT started): M7.2 P3c — notification consumption of
+the graded evidence** (policy-gated posts over the P1 foundation;
+RUNNING/NOT_RUNNING edges as real, evidence-backed events; the honest
+UNKNOWN and NOT_APPLICABLE states must never be dressed up; completion
+claims remain unrepresentable — P0 PART D/E and the P2/P3a/P3b seams are
+the design baseline; the source tree remains the implementation
+authority).

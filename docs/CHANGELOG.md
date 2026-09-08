@@ -3,6 +3,73 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p3b] — 2026-09-09 — M7.2 P3b runtime agent detection via /proc
+
+The fourth M7.2 phase: the second truth level — runtime process evidence
+that a launched agent is currently running — with the honesty contract
+intact. Internal evidence layer only: no user-visible change, no
+notifications, no completion claims, no version bump (inherited vc47 /
+`0.11.2-m7.1.1` stamp), no new permissions. The full investigation is
+`docs/M7.2-P3B-RUNTIME-DETECTION.md`.
+
+- **Controlled procfs experiments first** (E1–E5,
+  `scripts/procfs_experiments_p3b.sh`): same-UID cmdline/stat/exe
+  readability; the launch-chain shape (the chain rides ONE argv element
+  of the intermediate shell — exact-element matching cannot false-hit
+  it); the kernel shebang contract (interpreter-hosted CLIs carry the
+  invoked name at argv[1], exe reads the interpreter); orphans keep their
+  process group while losing their ppid chain; the double-escape blind
+  spot; the unrelated same-name negative control.
+- **Correlation, not global name matching** (`AgentDescendantCorrelator`):
+  a process is attributed to a session ONLY through its fork-proven
+  correlation root — `SessionEntry.shellPid`, recorded by the manager ON
+  the real fork signal — via PPID-chain descent OR process-group
+  membership (`pgrp == rootPid`). Both domains are kernel-safe; the union
+  covers orphans and regrouped descendants; a random same-name process
+  elsewhere on the device satisfies neither.
+- **Graded matching** (`AgentProcessMatcher`; `AgentMatchedBy` + the
+  ROADMAP-named `PROCFS_EXE` / `PROCFS_CMDLINE` compile-time-forced
+  extensions): the exe image basename, or an exact argv element
+  (argv[0], or the shebang script path at argv[1]). No substring matching
+  ever — `codex` cannot match `my-codex-wrapper`, `codex-helper`,
+  `something-codex`; the confidence grade travels with every claim.
+- **The four-state contract** (`AgentRuntimeState`:
+  `NOT_APPLICABLE / UNKNOWN / NOT_RUNNING / RUNNING`): a scanner that
+  never saw the agent answers UNKNOWN (not-started-yet vs already-exited
+  is indistinguishable); proven disappearance is NOT_RUNNING — explicitly
+  not completion, not success; a failed scan is UNKNOWN (missing evidence
+  is not absence); ambiguity is UNKNOWN; RUNNING always carries the pids
+  and grade that caused the claim. The pure decision step
+  (`AgentRuntimeDetection.compute`) is deterministic and fully tested.
+- **Conservative polling** (`RuntimeAgentDetector`): a 2-second tick that
+  exists ONLY while a live `LaunchIdentity.KnownAgent` session exists;
+  parks with zero scheduled work otherwise; one cheap hidepid-truncated
+  /proc pass per tick; no AlarmManager/WakeLock/WorkManager; state
+  transitions logged (existing logs as the diagnostic channel — no
+  debugging UI).
+- **One lifecycle authority preserved**: the detector only OBSERVES the
+  manager's StateFlow; `AgentActivityRepository.runtimeActivities` is the
+  derived four-state read model (stores nothing, decides nothing).
+  Custom tools and known non-agent tools never activate the scanner and
+  map to NOT_APPLICABLE explicitly.
+- **Tests (+49 per variant)**: `AgentRuntimeDetectionTest` (38 pure —
+  matching safety incl. the mandated substring negatives, correlation
+  incl. orphans/double-escape/negative controls, the full state decision
+  table, purity, pruning) + `AgentRuntimeDetectionIntegrationTest`
+  (11 structural pins — no notification APIs, no completion vocabulary,
+  no OSC/terminal-output parsing, /proc confined to the reader seam, the
+  minimal manager extension on the real fork signal, observer-only
+  detector, the parking polling discipline); the two P3a boundary pins
+  evolved exactly as the ROADMAP authorized (completion vocabulary banned
+  repo-wide; running-state vocabulary confined to the evidence seam;
+  `AgentMatchedBy` now exactly LAUNCH_METADATA + the two procfs grades).
+- Full JVM forced rerun: **1764/1764 green** (app 737 = 688+49 new,
+  terminal-emulator 145, both variants, 0 failures / 0 errors / 0
+  skipped); APK assembled and audited at the inherited stamp (6-permission
+  set unchanged, cert d96a6f66…8bf659 unchanged, all P3b symbols in the
+  dex). Device-gated remainder: TESTING §51 (each registry agent's real
+  /proc shape; hidepid/SELinux listing behavior).
+
 ## [0.11.2-m7.1.1-m72p3a] — 2026-09-08 — M7.2 P3a trusted agent signal audit & detection design
 
 The third M7.2 phase: audit-first, then the minimum internal metadata

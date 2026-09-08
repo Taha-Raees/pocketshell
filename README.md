@@ -51,9 +51,9 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P3a — trusted agent signal audit & detection
-design (internal checkpoint on the inherited v0.11.2-m7.1.1 /
-versionCode 47 stamp; M7.2 P2, P1, the M7.1.1 fix release and M7.1
+Current state: **M7.2 P3b — runtime agent detection via /proc (internal
+checkpoint on the inherited v0.11.2-m7.1.1 /
+versionCode 47 stamp; M7.2 P3a, P2, P1, the M7.1.1 fix release and M7.1
 release below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
@@ -88,11 +88,18 @@ trustworthy signal and classified the launch identity of every
 registry/catalog/custom launcher (`LaunchIdentity`: known agents vs known
 non-agent tools vs never-promoted custom commands) — the type-level truth
 rule being that "PocketShell launched X" is proven at spawn while "X is
-running" and "X completed" remain unrepresentable until P3b's real procfs
-evidence. Full JVM suite
-833/833 green (app 688 + terminal-emulator 145, 0 skipped, forced clean
+running" and "X completed" remain unrepresentable. M7.2 P3b implemented
+the second truth level: the /proc descendant scanner with fork-proven
+correlation (ppid-chain ∪ process-group under the session's recorded
+root), graded exact-token matching (`PROCFS_EXE`/`PROCFS_CMDLINE`), the
+four-state contract (`NOT_APPLICABLE / UNKNOWN / NOT_RUNNING / RUNNING`
+— never a completion claim, never a false RUNNING), and 2-second polling
+that exists only while a known-agent session is live. Full JVM suite
+1764/1764 green (app 737 + terminal-emulator 145 per variant, 0 skipped,
+forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
 the hardware pass — the M7.1.1 gate is §47, the M7.2 P1 gate is §48, the
-M7.2 P2 parity gate is §49 (P3a intentionally requires no device gate),
-and a green build alone never completes a milestone.
+M7.2 P2 parity gate is §49, the M7.2 P3b runtime-detection gate is §51
+(the per-agent /proc shape table), and a green build alone never
+completes a milestone.

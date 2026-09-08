@@ -3157,3 +3157,90 @@ no user-visible feature to exercise. The standing hardware gates remain
 §47 (M7.1.1), §48 (P1) and §49 (P2 parity) on a real Android 13+ device;
 the next M7.2 device-facing work arrives with P3b (the procfs scanner),
 whose device pass will be defined when P3b is mandated.
+
+## 51. Manual acceptance — M7.2 P3b (runtime agent detection via /proc) — DEVICE GATE PENDING
+
+What the JVM suite already proves (forced rerun at the P3b tip,
+1764/1764, 0 skipped): the pure matching/correlation/state matrix —
+including the mandated negatives (no substring matching; an unrelated
+same-name process never produces RUNNING; UNKNOWN is never upgraded) —
+and the structural boundaries (no notification APIs, no completion
+vocabulary, no output heuristics, /proc confined to the reader seam, the
+detector owns no lifecycle authority, the parking polling discipline).
+The experiments (scripts/procfs_experiments_p3b.sh, E1–E5) proved the
+kernel procfs contracts on a Linux sandbox.
+
+What ONLY a real device can answer — and therefore what this gate
+exercises:
+
+- the REAL /proc shape of each registry agent on-device (which grade
+  fires: PROCFS_EXE for single-file/bun-compiled binaries, PROCFS_CMDLINE
+  for interpreter-hosted CLIs, or neither — an honest UNKNOWN);
+- hidepid=2 listing behavior from the app's UID (foreign processes
+  invisible) and SELinux treatment of `exe` readlink for the app's own
+  processes;
+- the end-to-end scan while a real agent actually runs inside the guest
+  (proot + chain + agent), including the agent-exit transition to
+  NOT_RUNNING and the relaunch transition back to RUNNING.
+
+There is NO production UI for agent activity in P3b (by design — the
+phase mandate forbids it). The observable channel is the existing log:
+the detector logs every state transition at Log.d under the tag
+`AgentRuntimeDetector` (`session N: X -> Y (pids=[...], grade=...)`).
+
+Steps (requires: real Android 13+ device, the M7.2 P3b debug APK
+installed, an installed guest runtime with at least one registry agent
+available — e.g. Kilo Code or Claude Code; adb logcat for observation):
+
+1.  Install the P3b debug APK; confirm normal operation (§47/§48/§49
+    regressions are NOT re-run here — this gate adds only P3b behavior).
+2.  Start `adb logcat -s AgentRuntimeDetector:V TerminalSessionManager:V
+    PocketShell:V`.
+3.  Launch a KNOWN AGENT from Home (e.g. Kilo Code) and let it reach its
+    interactive UI.
+4.  EXPECT (within ~2–4s): a log line `session N: (none) -> UNKNOWN`
+    (pre-fork/startup) followed by `session N: UNKNOWN -> RUNNING
+    (pids=[...], grade=PROCFS_EXE|PROCFS_CMDLINE)`. Record WHICH grade
+    fired for this agent (the per-agent shape table this gate exists to
+    build).
+5.  Verify the pids are real agent processes: with the agent still
+    running, run `ps -A | grep <pid>` INSIDE the guest session (same
+    view, hidepid-filtered) and cross-check one cmdline
+    (`cat /proc/<pid>/cmdline | tr '\0' ' '`) — the argv must contain the
+    agent's token as an exact element (or the exe basename must be the
+    token for PROCFS_EXE).
+6.  Negative control A (correlation): launch a SECOND instance of the
+    same agent in a second session. EXPECT each session to report its OWN
+    pids only. Close the second session (tab close) — EXPECT the first
+    session's observation unchanged (its state never references the
+    other tree).
+7.  Negative control B (non-agents): launch nano/vim/htop (catalog
+    non-agent tools) and a custom tool. EXPECT NO agent RUNNING claims —
+    these sessions are ineligible (no `AgentRuntimeDetector` transitions
+    for them).
+8.  Exit the agent (quit to the shell prompt). EXPECT (within ~2–4s):
+    `session N: RUNNING -> NOT_RUNNING` — and NOTHING calling it
+    completed/success/finished (the vocabulary has no such state).
+9.  Relaunch the agent at the prompt (type `kilo` / `claude` manually).
+    EXPECT `NOT_RUNNING -> RUNNING` again (manual relaunch inside the
+    session is still real, correlated process evidence).
+10. Park check: close the agent session's tab. EXPECT the observation
+    pruning within one eligibility change and NO further scan activity
+    (no new `AgentRuntimeDetector` lines with the agent sessions gone).
+11. Scan-failure honesty (optional, if achievable without harmful
+    settings): if procfs can be made unreadable for the app (e.g. a
+    vendor SELinux policy), EXPECT UNKNOWN (never NOT_RUNNING) while the
+    scan fails — record the exact behavior as a device finding.
+12. Honesty check: at every step, the ONLY user-visible surface is the
+    terminal itself. There must be NO notification, NO agent-status UI,
+    NO completion claim anywhere (P3b boundary).
+
+Pass criteria: steps 4–10 show the exact transitions above with no false
+RUNNING claims (including both negative controls) and no completion
+vocabulary anywhere; the recorded per-agent grade table becomes the
+authoritative shape reference for future phases (extend
+docs/M7.2-P3B-RUNTIME-DETECTION.md §4 with the results).
+
+If a registry agent reports UNKNOWN persistently on device: that is a
+VALID outcome (Success B — the agent's true shape matches neither graded
+rule); record its real /proc shape and stop — do not add heuristics.
