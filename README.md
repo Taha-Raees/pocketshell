@@ -51,30 +51,21 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **Phase 4.0.11 (v0.8.0-m4.0.11, versionCode 35) — Replace
-Renderer Only: the winner frozen and shipped** (see `docs/ROADMAP.md`).
-The stack: native PTY terminal (M1), Linux Alpine runtime via proot with
-real package management (M2), keyboard + Home 3.x design system (M3),
-and the Companion embedded-web layer (Phase 4) — its tab content renderer
-is now the exact copy of the m4.0.9 control experiment's proven baseline
-(`WebView(activity)` in a plain FrameLayout, Android defaults, load after
-first layout), winner frozen (BASELINE, zero deltas) and pinned in
-`CompanionRenderContract`; the sheet, tabs and every product surface are
-untouched (docs/RENDER-RESET-M4.0.9.md §8). All automated tests pass
-(758 executions) and `assembleDebug` produces a working APK; the
-**manual on-device acceptance checklists** in `docs/TESTING.md`
-(currently §28, Gates A–H) are the remaining gate — a green build alone
-never completes a milestone.
-
-Current state: **Phase 4.1.0 (v0.8.0-m4.1.0, versionCode 34) — Companion
-Native Rebuild** (see `docs/ROADMAP.md`). The stack: native PTY terminal
-(M1), Linux Alpine runtime via proot with real package management (M2),
-keyboard + Home 3.x design system (M3), and the Companion embedded-web
-layer (Phase 4) — rebuilt in m4.1.0 around the m4.0.9 control
-experiment's physically proven baseline (`WebView(activity)` in a plain
-FrameLayout, Android defaults, load after first layout) after the device
-verdict exonerated WebView itself (docs/RENDER-RESET-M4.0.9.md §7).
-All automated tests pass (744 executions) and `assembleDebug` produces a
-working APK; the **manual on-device acceptance checklists** in
-`docs/TESTING.md` (currently §27, Gates E–H) are the remaining gate — a
-green build alone never completes a milestone.
+Current state: **M7.1 released and frozen (v0.11.1-m7.1.0, versionCode 46)**
+(see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
+runtime via proot with real package management and the pinned glibc layer
+(M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
+Companion embedded-web layer (M4), the Files explorer across Linux/Downloads/
+SAF storage with operations, editor, Open-Terminal-Here and search (M7.0),
+and M7.1 — Home launchers (Companions + Your tools grids with hide/restore,
+custom tools over the ONE verify-then-launch path, 13 curated official marks
+as two-variant theme pairs, x-scroll rows with scroll dots, the tools-header
+packages affordance) and live external-keyboard detection (the on-screen deck
+hides itself on connect and returns on disconnect, one transient in-app
+notice, the Settings "On-screen keyboard" toggle, event-driven with a
+stability window, no polling, no new permissions). Full JVM suite 734/734
+effective green (app 589 + terminal-emulator 145, forced clean rerun at the
+release stamp) and `assembleDebug` produces a working APK; the **manual
+on-device acceptance checklists** in `docs/TESTING.md` (M7.1 gates are
+§41-§45) remain the hardware pass — a green build alone never completes a
+milestone.

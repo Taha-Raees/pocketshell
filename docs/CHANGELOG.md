@@ -3,6 +3,49 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.1-m7.1.0] — 2026-09-08 — M7.1 release (launchers, themed marks, external-keyboard intelligence)
+
+The M7.1 milestone, closed and frozen: five delivered phases — P1 Home
+launchers, P2 the launcher UI repair + official icons + Antigravity, P2.1
+the owner-supplied mark refresh + Aider removal, P2.2 the theme-scheme
+two-variant icon system + x-scroll home rows + the packages affordance, and
+P3 live external-keyboard detection with automatic on-screen keyboard
+control. Each phase's detail lives in its own commit and the phase entries
+below; this entry records the release cut itself.
+
+- **M7.1 release stamp**: versionCode 46, versionName 0.11.1-m7.1.0 (the
+  M5.1.0 precedent — a sub-milestone release bumps the semantic patch digit
+  and the milestone suffix; the five phase builds deliberately shipped on
+  the inherited vc45 / 0.11.0-m7.0.0 stamp). Installs in place over every
+  earlier pinned-cert build (cert d96a6f66…8bf659, unchanged since v0.4.1).
+- **Clean-rerun release verification**: the FULL JVM suite forced
+  --rerun-tasks at the release stamp — 734/734 effective green (app 589 +
+  terminal-emulator 145), 0 failures, 0 errors — including the four P3
+  suites (device predicate, virtual-time detector transitions, suppression
+  policy, structural integration contract), the P2.2 dual-theme + home-rows
+  pins, and the P2.1 aider-absence pins.
+- **Fresh release APK audits** (on the exact release bytes, sha256
+  2d298c85…27eaa0, 30,448,845 B): aapt2 badging versionCode='46'
+  versionName='0.11.1-m7.1.0'; the UNCHANGED 6-permission set; exactly 26
+  launcher icon entries (13 dark + 13 light); dex carries
+  ExternalKeyboardDetector / ExternalKeyboardViewModel /
+  ExternalKeyboardPolicy / ExternalKeyboardNoticeBar (P3) and
+  LauncherScroller / ScrollDots (P2.2) with PackagesFooterLink and every
+  aider string ABSENT (P2.1); targetSdk 28; cert d96a6f66…8bf659.
+- **Cross-phase functional verification retained** (structural + JVM, per
+  the honesty discipline): P1 launcher model (companion + CLI tool grids,
+  hide/restore, custom tools over the ONE verify-then-launch path), P2
+  launcher UI repair (the shared weighted-row shape), P2.1/P2.2 icon
+  provenance and theming (26 assets, live theme flips, imported copies
+  outrank), P3 detection→suppression→restore loop (policy state machine:
+  the user's manual keyboard state is never destroyed, an explicit reopen
+  cancels suppression, a disconnect hands the state back exactly). The
+  REAL attach/detach, launch-attached, persistence-across-restart and
+  full-regression passes stay honest DEVICE gates (§41-§45).
+- **Freeze**: M7.1 is closed — no further M7.1 work. The next milestone
+  (M7.2 — notification & agent-activity system) starts AFTER this freeze
+  and does not ride in this release.
+
 ## [0.11.0-m7.0.0] — 2026-09-07 — M7.0 release (Linux/Android files, search, editor, terminal integration)
 
 The M7.0 milestone: a real file explorer across the PocketShell Linux area,

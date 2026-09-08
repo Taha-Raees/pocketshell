@@ -159,9 +159,9 @@ do_baseline() {
   # 1) PocketShell identity (refuse unknown environments)
   stamp=$(cat "$APP_STAMP" 2>/dev/null || echo "")
   case "$stamp" in
-    0.11.0-m7.0.0\ \(versionCode\ 45\)*|0.10.0-m6.0.4\ \(versionCode\ 44\)*) gok "app stamp" "$stamp" ;;
+    0.11.1-m7.1.0\ \(versionCode\ 46\)*|0.11.0-m7.0.0\ \(versionCode\ 45\)*|0.10.0-m6.0.4\ \(versionCode\ 44\)*) gok "app stamp" "$stamp" ;;
     "") gbad "app stamp" "no $APP_STAMP — this rootfs was never prepared by a vc42+ PocketShell"; ok=0 ;;
-    *)  gbad "app stamp" "unexpected: '$stamp' (expected 0.11.0-m7.0.0 / versionCode 45+, vc44 accepted)"; ok=0 ;;
+    *)  gbad "app stamp" "unexpected: '$stamp' (expected 0.11.1-m7.1.0 / versionCode 46+, older gates accepted)"; ok=0 ;;
   esac
   # 2) marker pin (exact content)
   marker=$(cat "$MARKER" 2>/dev/null || echo "")

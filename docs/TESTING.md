@@ -2780,3 +2780,49 @@ Manual controls and regression
 16. Full keyboard regression: extra keys, CTRL/ALT/SHIFT (one-shot +
     locked), arrow keys, deck animations, keyboard bottom inset on
     Terminal / Editor / Files / Companion — all as before (§42 B steps).
+
+---
+
+## 46. M7.1 release QA (closure verification, v0.11.1-m7.1.0 / versionCode 46)
+
+The M7.1 closure pass. Every check below was EXECUTED at the release cut on
+the exact release bytes; the honesty line stands — JVM + structural audits
+prove the build, the device gates prove the hardware, and both are required.
+
+Automated closure verification (executed at the release cut):
+
+1.  FULL JVM suite forced --rerun-tasks at the release stamp:
+    734/734 effective green (app 589 + terminal-emulator 145),
+    0 failures, 0 errors — P3 suites, P2.2 dual-theme/home-rows pins and
+    the P2.1 aider-absence pins all included.
+2.  Fresh `:app:assembleDebug` at the release stamp: app-debug.apk
+    30,448,845 B, sha256 2d298c85…27eaa0.
+3.  aapt2 badging: versionCode='46', versionName='0.11.1-m7.1.0',
+    targetSdk 28 — the official M7.1 stamp (the M5.1.0 sub-milestone
+    precedent: 0.9.1-m5.1.0 → semantic patch digit + milestone suffix).
+4.  Permission audit: exactly the UNCHANGED 6-permission set
+    (INTERNET, ACCESS_NETWORK_STATE, FOREGROUND_SERVICE,
+    FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS,
+    DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION). M7.1 added zero.
+5.  Icon audit: exactly 26 launcher_icons asset entries in the APK
+    (13 Midnight + 13 Daylight).
+6.  Dex audit: ExternalKeyboardDetector / ExternalKeyboardViewModel /
+    ExternalKeyboardPolicy / ExternalKeyboardNoticeBar present (P3);
+    LauncherScroller / ScrollDots present (P2.2); PackagesFooterLink ABSENT
+    and zero aider strings (P2.1) — no stale phase symbols on the release.
+7.  Cert audit: apksigner Signer #1 SHA-256 d96a6f66…8bf659 — the pinned
+    debug identity since v0.4.1; in-place update over every earlier build.
+
+Release QA scope (what §41-§45 gates still owe on hardware):
+
+-   Home: launchers render (one x-scroll Companions row, two tools rows,
+    scroll dots), themed marks flip with the theme, Manage opens packages.
+-   Terminal + launchers: launch a curated tool and a custom tool through
+    verify-then-launch; badges and hide/restore behave.
+-   External keyboard: §45 in full — USB connect hides the deck + ONE
+    notice; UNPLUG restores the configured on-screen keyboard exactly as
+    the user left it (manual-hidden returns hidden, manually-open returns
+    open, a mid-suppression reopen cancels suppression).
+-   Custom keyboard toggle + persisted settings: the deck toggle, floating
+    [⌨] icon, terminal tap, extra keys, modifiers, arrows; the Settings
+    toggles (theme, font size, On-screen keyboard) persist across restart.

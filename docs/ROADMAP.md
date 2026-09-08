@@ -828,3 +828,43 @@ Decision record: docs/runtime/DUAL_LIBC.md. Suite: docs/runtime/TESTING.md.
       rig 3-phase validation green.
 - [ ] Device gate #3 (docs/TESTING.md §33A, vc42): fresh v2.1 suite download,
       one fresh session, expect 24/24 ALL GREEN incl. Cline 3.0.61.
+
+## M7.1 — Home launchers, themed marks, external-keyboard intelligence ✅ (frozen 2026-09-08, v0.11.1-m7.1.0, versionCode 46)
+
+Delivered in five phases (each with its own commit, JVM gate and device-gate
+section in docs/TESTING.md §41-§45; M7.0 itself was closed by the
+v0.11.0-m7.0.0 release — see CHANGELOG):
+
+- [x] **P1 (3abb2e8)**: Home launchers — Companions grid + Your tools grid,
+      hide-only remove with restore, custom tools through the ONE
+      verify-then-launch guest path, deterministic badges, copied icons.
+- [x] **P2 (1b15bde)**: launcher UI repair at the row-shape root cause
+      (ONE shared weighted-row shape), bundled official marks, Antigravity
+      (`agy`) replacing Gemini CLI in the curated defaults.
+- [x] **P2.1 (e0a2471)**: Aider removed with no stale trace; nine marks
+      re-rendered from owner-supplied official SVGs vendored in-tree
+      (locals-first pipeline, offline, byte-reproducible).
+- [x] **P2.2 (6004805)**: two-variant theme marks ({id}.webp Midnight /
+      {id}-light.webp Daylight, 26 assets, live theme flips), Companions
+      one x-scroll row + tools two rows with scroll dots, the packages
+      affordance as the tools-header Manage action.
+- [x] **P3 (93ee631)**: live external-keyboard detection — event-driven
+      (InputDeviceListener → 400 ms stability window → one scan → at most
+      ONE transition; no polling, no new permissions), alphabetic
+      non-virtual SOURCE_KEYBOARD predicate, automatic deck
+      suppression/restore through the ONE root visibility owner
+      (preExternalExpanded memory, manual reopen cancels, web-focus gated),
+      Settings "On-screen keyboard" toggle (DataStore, default ON),
+      ONE transient in-app notice per real connect transition.
+- [x] **Release closure (this freeze)**: clean-rerun JVM suite 734/734
+      effective green at the release stamp; fresh APK audited (badging
+      vc46 / 0.11.1-m7.1.0, 6 permissions, 26 icons, dex symbols, cert);
+      TESTING §46 release QA; README/CHANGELOG refreshed; delivery
+      artifacts re-cut and wire-verified; M7.1 tagged and FROZEN.
+- [ ] Device gates §41-§45 (the standing hardware pass; §33A runtime gate
+      #3 also still open from M6) — manual, requires a human with a device.
+
+**Next milestone (NOT started in M7.1): M7.2 — Notification & agent-activity
+system** (agent-running detection, completion notifications, actionable
+notification controls, Home/session integration). It starts AFTER this
+freeze, on top of the M7.1 release stamp.
