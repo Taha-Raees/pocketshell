@@ -1,41 +1,70 @@
 # download/ — delivery masters
 
-Current: **v0.11.2-m7.1.1-m72p4** (M7.2 P4 — notification consumption of the
-runtime event engine; the FIRST USER-VISIBLE M7.2 phase: the P3c event stream
-now drives honest Android notifications — confirmed running / runtime unknown /
-no-longer-detected / the session's own exit fact — with no completion claim
-anywhere; phase build on the inherited versionCode 47 / versionName
-0.11.2-m7.1.1 stamp per the M7.x phase-build precedent — the -m72p4 suffix is
-filename-only; the M7.1.1 fix release v0.11.2-m7.1.1 remains the frozen
-fix-record below it in history).
+Current: **v0.11.2-m7.1.1-m72p5** (M7.2 P5 — notification interaction &
+session context; the SECOND USER-VISIBLE M7.2 phase: the honest P4
+notifications are now actionable — tapping a running / runtime-unknown /
+eligible session-ended surface opens PocketShell into the named session's
+terminal context through one pure routing model resolved against the
+manager's live list; a stale id opens the app normally and a notification
+can never resurrect a process; the shade's wording is byte-identical to P4
+— no completion claim anywhere; phase build on the inherited versionCode 47
+/ versionName 0.11.2-m7.1.1 stamp per the M7.x phase-build precedent — the
+-m72p5 suffix is filename-only; the M7.1.1 fix release v0.11.2-m7.1.1
+remains the frozen fix-record below it in history).
 
-The P4 pair (APK + bundle) is the CURRENT SERVED SET on the delivery page.
-The M7.2 P3b pair (the previous served set) is superseded by this phase build
-(same stamp, same cert — the P4 build adds the notification consumer layer on
-top of P3b/P3c) and is withdrawn from the serving surface — its insurance copy
-SURVIVES in upload/ byte-exact (APK fc1edb51…), and its content and history
-ride in this bundle (the P3b record tip 0f091e7 and the P3c record tip 66d91da
-are direct ancestors of the P4 record tip 5b236df, which is an ancestor of
-the P4 delivery tip e385021). P3c's bundle-only
-convention ends here: P4 IS user-visible, so it delivers BOTH the APK and the
-bundle (docs/TESTING.md §53 owns the on-device notification-shade gate).
+The P5 pair (APK + bundle) is the CURRENT SERVED SET on the delivery page.
+The M7.2 P4 pair (the previous served set) is superseded by this phase
+build (same stamp, same cert — the P5 build adds the session-targeted tap
+routing on top of the P4 consumer) and is withdrawn from the serving
+surface — its insurance copies SURVIVE in upload/ byte-exact (APK
+ab73b24a…, bundle 9c6e4a1b…), and its content and history ride in this
+bundle (the P4 record tip 5b236df and the P4 delivery tip e385021 are
+direct ancestors of the P5 record tip d24bfde). P4 IS user-visible, so it
+delivered BOTH artifacts and P5 continues that convention (docs/TESTING.md
+§54 owns the on-device notification-interaction gate; §53's wording gate
+stays in force verbatim).
 
-CUT NOTE: the P4 set was cut fresh from the P4 delivery tip e385021 (chain
-bede512 implementation+tests → 49039e2 docs → the Task 43 worklog record
-5b236df → the delivery record 7444d28 → the page re-pin 2e8f0c6 → the
-doc-number correction e385021) on
-the re-provisioned toolchain (Temurin 21.0.12.1+1, cmdline-tools 11076708,
-platform-36, build-tools 36.0.0, NDK 28.2.13676358 — reinstalled by
-scripts/install_toolchain.sh after the latest sandbox reset, per worklog
-1c9ce59). The M7.2 P1-era note below is retained for the insurance-copy
-ledger: that set is SUPERSEDED by the later phase builds (same stamp, same
-cert) and its insurance copies SURVIVE in upload/ byte-exact.
+CUT NOTE: the P5 set was cut fresh from the P5 delivery tip (chain
+4672e36 implementation+tests → 894d108 docs → the Task 44 worklog record
+d24bfde → the page re-pin) on the re-provisioned toolchain (Temurin
+21.0.12.1+1, cmdline-tools 11076708, platform-36, build-tools 36.0.0, NDK
+28.2.13676358 — reinstalled by scripts/install_toolchain.sh after the
+latest sandbox reset). The P4-era note below is retained for the
+insurance-copy ledger: that set is SUPERSEDED by the P5 phase build (same
+stamp, same cert) and its insurance copies SURVIVE in upload/ byte-exact.
 
 RESTORE NOTE (insurance, carried): upload/ holds byte-identical copies of
-the FULL current set (APK, bundle, zip, tar.gz — glibc regenerable from
-the tracked in-tree asset), so any future sandbox reset restores the
-whole delivery byte-identically. Source-archive bytes remain not
-re-cut-stable across sandbox toolchain builds, as always disclosed.
+the FULL current set (APK, bundle — glibc regenerable from the tracked
+in-tree asset), so any future sandbox reset restores the whole delivery
+byte-identically. Source-archive bytes remain not re-cut-stable across
+sandbox toolchain builds, as always disclosed.
+
+- PocketShell-v0.11.2-m7.1.1-m72p5-debug.apk  sha256 69ab44021b607307e06197b5acafbb53de1df840a4bc802f63da57852ccfc57f  (30,541,728 B, versionCode 47 / 0.11.2-m7.1.1 — the inherited phase stamp)
+  Installs IN PLACE over the M7.2 P4 phase build (vc47 — same versionCode,
+  updated content, same pinned cert), the M7.1.1 fix (vc47), the M7.1
+  release (vc46), every M7.1 phase build (vc45), the M7.0 release, and
+  every previous pinned-cert build (vc16..47, same cert d96a6f66…8bf659).
+  P5 adds NO persistence and NO permission; notification taps now carry a
+  session-targeted routing extra (navigation only — never agent control).
+  Semantic pins verified on these exact bytes: version (aapt2 badging
+  versionCode='47' versionName='0.11.2-m7.1.1', targetSdk 28), the
+  UNCHANGED 6-permission merged set (INTERNET, ACCESS_NETWORK_STATE,
+  FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS,
+  app.pocketshell.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION), apksigner cert
+  d96a6f664d7f8d7194733672dcd6eb9f33f40a0078ab07ff66bfd605138bf659,
+  dex carries the P5 symbols (AgentRuntimeNotificationRouting,
+  ROUTE_OPEN_SESSION, EXTRA_SESSION_ID, pendingSessionTarget in
+  classes11/15.dex) beside the P4 notification symbols, the P3c event
+  symbols, the M7.1.1 keyboard symbols and the launcher phases' symbols.
+  Verification executed at this tip (docs/TESTING.md §54 + the honest
+  JVM-vs-device split recorded there): FULL JVM suite forced --rerun-tasks
+  1986/1986 green (app 848 = 821 + 27 new interaction tests × debug+release
+  + terminal-emulator 145, 0 failures / 0 errors / 0 SKIPPED). Device gate:
+  §54 (eight steps — the tap paths are hardware-verifiable only).
+
+- pocketshell-m7.2-p5.gitbundle  sha256 ffe236b3c0a370e16b4b4fb5ce7399c66a4bcb2a1b31bbd68c6bc68da6dab0a5  (37,907,038 B, cut at the P5 record tip d24bfde — complete history M0 → d24bfde; the page re-pin and the delivery record ride after the cut by the disclosed convention — every P5 contract doc inside the bundle is FINAL: 1986/1986 everywhere; bundle bytes are not re-cut-stable, this exact file is the artifact)
+
+- PocketShell-v0.11.2-m7.1.1-m72p4-debug.apk  sha256 ab73b24ab52e40662de45ad5c0c2aacb50494e1889d8428717266f080634442f  (30,859,664 B — SUPERSEDED by the P5 build; insurance copy survives byte-exact in upload/)
 
 - PocketShell-v0.11.2-m7.1.1-m72p2-debug.apk  sha256 4a144d23710e7cd3893d1cdb59b0e3892a7b585ba1d4ed9015a7988360d2dfce  (30,802,996 B, versionCode 47 / 0.11.2-m7.1.1 — the inherited phase stamp)
   Installs IN PLACE over the M7.2 P1 phase build (vc47 — same versionCode,

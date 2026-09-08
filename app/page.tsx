@@ -1,16 +1,17 @@
-const VERSION = "v0.11.2-m7.1.1-m72p4";
+const VERSION = "v0.11.2-m7.1.1-m72p5";
 
-// SHA pins — the M7.2 P4 (notification consumption of the runtime event
-// engine) delivery pair. The bundle is cut at the P4 record tip (5b236df);
-// the APK is the audited phase build at the inherited stamp (versionCode 47,
-// versionName 0.11.2-m7.1.1 — the -m72p4 suffix is filename-only), cert
-// d96a6f66…8bf659, the unchanged 6-permission set. The glibc layer is
-// UNCHANGED rev=2 (byte-identical artifact ed82daa8…). P4 ships NO source
-// archives — the git bundle is the source-of-truth artifact (the P2 zip/tgz
-// stay withdrawn).
+// SHA pins — the M7.2 P5 (notification interaction & session context)
+// delivery pair. The bundle is cut at the P5 record tip (d24bfde; the page
+// re-pin and the delivery record ride after the cut — every P5 contract doc
+// inside the bundle is final); the APK is the audited phase build at the
+// inherited stamp (versionCode 47, versionName 0.11.2-m7.1.1 — the -m72p5
+// suffix is filename-only), cert d96a6f66…8bf659, the unchanged
+// 6-permission set. The glibc layer is UNCHANGED rev=2 (byte-identical
+// artifact ed82daa8…). P5 ships NO source archives — the git bundle is the
+// source-of-truth artifact.
 const HASHES = {
-  apk: "ab73b24ab52e40662de45ad5c0c2aacb50494e1889d8428717266f080634442f",
-  bundle: "9c6e4a1bcc258ca65fefcf8102ffd7095a71ef40e7dec19c99e6717fd8e2e5a7",
+  apk: "69ab44021b607307e06197b5acafbb53de1df840a4bc802f63da57852ccfc57f",
+  bundle: "ffe236b3c0a370e16b4b4fb5ce7399c66a4bcb2a1b31bbd68c6bc68da6dab0a5",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
 
@@ -32,77 +33,72 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M7.2 P4 — NOTIFICATION CONSUMPTION OF THE RUNTIME EVENT ENGINE: the
-          first user-visible M7.2 phase — honest notifications, no completion
-          claims, ever{" "}
-          <span className="badge">record tip 5b236df · vc47</span>
+          M7.2 P5 — NOTIFICATION INTERACTION &amp; SESSION CONTEXT: the honest
+          notifications are now actionable — tap an agent notification, land
+          in its terminal session — with the truth contract byte-identical{" "}
+          <span className="badge">record tip d24bfde · vc47</span>
         </h2>
         <p>
           <b>
-            Sixth M7.2 phase, Success A achieved: the P3c deduplicated event
-            stream now drives the Android notification shade through ONE
-            consumer subscribed EXACTLY ONCE per process (Application scope —
-            the replay-free stream&apos;s correctness requirement: events
-            emitted before subscription are lost, and no session can spawn
-            before Application.onCreate returns). <b>THE TRUTH CONTRACT</b>:
-            confirmed running → an ongoing &quot;<b>&lt;RegistryName&gt; is
-            running</b>&quot; surface (the launcher REGISTRY&apos;s own name —
-            never invented); runtime unknown → the surface updates IN PLACE to
-            honest uncertainty (&quot;runtime unknown — cannot be verified
-            right now&quot;); no longer detected → the running claim is
-            WITHDRAWN (disappearance is NOT completion — no replacement
-            notification exists, nothing ever says finished); session ended →
-            a one-shot factual &quot;<b>Session ended</b>&quot; / &quot;Terminal
-            session N exited (code X) / was terminated by signal Y&quot;
-            statement about the session&apos;s own waitpid status — the exit
-            code preserved verbatim and uninterpreted, exit 0 NEVER worded as
-            success. <b>IDENTITY &amp; DEDUP</b>: deterministic per-session
-            notification ids (AGENT_RUNTIME_BASE + sessionId — never hash,
-            never random, never a display string) so repeated state never
-            reposts; a defensive notification-domain memory (posted /
-            everPosted / tombstones) means identical surfaces are no-ops and
-            ended sessions refuse every later event — without becoming a
-            second event state machine. <b>CALM</b>: one new channel
-            (agent_runtime, &quot;Agent activity&quot;) beside the untouched
-            P1 channel; setOnlyAlertOnce — in-place updates never re-alert, so
-            the 2-second polling tick upstream can never spam. <b>STALE
-            SURFACES DIE THREE WAYS</b>: the tombstone in-process, the P1
-            startup sweep across processes, and nothing restored after a
-            process death — the architecture cannot prove a running agent it
-            cannot see, so no stale &quot;Agent running&quot; survives a
-            restart. <b>THE FGS IS UNTOUCHED</b>: the Terminal sessions
-            retention notification (TerminalService, channel
-            terminal_sessions, id 1) behaves exactly as before, structurally
-            pinned. <b>ZERO new permission machinery</b>: the P1 gate (one
-            controlled POST_NOTIFICATIONS ask per install at the first
-            session) remains the only path; the manifest is unchanged.{" "}
-            <b>VERIFICATION</b>: FULL JVM suite forced --rerun-tasks
-            1932/1932 green (app 821×2 + terminal-emulator 145×2, 0 failures,
-            0 errors, 0 skipped) including +41 new tests (the pure
-            truth-contract matrix with the honesty sweep over a full session
-            story, the structural pins — subscribe-once, one collection, no
-            polling, no /proc, no session/detector references, the
-            shipped-string honesty check — and the id-space tests).{" "}
-            <b>HONEST SCOPE</b>: no notification can claim
-            completed/success/finished/failed — pinned over the actual
-            shipped string literals; &quot;no longer detected&quot; is only
-            ever a withdrawal; exit code 0 is a session fact, never an agent
-            verdict. The mandatory REAL-DEVICE gate is docs/TESTING.md §53
-            (ten steps in the notification shade). Full contract:
-            docs/M7.2-P4-NOTIFICATION-CONSUMPTION.md.
+            Seventh M7.2 phase, the second user-visible one: what changed is
+            what a tap DOES — never what the shade may SAY. <b>THE TAP
+            CONTRACT</b>: a running surface (&quot;&lt;Name&gt; is
+            running&quot;) opens PocketShell into that session&apos;s terminal
+            context; the runtime-unknown surface opens the same session
+            (uncertainty is not absence); an eligible session-ended exit fact
+            opens the session&apos;s tab if it still exists — a
+            finished-but-listed tab honestly shows its end state — and if the
+            tab is gone, PocketShell opens normally. <b>THE ROUTE CARRIES
+            ONLY THE AUTHORITATIVE SESSION ID</b> — the same id the
+            notification identity already used; no PID, no process name, no
+            /proc, no detector, no rediscovery (the runtime/session
+            relationship was already known — the tap just navigates).{" "}
+            <b>STALE IDS DEGRADE HONESTLY</b>: a pure routing model
+            (AgentRuntimeNotificationRouting — zero imports, data in,
+            decision out) resolves the id against the session manager&apos;s
+            live list; an absent id means &quot;open the app normally&quot; —
+            a notification can NEVER recreate a session, respawn a process,
+            or fake a selection (process death → sessions are gone → the app
+            opens like a fresh start). <b>DETERMINISTIC IDENTITY</b>: the
+            PendingIntent request code IS the notification id (base +
+            sessionId) — session A&apos;s tap can never collide with or mutate
+            session B&apos;s surface. <b>THE P4 WORDING IS BYTE-UNCHANGED</b>:
+            no completed/success/finished/failed claim exists anywhere; the
+            unknown surface stays uncertain; no-longer-detected still
+            withdraws; exit 0 is still never success. <b>ZERO COST
+            FREEZES HELD</b>: no new permission, no new channel, no manifest
+            delta, the FGS retention notification untouched, no second
+            lifecycle engine — the tap path ends at the existing
+            ViewModel select seam. <b>VERIFICATION</b>: FULL JVM suite forced
+            --rerun-tasks 1986/1986 green (app 848×2 = 821+27 new ×
+            terminal-emulator 145×2, 0 failures, 0 errors, 0 skipped) — the
+            +27/variant: the pure Part-J routing matrix (every tap arm incl.
+            multi-session and wrong-session distinguishability), the extended
+            route parser (malformed ids degrade, never crash), and 11
+            structural source-reading pins (no /proc/detector/PID in the tap
+            path, request-code identity, the exhaustive kind→route when, the
+            manifest/permission freeze, the shipped-string honesty sweep over
+            the P5 files, the FGS freeze).{" "}
+            <b>HONEST SCOPE</b>: P5 proves navigation — determinism,
+            idempotence, stale-safety — and NOTHING about agents: no
+            completion, no success, no failure, no waiting-for-input, and no
+            control action (no Stop/Restart/Resume — navigation is not
+            control). The mandatory REAL-DEVICE gate is docs/TESTING.md §54
+            (eight steps — a wrong-session routing is a FAIL). Full contract:
+            docs/M7.2-P5-NOTIFICATION-INTERACTION.md.
           </b>
         </p>
-        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p4-debug.apk">
-          Download M7.2 P4 APK (debug, 30.9 MB)
+        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p5-debug.apk">
+          Download M7.2 P5 APK (debug, 30.5 MB)
         </a>
         <Sha text={HASHES.apk} />
-        <a className="btn secondary" href="/pocketshell-m7.2-p4.gitbundle">
-          git bundle — full history M0 → P4 record tip (37.9 MB)
+        <a className="btn secondary" href="/pocketshell-m7.2-p5.gitbundle">
+          git bundle — full history M0 → P5 record tip (37.9 MB)
         </a>
         <Sha text={HASHES.bundle} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
           versionCode 47 / versionName 0.11.2-m7.1.1 (the M7.x phase-build
-          precedent — phase builds ride the inherited stamp, the -m72p4
+          precedent — phase builds ride the inherited stamp, the -m72p5
           suffix is filename-only) — installs in place over every earlier
           build (same cert) — glibc layer ed82daa8… unchanged.
         </p>
@@ -114,18 +110,18 @@ export default function Home() {
           <span className="badge">history preserved</span>
         </h2>
         <p>
-          The M7.2 P3b served pair (APK fc1edb51…, bundle e6d22571…) is
+          The M7.2 P4 served pair (APK ab73b24a…, bundle 9c6e4a1b…) is
           SUPERSEDED by this phase build: same stamp (vc47), same cert, the
-          unchanged 6-permission set and glibc layer — the P4 build adds the
-          notification consumer on top of the P3a identity layer, the P3b
+          unchanged 6-permission set and glibc layer — the P5 build adds the
+          session-targeted tap routing on top of the P4 consumer, the P3b
           detector and the P3c event engine, and its bundle contains the
-          entire chain (the P3b record tip 0f091e7 AND the P3c record tip
-          66d91da are direct ancestors of this record tip 5b236df and of the
-          delivery tip e385021). The P3b
+          entire chain (the P4 record tip 5b236df AND the P4 delivery tip
+          e385021 are direct ancestors of this record tip d24bfde). The P4
           bytes are no longer served (the upload/ insurance copies survive
           byte-exact). The M7.2 P3c checkpoint stays bundle-only by design
-          (bundle 3ca73dc9… — no user-visible change existed to serve); P4 IS
-          user-visible, so it delivers BOTH the APK and the bundle. The M7.2
+          (bundle 3ca73dc9… — no user-visible change existed to serve); P4
+          and P5 ARE user-visible, so both delivered the APK and the bundle.
+          The M7.2
           P3a checkpoint remains internal by design (bundle
           45bdecea…, upload/ copy, never served — P3a deliberately shipped no
           APK release). Earlier withdrawals stand: the M7.2 P2 served set
@@ -147,8 +143,9 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 47 installs <b>in place over the M7.2 P3b phase build
+          versionCode 47 installs <b>in place over the M7.2 P4 phase build
           (47 — same versionCode, updated content, same pinned cert), the
+          M7.2 P3b phase build (47), the
           M7.2 P3a/P2/P1 phase builds (47), the M7.1.1 fix release (47), the
           M7.1
           release (46), the M7.1 phase builds (all
@@ -166,11 +163,11 @@ export default function Home() {
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Cline installation, the procfs
           contract, all Files explorer data, all Companion data and the
-          launcher visibility/icon settings are untouched. M7.2 P4 is
+          launcher visibility/icon settings are untouched. M7.2 P5 is
           APP-side only: the layer marker and the glibc files stay
-          byte-identical (rev=2, ed82daa8…), and the notification consumer
-          adds no persistence at all — an in-memory notification-domain
-          memory beside the P1 posted-id ledger, like the process-scoped
+          byte-identical (rev=2, ed82daa8…), and the tap-routing layer adds
+          no persistence at all — one nullable activity-scoped navigation
+          target beside the P1 posted-id ledger, like the process-scoped
           sessions themselves.
         </p>
       </div>
@@ -294,7 +291,7 @@ export default function Home() {
             seeing /proc or PID trees.
           </li>
           <li>
-            <b>M7.2 P4 (this build):</b> notification consumption of the
+            <b>M7.2 P4:</b> notification consumption of the
             runtime event engine — the FIRST user-visible M7.2 phase. ONE
             consumer subscribed exactly once at Application start folds the
             events through ONE pure truth contract: confirmed running → the
@@ -313,90 +310,116 @@ export default function Home() {
             no shipped string can claim completed/success/finished/failed
             (pinned over the actual literals).
           </li>
+          <li>
+            <b>M7.2 P5 (this build):</b> notification interaction &amp;
+            session context — the SECOND user-visible M7.2 phase: the honest
+            surfaces became actionable. Tapping a running / runtime-unknown /
+            eligible session-ended notification opens PocketShell into the
+            terminal context of the session the notification already names.
+            The route carries ONLY that authoritative session id; a pure
+            routing model (zero imports) resolves it against the manager&apos;s
+            live list — a listed id selects through the existing ViewModel
+            seam; a stale id opens the app normally. A notification can never
+            recreate a session, respawn a process, or fake a selection.
+            PendingIntent identity stays deterministic (request code = the
+            notification id). The shade&apos;s wording is byte-identical to
+            P4 — zero new permissions, channels or manifest entries; the FGS
+            untouched; no second lifecycle engine.
+          </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Device gates (docs/TESTING.md — §53 is the M7.2 P4 gate)</h2>
+        <h2>Device gates (docs/TESTING.md — §54 is the M7.2 P5 gate)</h2>
         <ol className="steps">
           <li>
-            <b>FGS regression (§53 step 1):</b> the Terminal sessions
+            <b>FGS regression (§54 step 1):</b> the Terminal sessions
             retention notification (channel terminal_sessions, id 1) appears
             with the first session and disappears with the last — exactly as
-            before P4; the P4 surfaces neither merge with it nor replace it.
+            before P5; the tap-routing layer neither touches it nor routes
+            through the service.
           </li>
           <li>
-            <b>Confirmed running (§53 step 2):</b> launch a supported agent
-            and leave the app — the &quot;Agent activity&quot; notification
-            &quot;&lt;Agent&gt; is running&quot; appears ONLY after the
-            detector&apos;s real confirmation (never at launch), once, as an
-            ongoing surface naming its session.
+            <b>The tap routes to the RIGHT session (§54 step 2):</b> launch a
+            supported agent, press Home, tap the &quot;… is running&quot;
+            notification — EXPECT: PocketShell opens directly on the Terminal
+            screen with THAT session selected (its scrollback visible), not
+            Home, not another session.
           </li>
           <li>
-            <b>No duplicates (§53 step 3):</b> keep the agent running over ≥
-            3 detector ticks — the same single notification, no re-alert, no
-            stacking (P3c dedups the transitions; the shade shows it).
+            <b>Multi-session isolation (§54 step 3):</b> with 3+ sessions and
+            a different one selected, tapping the agent notification selects
+            the AGENT&apos;s session — the plain shells are never selected by
+            it.
           </li>
           <li>
-            <b>Stops being detected (§53 step 4):</b> exit the agent while
-            the session stays open — the running surface is REMOVED and
-            NOTHING replaces it claiming finished/completed/success.
+            <b>Multi-agent cross-routing (§54 step 4):</b> two supported
+            agents in two sessions → two distinct notifications; each tap
+            routes to ITS OWN session, never cross-routing (the request-code
+            identity is per-session).
           </li>
           <li>
-            <b>Factual exit wording (§53 step 5):</b> let the session end —
-            one-shot &quot;Session ended / Terminal session N exited (code
-            0)&quot;, and with an abnormal end the code or signal preserved
-            verbatim; NEVER any &quot;agent completed/finished/succeeded&quot;
-            wording.
+            <b>Unknown tap (§54 step 5):</b> if reproducible, tapping the
+            &quot;runtime unknown&quot; surface opens that session — and NO
+            running/completed/stopped claim appears anywhere.
           </li>
           <li>
-            <b>Honest uncertainty + permission arms + restart + isolation
-            (§53 steps 6–9):</b> the surface updates to &quot;runtime
-            unknown&quot; in place when the evidence blurs; denial never
-            crashes and never re-asks; force-stop + relaunch leaves NO stale
-            &quot;Agent running&quot; (the sweep cancels the ledger, nothing
-            is restored); 2–3 sessions stay isolated per session id.
+            <b>Stale tap (§54 step 6):</b> close the agent&apos;s session,
+            then tap any remaining agent notification for it — EXPECT: no
+            crash, no session recreation, no respawn; PocketShell simply
+            opens (the notification never resurrects a process).
           </li>
           <li>
-            <b>The honesty sweep (§53 step 10):</b> across all steps, zero
-            completed/success/finished/failed claims anywhere in the shade or
-            the log — a notification that overstates the evidence is a FAIL
-            even when it looks nice. The §51 logcat gate (per-agent /proc
-            shapes) remains the runtime-layer pass below this one.
+            <b>Process death (§54 step 7):</b> kill from Recents, relaunch
+            via the notification (or normally after the sweep) — EXPECT: no
+            fake restoration, no running claim, no duplicate session; a
+            normal fresh start.
+          </li>
+          <li>
+            <b>The honesty sweeps (§54 step 8, §53 verbatim):</b> across all
+            steps, zero completed/success/finished/failed claims anywhere in
+            the shade or the log — P5 changed what taps DO, never what the
+            shade may SAY. A wrong-session routing is a FAIL even when the
+            app looks fine. The §53 shade-wording gate and the §51 logcat
+            gate remain in force below this one.
           </li>
         </ol>
         <p>
-          <b>Honest visibility note:</b> P4 IS user-visible — the notification
-          shade now carries the runtime story the P2/P3 architecture can
-          actually prove, and nothing more. The §53 gate is written exactly
-          for that: the shade must be verified on hardware before the
-          phase&apos;s results are trusted there.
+          <b>Honest visibility note:</b> P5 IS user-visible twice over — the
+          shade looks exactly like P4 (byte-identical wording) and the
+          surfaces now NAVIGATE. The §54 gate is written exactly for that:
+          the tap paths must be verified on hardware before the phase&apos;s
+          results are trusted there (the JVM pins prove the decision logic;
+          only hardware proves the real PendingIntents carry the real extras
+          across cold/warm/process-death paths).
         </p>
       </div>
 
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Source at the M7.2 P4 record tip 5b236df (the notification-consumption
-          chain bede512 → 49039e2 → the Task 43 worklog record, on top of the
+          Source at the M7.2 P5 record tip d24bfde (the interaction chain
+          4672e36 → 894d108 → the Task 44 worklog record, on top of the P4
+          notification chain bede512 → 49039e2 → 5b236df and its delivery
+          chain 7444d28 → 2e8f0c6 → e385021 (+ the b825302 addendum), the
           P3c event-engine chain f782272 → 15d2ee4 → 66d91da, the P3b
           detection chain 5993fd3 → 3683fd1 → 0f091e7, the P3a chain f4c8afd →
           8ff2e12 → 5fe3602 → 6f15d09, the P2 lifecycle
           chain 0c9a792 → 577e1e9 → 133e656 → 3b144be, the P1 chain c6ced97 →
           0ed5da0 → fd54aa0 → a7c635e, the M7.1.1 fix 3cbfec2 and the M7.2 P0
           audit c8d0059/024cd28, with the full M7.1 release + P3 + P2.2 + P2.1
-          + P2 + P1 + M7.0 chain below). P4 ships no source archives — the
+          + P2 + P1 + M7.0 chain below). P5 ships no source archives — the
           bundle is the source-of-truth artifact; full history rides in the
-          git bundle — the complete milestone history (M0 → m7.2-p4), all
+          git bundle — the complete milestone history (M0 → m7.2-p5), all
           design contracts, the procfs contract, the P3a detection matrix, the
           P3b runtime-detection investigation, the P3c event-engine contract,
-          the P4 notification contract, and the runtime documentation.
-          Bundle main tip e385021 = the tip the bundle is cut at (the P4
-          DELIVERY tip: the worklog record 5b236df + the delivery record
-          7444d28 + the mandated page re-pin 2e8f0c6 + the measured-counts
-          doc correction e385021 — one commit beyond the record tip taken
-          deliberately so the bundle's own contract doc carries the exact
-          verification numbers; the APK was
+          the P4 notification contract, the P5 interaction contract, and the
+          runtime documentation.
+          Bundle main tip d24bfde = the tip the bundle is cut at (the P5
+          RECORD tip — the docs are final there, so the clean record-tip cut
+          stands; the page re-pin and the delivery record ride after the cut
+          by the disclosed P4-addendum convention and contain zero
+          implementation delta; the APK was
           built from the identical app sources at that tip). History note: this
           bundle continues the user-restored P7.1 delivery bundle (fb01540)
           through the M7.0 release chain (47bed42 → 709d126 → dd81bc8), the
@@ -408,12 +431,14 @@ export default function Home() {
           the P3a audit (f4c8afd → 8ff2e12 → 5fe3602 → 6f15d09 — Task 41),
           the P3b detector (5993fd3 → 3683fd1 → 0f091e7 — Task 42), the P3c
           event engine (f782272 → 15d2ee4 → 66d91da — Task 43), the P4
-          notification consumer (bede512 → 49039e2 → 5b236df — Task 43), and
-          the delivery chain (7444d28 → 2e8f0c6 → e385021 — Task
-          43-delivery).
+          notification consumer (bede512 → 49039e2 → 5b236df — Task 43), the
+          P4 delivery chain (7444d28 → 2e8f0c6 → e385021 → b825302 — Task
+          43-delivery), the two disclosed platform worklog snapshots (539c632,
+          57f242d), and the P5 interaction chain (4672e36 → 894d108 → d24bfde
+          — Task 44).
         </p>
-        <a className="btn secondary" href="/pocketshell-m7.2-p4.gitbundle">
-          git bundle (full history, M7.2 P4 delivery tip)
+        <a className="btn secondary" href="/pocketshell-m7.2-p5.gitbundle">
+          git bundle (full history, M7.2 P5 record tip)
         </a>
         <Sha text={HASHES.bundle} />
         <a className="btn secondary" href="/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz">
@@ -421,7 +446,7 @@ export default function Home() {
         </a>
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m7.2-p4.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7.2-p5.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
           with the same signing identity (d96a6f66…8bf659, unchanged since
           v0.4.1).
@@ -497,8 +522,8 @@ export default function Home() {
         engine — the third truth level: the deduplicated typed event
         vocabulary (Launched / ConfirmedRunning / NoLongerDetected /
         RuntimeUnknown / SessionEnded) on a replay-free stream, staleness
-        rejection, zero own polling, no notifications yet ·{" "}
-        <b>m7.2 p4 (this build): notification consumption of the runtime
+        rejection, zero own polling, no notifications yet · m7.2 p4:
+        notification consumption of the runtime
         event engine — the FIRST user-visible M7.2 phase: one consumer
         subscribed once at Application start, one pure truth contract
         (running surface / honest uncertainty / withdrawal on
@@ -507,8 +532,19 @@ export default function Home() {
         one calm agent_runtime channel, the FGS untouched, zero new
         permission machinery, three-way stale cleanup, 1932/1932 JVM with 0
         skipped, and NO notification can claim
-        completed/success/finished/failed — the §53 shade gate owns the
-        device pass</b>. Correctness before cleverness. Visible UI before
+        completed/success/finished/failed ·{" "}
+        <b>m7.2 p5 (this build): notification interaction &amp; session
+        context — the SECOND user-visible M7.2 phase: the honest surfaces
+        became actionable — tapping a running / unknown / eligible
+        session-ended notification opens the named session&apos;s terminal
+        context through ONE pure routing model (live id → the existing
+        ViewModel select seam; stale id → the app opens normally; a
+        notification can never resurrect a process), the route carries ONLY
+        the authoritative session id, PendingIntent request code = the
+        notification id, the P4 wording byte-unchanged, zero new
+        permissions/channels/manifest entries, the FGS untouched,
+        1986/1986 JVM with 0 skipped — the §54 tap gate owns the device
+        pass</b>. Correctness before cleverness. Visible UI before
         diagnostics. False confidence is failure.
       </footer>
     </main>
