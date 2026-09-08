@@ -3118,3 +3118,42 @@ pre-P2 build did):
 10. Parity statement: compared side-by-side with the m72p1 build, no
     user-visible difference should exist — P2 is the engine underneath.
     Any visible difference is a defect to report, not a feature.
+
+## 50. M7.2 P3a — trusted agent signal audit & detection design (JVM-verified only; NO device gate)
+
+Phase: internal metadata plumbing on top of the P2 lifecycle engine —
+`LaunchIdentity` (the sealed KnownAgent / KnownNonAgentTool /
+CustomOrUnknown classification resolved against the REAL registry/catalog
+objects) plus the derived `AgentActivityRepository.classifiedLaunches`
+projection. The full audit, the detection-classification matrix over every
+registry/catalog/custom launcher, and the three-statement truth rule
+(launched ≠ running ≠ completed) are `docs/M7.2-P3A-DETECTION-MATRIX.md`.
+
+What P3a is NOT: no user-visible change of any kind, no notification, no
+UI, no /proc, no polling, no output parsing, no OSC 133, no custom tool
+promoted by its name, no spawn-site change, no persistence, no version
+bump (the stamp stays 47 / 0.11.2-m7.1.1).
+
+Verified WITHOUT a device (this build's honest floor):
+
+-   Full JVM suite forced rerun: **833/833** on the historical debug
+    basis (app 688 = 665 P2-era + 23 new P3a, terminal-emulator 145,
+    0 failures / 0 errors / 0 skipped) — `LaunchIdentityTest` (14 pure:
+    the full matrix incl. never-promotion of custom tools and
+    phase-independence of the classification) and
+    `LaunchIdentityIntegrationTest` (9 structural: the manager's single
+    authority untouched and registry-free, the classifier exhaustive over
+    the sealed origins, no agent running/completion API anywhere in the
+    main sources, the P1/P2 boundaries carried through). The release
+    unit-test variants ran the same 833 equally green.
+-   APK assembled at the tip and audited: 30,802,996 B, sha256
+    598829a8…f9ebd, versionCode 47 / versionName 0.11.2-m7.1.1 (inherited
+    stamp), the UNCHANGED 6-permission merged set, 26 launcher icon
+    assets, dex carries the new `LaunchIdentity` symbols beside the P2
+    set, cert d96a6f66…8bf659 unchanged.
+
+Device gate: **none required for P3a** — the phase intentionally creates
+no user-visible feature to exercise. The standing hardware gates remain
+§47 (M7.1.1), §48 (P1) and §49 (P2 parity) on a real Android 13+ device;
+the next M7.2 device-facing work arrives with P3b (the procfs scanner),
+whose device pass will be defined when P3b is mandated.

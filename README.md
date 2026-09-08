@@ -51,10 +51,10 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P2 — session lifecycle engine & structured exit
-status (phase build `-m72p2` on the inherited v0.11.2-m7.1.1 /
-versionCode 47 stamp; M7.2 P1, the M7.1.1 fix release and M7.1 release
-below it)**
+Current state: **M7.2 P3a — trusted agent signal audit & detection
+design (internal checkpoint on the inherited v0.11.2-m7.1.1 /
+versionCode 47 stamp; M7.2 P2, P1, the M7.1.1 fix release and M7.1
+release below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -83,10 +83,16 @@ as structured exited(code)/signaled(signal) values, structured
 SpawnOrigin/AgentHint launch identity at every spawn site, race-safe
 transitions (duplicate-callback idempotency, the kill(0) close guard),
 typed lifecycle events and the derived AgentActivityRepository —
-in-memory only, no notifications, no agent claims. Full JVM suite
-810/810 green (app 665 + terminal-emulator 145, 0 skipped, forced clean
+in-memory only, no notifications, no agent claims. M7.2 P3a audited every
+trustworthy signal and classified the launch identity of every
+registry/catalog/custom launcher (`LaunchIdentity`: known agents vs known
+non-agent tools vs never-promoted custom commands) — the type-level truth
+rule being that "PocketShell launched X" is proven at spawn while "X is
+running" and "X completed" remain unrepresentable until P3b's real procfs
+evidence. Full JVM suite
+833/833 green (app 688 + terminal-emulator 145, 0 skipped, forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
 the hardware pass — the M7.1.1 gate is §47, the M7.2 P1 gate is §48, the
-M7.2 P2 parity gate is §49, and a green build alone never completes a
-milestone.
+M7.2 P2 parity gate is §49 (P3a intentionally requires no device gate),
+and a green build alone never completes a milestone.

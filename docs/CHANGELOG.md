@@ -3,6 +3,43 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p3a] — 2026-09-08 — M7.2 P3a trusted agent signal audit & detection design
+
+The third M7.2 phase: audit-first, then the minimum internal metadata
+plumbing the evidence supports — no user-visible change, no version bump
+(phase checkpoint on the inherited vc47 / `0.11.2-m7.1.1` stamp), no new
+permissions. The audit and the detection-classification matrix are
+`docs/M7.2-P3A-DETECTION-MATRIX.md`.
+
+- **The truth rule, type-level**: "PocketShell launched X" (spawn
+  metadata, proven), "X is currently running" (NOT knowable at the
+  session layer — the direct child is proot, the `<command>; exec <sh>`
+  chain keeps the session alive after the agent exits, and the fork
+  signal fires before the command line even runs) and "X completed" (NOT
+  knowable — the agent's own exit status is structurally discarded by the
+  launch chain) are now distinct in the type system: `LaunchIdentity`
+  carries the launch evidence and NO running/completion/exit field.
+- **Launch identity classification** (`terminal/LaunchIdentity.kt`): the
+  sealed `KnownAgent` / `KnownNonAgentTool` / `CustomOrUnknown` model,
+  resolved by a pure `of(origin, agent)` against the REAL registry
+  (9 agent launchers) and catalog (5 known non-agent tools) objects.
+  Custom tools resolve against NO registry — a user-chosen name ("My
+  Agent") never promotes a command to an agent; unresolvable ids degrade
+  honestly; plain shells claim no identity.
+- **Derived projection**: `AgentActivityRepository.classifiedLaunches` —
+  per-session classified launch identity computed from the manager's
+  authoritative state; stores nothing, decides nothing (the P2 read-model
+  contract preserved). One lifecycle authority unchanged
+  (`TerminalSessionManager` untouched; no spawn-site change).
+- **Truth-boundary tests** (23 new): `LaunchIdentityTest` (14 pure — the
+  full matrix incl. never-promotion and phase-independence) and
+  `LaunchIdentityIntegrationTest` (9 structural — the manager stays
+  registry-free, no agent running/completion API exists anywhere in the
+  main sources, the P1 notification / P2 vocabulary boundaries carried).
+  Full JVM forced rerun 833/833 (app 688 + TE 145, 0 skipped); APK
+  audited at the inherited stamp (30,802,996 B, 598829a8…, cert and
+  6-permission set unchanged). JVM-verified only by design — TESTING §50.
+
 ## [0.11.2-m7.1.1-m72p2] — 2026-09-08 — M7.2 P2 session lifecycle engine & structured exit status
 
 The second M7.2 phase: internal lifecycle infrastructure built exactly on

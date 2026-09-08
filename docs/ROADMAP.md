@@ -950,9 +950,39 @@ under the module-dir runner and now run and pass. No notifications
 posted, no agent detection, no heuristics, no /proc, no OSC 133, no UI
 change. The real-device pass is TESTING §49 (10 steps — a parity gate).
 
-**Next milestone (NOT started): M7.2 P3a — launcher metadata
-propagation** (consume the P2 SpawnOrigin/AgentHint vocabulary for
-reliable "launched as X is running / has ended" claims; P3b follows with
-the device-verified /proc descendant scanner adding procfs-graded
-evidence). P0 PART D/E and the P2 event/identity seams are the design
-baseline; the source tree remains the implementation authority.
+**M7.2 P3a — trusted agent signal audit & detection design ✅
+(2026-09-08, internal metadata plumbing on the P2 engine, phase build on
+the inherited vc47 / `0.11.2-m7.1.1` stamp):** audit-first per the P0
+design baseline (PART D/E), then the minimum the evidence supports. The
+full signal audit and the detection-classification matrix over every
+registry/catalog/custom launcher are `docs/M7.2-P3A-DETECTION-MATRIX.md`;
+the core safety rule is now type-level: "PocketShell launched X" (proven
+at spawn), "X is currently running" (NOT knowable — the direct child is
+proot, the `; exec` chain outlives the agent, and the agent's exit status
+is discarded by the intermediate shell) and "X completed" (NOT knowable)
+are distinct statements, and only the first is representable. New
+`terminal/LaunchIdentity.kt`: the sealed `KnownAgent` /
+`KnownNonAgentTool` / `CustomOrUnknown` classification resolved by a PURE
+`of(origin, agent)` against the real `CommandAppCatalog` /
+`CliAppCatalog` objects — custom tools resolve against NO registry
+(user names never promote to agents), unresolvable ids degrade honestly,
+plain shells claim nothing, and the type carries no exit/running/
+completion field. `AgentActivityRepository` gains the derived
+`classifiedLaunches` projection (stores nothing, decides nothing). No
+spawn-site change, no manager change (one lifecycle authority), no
+persistence, no UI, no notifications, no /proc, no polling, no output
+parsing. 833/833 JVM green (app 688 = 665+23 new + TE 145, 0 skipped)
+incl. the truth-boundary suites (`LaunchIdentityTest` 14 pure +
+`LaunchIdentityIntegrationTest` 9 structural, incl. the repo-wide
+no-agent-running-API pin); APK audited at the inherited stamp (cert and
+6-permission set unchanged). JVM-verified only by design — TESTING §50
+records the honest floor and requires NO device gate for this phase.
+
+**Next milestone (NOT started): M7.2 P3b — the device-verified /proc
+descendant scanner** (graded `PROCFS_EXE`/`PROCFS_CMDLINE` evidence
+through the manager, extending `AgentMatchedBy` as compile-time-forced
+extensions; works for manual and nested cases; requires its own real-device
+pass to verify each registry agent's actual `/proc` shape). P0 PART D/E,
+the P2 event/identity seams and the P3a `LaunchIdentity` classification
+are the design baseline; the source tree remains the implementation
+authority.
