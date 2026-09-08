@@ -127,6 +127,16 @@ tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - -C "$STAGE"
 cp "$BUNDLE" "$PUBLIC/pocketshell-m7.2-p1.gitbundle"
 cp "$APK_SRC" "$APK"
 
+# Withdraw the superseded serving surface (the M7.1.1 fix set + the P0
+# docs-only bundle): the insurance copies survive in upload/, the history
+# rides in this bundle. Re-running this script reproduces the exact
+# serving surface — current set present, stale set gone (404).
+rm -f "$PUBLIC/PocketShell-v0.11.2-m7.1.1-debug.apk" \
+      "$PUBLIC/PocketShell-v0.11.2-m7.1.1-source.zip" \
+      "$PUBLIC/PocketShell-v0.11.2-m7.1.1-source.tar.gz" \
+      "$PUBLIC/pocketshell-m7.1.1.gitbundle" \
+      "$PUBLIC/pocketshell-m7.2-p0.gitbundle"
+
 # The glibc layer artifact: UNCHANGED by M7.2 P1 — carry the pinned bytes forward.
 GLIBC=public/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz
 GLIBC_PIN=ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d
