@@ -76,4 +76,35 @@ object AgentActivityRepository {
                     )
                 }
             }
+
+    /**
+     * M7.2 P3a — the classified launch identity per live session: WHAT each
+     * session was launched as, resolved against the real registries
+     * ([LaunchIdentity]). A pure derived view of the manager's authoritative
+     * state — computed per emission, stored NOWHERE, and carrying NO runtime
+     * claim (the identity is the launch evidence; the only running-truth
+     * remains the entry's [SessionLifecycleState] on the direct child).
+     * Plain shells (identity `null`) are absent, exactly as they are absent
+     * from [runningLaunchedSessions].
+     */
+    data class ClassifiedLaunch(
+        val sessionId: Long,
+        val label: String,
+        val identity: LaunchIdentity,
+    )
+
+    val classifiedLaunches: Flow<List<ClassifiedLaunch>> =
+        TerminalSessionManager.sessions
+            .map { list ->
+                list.mapNotNull { entry ->
+                    LaunchIdentity.of(entry.origin, entry.agent)?.let { identity ->
+                        ClassifiedLaunch(
+                            sessionId = entry.id,
+                            label = entry.displayLabel,
+                            identity = identity,
+                        )
+                    }
+                }
+            }
+            .distinctUntilChanged()
 }
