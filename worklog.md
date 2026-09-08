@@ -2151,3 +2151,19 @@ Work Log:
 
 Stage Summary:
 - The delivered P4 bundle now contains the exact measured verification counts; every pin (page, download/README, upload/ insurance) refers to the ONE delivered cut 9c6e4a1b…; the chain 1c9ce59 → bede512 → 49039e2 → 5b236df → 7444d28 → 2e8f0c6 → e385021 is the complete, disclosed history.
+
+---
+Task ID: 43-delivery-restore
+Agent: main (Super Z)
+Task: User request — "Update download page and run server": restore the P4 delivery set and the serving path after the latest sandbox reset (public/ wiped, download/ stripped to README + glibc-sidecar sums), re-verify every byte against the pins, and arm the platform preview.
+
+Work Log:
+- Read the git state first (per the standing rule): main tip b825302 — the P4 chain is complete and committed (1c9ce59 → bede512 → 49039e2 → 5b236df → 7444d28 → 2e8f0c6 → e385021 → b825302); worktree clean; the page source already pins the P4 pair with the corrected delivery-tip bundle (HASHES: apk ab73b24a…, bundle 9c6e4a1b…, glibc ed82daa8…, rev=2 unchanged) — NO page code change was needed, the page was already re-pinned to P4 at 2e8f0c6 and re-pinned again at b825302.
+- Baseline damage classification: public/ (gitignored runtime scaffolding) EMPTY; download/ held only README.md + glibc-sidecar/{INPUTS.sha256,SHA256SUMS} — the P4 APK, bundle and glibc tar.gz were lost to the reset; upload/ insurance copies intact.
+- Pin verification BEFORE restore: upload/ APK sha256 ab73b24ab52e…3442f == the page pin; upload/ bundle sha256 9c6e4a1bcc…e2e5a7 == the page pin (the re-cut delivery-tip bundle per the 43-delivery-addendum); the git-tracked in-tree glibc asset app/src/main/assets/guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz sha256 ed82daa8b0…a7c3d == the page pin.
+- Restored download/ byte-exact: APK (30,859,664 B) + bundle (37,874,595 B) copied from upload/ insurance; glibc tar.gz (6,764,916 B) copied from the tracked in-tree asset; re-hashed all three == pins. public/ staging mirrors staged and re-hashed byte-identical.
+- next build green (4/4 static pages prerendered; route / 123 B, First Load JS 103 kB).
+- HTTP WIRE VERIFICATION in a single call (the sandbox reaps background processes at tool-call boundaries): next start :3210 → page 200 (58,467 B, the m72p4 pin + the 9c6e4a1b… bundle pin present in the served HTML) + APK 200 (30,859,664 B, sha ab73b24a… == pin) + bundle 200 (37,874,595 B, sha 9c6e4a1b… == pin) + glibc 200 (6,764,916 B, sha ed82daa8… == pin); server killed after the check.
+
+Stage Summary:
+- The delivery surface is fully restored after the sandbox reset with ZERO re-cuts: every served byte is the audited P4 artifact (upload/ insurance → download/ master → public/ serving copy), all hashes equal the page pins; the page needed no change. Platform preview armed via the web_dev completion flow. P4 remains the delivered phase; P5 NOT started.
