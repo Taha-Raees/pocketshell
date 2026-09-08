@@ -1,15 +1,16 @@
-const VERSION = "v0.11.2-m7.1.1-m72p3b";
+const VERSION = "v0.11.2-m7.1.1-m72p4";
 
-// SHA pins — the M7.2 P3b (runtime agent detection via /proc) delivery pair.
-// The bundle is cut at the P3b record tip (0f091e7); the APK is the audited
-// phase build at the inherited stamp (versionCode 47, versionName
-// 0.11.2-m7.1.1 — the -m72p3b suffix is filename-only), cert d96a6f66…8bf659,
-// the unchanged 6-permission set. The glibc layer is UNCHANGED rev=2
-// (byte-identical artifact ed82daa8…). P3b ships NO source archives — the git
-// bundle is the source-of-truth artifact (the P2 zip/tgz stay withdrawn).
+// SHA pins — the M7.2 P4 (notification consumption of the runtime event
+// engine) delivery pair. The bundle is cut at the P4 record tip (5b236df);
+// the APK is the audited phase build at the inherited stamp (versionCode 47,
+// versionName 0.11.2-m7.1.1 — the -m72p4 suffix is filename-only), cert
+// d96a6f66…8bf659, the unchanged 6-permission set. The glibc layer is
+// UNCHANGED rev=2 (byte-identical artifact ed82daa8…). P4 ships NO source
+// archives — the git bundle is the source-of-truth artifact (the P2 zip/tgz
+// stay withdrawn).
 const HASHES = {
-  apk: "fc1edb518bdb853f2d42a89d12d20209b36974578dd894e54941bd71804e704e",
-  bundle: "e6d22571be67cebc4c0793af9278b3010fcdffa40b7e78e2b81ea0bdd3569c05",
+  apk: "ab73b24ab52e40662de45ad5c0c2aacb50494e1889d8428717266f080634442f",
+  bundle: "f3d14319480396ebd3832212523a99c90ee16075b0fee88a3a38935d81c9d452",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
 
@@ -31,75 +32,77 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M7.2 P3b — RUNTIME AGENT DETECTION VIA /PROC: the second truth level
-          (Launched → Running) built on real process evidence only{" "}
-          <span className="badge">record tip 0f091e7 · vc47</span>
+          M7.2 P4 — NOTIFICATION CONSUMPTION OF THE RUNTIME EVENT ENGINE: the
+          first user-visible M7.2 phase — honest notifications, no completion
+          claims, ever{" "}
+          <span className="badge">record tip 5b236df · vc47</span>
         </h2>
         <p>
           <b>
-            Third M7.2 internal phase, Success A achieved: PocketShell can now
-            correlate a supported launched agent session with REAL process
-            evidence and truthfully expose <b>RUNNING</b> (the exact pids + the
-            match grade), <b>NOT_RUNNING</b> (proven absence after proven
-            presence — explicitly NOT completion/success/finished),{" "}
-            <b>UNKNOWN</b> (never-observed, scan failure, or ambiguity — never
-            dressed up as RUNNING) and <b>NOT_APPLICABLE</b> (plain shells,
-            known non-agent tools, custom/unknown tools — the scanner never
-            activates for them). <b>CORRELATION — the anti-false-positive
-            core</b>: attribution runs ONLY inside the session&apos;s
-            fork-proven tree — the manager-recorded shellPid (the real fork
-            signal, on the main thread) is the root, and a process counts ONLY
-            via ppid-chain descent OR process-group membership under that root
-            (the JNI child calls setsid, so it IS the group leader; controlled
-            experiment E4a proved orphans keep their group while losing their
-            chain, E4b documented the double-escape blind spot, and E4c is the
-            negative control: an unrelated same-name process satisfies NEITHER
-            domain and can structurally never produce RUNNING). <b>MATCHING —
-            exact-token only</b>: PROCFS_EXE (exe image basename) and
-            PROCFS_CMDLINE (argv[0], or the kernel shebang contract&apos;s
-            script path at argv[1] — experiment E3a proved interpreter-hosted
-            CLIs carry the invoked name there while exe reads the interpreter);
-            compile-time-forbidden substring matching (codex can never match
-            my-codex-wrapper / codex-helper / something-codex), and the chain
-            shell&apos;s single-element command line can never match (E2).{" "}
-            <b>POLLING</b>: a 2-second tick that exists ONLY while a session
-            with a KnownAgent launch identity exists (parking loop, zero
-            scheduled work otherwise; no AlarmManager, no WakeLock, no
-            WorkManager). <b>ONE lifecycle authority</b>: the detector is an
-            observer-only evidence provider — it owns no transitions, mutates
-            nothing, and the manager keeps every lifecycle truth.{" "}
-            <b>VERIFICATION</b>: FULL JVM suite forced --rerun-tasks 1764/1764
-            green (app 737×2 + terminal-emulator 145×2, 0 failures, 0 errors,
-            0 skipped) including +49 new tests (pure decision-table + matching
-            safety + correlation controls, and the structural integration
-            pins); the five controlled /proc experiments (E1–E5) ran on the
-            real guest chain: proot is the PTY&apos;s direct child AND the
-            setsid session/group leader, the chain shell rides the command
-            line as ONE argv element, and guest processes are visible over the
-            real hidepid=2 procfs bind under the app UID. <b>HONEST SCOPE</b>:
-            P3b posts NO notifications (the P1 sweep stays dormant), makes no
-            completion/success/finished claims (unrepresentable in the state
-            model), does no output parsing (no OSC 133, no prompt heuristics),
-            never promotes custom tools, and ships NO agent-status UI — by
-            design the only observable channel is the AgentRuntimeDetector
-            logcat line, so the mandatory REAL-DEVICE gate is docs/TESTING.md
-            §51 (12 steps over adb logcat + controlled launches, with
-            Success-B parity: a persistent UNKNOWN is a valid recorded
-            outcome, never a heuristic). The full investigation is
-            docs/M7.2-P3B-RUNTIME-DETECTION.md.
+            Sixth M7.2 phase, Success A achieved: the P3c deduplicated event
+            stream now drives the Android notification shade through ONE
+            consumer subscribed EXACTLY ONCE per process (Application scope —
+            the replay-free stream&apos;s correctness requirement: events
+            emitted before subscription are lost, and no session can spawn
+            before Application.onCreate returns). <b>THE TRUTH CONTRACT</b>:
+            confirmed running → an ongoing &quot;<b>&lt;RegistryName&gt; is
+            running</b>&quot; surface (the launcher REGISTRY&apos;s own name —
+            never invented); runtime unknown → the surface updates IN PLACE to
+            honest uncertainty (&quot;runtime unknown — cannot be verified
+            right now&quot;); no longer detected → the running claim is
+            WITHDRAWN (disappearance is NOT completion — no replacement
+            notification exists, nothing ever says finished); session ended →
+            a one-shot factual &quot;<b>Session ended</b>&quot; / &quot;Terminal
+            session N exited (code X) / was terminated by signal Y&quot;
+            statement about the session&apos;s own waitpid status — the exit
+            code preserved verbatim and uninterpreted, exit 0 NEVER worded as
+            success. <b>IDENTITY &amp; DEDUP</b>: deterministic per-session
+            notification ids (AGENT_RUNTIME_BASE + sessionId — never hash,
+            never random, never a display string) so repeated state never
+            reposts; a defensive notification-domain memory (posted /
+            everPosted / tombstones) means identical surfaces are no-ops and
+            ended sessions refuse every later event — without becoming a
+            second event state machine. <b>CALM</b>: one new channel
+            (agent_runtime, &quot;Agent activity&quot;) beside the untouched
+            P1 channel; setOnlyAlertOnce — in-place updates never re-alert, so
+            the 2-second polling tick upstream can never spam. <b>STALE
+            SURFACES DIE THREE WAYS</b>: the tombstone in-process, the P1
+            startup sweep across processes, and nothing restored after a
+            process death — the architecture cannot prove a running agent it
+            cannot see, so no stale &quot;Agent running&quot; survives a
+            restart. <b>THE FGS IS UNTOUCHED</b>: the Terminal sessions
+            retention notification (TerminalService, channel
+            terminal_sessions, id 1) behaves exactly as before, structurally
+            pinned. <b>ZERO new permission machinery</b>: the P1 gate (one
+            controlled POST_NOTIFICATIONS ask per install at the first
+            session) remains the only path; the manifest is unchanged.{" "}
+            <b>VERIFICATION</b>: FULL JVM suite forced --rerun-tasks
+            1932/1932 green (app 821×2 + terminal-emulator 145×2, 0 failures,
+            0 errors, 0 skipped) including +41 new tests (the pure
+            truth-contract matrix with the honesty sweep over a full session
+            story, the structural pins — subscribe-once, one collection, no
+            polling, no /proc, no session/detector references, the
+            shipped-string honesty check — and the id-space tests).{" "}
+            <b>HONEST SCOPE</b>: no notification can claim
+            completed/success/finished/failed — pinned over the actual
+            shipped string literals; &quot;no longer detected&quot; is only
+            ever a withdrawal; exit code 0 is a session fact, never an agent
+            verdict. The mandatory REAL-DEVICE gate is docs/TESTING.md §53
+            (ten steps in the notification shade). Full contract:
+            docs/M7.2-P4-NOTIFICATION-CONSUMPTION.md.
           </b>
         </p>
-        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p3b-debug.apk">
-          Download M7.2 P3b APK (debug, 30.8 MB)
+        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p4-debug.apk">
+          Download M7.2 P4 APK (debug, 30.9 MB)
         </a>
         <Sha text={HASHES.apk} />
-        <a className="btn secondary" href="/pocketshell-m7.2-p3b.gitbundle">
-          git bundle — full history M0 → P3b record tip (37.8 MB)
+        <a className="btn secondary" href="/pocketshell-m7.2-p4.gitbundle">
+          git bundle — full history M0 → P4 record tip (37.9 MB)
         </a>
         <Sha text={HASHES.bundle} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
           versionCode 47 / versionName 0.11.2-m7.1.1 (the M7.x phase-build
-          precedent — phase builds ride the inherited stamp, the -m72p3b
+          precedent — phase builds ride the inherited stamp, the -m72p4
           suffix is filename-only) — installs in place over every earlier
           build (same cert) — glibc layer ed82daa8… unchanged.
         </p>
@@ -111,17 +114,22 @@ export default function Home() {
           <span className="badge">history preserved</span>
         </h2>
         <p>
-          The M7.2 P2 served set (APK 4a144d23…, source zip 996148b0…, source
-          tar.gz ea19e823…, bundle d821d94f…) is SUPERSEDED by this phase
-          build: same stamp (vc47), same cert, the unchanged 6-permission set
-          and glibc layer — the P3b build simply carries the lifecycle engine,
-          the launch-identity layer and the runtime detector on top, and its
-          bundle contains the entire P2 chain (the P2 record tip 3b144be is a
-          direct ancestor of this record tip 0f091e7). The P2 bytes are no
-          longer served (the upload/ insurance copies survive byte-exact).
-          The M7.2 P3a checkpoint remains internal by design (bundle
+          The M7.2 P3b served pair (APK fc1edb51…, bundle e6d22571…) is
+          SUPERSEDED by this phase build: same stamp (vc47), same cert, the
+          unchanged 6-permission set and glibc layer — the P4 build adds the
+          notification consumer on top of the P3a identity layer, the P3b
+          detector and the P3c event engine, and its bundle contains the
+          entire chain (the P3b record tip 0f091e7 AND the P3c record tip
+          66d91da are direct ancestors of this record tip 5b236df). The P3b
+          bytes are no longer served (the upload/ insurance copies survive
+          byte-exact). The M7.2 P3c checkpoint stays bundle-only by design
+          (bundle 3ca73dc9… — no user-visible change existed to serve); P4 IS
+          user-visible, so it delivers BOTH the APK and the bundle. The M7.2
+          P3a checkpoint remains internal by design (bundle
           45bdecea…, upload/ copy, never served — P3a deliberately shipped no
-          APK release). Earlier withdrawals stand: the M7.2 P1 APK (e63fb9b5…),
+          APK release). Earlier withdrawals stand: the M7.2 P2 served set
+          (APK 4a144d23…, source zip 996148b0…, source tar.gz ea19e823…,
+          bundle d821d94f…), the M7.2 P1 APK (e63fb9b5…),
           the M7.1.1 fix APK (5d876141…), the M7.1 release APK (2d298c85…),
           the M7.1 P3 APK (46fb0d8b…), the M7.1 P2.2 APK (7e0e99a9…), the
           M7.1 P2.1 APK (97c04120…), the M7.1 P2 APK (ae6f6445…), the M7.1 P1
@@ -138,9 +146,10 @@ export default function Home() {
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 47 installs <b>in place over the M7.2 P2 phase build
+          versionCode 47 installs <b>in place over the M7.2 P3b phase build
           (47 — same versionCode, updated content, same pinned cert), the
-          M7.2 P1 phase build (47), the M7.1.1 fix release (47), the M7.1
+          M7.2 P3a/P2/P1 phase builds (47), the M7.1.1 fix release (47), the
+          M7.1
           release (46), the M7.1 phase builds (all
           45 — P1, P2, P2.1, P2.2, P3), the M7.0 release (45),
           v0.10.0-m6.0.4
@@ -156,11 +165,12 @@ export default function Home() {
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Cline installation, the procfs
           contract, all Files explorer data, all Companion data and the
-          launcher visibility/icon settings are untouched. M7.2 P3b is
+          launcher visibility/icon settings are untouched. M7.2 P4 is
           APP-side only: the layer marker and the glibc files stay
-          byte-identical (rev=2, ed82daa8…), the notifications DataStore is
-          unchanged, and the runtime detector adds no persistence at all —
-          in-memory StateFlow observation, like the sessions themselves.
+          byte-identical (rev=2, ed82daa8…), and the notification consumer
+          adds no persistence at all — an in-memory notification-domain
+          memory beside the P1 posted-id ledger, like the process-scoped
+          sessions themselves.
         </p>
       </div>
 
@@ -256,8 +266,8 @@ export default function Home() {
             this layer.
           </li>
           <li>
-            <b>M7.2 P3b (this build):</b> runtime agent detection via{" "}
-            <code>/proc</code> — the second truth level (Launched → Running):
+            <b>M7.2 P3b:</b> runtime agent detection via <code>/proc</code> —
+            the second truth level (Launched → Running):
             RuntimeAgentDetector observes the manager&apos;s authoritative
             StateFlow and publishes graded process evidence for live sessions
             classified KnownAgent; correlation ONLY inside the session&apos;s
@@ -268,76 +278,119 @@ export default function Home() {
             substring); the four-state contract NOT_APPLICABLE / UNKNOWN /
             NOT_RUNNING / RUNNING (NOT_RUNNING is proven absence, never
             completion; UNKNOWN is never dressed as RUNNING); a 2-second scan
-            tick that exists only while an eligible session exists; no
-            notifications, no output parsing, no custom-tool promotion, and
-            NO agent-status UI — the logcat AgentRuntimeDetector line is the
-            only observable channel by design.
+            tick that exists only while an eligible session exists; no output
+            parsing, no custom-tool promotion, and no agent-status UI.
+          </li>
+          <li>
+            <b>M7.2 P3c:</b> the runtime transition &amp; event engine — the
+            third truth level: a pure reducer folding the detector&apos;s
+            observations plus the manager&apos;s authoritative session state
+            into the deduplicated typed event vocabulary (Launched /
+            ConfirmedRunning with the exact pids + grade / NoLongerDetected —
+            runtime disappearance only, never completion — / RuntimeUnknown /
+            SessionEnded), staleness-safe, replay-free, zero own polling, no
+            notifications — the substrate P4 subscribes to without ever
+            seeing /proc or PID trees.
+          </li>
+          <li>
+            <b>M7.2 P4 (this build):</b> notification consumption of the
+            runtime event engine — the FIRST user-visible M7.2 phase. ONE
+            consumer subscribed exactly once at Application start folds the
+            events through ONE pure truth contract: confirmed running → the
+            ongoing &quot;&lt;RegistryName&gt; is running&quot; surface;
+            runtime unknown → honest uncertainty in place; no longer detected
+            → the running claim withdrawn (never re-labeled); session ended →
+            the one-shot factual &quot;Session ended / Terminal session N
+            exited (code X)&quot; statement about the session&apos;s own
+            waitpid status (exit 0 never success). Deterministic per-session
+            notification identity (AGENT_RUNTIME_BASE + sessionId), defensive
+            dedup (posted / everPosted / tombstones), one calm agent_runtime
+            channel with setOnlyAlertOnce, the FGS retention notification
+            untouched, zero new permission machinery, stale surfaces removed
+            in-process (tombstones), across processes (the P1 startup sweep)
+            and after process death (nothing restored, nothing faked) — and
+            no shipped string can claim completed/success/finished/failed
+            (pinned over the actual literals).
           </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Device gates (docs/TESTING.md — §51 is the M7.2 P3b gate)</h2>
+        <h2>Device gates (docs/TESTING.md — §53 is the M7.2 P4 gate)</h2>
         <ol className="steps">
           <li>
-            <b>Per-agent /proc shape table (§51):</b> launch each supported
-            agent from its launcher, read the AgentRuntimeDetector logcat line
-            (adb logcat) — the observed pid set, the match grade and the
-            RUNNING state per agent, recorded against the expectations in
-            docs/M7.2-P3B-RUNTIME-DETECTION.md.
+            <b>FGS regression (§53 step 1):</b> the Terminal sessions
+            retention notification (channel terminal_sessions, id 1) appears
+            with the first session and disappears with the last — exactly as
+            before P4; the P4 surfaces neither merge with it nor replace it.
           </li>
           <li>
-            <b>Negative controls (§51):</b> a plain shell session and a known
-            non-agent tool (e.g. htop) produce NO detector activity at all
-            (NOT_APPLICABLE — the scanner never activates); an unrelated
-            same-name process outside the session tree never flips a session
-            to RUNNING.
+            <b>Confirmed running (§53 step 2):</b> launch a supported agent
+            and leave the app — the &quot;Agent activity&quot; notification
+            &quot;&lt;Agent&gt; is running&quot; appears ONLY after the
+            detector&apos;s real confirmation (never at launch), once, as an
+            ongoing surface naming its session.
           </li>
           <li>
-            <b>Transitions (§51):</b> exit the agent → the tracked session
-            reports NOT_RUNNING (proven absence — never
-            &quot;completed&quot;); relaunch → RUNNING again; close the tab →
-            the session and its evidence are removed; the scan tick parks
-            (stops) when no eligible session exists.
+            <b>No duplicates (§53 step 3):</b> keep the agent running over ≥
+            3 detector ticks — the same single notification, no re-alert, no
+            stacking (P3c dedups the transitions; the shade shows it).
           </li>
           <li>
-            <b>Honesty check (§51):</b> if a supported agent&apos;s runtime
-            shape cannot be observed on a given device, the recorded outcome is
-            a persistent UNKNOWN — a valid engineering result, never a
-            heuristic or a guess; NOTHING ever claims completed/success.
+            <b>Stops being detected (§53 step 4):</b> exit the agent while
+            the session stays open — the running surface is REMOVED and
+            NOTHING replaces it claiming finished/completed/success.
           </li>
           <li>
-            <b>Regression (§49/§47/§48):</b> the P2 lifecycle parity sweep,
-            the keyboard sweep and the notification-permission sweep still
-            pass (P3b touches no lifecycle transitions, no keyboard code and
-            no notification APIs).
+            <b>Factual exit wording (§53 step 5):</b> let the session end —
+            one-shot &quot;Session ended / Terminal session N exited (code
+            0)&quot;, and with an abnormal end the code or signal preserved
+            verbatim; NEVER any &quot;agent completed/finished/succeeded&quot;
+            wording.
+          </li>
+          <li>
+            <b>Honest uncertainty + permission arms + restart + isolation
+            (§53 steps 6–9):</b> the surface updates to &quot;runtime
+            unknown&quot; in place when the evidence blurs; denial never
+            crashes and never re-asks; force-stop + relaunch leaves NO stale
+            &quot;Agent running&quot; (the sweep cancels the ledger, nothing
+            is restored); 2–3 sessions stay isolated per session id.
+          </li>
+          <li>
+            <b>The honesty sweep (§53 step 10):</b> across all steps, zero
+            completed/success/finished/failed claims anywhere in the shade or
+            the log — a notification that overstates the evidence is a FAIL
+            even when it looks nice. The §51 logcat gate (per-agent /proc
+            shapes) remains the runtime-layer pass below this one.
           </li>
         </ol>
         <p>
-          <b>Honest visibility note:</b> P3b intentionally ships NO
-          agent-status UI — a user without adb cannot see the runtime state,
-          and this page will not pretend otherwise. The §51 gate is written
-          exactly for that: controlled launches + adb logcat. User-visible
-          consumption of this evidence is the NEXT phase&apos;s job, on top of
-          the graded seam this build delivers.
+          <b>Honest visibility note:</b> P4 IS user-visible — the notification
+          shade now carries the runtime story the P2/P3 architecture can
+          actually prove, and nothing more. The §53 gate is written exactly
+          for that: the shade must be verified on hardware before the
+          phase&apos;s results are trusted there.
         </p>
       </div>
 
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Source at the M7.2 P3b record tip 0f091e7 (the runtime-detection
-          chain 5993fd3 → 3683fd1 → the Task 42 worklog record, on top of the
-          P3a chain f4c8afd → 8ff2e12 → 5fe3602 → 6f15d09, the P2 lifecycle
+          Source at the M7.2 P4 record tip 5b236df (the notification-consumption
+          chain bede512 → 49039e2 → the Task 43 worklog record, on top of the
+          P3c event-engine chain f782272 → 15d2ee4 → 66d91da, the P3b
+          detection chain 5993fd3 → 3683fd1 → 0f091e7, the P3a chain f4c8afd →
+          8ff2e12 → 5fe3602 → 6f15d09, the P2 lifecycle
           chain 0c9a792 → 577e1e9 → 133e656 → 3b144be, the P1 chain c6ced97 →
           0ed5da0 → fd54aa0 → a7c635e, the M7.1.1 fix 3cbfec2 and the M7.2 P0
           audit c8d0059/024cd28, with the full M7.1 release + P3 + P2.2 + P2.1
-          + P2 + P1 + M7.0 chain below). P3b ships no source archives — the
+          + P2 + P1 + M7.0 chain below). P4 ships no source archives — the
           bundle is the source-of-truth artifact; full history rides in the
-          git bundle — the complete milestone history (M0 → m7.2-p3b), all
+          git bundle — the complete milestone history (M0 → m7.2-p4), all
           design contracts, the procfs contract, the P3a detection matrix, the
-          P3b runtime-detection investigation, and the runtime documentation.
-          Bundle main tip 0f091e7 = the tip the bundle is cut at; the APK was
+          P3b runtime-detection investigation, the P3c event-engine contract,
+          the P4 notification contract, and the runtime documentation.
+          Bundle main tip 5b236df = the tip the bundle is cut at; the APK was
           built from the identical app sources at that tip. History note: this
           bundle continues the user-restored P7.1 delivery bundle (fb01540)
           through the M7.0 release chain (47bed42 → 709d126 → dd81bc8), the
@@ -346,11 +399,13 @@ export default function Home() {
           Task 36), the M7.2 P0 audit (c8d0059 → 024cd28 — Task 38), the P1
           foundation (c6ced97 → 0ed5da0 → fd54aa0 → a7c635e — Task 39), the
           lifecycle engine (0c9a792 → 577e1e9 → 133e656 → 3b144be — Task 40),
-          the P3a audit (f4c8afd → 8ff2e12 → 5fe3602 → 6f15d09 — Task 41), and
-          the P3b detector (5993fd3 → 3683fd1 → 0f091e7 — Task 42).
+          the P3a audit (f4c8afd → 8ff2e12 → 5fe3602 → 6f15d09 — Task 41),
+          the P3b detector (5993fd3 → 3683fd1 → 0f091e7 — Task 42), the P3c
+          event engine (f782272 → 15d2ee4 → 66d91da — Task 43), and the P4
+          notification consumer (bede512 → 49039e2 → 5b236df — Task 43-delivery).
         </p>
-        <a className="btn secondary" href="/pocketshell-m7.2-p3b.gitbundle">
-          git bundle (full history, M7.2 P3b record tip)
+        <a className="btn secondary" href="/pocketshell-m7.2-p4.gitbundle">
+          git bundle (full history, M7.2 P4 record tip)
         </a>
         <Sha text={HASHES.bundle} />
         <a className="btn secondary" href="/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz">
@@ -358,7 +413,7 @@ export default function Home() {
         </a>
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m7.2-p3b.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7.2-p4.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
           with the same signing identity (d96a6f66…8bf659, unchanged since
           v0.4.1).
@@ -424,16 +479,29 @@ export default function Home() {
         JVM with 0 skipped · m7.2 p3a: the trusted agent signal audit —
         LaunchIdentity (KnownAgent / KnownNonAgentTool / CustomOrUnknown) +
         the detection matrix, the truth boundary fixed (Launched ≠ Running ≠
-        Completed) ·{" "}
-        <b>m7.2 p3b (this build): runtime agent detection via /proc — the
+        Completed) · m7.2 p3b: runtime agent detection via /proc — the
         second truth level: RUNNING / NOT_RUNNING / UNKNOWN / NOT_APPLICABLE
         on real process evidence only, correlation confined to the
         fork-proven session tree (ppid-chain ∪ process-group), exact-token
         matching (exe basename / argv[0] / shebang argv[1]), gated 2-second
-        polling, 1764/1764 JVM with 0 skipped, no notifications, no
-        completion claims, no output heuristics, no UI — the §51 adb-logcat
-        gate owns the device pass</b>. Correctness before cleverness. Visible
-        UI before diagnostics. False confidence is failure.
+        polling, no notifications, no completion claims, no output
+        heuristics, no UI · m7.2 p3c: the runtime transition &amp; event
+        engine — the third truth level: the deduplicated typed event
+        vocabulary (Launched / ConfirmedRunning / NoLongerDetected /
+        RuntimeUnknown / SessionEnded) on a replay-free stream, staleness
+        rejection, zero own polling, no notifications yet ·{" "}
+        <b>m7.2 p4 (this build): notification consumption of the runtime
+        event engine — the FIRST user-visible M7.2 phase: one consumer
+        subscribed once at Application start, one pure truth contract
+        (running surface / honest uncertainty / withdrawal on
+        no-longer-detected / the session&apos;s own factual exit statement),
+        deterministic per-session identity, defensive dedup + tombstones,
+        one calm agent_runtime channel, the FGS untouched, zero new
+        permission machinery, three-way stale cleanup, 1932/1932 JVM with 0
+        skipped, and NO notification can claim
+        completed/success/finished/failed — the §53 shade gate owns the
+        device pass</b>. Correctness before cleverness. Visible UI before
+        diagnostics. False confidence is failure.
       </footer>
     </main>
   );
