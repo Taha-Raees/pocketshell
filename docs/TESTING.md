@@ -3026,3 +3026,95 @@ a JVM):
 12. Honesty check: no notification in the shade ever claims an agent or
     command completed — P1 posts nothing; anything claiming otherwise is
     a defect.
+
+## 49. Manual acceptance — M7.2 P2 (session lifecycle engine & structured exit status) — DEVICE GATE PENDING
+
+Build under test: `PocketShell-v0.11.2-m7.1.1-m72p2-debug.apk`
+(versionCode 47 / versionName `0.11.2-m7.1.1` — the inherited phase stamp,
+the `-m72p2` suffix is filename-only), git tip of the M7.2 P2 chain.
+
+What P2 IS: internal lifecycle infrastructure, built exactly on the P0
+audit's provable state machine (§10.3). `SessionEntry` now carries a typed
+`SessionLifecycleState` (STARTING → RUNNING → FINISHED, with REMOVED
+modeled by tab removal), the real waitpid exit status surfaces into the
+entry as a structured value (`Exited(code)` / `Signaled(signal)` — exactly
+what `JNI.waitFor` provides, nothing invented), every session carries
+structured spawn identity (`SpawnOrigin` for the five launch paths +
+`AgentHint` for the three named-launcher paths, graded
+`LAUNCH_METADATA`), the manager emits typed lifecycle events for
+downstream consumers, and `AgentActivityRepository` is the derived read
+model. What P2 is NOT: no user-visible UI change, no notification posted
+(P1's sweep stays dormant — nothing posts event notifications yet), no
+agent detection, no completion claims, no waiting-for-input heuristics,
+no `/proc` scanning, no OSC 133, no persistence (lifecycle state is
+in-memory and dies with the process honestly, like the sessions
+themselves).
+
+Verified WITHOUT a device (this build's honest floor):
+
+-   Full JVM suite forced rerun: **810/810** (app 665 + terminal-emulator
+    145, 0 failures / 0 errors / **0 skipped**) including the two NEW
+    suites: `SessionLifecycleStateTest` (16 — the full transition truth
+    table: the fork signal, exited/signal mapping, duplicate-callback
+    idempotency with the first real status surviving, rejected-transition
+    state preservation, the raw waitpid mapping table, the spawn
+    vocabulary) and `SessionLifecycleIntegrationTest` (14 — structural
+    pins over the real sources: typed-state storage with a DERIVED
+    `isFinished`, STARTING-at-spawn, the end-to-end fork-signal wiring,
+    waitpid-through-the-machine with the still-running guard, the
+    kill(0) close guard, honest logging of every unexpected delivery,
+    exactly-one-emission-per-kind, no polling/timers//proc/DataStore in
+    the engine, all five spawn-site origins, the repository's
+    stores-nothing contract, the terminal↔notifications boundary,
+    TerminalService untouched, the single LAUNCH_METADATA grade).
+-   Verification-honesty fix (discovered while building the P2 suites):
+    `NotificationIntegrationTest`'s 14 P1 structural pins resolved their
+    sources only from a project-root working directory, so under the
+    standard module-dir runner they silently SKIPPED (Assume) — pins that
+    never ran could look green inside a totals line. Both suites now use
+    the established dual-candidate resolution (root `app/src/…` and
+    module `src/…`), and the 14 P1 pins RUN and pass inside the 810/810.
+-   APK audit on the exact bytes: aapt2 badging vc47 / `0.11.2-m7.1.1`
+    targetSdk 28; the UNCHANGED 6-permission merged set; dex carries the
+    six new P2 symbols (`SessionLifecycleState`, `SessionLifecycleEvent`,
+    `ExitStatus`, `SpawnOrigin`, `AgentHint`,
+    `AgentActivityRepository`); cert d96a6f66…8bf659 unchanged.
+
+Device gate (the checks below require a real phone; they are a
+REGRESSION gate — P2 changes no user-visible behavior, so the goal is
+proving the lifecycle engine's real-signal paths behave exactly as the
+pre-P2 build did):
+
+1.  Spawn matrix: every launch path still spawns a real session —
+    Terminal ("+"/new session), Linux Shell, one registry app tile, one
+    catalog app via Explore → Open, and Files → Open Terminal Here.
+2.  Natural exit with code 0: in an Android-shell session, type
+    `exit` → the tab stays, gains the `(exited)` label, and the terminal
+    shows `[Process completed - press Enter]`.
+3.  Non-zero exit: in a fresh Android-shell session, type `exit 3` →
+    the terminal shows `[Process completed (code 3) - press Enter]`
+    (the same waitpid delivery the engine now records as
+    `Exited(3)` internally).
+4.  Signal path (tab close during activity): start `sleep 300` in a
+    session, close that tab → the entry disappears, no crash, every
+    other session keeps working.
+5.  FGS regression: with ≥ 1 session the retention notification stays in
+    the shade; after closing/finishing every tab the service stops and
+    the notification clears (P2 did not touch the FGS policy).
+6.  Multi-session hygiene: spawn three sessions, close the middle one —
+    the remaining two are unaffected; new sessions keep appending (ids
+    never reused).
+7.  Process death: kill the app from recents with sessions open →
+    relaunch starts clean (no restoration claims), the shade shows no
+    stale app notifications (the P1 sweep is the only notification
+    cleanup and P2 posts nothing new).
+8.  Honesty check: nothing in the UI or the shade claims an agent or
+    command is running/completed/waiting; no notification beyond the P1
+    FGS notification ever appears.
+9.  Regression sweep: the §47 keyboard checks (with/without a keyboard)
+    and the §48 terminal-basics steps still pass; terminal output,
+    typing, paste and background retention behave exactly as the
+    `-m72p1` build.
+10. Parity statement: compared side-by-side with the m72p1 build, no
+    user-visible difference should exist — P2 is the engine underneath.
+    Any visible difference is a defect to report, not a feature.

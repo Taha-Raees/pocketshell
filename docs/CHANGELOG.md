@@ -3,6 +3,72 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p2] — 2026-09-08 — M7.2 P2 session lifecycle engine & structured exit status
+
+The second M7.2 phase: internal lifecycle infrastructure built exactly on
+the P0 audit's provable state machine (`docs/M7.2-P0-AUDIT.md` §10.3 /
+PART I). Phase build on the inherited vc47 / `0.11.2-m7.1.1` stamp
+(`-m72p2` is filename-only). No new permissions; TerminalService, the
+P1 notification foundation and the M7.1.1 keyboard system untouched; no
+user-visible UI change.
+
+- **Typed lifecycle model** (`terminal/SessionLifecycle.kt`): each
+  session's phase is a real-state value — `STARTING` (entry exists, the
+  PTY child is NOT forked yet; the audit's lazy-fork fact),
+  `RUNNING` (the direct child is alive), `FINISHED` (the child exited
+  with its recorded status) — with REMOVED modeled by tab removal plus a
+  typed event, never a stored flag. `SessionLifecycleState`'s private
+  constructor makes invalid combinations unrepresentable: FINISHED always
+  carries a non-null exit status, STARTING/RUNNING never do. The stored
+  `isFinished: Boolean` is retired from the entry (the getter is now
+  DERIVED from the phase — no second truth inside the record).
+- **Structured exit status**: `ExitStatus.Exited(code)` /
+  `ExitStatus.Signaled(signal)` — a faithful mapping of what
+  `JNI.waitFor`/waitpid actually provides (positive = `WEXITSTATUS`,
+  negative = negated `WTERMSIG`); no "unknown" variant is invented (a
+  FINISHED state can only be produced by a real waitpid delivery).
+- **Real signals only, ONE owner**: `TerminalSessionManager` stays the
+  single authoritative lifecycle owner; transitions run through the pure
+  machine and only on the main handler. The previously-discarded
+  `setTerminalShellPid` upstream callback is now the REAL
+  STARTING→RUNNING fork signal (the lazy fork is observed, never polled);
+  the existing `onSessionFinished` waitpid delivery drives →FINISHED with
+  the structured status. Duplicate/out-of-order callbacks are REJECTED
+  with a logged reason and can never corrupt a recorded status; a finish
+  delivery for a removed session is logged, never swallowed.
+- **Close-path race safety**: `closeSession` guards `finishIfRunning()`
+  behind `pid > 0` — upstream `isRunning()` is true for a never-forked
+  `mShellPid == 0`, where the SIGKILL would go to pid 0, the caller's
+  whole process group. A STARTING session closes by clean removal.
+- **Structured launch identity**: every spawn site passes its
+  `SpawnOrigin` (`Shell`, `LinuxShell`, `FilesTerminal`,
+  `CommandApp(id)`, `CatalogApp(id)`, `CustomTool(id)`); the three
+  named-launcher paths additionally carry `AgentHint(displayName,
+  command, matchedBy=LAUNCH_METADATA)` — real spawn-time metadata only,
+  never a process claim (the audit's Tier-1 line; procfs-graded evidence
+  stays P3b and is deliberately not pre-declared).
+- **Typed lifecycle events + the derived read model**: the manager emits
+  `SessionLifecycleEvent` (Started/Finished/Removed, each with the full
+  identity block) at exactly the mutation sites; `AgentActivityRepository`
+  is the ONE derived projection (`runningLaunchedSessions`,
+  `finishedLaunchedSessions`) — it stores nothing, decides nothing, and
+  never touches notifications.
+- **In-memory by design**: lifecycle/exit state is process-scoped like
+  the sessions themselves — process death loses everything honestly
+  (START_NOT_STICKY, no restoration); no DataStore is added (a different
+  concern from P1's permission flag).
+- **Tests**: +30 JVM tests (810/810 total, forced rerun, 0 skipped):
+  the pure transition truth table (16) and 14 structural integration
+  pins. Includes the verification-honesty fix: the P1 structural pins
+  previously resolved sources only from a project-root CWD and silently
+  skipped under the standard module-dir runner — they now RUN (dual
+  candidates, the established convention) and pass.
+- **Deliberately NOT in P2**: no notifications posted, no agent
+  detection, no completion/waiting claims, no `/proc` scanning, no
+  OSC 133, no persistence, no UI changes.
+- Real-device regression checks are the mandatory docs/TESTING.md §49
+  gate (a parity gate — P2 should change nothing user-visible).
+
 ## [0.11.2-m7.1.1-m72p1] — 2026-09-08 — M7.2 P1 notification foundation
 
 The first M7.2 production code: infrastructure only, per the approved P0

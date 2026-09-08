@@ -921,11 +921,38 @@ posts NO production event notifications — no agent detection, no
 waiting-for-input heuristics, no /proc scanning, no OSC 133. The
 real-device pass is TESTING §48 (12 steps).
 
-**Next milestone (NOT started): M7.2 P2 — session lifecycle engine &
-structured exit status** (SpawnOrigin/AgentHint structured launch
-metadata through the real spawn path into SessionEntry; the waitpid exit
-status surfaced into the entry as a structured value distinguishing
-exited(code)/signaled(signal)/none; explicit race-safe lifecycle
-transitions; lifecycle observation for downstream consumers). P0 §1.3/§5
-and §10.3 are the design baseline; the source tree remains the
-implementation authority.
+**M7.2 P2 — session lifecycle engine & structured exit status ✅
+(2026-09-08, second M7.2 production code, phase build on the inherited
+vc47 / `0.11.2-m7.1.1` stamp — filename suffix `-m72p2`):** internal
+lifecycle infrastructure, exactly the audit §10.3 provable machine.
+`SessionEntry` stores a typed `SessionLifecycleState` — STARTING (entry
+exists, PTY child not yet forked: the lazy-fork fact, observed via the
+previously-discarded `setTerminalShellPid` callback), RUNNING (the real
+fork signal), FINISHED (the real waitpid delivery, with the exit status
+surfaced as a structured `ExitStatus.Exited(code)` / `ExitStatus.Signaled(signal)`
+— precisely what `JNI.waitFor` provides, nothing invented); REMOVED is
+tab removal plus a typed event, never a stored flag; invalid
+combinations are unrepresentable (private constructor; FINISHED always
+carries its status). One owner (`TerminalSessionManager`), pure
+transitions with logged rejections (duplicate callbacks can never
+corrupt a recorded status), main-handler serialization, the close path
+guarded against the `kill(0)` hazard for a never-forked pid, and typed
+`SessionLifecycleEvent`s emitted only at mutation sites for downstream
+consumers (`AgentActivityRepository` — the derived read model that
+stores nothing). Every spawn site passes structured `SpawnOrigin`
+(Shell / LinuxShell / FilesTerminal / CommandApp(id) / CatalogApp(id) /
+CustomTool(id)); the three named-launcher paths carry `AgentHint`
+graded `LAUNCH_METADATA` — spawn metadata only, never a process claim.
+Lifecycle state is in-memory only by design (no DataStore). 810/810 JVM
+green (app 665 + TE 145, 0 skipped) incl. 30 new lifecycle tests, plus
+the verification-honesty fix: the P1 structural pins silently skipped
+under the module-dir runner and now run and pass. No notifications
+posted, no agent detection, no heuristics, no /proc, no OSC 133, no UI
+change. The real-device pass is TESTING §49 (10 steps — a parity gate).
+
+**Next milestone (NOT started): M7.2 P3a — launcher metadata
+propagation** (consume the P2 SpawnOrigin/AgentHint vocabulary for
+reliable "launched as X is running / has ended" claims; P3b follows with
+the device-verified /proc descendant scanner adding procfs-graded
+evidence). P0 PART D/E and the P2 event/identity seams are the design
+baseline; the source tree remains the implementation authority.

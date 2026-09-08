@@ -51,9 +51,10 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P1 — notification foundation (phase build
-`-m72p1` on the inherited v0.11.2-m7.1.1 / versionCode 47 stamp; M7.1.1
-fix release and M7.1 release below it)**
+Current state: **M7.2 P2 — session lifecycle engine & structured exit
+status (phase build `-m72p2` on the inherited v0.11.2-m7.1.1 /
+versionCode 47 stamp; M7.2 P1, the M7.1.1 fix release and M7.1 release
+below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -76,9 +77,16 @@ POST_NOTIFICATIONS requested exactly once per install on Android 13+
 DataStore posted-id ledger, startup stale sweep, FLAG_IMMUTABLE tap
 intents), and intent routing on both activity paths — infrastructure
 only: no event notifications posted yet, no agent detection, no
-heuristics. Full JVM suite 780/780 green (app 635 + terminal-emulator
-145, forced clean rerun at the tip) and `assembleDebug` produces a
-working APK; the **manual on-device acceptance checklists** in
-`docs/TESTING.md` remain the hardware pass — the M7.1.1 gate is §47 and
-the M7.2 P1 gate is §48, and a green build alone never completes a
+heuristics. M7.2 P2 built the session lifecycle engine: a typed
+STARTING→RUNNING→FINISHED machine with the waitpid exit status surfaced
+as structured exited(code)/signaled(signal) values, structured
+SpawnOrigin/AgentHint launch identity at every spawn site, race-safe
+transitions (duplicate-callback idempotency, the kill(0) close guard),
+typed lifecycle events and the derived AgentActivityRepository —
+in-memory only, no notifications, no agent claims. Full JVM suite
+810/810 green (app 665 + terminal-emulator 145, 0 skipped, forced clean
+rerun at the tip) and `assembleDebug` produces a working APK; the
+**manual on-device acceptance checklists** in `docs/TESTING.md` remain
+the hardware pass — the M7.1.1 gate is §47, the M7.2 P1 gate is §48, the
+M7.2 P2 parity gate is §49, and a green build alone never completes a
 milestone.
