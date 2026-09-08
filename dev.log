@@ -2366,3 +2366,24 @@ $ next dev -p 3000
  GET / 200 in 148ms
  GET / 200 in 176ms
  GET / 200 in 133ms
+ GET / 200 in 137ms
+ GET / 200 in 201ms
+ GET / 200 in 110ms
+ GET / 200 in 331ms
+ GET / 200 in 147ms
+ GET / 200 in 339ms
+ GET / 200 in 133ms
+ GET / 200 in 178ms
+ GET / 200 in 356ms
+ ✓ Compiled in 583ms (312 modules)
+ GET / 200 in 487ms
+ GET / 200 in 119ms
+ GET / 200 in 218ms
+ GET / 200 in 113ms
+ GET / 200 in 108ms
+ GET / 200 in 129ms
+ GET / 200 in 332ms
+ ✓ Compiled /_not-found in 425ms (530 modules)
+ GET /PocketShell-v0.11.2-m7.1.1-m72p1-debug.apk 404 in 762ms
+ GET / 200 in 133ms
+ GET / 200 in 478ms
