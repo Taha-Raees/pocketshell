@@ -35,9 +35,21 @@ import java.io.File
 class NotificationIntegrationTest {
 
     private fun readSource(relatives: List<String>): String {
-        val file = relatives.map { File(it) }.firstOrNull { it.isFile }
+        // M7.2 P2 fix (found while adding the lifecycle suite): this suite
+        // previously resolved ONLY from a project-root working directory, so
+        // under the standard module-dir runner every pin silently SKIPPED via
+        // Assume — pins that never ran could look green in a totals line. The
+        // established convention (ExternalKeyboardIntegrationTest et al.) is
+        // BOTH candidates: root CWD ("app/src/...") and module CWD ("src/...").
+        val joined = relatives.joinToString("/")
+        val candidates = if (joined.startsWith("app/")) {
+            listOf(File(joined), File(joined.removePrefix("app/")))
+        } else {
+            listOf(File(joined), File("../$joined"))
+        }
+        val file = candidates.firstOrNull { it.isFile }
         org.junit.Assume.assumeTrue(
-            "source not found on this runner: ${relatives.first()}",
+            "source not found on this runner: $joined",
             file != null,
         )
         return file!!.readText()
