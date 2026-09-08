@@ -1,18 +1,60 @@
 # download/ — delivery masters
 
-Current: **v0.11.2-m7.1.1-m72p5** (M7.2 P5 — notification interaction &
-session context; the SECOND USER-VISIBLE M7.2 phase: the honest P4
-notifications are now actionable — tapping a running / runtime-unknown /
-eligible session-ended surface opens PocketShell into the named session's
-terminal context through one pure routing model resolved against the
-manager's live list; a stale id opens the app normally and a notification
-can never resurrect a process; the shade's wording is byte-identical to P4
-— no completion claim anywhere; phase build on the inherited versionCode 47
-/ versionName 0.11.2-m7.1.1 stamp per the M7.x phase-build precedent — the
--m72p5 suffix is filename-only; the M7.1.1 fix release v0.11.2-m7.1.1
-remains the frozen fix-record below it in history).
+Current: **v0.11.2-m7.1.1-m72p6** (M7.2 P6 — agent runtime notification
+device-state refinement; the VERIFICATION PHASE with zero production
+delta: the P3c/P4 runtime state transitions were audited end-to-end,
+pinned as one continuous JVM story (the new
+AgentRuntimeNotificationTransitionMatrixTest, 11 tests/variant — the
+RUNNING→UNKNOWN→RUNNING in-place cycle on ONE deterministic notification
+identity, the cancellation-only withdrawal arms from both prior states,
+the factual session-end exit statement, the duplicate-delivery storm,
+the flapping anti-accumulation case, exit 0 never success), and gated on
+hardware where naturally reproducible (TESTING §55 — B1 withdrawal, B2
+in-session reappearance, B3 birth silence, B4 the honestly NOT
+DEVICE-REPRODUCIBLE mid-flight-unknown documentation gate, C/D the
+no-longer-detected + exit/exit-3 facts, E the §54 tap regression, F FGS);
+the mid-flight notification-level UNKNOWN cycle is honestly documented as
+not device-reproducible in P6; the debug APK rebuild is BYTE-IDENTICAL to
+the P5 audited build (sha256 69ab4402…c57f) — the strongest proof of zero
+production change; phase build on the inherited versionCode 47 /
+versionName 0.11.2-m7.1.1 stamp — the -m72p6 suffix is filename-only).
 
-The P5 pair (APK + bundle) is the CURRENT SERVED SET on the delivery page.
+The P6 set (APK + bundle + source zip) is the CURRENT SERVED SET on the
+delivery page. The M7.2 P5 pair (the previous served set) is superseded
+by this phase build — which is BYTE-IDENTICAL in APK content — and is
+withdrawn from the serving surface; its insurance copies SURVIVE in
+upload/ byte-exact (APK 69ab4402…, bundle ffe236b3…), and its content and
+history ride in this bundle (the P5 record tip d24bfde, the page re-pin
+38512ea and the delivery record 1cbd287 are direct ancestors of the P6
+record tip 08cad7e). The source zip (pocketshell-m7.2-p6-source.zip,
+sha256 0d776ca3…9686, 13,050,239 B) is a git-archive snapshot of the
+record tip 08cad7e — by construction it contains NO APK and NO bundle
+(612 files; the Android delivery binaries stay out of the archives).
+
+CUT NOTE: the P6 bundle (pocketshell-m7.2-p6.gitbundle, 37,928,340 B,
+sha256 c16552e2…ed97, complete history) was cut at the P6 RECORD TIP
+08cad7e (chain 2c20e38 tests → 797ece1 docs → the Task 45 worklog record
+08cad7e) per the disclosed record-tip cut convention — every P6 contract
+doc at the tip already carries the final measured counts (2008/2008), so
+no re-cut was needed; the page re-pin and the delivery record ride after
+the cut with zero implementation delta. Clone drill GREEN: clone HEAD ==
+08cad7e == the cut, 341 commits, clean tree, the transition-matrix test +
+contract doc + TESTING §55 + the 2008/2008 counts + versionCode 47 /
+0.11.2-m7.1.1 present in the cloned tree.
+
+RESTORE NOTE (insurance, carried): upload/ holds byte-identical copies of
+the FULL current set (APK, bundle, source zip — glibc regenerable from
+the tracked in-tree asset), so any future sandbox reset restores the whole
+delivery byte-identically. Source-archive bytes remain not re-cut-stable
+across sandbox toolchain builds, as always disclosed.
+
+---
+
+(P5-era ledger text retained below for the insurance-copy record; the P5
+set is SUPERSEDED by the P6 phase build — byte-identical APK content —
+and its insurance copies SURVIVE in upload/ byte-exact.)
+
+The P5 pair (APK + bundle) WAS the current served set on the delivery page (now superseded by the P6 set above).
 The M7.2 P4 pair (the previous served set) is superseded by this phase
 build (same stamp, same cert — the P5 build adds the session-targeted tap
 routing on top of the P4 consumer) and is withdrawn from the serving
