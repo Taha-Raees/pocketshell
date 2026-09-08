@@ -2,8 +2,10 @@ package app.pocketshell
 
 import android.app.Activity
 import android.content.ComponentCallbacks2
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowInsets
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -55,6 +57,8 @@ import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
 import app.pocketshell.keyboard.TerminalKeyboardDeck
 import app.pocketshell.launchers.LauncherViewModel
+import app.pocketshell.notifications.NotificationPermissionGate
+import app.pocketshell.notifications.NotificationRoute
 import app.pocketshell.settings.ThemeMode
 import app.pocketshell.ui.apps.ExploreAppsScreen
 import app.pocketshell.ui.diagnostics.DiagnosticsScreen
@@ -71,6 +75,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // M7.2 P1 — cold-start intent processing: a notification tap that
+        // launches the process lands here. Same single handler as the
+        // singleTask onNewIntent path below (the P0 audit's missing half).
+        handleNotificationIntent(intent)
         // PocketShell keyboard is THE keyboard, everywhere (m4.0.12 §6/§11):
         // the system IME is hard-blocked for the whole window for the entire
         // lifetime of the app. FLAG_ALT_FOCUSABLE_IM makes the window itself
@@ -102,6 +110,31 @@ class MainActivity : ComponentActivity() {
                     defaultFontSize = defaultFontSize,
                 )
             }
+        }
+    }
+
+    /**
+     * M7.2 P1 — the singleTask tap-routing half: a notification tap while
+     * this activity already exists arrives here (before P1 nothing processed
+     * it — the P0 audit §8.4 finding). One exhaustive handler for both
+     * entry paths; a future route variant is a compile-time-forced extension
+     * of [NotificationRoute] AND of this when.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        when (val route = NotificationRoute.fromIntent(intent)) {
+            is NotificationRoute.OpenApp -> {
+                // "Open the app" needs no in-app action — the system resume
+                // IS the action on both paths. Logged as the routing-chain's
+                // one production diagnostic (session-targeted routes arrive
+                // with the P8 phase and will select the session here).
+                Log.d("PocketShellNotif", "notification route: $route")
+            }
+            null -> {}
         }
     }
 
@@ -243,6 +276,13 @@ fun PocketShellRoot(
     val selectedId by terminalViewModel.selectedId.collectAsStateWithLifecycle()
     val runtimeState by terminalViewModel.runtimeState.collectAsStateWithLifecycle()
     val launchError by terminalViewModel.launchError.collectAsStateWithLifecycle()
+
+    // M7.2 P1 — the once-per-install notification-permission gate: silent
+    // no-op pre-Android 13 / already granted / already asked; fires when the
+    // FIRST session exists (the moment notifications become meaningful).
+    // Policy lives in notifications/ and is unit-tested; denial never
+    // touches terminal functionality.
+    NotificationPermissionGate(hasSessions = sessions.isNotEmpty())
 
     val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
