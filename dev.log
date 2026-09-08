@@ -2387,3 +2387,6 @@ $ next dev -p 3000
  GET /PocketShell-v0.11.2-m7.1.1-m72p1-debug.apk 404 in 762ms
  GET / 200 in 133ms
  GET / 200 in 478ms
+ GET / 200 in 126ms
+ GET / 200 in 187ms
+ GET / 200 in 126ms
