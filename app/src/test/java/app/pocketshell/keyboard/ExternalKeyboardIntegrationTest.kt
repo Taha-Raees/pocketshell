@@ -6,25 +6,33 @@ import org.junit.Test
 import java.io.File
 
 /**
- * M7.1 P3 — the integration contract (structural pins over the real
- * sources; the same honest technique as HomeLauncherRowsTest — the JVM
- * suite has no Robolectric/device runner).
+ * M7.1 P3 / M7.1.1 — the integration contract (structural pins over the
+ * real sources; the same honest technique as HomeLauncherRowsTest — the
+ * JVM suite has no Robolectric/device runner).
  *
  * What is pinned here is the glue the unit tests cannot execute:
  *
- *   1. the ROOT wires the policy effect + suppression memory + the manual
- *      funnel (every user-facing keyboard write goes through it), and the
- *      web-focus auto-open is gated while suppression is active;
- *   2. the ViewModel registers/unregisters the InputManager listener and
- *      runs the launch scan (event-driven, no polling);
- *   3. ON_RESUME rescans — the backgrounded-connect rule;
- *   4. the notice banner is mounted at the root with dismiss + Settings;
- *   5. the Settings control exists, persists via the ONE DataStore
- *      repository, and defaults ON;
- *   6. no competing keyboard-state system appeared (detector/ViewModel
- *      stay visibility-free — the root owns the deck).
+ *   1. the ROOT observes the ONE authoritative effective state
+ *      (shouldShowOnscreenKeyboard) as the deck visibility and holds NO
+ *      local copy of it any more (no M7.1 suppression memory);
+ *   2. every user-facing keyboard write funnels through the model: explicit
+ *      controls via requestShow, the terminal canvas tap via the GATED
+ *      canvasTapReopen (the M7.1 real-device failure);
+ *   3. the web-focus auto-open is gated while an external keyboard is
+ *      connected;
+ *   4. the ViewModel registers/unregisters the InputManager listener AND
+ *      the Application-level configuration-change cross-check (the M7.1.1
+ *      second mechanism) and runs the launch scan — event-driven, no
+ *      polling;
+ *   5. ON_RESUME rescans — the backgrounded-connect rule;
+ *   6. the notice banner is mounted at the root for BOTH directions with
+ *      dismiss + Settings;
+ *   7. the Settings control exists, persists via the ONE DataStore
+ *      repository under the onscreen_keyboard_enabled key, and defaults ON;
+ *   8. the detector stays visibility-free — the model in the same file is
+ *      the ONE authoritative state system.
  *
- * Real attach/detach behavior on hardware is the docs/TESTING.md §45 gate —
+ * Real attach/detach behavior on hardware is the docs/TESTING.md §47 gate —
  * never claimed from a JVM run.
  */
 class ExternalKeyboardIntegrationTest {
@@ -110,58 +118,75 @@ class ExternalKeyboardIntegrationTest {
     private val settingsScreenRaw get() = settingsScreenPair.first
     private val settingsScreenCode get() = settingsScreenPair.second
 
+    private val keyboardFilePair: Pair<String, String> by lazy {
+        readBoth(listOf(
+            "app/src/main/java/app/pocketshell/keyboard/ExternalKeyboard.kt",
+            "src/main/java/app/pocketshell/keyboard/ExternalKeyboard.kt",
+        ))
+    }
+    private val keyboardFileRaw get() = keyboardFilePair.first
+    private val keyboardFileCode get() = keyboardFilePair.second
+
+    /** The detector CLASS body only (the model shares the file, by design). */
     private val detectorCode: String by lazy {
-        stripCommentsAndStrings(
-            readSource(listOf(
-                "app/src/main/java/app/pocketshell/keyboard/ExternalKeyboard.kt",
-                "src/main/java/app/pocketshell/keyboard/ExternalKeyboard.kt",
-            )),
-        )
+        val start = keyboardFileCode.indexOf("class ExternalKeyboardDetector")
+        val end = keyboardFileCode.indexOf("class ExternalKeyboardVisibilityModel")
+        assertTrue("detector/model layout changed", start >= 0 && end > start)
+        keyboardFileCode.substring(start, end)
     }
 
-    // ---- root wiring -----------------------------------------------------
+    // ---- root wiring -------------------------------------------------------
 
     @Test
-    fun `the root applies the policy on connected and auto changes`() {
+    fun `the root observes the ONE authoritative effective state as the deck visibility`() {
         assertTrue(
-            "PocketShellRoot must key the decision on (connected, auto)",
+            "PocketShellRoot must derive its deck visibility from the model's shouldShow",
             mainCode.contains(
-                "LaunchedEffect(externalKeyboardConnected, autoHideKeyboardOnExternal)",
+                "externalKeyboardViewModel.shouldShowOnscreenKeyboard.collectAsStateWithLifecycle()",
             ),
         )
         assertTrue(
-            "the decision must go through ExternalKeyboardPolicy.resolve",
-            mainCode.contains("ExternalKeyboardPolicy.resolve("),
+            "the M7.1 local suppression memory must be gone (the model owns the state)",
+            !mainCode.contains("preExternalExpanded"),
         )
         assertTrue(
-            "the suppression memory must survive process death like the deck state",
-            mainCode.contains("var preExternalExpanded by rememberSaveable"),
+            "the M7.1 SUPPRESS/RESTORE policy is retired from the root",
+            !mainCode.contains("ExternalKeyboardPolicy"),
+        )
+        assertTrue(
+            "the M7.1 local write-back state must be gone (no remembered visibility copy)",
+            !mainCode.contains("var keyboardExpanded by rememberSaveable"),
         )
     }
 
     @Test
-    fun `every user-facing keyboard write funnels through the manual override`() {
+    fun `every user-facing keyboard write funnels through the model`() {
         assertTrue(mainCode.contains("val openKeyboardManually"))
         assertTrue(
-            "terminal canvas tap / deck callback rides the funnel",
-            mainCode.contains("onKeyboardExpandedChange = openKeyboardManually"),
+            "the explicit funnel is requestShow",
+            mainCode.contains("externalKeyboardViewModel.requestShow(open)"),
         )
         assertTrue(
-            "the deck's collapse toggle rides the funnel",
+            "the terminal canvas tap rides the GATED reopen",
+            mainCode.contains("onKeyboardExpandedChange = onCanvasTapReopen") &&
+                mainCode.contains("externalKeyboardViewModel.canvasTapReopen()"),
+        )
+        assertTrue(
+            "the deck's collapse toggle rides the explicit funnel",
             mainCode.contains("onToggleExpanded = { openKeyboardManually(false) }"),
         )
         assertTrue(
-            "the floating rebirth icon rides the funnel",
+            "the floating rebirth icon rides the explicit funnel",
             mainCode.contains("openKeyboardManually(true)"),
         )
     }
 
     @Test
-    fun `web-focus auto-open is gated while suppression is active`() {
+    fun `web-focus auto-open is gated while an external keyboard is connected`() {
         val effect = mainCode.substringAfter("DisposableEffect(Unit) {").substringBefore("onDispose")
         assertTrue(
             "KeyboardInputRouter.onWebFocusGained must not undo the auto-hide",
-            effect.contains("if (preExternalExpanded == null) keyboardExpanded = true"),
+            effect.contains("if (!externalKeyboardConnected) openKeyboardManually(true)"),
         )
     }
 
@@ -174,9 +199,17 @@ class ExternalKeyboardIntegrationTest {
     }
 
     @Test
-    fun `the notice banner is mounted with dismiss and a Settings affordance`() {
+    fun `the notice banner handles BOTH directions with dismiss and a Settings affordance`() {
         assertTrue(mainCode.contains("ExternalKeyboardNoticeBar("))
         val block = mainCode.substringAfter("ExternalKeyboardNoticeBar(")
+        assertTrue(
+            "the notice direction rides the transition",
+            block.contains("pendingExternalKeyboardNotice.direction"),
+        )
+        assertTrue(
+            "the disconnect copy must not lie about the deck (preference-aware)",
+            block.contains("keyboardAvailable = keyboardExpanded"),
+        )
         assertTrue(
             "the notice must be dismissible through the detector",
             block.contains("externalKeyboardViewModel.dismissNotice()"),
@@ -191,7 +224,7 @@ class ExternalKeyboardIntegrationTest {
         )
     }
 
-    // ---- detection glue ----------------------------------------------------
+    // ---- detection glue ------------------------------------------------------
 
     @Test
     fun `the ViewModel registers a real InputManager listener and unregisters it`() {
@@ -210,6 +243,19 @@ class ExternalKeyboardIntegrationTest {
     }
 
     @Test
+    fun `the ViewModel wires the configuration-change cross-check - the second mechanism`() {
+        assertTrue(
+            "M7.1.1: the Application-level ComponentCallbacks2 cross-check must be registered",
+            vmCode.contains("registerComponentCallbacks") &&
+                vmCode.contains("onConfigurationChanged"),
+        )
+        assertTrue(
+            "the cross-check must be unregistered with the listener",
+            vmCode.contains("unregisterComponentCallbacks"),
+        )
+    }
+
+    @Test
     fun `detection is event-driven - no polling loop anywhere`() {
         assertFalse(
             "the detector must not poll on a timer",
@@ -220,34 +266,42 @@ class ExternalKeyboardIntegrationTest {
             detectorCode.contains("DEFAULT_STABILIZE_MS"),
         )
         assertTrue(
+            "M7.1.1: the confirm deadline exists (no unbounded deferral)",
+            detectorCode.contains("DEFAULT_CONFIRM_DEADLINE_MS"),
+        )
+        assertTrue(
             "the predicate filters non-alphabetic and virtual devices",
-            detectorCode.contains("KEYBOARD_TYPE_ALPHABETIC") &&
-                detectorCode.contains("!isVirtual"),
+            keyboardFileCode.contains("KEYBOARD_TYPE_ALPHABETIC") &&
+                keyboardFileCode.contains("!isVirtual"),
         )
     }
 
-    // ---- settings ----------------------------------------------------------
+    // ---- settings --------------------------------------------------------------
 
     @Test
     fun `the setting persists through the existing DataStore repository`() {
         assertTrue(
             "the preference lives in the ONE settings DataStore",
-            settingsRaw.contains("auto_hide_keyboard_on_external"),
+            settingsRaw.contains("onscreen_keyboard_enabled"),
         )
         assertTrue(
             "default ON: only an explicit false disables",
-            settingsRaw.contains("prefs[autoHideKeyboardKey] != \"false\""),
+            settingsRaw.contains("prefs[onscreenKeyboardKey] != \"false\""),
         )
-        assertTrue(settingsCode.contains("setAutoHideKeyboardOnExternal"))
+        assertTrue(settingsCode.contains("setOnscreenKeyboardEnabled"))
+        assertTrue(
+            "the M7.1 auto-hide opt-out key is retired from the repository",
+            !settingsCode.contains("auto_hide_keyboard_on_external"),
+        )
     }
 
     @Test
     fun `the Settings control is a real wired toggle`() {
         assertTrue(
             "the Settings page carries the On-screen keyboard control",
-            settingsScreenCode.contains("autoHideKeyboardOnExternal") &&
+            settingsScreenCode.contains("onscreenKeyboardEnabled") &&
                 settingsScreenCode.contains("MidnightSwitch(") &&
-                settingsScreenCode.contains("onAutoHideKeyboardOnExternal"),
+                settingsScreenCode.contains("onOnscreenKeyboardEnabled"),
         )
         assertTrue(
             "the control must carry the spec's wording",
@@ -257,14 +311,21 @@ class ExternalKeyboardIntegrationTest {
     }
 
     @Test
-    fun `no competing keyboard state system was introduced`() {
+    fun `the detector stays visibility-free - the model is the ONE state system`() {
         assertFalse(
-            "the detector must stay visibility-free (the root owns the deck)",
-            detectorCode.contains("keyboardExpanded"),
+            "the detector must not make visibility decisions",
+            detectorCode.contains("shouldShow") || detectorCode.contains("Visibility"),
         )
-        assertFalse(
-            "the ViewModel must not mutate visibility either",
-            vmCode.contains("keyboardExpanded"),
+        assertTrue(
+            "the authoritative model exists with exactly the spec's three states",
+            keyboardFileCode.contains("class ExternalKeyboardVisibilityModel") &&
+                keyboardFileRaw.contains("shouldShowOnscreenKeyboard") &&
+                keyboardFileRaw.contains("onscreenKeyboardUserEnabled") &&
+                keyboardFileRaw.contains("externalKeyboardConnected"),
+        )
+        assertTrue(
+            "the model exposes the manual-request gate for the canvas tap",
+            keyboardFileCode.contains("fun canvasTapReopen(): Boolean"),
         )
     }
 }

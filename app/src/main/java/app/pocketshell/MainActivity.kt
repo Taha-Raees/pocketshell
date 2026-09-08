@@ -49,8 +49,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pocketshell.companion.CompanionWebHost
-import app.pocketshell.keyboard.ExternalKeyboardPolicy
-import app.pocketshell.keyboard.ExternalKeyboardPolicyAction
+import app.pocketshell.keyboard.ExternalKeyboardNotice
 import app.pocketshell.keyboard.KeyboardInputRouter
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
@@ -140,53 +139,29 @@ fun PocketShellRoot(
 
     // m4.0.3/m4.0.12 — the shared keyboard is a ROOT concern: ONE deck for
     // the whole app (terminal, Companion over any screen, Compose text
-    // fields). Its visibility (the [⌨] toggle unmounts the WHOLE deck; a
-    // small floating icon brings it back — on every screen now) and its
-    // measured height (the Companion layer and every screen push themselves
-    // ABOVE the deck — the keyboard never has anything underneath it).
-    var keyboardExpanded by rememberSaveable { mutableStateOf(true) }
+    // fields). Its measured height (the Companion layer and every screen
+    // push themselves ABOVE the deck — the keyboard never has anything
+    // underneath it).
     var keyboardInsetPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val keyboardInset = with(density) { keyboardInsetPx.toDp() }
 
-    // M7.1 P3 — external keyboard handling. The detector (root ViewModel,
-    // process lifetime) owns the HARDWARE state; [keyboardExpanded] above
-    // stays the ONLY visibility state. [preExternalExpanded] is the
-    // suppression memory: non-null exactly while the deck is hidden BECAUSE
-    // an external keyboard is connected, remembering the user's pre-connect
-    // manual state — a keyboard connecting never destroys that preference,
-    // it only overlays it, and disconnect hands it back (spec PART B).
+    // M7.1.1 — external keyboard handling: the root-scoped ViewModel is the
+    // ONE authoritative keyboard-state system. The deck's visibility below
+    // is [keyboardExpanded] — the local alias of the model's
+    // shouldShowOnscreenKeyboard (persistent On-screen keyboard preference +
+    // live hardware state + the user's explicit requests; the derivation and
+    // every writer live in the model — there is no local copy of the state
+    // any more, and no M7.1-style suppression memory to get out of sync).
     val externalKeyboardViewModel: ExternalKeyboardViewModel = viewModel()
     val externalKeyboardConnected by
         externalKeyboardViewModel.externalKeyboardConnected.collectAsStateWithLifecycle()
     val externalKeyboardNotice by
         externalKeyboardViewModel.connectNotice.collectAsStateWithLifecycle()
-    val autoHideKeyboardOnExternal by
-        settingsViewModel.autoHideKeyboardOnExternal.collectAsStateWithLifecycle()
-    var preExternalExpanded by rememberSaveable { mutableStateOf<Boolean?>(null) }
-
-    // The P3 decision point: user preference + hardware state → effective
-    // visibility. Runs on real transitions only (connect, disconnect, and
-    // the setting flipped mid-session — the toggle is immediate).
-    LaunchedEffect(externalKeyboardConnected, autoHideKeyboardOnExternal) {
-        when (
-            ExternalKeyboardPolicy.resolve(
-                connected = externalKeyboardConnected,
-                autoEnabled = autoHideKeyboardOnExternal,
-                suppressionActive = preExternalExpanded != null,
-            )
-        ) {
-            ExternalKeyboardPolicyAction.SUPPRESS -> {
-                preExternalExpanded = keyboardExpanded
-                keyboardExpanded = false
-            }
-            ExternalKeyboardPolicyAction.RESTORE -> {
-                keyboardExpanded = preExternalExpanded ?: true
-                preExternalExpanded = null
-            }
-            ExternalKeyboardPolicyAction.NONE -> {}
-        }
-    }
+    val onscreenKeyboardUserEnabled by
+        externalKeyboardViewModel.onscreenKeyboardUserEnabled.collectAsStateWithLifecycle()
+    val keyboardExpanded by
+        externalKeyboardViewModel.shouldShowOnscreenKeyboard.collectAsStateWithLifecycle()
 
     // Backgrounded connects/disconnects: the listener fires regardless, but
     // a rescan on resume guarantees the UI reflects reality on return (spec:
@@ -200,13 +175,20 @@ fun PocketShellRoot(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Every USER write to keyboard visibility funnels here. An explicit open
-    // while external-keyboard suppression is active is the user's manual
-    // override — it cancels the suppression so a later disconnect does not
-    // fight them (spec: manual controls preserved, user wins).
+    // Every USER write to keyboard visibility funnels through the model.
+    // requestShow is the user's EXPLICIT last word ([⌨] floating icon, deck
+    // collapse toggle) — always honored, never gated, and it never touches
+    // the persistent preference.
     val openKeyboardManually: (Boolean) -> Unit = { open ->
-        if (open) preExternalExpanded = null
-        keyboardExpanded = open
+        externalKeyboardViewModel.requestShow(open)
+    }
+    // The terminal canvas tap rides the GATED reopen: with an external
+    // keyboard connected the tap does NOT undo the auto-hide (the hardware
+    // keyboard is typing into that surface — the M7.1 real-device failure);
+    // without one it reopens the deck exactly like m4.0.12.
+    val onCanvasTapReopen: (Boolean) -> Unit = { open ->
+        if (open) externalKeyboardViewModel.canvasTapReopen()
+        else externalKeyboardViewModel.requestShow(false)
     }
 
     // The deck unmounts without a size callback — clear the contributed
@@ -218,12 +200,12 @@ fun PocketShellRoot(
     // m4.0.12 §13 — focus follows input: when a Companion WebView input
     // gains focus, the ONE keyboard opens for it automatically. (The
     // terminal canvas already opens it via its tap client.)
-    // P3: while external-keyboard suppression is active the hardware
-    // keyboard types into the focused surface — the deck must NOT auto-open
-    // and undo the automatic hide.
+    // M7.1.1: while an external keyboard is connected the hardware keyboard
+    // types into the focused surface — the deck must NOT auto-open and undo
+    // the automatic hide.
     DisposableEffect(Unit) {
         KeyboardInputRouter.onWebFocusGained = {
-            if (preExternalExpanded == null) keyboardExpanded = true
+            if (!externalKeyboardConnected) openKeyboardManually(true)
         }
         onDispose { KeyboardInputRouter.onWebFocusGained = null }
     }
@@ -310,7 +292,7 @@ fun PocketShellRoot(
                 creating = creating,
                 initialFontSize = defaultFontSize,
                 keyboardExpanded = keyboardExpanded,
-                onKeyboardExpandedChange = openKeyboardManually,
+                onKeyboardExpandedChange = onCanvasTapReopen,
                 keyboardBottomInset = keyboardInset,
                 onSelect = terminalViewModel::select,
                 onClose = terminalViewModel::closeSession,
@@ -403,11 +385,11 @@ fun PocketShellRoot(
                 themeMode = themeMode,
                 dynamicColor = dynamicColor,
                 defaultFontSize = defaultFontSize,
-                autoHideKeyboardOnExternal = autoHideKeyboardOnExternal,
+                onscreenKeyboardEnabled = onscreenKeyboardUserEnabled,
                 onThemeMode = settingsViewModel::setThemeMode,
                 onDynamicColor = settingsViewModel::setDynamicColor,
                 onFontSize = settingsViewModel::setDefaultFontSize,
-                onAutoHideKeyboardOnExternal = settingsViewModel::setAutoHideKeyboardOnExternal,
+                onOnscreenKeyboardEnabled = settingsViewModel::setOnscreenKeyboardEnabled,
                 onOpenCompanions = { screen = "companionSettings" },
                 onOpenLaunchers = { screen = "launcherSettings" },
                 onBack = { screen = "home" },
@@ -552,8 +534,11 @@ fun PocketShellRoot(
             )
         }
 
-        // M7.1 P3 — the one-shot connect notice: floats above everything,
-        // auto-dismisses, links to the Settings page that owns the toggle.
+        // M7.1.1 — the one-shot transition notice: floats above everything,
+        // auto-dismisses, links to the Settings page that owns the On-screen
+        // keyboard preference. Both directions (connect AND the spec's
+        // "External keyboard disconnected." message), exactly once per real
+        // transition — never spam.
         val pendingExternalKeyboardNotice = externalKeyboardNotice
         if (pendingExternalKeyboardNotice != null) {
             LaunchedEffect(pendingExternalKeyboardNotice.seq) {
@@ -561,6 +546,8 @@ fun PocketShellRoot(
                 externalKeyboardViewModel.dismissNotice()
             }
             ExternalKeyboardNoticeBar(
+                direction = pendingExternalKeyboardNotice.direction,
+                keyboardAvailable = keyboardExpanded,
                 onOpenSettings = {
                     externalKeyboardViewModel.dismissNotice()
                     screen = "settings"

@@ -864,7 +864,23 @@ v0.11.0-m7.0.0 release — see CHANGELOG):
 - [ ] Device gates §41-§45 (the standing hardware pass; §33A runtime gate
       #3 also still open from M6) — manual, requires a human with a device.
 
-**Next milestone (NOT started in M7.1): M7.2 — Notification & agent-activity
+## M7.1.1 — external keyboard detection fix ✅ (2026-09-08, v0.11.2-m7.1.1, versionCode 47)
+
+The M7.1 P3 device gate failed on the real phone (Samsung SM-F711B): the
+auto-hide was real but the terminal-canvas tap cancelled it (the primary
+defect), the unbounded stability window could starve under periodic BT
+events, detection was single-mechanism, the disconnect was silent, and the
+restore could fight the user. M7.1.1 rebuilds the keyboard state system:
+ONE authoritative `ExternalKeyboardVisibilityModel` (persistent
+`onscreen_keyboard_enabled` preference + hardware state + explicit user
+request → `shouldShowOnscreenKeyboard`), the gated canvas-tap reopen, the
+2 s confirm deadline against event storms, the Application-level
+configuration-change cross-check as a second mechanism, and both-direction
+transition notices. 746/746 JVM clean rerun; 6 permissions unchanged; the
+mandatory real-device gate is TESTING §47 (run on the phone, no JVM
+completion). M7.2 remains NOT started.
+
+**Next milestone (NOT started): M7.2 — Notification & agent-activity
 system** (agent-running detection, completion notifications, actionable
-notification controls, Home/session integration). It starts AFTER this
-freeze, on top of the M7.1 release stamp.
+notification controls, Home/session integration). It starts after the §47
+real-device gate passes, on top of the M7.1.1 stamp.

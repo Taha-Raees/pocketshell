@@ -20,9 +20,14 @@ class SettingsRepository(private val context: Context) {
     private val dynamicKey = stringPreferencesKey("dynamic_color")
     private val fontSizeKey = intPreferencesKey("default_font_size")
 
-    // M7.1 P3 — auto-hide the shared deck while an external keyboard is
-    // attached. Default ON (spec PART C): absent key = automatic behavior.
-    private val autoHideKeyboardKey = stringPreferencesKey("auto_hide_keyboard_on_external")
+    // M7.1.1 — the persistent "On-screen keyboard" On/Off preference: the
+    // user's baseline for the shared deck. External-keyboard detection is a
+    // temporary runtime override and NEVER writes this key (spec: the
+    // setting represents the user's preference; the old M7.1
+    // auto_hide_keyboard_on_external opt-out is retired with its
+    // overlay-policy — the new model's override is unconditional while the
+    // preference is On, and this Off is honored on every disconnect).
+    private val onscreenKeyboardKey = stringPreferencesKey("onscreen_keyboard_enabled")
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
         when (prefs[themeKey]) {
@@ -37,9 +42,9 @@ class SettingsRepository(private val context: Context) {
         prefs[dynamicKey] == "true"
     }
 
-    /** Auto-hide the on-screen keyboard while an external keyboard is connected; default ON. */
-    val autoHideKeyboardOnExternal: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[autoHideKeyboardKey] != "false"
+    /** The persistent On-screen keyboard preference; default ON. */
+    val onscreenKeyboardEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[onscreenKeyboardKey] != "false"
     }
 
     /** Default terminal font size; the terminal itself may change it via pinch. */
@@ -55,8 +60,8 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[dynamicKey] = if (enabled) "true" else "false" }
     }
 
-    suspend fun setAutoHideKeyboardOnExternal(enabled: Boolean) {
-        context.settingsDataStore.edit { it[autoHideKeyboardKey] = if (enabled) "true" else "false" }
+    suspend fun setOnscreenKeyboardEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[onscreenKeyboardKey] = if (enabled) "true" else "false" }
     }
 
     suspend fun setDefaultFontSize(size: Int) {

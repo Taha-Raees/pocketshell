@@ -11,23 +11,33 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * M7.1 P3 — the detector's transition machine, on virtual time (spec PART E:
- * detection state logic + transition notification logic, no faked device
- * tests — the Android scan/listener glue is pinned separately by the
- * structural contract test; real attach/detach is the §45 device gate).
+ * M7.1 P3 / M7.1.1 — the detector's transition machine, on virtual time
+ * (spec PART E: detection state logic + transition notification logic, no
+ * faked device tests — the Android scan/listener glue is pinned separately
+ * by the structural contract test; real attach/detach is the §47 device
+ * gate).
  *
  * Pinned here:
  *   - no keyboard → connected stays false, no notice;
- *   - connect → flips true exactly once, after the stability window;
- *   - remove → flips false; reconnect → one NEW notice is allowed;
- *   - duplicate connect events produce ONE transition (no spam);
+ *   - connect → flips true exactly once, after the stability window, ONE
+ *     CONNECTED notice;
+ *   - remove → flips false with ONE DISCONNECTED notice (M7.1.1: the spec's
+ *     "External keyboard disconnected." message — the M7.1 "silent
+ *     disconnect" is retired); reconnect → one NEW notice;
+ *   - duplicate connect events coalesce into ONE transition (no spam);
  *   - a Bluetooth-style flap inside the stability window produces NO
- *     transition (no flicker), a flap beyond it produces both transitions.
+ *     transition (no flicker), a flap beyond it produces both transitions;
+ *   - M7.1.1 THE REAL-DEVICE FIX: an ENDLESS event storm (periodic
+ *     onInputDeviceChanged re-announcements, OEM/LE-HID reality) can no
+ *     longer starve the confirmation — the hard confirm deadline runs the
+ *     scan and lands the transition no matter how many events arrive;
+ *   - launch-scan / events-before-start / stop / dismiss semantics.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExternalKeyboardDetectorTest {
 
     private val window = ExternalKeyboardDetector.DEFAULT_STABILIZE_MS
+    private val deadline = ExternalKeyboardDetector.DEFAULT_CONFIRM_DEADLINE_MS
 
     @Test
     fun `no keyboard ever — stays disconnected with no notice`() = runTest {
@@ -53,6 +63,10 @@ class ExternalKeyboardDetectorTest {
         advanceTimeBy(1); runCurrent()
         assertTrue(detector.connected.value)
         assertEquals(1L, detector.notice.value?.seq)
+        assertEquals(
+            ExternalKeyboardNotice.Direction.CONNECTED,
+            detector.notice.value?.direction,
+        )
     }
 
     @Test
@@ -114,15 +128,20 @@ class ExternalKeyboardDetectorTest {
         detector.onInputDevicesChanged()
         advanceTimeBy(window + 1_000); runCurrent()
         assertTrue(detector.connected.value)
+        assertEquals(ExternalKeyboardNotice.Direction.CONNECTED, detector.notice.value?.direction)
 
         present = false
         detector.onInputDevicesChanged()
         advanceTimeBy(window + 1_000); runCurrent()
         assertFalse(detector.connected.value)
+        assertEquals(
+            ExternalKeyboardNotice.Direction.DISCONNECTED,
+            detector.notice.value?.direction,
+        )
     }
 
     @Test
-    fun `disconnect restores silently and reconnect emits one new notice`() = runTest {
+    fun `disconnect emits ONE disconnected notice and reconnect one new connect notice`() = runTest {
         var present = false
         val detector = ExternalKeyboardDetector(backgroundScope, queryConnected = { present })
         detector.start()
@@ -138,16 +157,118 @@ class ExternalKeyboardDetectorTest {
         detector.onInputDevicesChanged()
         advanceTimeBy(window + 1); runCurrent()
         assertFalse(detector.connected.value)
-        // no NEW notice on disconnect; the connect notice simply persists
-        // until the UI dismisses it (no spam on removal).
-        assertEquals(1L, detector.notice.value?.seq)
+        // M7.1.1: the disconnect is announced exactly once (spec: "Notify
+        // the user: External keyboard disconnected.") — never spam.
+        assertEquals(2L, detector.notice.value?.seq)
+        assertEquals(
+            ExternalKeyboardNotice.Direction.DISCONNECTED,
+            detector.notice.value?.direction,
+        )
 
         present = true
         detector.onInputDevicesChanged()
         advanceTimeBy(window + 1); runCurrent()
         assertTrue(detector.connected.value)
-        assertEquals("reconnect allows exactly one new notice", 2L, detector.notice.value?.seq ?: -1L)
+        assertEquals("reconnect allows exactly one new notice", 3L, detector.notice.value?.seq ?: -1L)
     }
+
+    // ---- M7.1.1 — the confirm deadline (the real-device starvation fix) ----
+
+    @Test
+    fun `an endless event storm can no longer starve detection - the deadline confirms`() = runTest {
+        // A BT LE stack re-announcing its device every 300ms — each event
+        // restarts the 400ms stability window, so the M7.1 design (window
+        // only, no ceiling) NEVER confirms. The M7.1.1 deadline must.
+        var present = false
+        val detector = ExternalKeyboardDetector(backgroundScope, queryConnected = { present })
+        detector.start()
+        advanceTimeBy(1_000); runCurrent()
+
+        present = true
+        var transitions = 0
+        var lastSeq = 0L
+        // Events every 300ms — inside the window, forever.
+        for (t in 1..8) {
+            detector.onInputDevicesChanged()
+            advanceTimeBy(300); runCurrent()
+            val seq = detector.notice.value?.seq ?: 0L
+            if (seq > lastSeq) { transitions++; lastSeq = seq }
+        }
+        // The deadline (2s from the first event) fired inside the storm:
+        assertTrue("the deadline confirms despite the endless storm", detector.connected.value)
+        assertEquals("exactly one transition happened", 1, transitions)
+        assertEquals(1L, lastSeq)
+    }
+
+    @Test
+    fun `the deadline fires at the exact ceiling when events never stop`() = runTest {
+        var present = false
+        val detector = ExternalKeyboardDetector(backgroundScope, queryConnected = { present })
+        detector.start()
+        advanceTimeBy(1_000); runCurrent()
+
+        present = true
+        // Saturate right up to (but not across) the deadline.
+        var elapsed = 0L
+        while (elapsed + 300 <= deadline) {
+            detector.onInputDevicesChanged()
+            advanceTimeBy(300)
+            elapsed += 300
+        }
+        runCurrent()
+        assertFalse("before the ceiling the M7.1 window semantics hold", detector.connected.value)
+
+        detector.onInputDevicesChanged()   // yet another event at the ceiling
+        advanceTimeBy(deadline - elapsed); runCurrent()
+        assertTrue("the deadline lands the transition", detector.connected.value)
+        assertEquals(1L, detector.notice.value?.seq)
+
+        // And the state is STABLE afterwards: more events, no more transitions.
+        repeat(3) {
+            detector.onInputDevicesChanged()
+            advanceTimeBy(300); runCurrent()
+        }
+        assertTrue(detector.connected.value)
+        assertEquals("no duplicate notices after the storm", 1L, detector.notice.value?.seq)
+    }
+
+    @Test
+    fun `a single event still confirms through the window - the deadline never delays it`() = runTest {
+        var present = false
+        val detector = ExternalKeyboardDetector(backgroundScope, queryConnected = { present })
+        detector.start()
+        advanceTimeBy(1_000); runCurrent()
+
+        present = true
+        detector.onInputDevicesChanged()
+        advanceTimeBy(window - 1); runCurrent()
+        assertFalse(detector.connected.value)
+        advanceTimeBy(1); runCurrent()
+        assertTrue("USB attach stays perceptually instant (window, not deadline)", detector.connected.value)
+    }
+
+    @Test
+    fun `a disconnect under an event storm also lands through the deadline`() = runTest {
+        var present = true
+        val detector = ExternalKeyboardDetector(backgroundScope, queryConnected = { present })
+        detector.start()
+        advanceTimeBy(window + 1_000); runCurrent()
+        assertTrue(detector.connected.value)
+        detector.dismissNotice()
+
+        present = false
+        for (t in 1..8) {
+            detector.onInputDevicesChanged()
+            advanceTimeBy(300); runCurrent()
+        }
+        assertFalse("the storm must not hide the unplugging", detector.connected.value)
+        assertEquals(
+            ExternalKeyboardNotice.Direction.DISCONNECTED,
+            detector.notice.value?.direction,
+        )
+    }
+
+    // ---- the M7.1 semantics that must survive ------------------------------
 
     @Test
     fun `events before start are ignored`() = runTest {

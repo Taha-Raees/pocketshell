@@ -3,6 +3,66 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1] — 2026-09-08 — M7.1.1 external-keyboard detection fix
+
+The M7.1 P3 real-device failure fix (Samsung SM-F711B / Galaxy Z Flip 3,
+One UI, API 35): detection passed every JVM suite and still failed on
+hardware. The release rebuilds the detection and visibility layers against
+the audited causes and defines the mandatory real-device gate (TESTING
+§47). No new permissions; the M7.1 architecture and the M6 frozen surfaces
+are untouched outside the keyboard system.
+
+- **Fix 1 — the canvas tap no longer cancels the auto-hide** (the primary
+  defect): the terminal-canvas tap used to ride the manual-open path and
+  clear the suppression, so the deck popped back up on the next touch of
+  the terminal — the most-used gesture in a terminal app. The gate now
+  lives in the authoritative model (`canvasTapReopen`): with an external
+  keyboard connected the tap never reopens the deck; without one the
+  m4.0.12 tap-to-reopen behavior is unchanged.
+- **Fix 2 — the confirm deadline**: the M7.1 stability window restarted on
+  every input-device event with no ceiling, so periodic
+  `onInputDeviceChanged` re-announcements (Bluetooth LE HID reality on OEM
+  stacks) could starve the confirmation forever. A hard 2,000 ms deadline
+  from the first unconfirmed event now guarantees the scan and at most one
+  transition under any event storm; sub-window flaps still never flicker.
+- **Fix 3 — a second detection mechanism**: the Application-level
+  `ComponentCallbacks2.onConfigurationChanged` cross-check feeds the same
+  coalescing detector — an independent system path that covers OEM stacks
+  which can miss `InputManager.InputDeviceListener` callbacks for
+  Bluetooth HID (re)connection. The launch scan and the ON_RESUME rescan
+  are unchanged.
+- **Fix 4 — both-direction notices**: exactly one notice per confirmed
+  transition — "External keyboard detected — onscreen keyboard disabled."
+  and the spec's "External keyboard disconnected." (preference-aware: the
+  disconnect copy never claims the deck returned when the preference keeps
+  it off). Still in-app only: zero new permissions, no channel, no spam.
+- **Fix 5 — the persistent On-screen keyboard preference**: the runtime
+  deck state + the M7.1 auto-hide opt-out are replaced by
+  `onscreen_keyboard_enabled` (DataStore, default On) — the user's
+  preference; detection is a temporary runtime override that never writes
+  it; a disconnect re-evaluates the preference (On returns the deck, Off
+  never forces it back on). The user's explicit [⌨] / deck actions always
+  win and never touch the preference.
+- **One authoritative state system**: `ExternalKeyboardVisibilityModel`
+  (userEnabled + externalConnected + manualRequest →
+  shouldShowOnscreenKeyboard) owns the derivation; the root composable
+  observes it and holds no local copy (the M7.1 suppression memory and the
+  SUPPRESS/RESTORE policy are retired).
+- **Tests**: ExternalKeyboardVisibilityModelTest (14: decision matrix, the
+  four spec transitions, the request lifecycle, the canvas-tap gate),
+  ExternalKeyboardDetectorTest (14: directional notices + the
+  storm/deadline proofs alongside the M7.1 debounce semantics),
+  ExternalKeyboardPredicateTest (11, unchanged), the structural
+  ExternalKeyboardIntegrationTest (11: the new wiring pins). The
+  ExternalKeyboardPolicyTest is retired with the policy. Clean rerun:
+  746/746 (app 601 + terminal-emulator 145), 0 failures, 0 errors.
+- **Stamp**: versionCode 47, versionName 0.11.2-m7.1.1 (the sub-milestone
+  precedent; the guest-side app-stamp gate accepts it). APK 30,451,377 B,
+  sha256 5d876141…e5dc1; the UNCHANGED 6-permission set; exactly 26
+  launcher icon entries; dex carries ExternalKeyboardViewModel / Detector
+  / Notice / Scanner / VisibilityModel; cert d96a6f66…8bf659 unchanged —
+  installs in place over every earlier build.
+
 ## [0.11.1-m7.1.0] — 2026-09-08 — M7.1 release (launchers, themed marks, external-keyboard intelligence)
 
 The M7.1 milestone, closed and frozen: five delivered phases — P1 Home

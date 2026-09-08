@@ -51,11 +51,11 @@ fun SettingsScreen(
     themeMode: ThemeMode,
     dynamicColor: Boolean,
     defaultFontSize: Int,
-    autoHideKeyboardOnExternal: Boolean,
+    onscreenKeyboardEnabled: Boolean,
     onThemeMode: (ThemeMode) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onFontSize: (Int) -> Unit,
-    onAutoHideKeyboardOnExternal: (Boolean) -> Unit,
+    onOnscreenKeyboardEnabled: (Boolean) -> Unit,
     onOpenCompanions: () -> Unit,
     onOpenLaunchers: () -> Unit,
     onBack: () -> Unit,
@@ -154,7 +154,7 @@ fun SettingsScreen(
             MidnightSectionDivider()
             Spacer(Modifier.height(10.dp))
 
-            // ---- Keyboard (M7.1 P3) -----------------------------------------
+            // ---- Keyboard (M7.1.1 — the persistent user preference) --------
             MidnightSectionLabel("Keyboard")
             Spacer(Modifier.height(2.dp))
             Row(
@@ -170,17 +170,18 @@ fun SettingsScreen(
                         color = HomeTokens.textPrimary,
                     )
                     Text(
-                        "Automatically hide when an external keyboard is " +
-                            "connected — USB, Bluetooth, dock — and return " +
-                            "when it is unplugged",
+                        "The PocketShell keyboard, on every screen. While an " +
+                            "external keyboard is connected it hides automatically " +
+                            "and returns when you unplug it. Off keeps it hidden " +
+                            "— it is never forced back on.",
                         style = MaterialTheme.typography.bodySmall,
                         color = HomeTokens.textDim,
                     )
                 }
                 Spacer(Modifier.padding(4.dp))
                 MidnightSwitch(
-                    checked = autoHideKeyboardOnExternal,
-                    onCheckedChange = onAutoHideKeyboardOnExternal,
+                    checked = onscreenKeyboardEnabled,
+                    onCheckedChange = onOnscreenKeyboardEnabled,
                 )
             }
 

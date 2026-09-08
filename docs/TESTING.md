@@ -2826,3 +2826,122 @@ Release QA scope (what §41-§45 gates still owe on hardware):
 -   Custom keyboard toggle + persisted settings: the deck toggle, floating
     [⌨] icon, terminal tap, extra keys, modifiers, arrows; the Settings
     toggles (theme, font size, On-screen keyboard) persist across restart.
+
+## 47. M7.1.1 — external keyboard detection fix (v0.11.2-m7.1.1 / versionCode 47)
+
+M7.1 P3 passed every JVM suite and still failed on the real device
+(Samsung SM-F711B / Galaxy Z Flip 3, One UI, API 35). M7.1.1 is the fix
+release: it names the failure causes, rebuilds the detection and visibility
+layers against them, and defines the mandatory real-device gate below.
+
+### 47.1 Why M7.1 P3 failed (the audit findings)
+
+1.  **The terminal-canvas tap cancelled the auto-hide (primary defect).**
+    `TerminalScreen.onSingleTap` funneled every canvas tap through the
+    M7.1 manual-open path, which cleared the suppression memory. On a
+    terminal app the canvas tap is the most-used gesture: the deck hid on
+    connect and popped straight back up on the next touch of the terminal.
+    The auto-hide was therefore invisible in the app's primary workflow.
+2.  **Debounce starvation.** The M7.1 stability window restarted on EVERY
+    input-device event with no ceiling. A device stack that emits periodic
+    `onInputDeviceChanged` re-announcements (Bluetooth LE HID reality:
+    LED/battery/layout config events; some OEM stacks) could defer the
+    confirm forever — detection never fires. The fix is a hard confirm
+    deadline (2,000 ms from the first unconfirmed event) that no event
+    storm can push back; sub-window flaps still never flicker.
+3.  **A single detection mechanism.** Only the `InputManager
+    .InputDeviceListener` drove re-evaluation while foregrounded. OEM
+    stacks can miss listener callbacks for Bluetooth HID (re)connection
+    flows. The fix adds the Application-level `ComponentCallbacks2
+    .onConfigurationChanged` cross-check (keyboard connect/disconnect is a
+    system configuration change; the manifest already declares
+    `keyboard|keyboardHidden|navigation`, so the callback fires in place)
+    — a second, independent system path into the same coalescing detector.
+4.  **No disconnect notice.** The spec requires the
+    "External keyboard disconnected." message; M7.1 restored silently.
+    M7.1.1 emits one notice per confirmed transition in BOTH directions.
+5.  **No persistent on-screen keyboard preference.** The deck visibility
+    was a runtime state and the only setting was an auto-hide opt-out, so
+    a disconnect could force the deck back on against the user's wishes.
+    M7.1.1 replaces both with the persistent
+    `onscreen_keyboard_enabled` preference (DataStore, default On):
+    detection is a temporary runtime override that never writes it, and a
+    disconnect re-evaluates the preference instead of a memory.
+
+### 47.2 The M7.1.1 state model (one authoritative system)
+
+    externalKeyboardConnected      (hardware truth — detector)
+    onscreenKeyboardUserEnabled    (persistent preference — DataStore)
+    manualRequest                  (the user's last explicit [⌨]/deck action)
+
+    shouldShowOnscreenKeyboard = manualRequest ?: (userEnabled && !connected)
+
+-   Hardware transitions and preference changes clear `manualRequest`.
+-   The terminal-canvas tap is gated in the model: it does NOT reopen the
+    deck while an external keyboard is connected; without one it reopens
+    exactly like m4.0.12.
+-   `[⌨]` / deck collapse (`requestShow`) always work and never touch the
+    preference; web-focus auto-open is gated while connected.
+-   JVM-pinned by ExternalKeyboardVisibilityModelTest (14 cases),
+    ExternalKeyboardDetectorTest (14 cases incl. the storm/deadline
+    proofs), ExternalKeyboardPredicateTest (11, unchanged), and the
+    structural ExternalKeyboardIntegrationTest (11). Clean rerun at this
+    stamp: 746/746 (app 601 + terminal-emulator 145).
+
+### 47.3 REAL-DEVICE GATE — run on the actual phone (mandatory)
+
+No JVM run completes this section. The keyboard used must be the user's
+real external keyboard. Install v0.11.2-m7.1.1 first.
+
+Connect-direction checks:
+
+1.  App open in the TERMINAL, no keyboard attached → deck behaves
+    normally (shows on canvas tap, hides via the deck toggle).
+2.  Connect the external keyboard (USB) while the terminal is open →
+    within ~0.5–2 s the deck hides, ONE banner
+    ("External keyboard detected — onscreen keyboard disabled.") appears
+    and auto-dismisses; no further banners.
+3.  WITH the keyboard still connected, tap the terminal canvas several
+    times → the deck must STAY hidden (the M7.1 failure). Hardware keys
+    reach the terminal.
+4.  Tap the floating [⌨] icon → the deck opens (the user's explicit
+    action wins); tap the deck's collapse toggle → hidden again.
+5.  Repeat 2–4 over BLUETOOTH (disconnect the BT keyboard from the device,
+    wait, reconnect from Bluetooth settings) → same behavior.
+6.  Start the app WITH the keyboard already attached → within ~0.5 s of
+    the home screen the deck is disabled (floating [⌨] visible), exactly
+    one connect banner.
+
+Disconnect-direction checks:
+
+7.  Unplug the USB keyboard while the terminal is open → the deck returns
+    (preference On), ONE banner ("External keyboard disconnected."), no
+    spam.
+8.  Disconnect the BLUETOOTH keyboard (power it off) while the app is
+    open → same restore. Also verify the app recovers if the keyboard
+    reconnected while the phone was in another app: return to PocketShell
+    → the deck state matches reality on return.
+9.  Start the app with the keyboard attached, then unplug → the deck
+    returns per the preference.
+
+Settings-interaction checks:
+
+10. Settings → "On-screen keyboard" OFF (keyboard connected): the deck
+    stays hidden; unplug → the deck STAYS hidden (never forced back on);
+    the disconnect banner still says the keyboard is off.
+11. Settings → "On-screen keyboard" OFF (no keyboard): the deck closes
+    now; it stays closed across app restart (the persistent preference).
+12. Settings → back ON with the keyboard attached: the deck stays hidden
+    while connected and returns on disconnect. Tapping [⌨] still opens it
+    immediately.
+13. Kill the app process (recents swipe) with the preference OFF, relaunch
+    → the deck does not resurrect.
+
+Regression sweep (with and without the keyboard connected):
+
+14. Companions: a WebView input focus does not pop the deck while a
+    keyboard is connected (and does open it when none is).
+15. Terminal basics with the hardware keyboard: typing, Enter, arrows,
+    Ctrl-combos via the hardware keys reach the session.
+16. The deck with no keyboard: every key still dispatches (letters,
+    modifiers, extra keys) — the M6 one-keyboard behavior unchanged.

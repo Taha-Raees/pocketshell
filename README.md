@@ -51,7 +51,8 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.1 released and frozen (v0.11.1-m7.1.0, versionCode 46)**
+Current state: **M7.1.1 — external keyboard detection fix (v0.11.2-m7.1.1,
+versionCode 47; M7.1 release and freeze below it: v0.11.1-m7.1.0)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -60,12 +61,15 @@ SAF storage with operations, editor, Open-Terminal-Here and search (M7.0),
 and M7.1 — Home launchers (Companions + Your tools grids with hide/restore,
 custom tools over the ONE verify-then-launch path, 13 curated official marks
 as two-variant theme pairs, x-scroll rows with scroll dots, the tools-header
-packages affordance) and live external-keyboard detection (the on-screen deck
-hides itself on connect and returns on disconnect, one transient in-app
-notice, the Settings "On-screen keyboard" toggle, event-driven with a
-stability window, no polling, no new permissions). Full JVM suite 734/734
-effective green (app 589 + terminal-emulator 145, forced clean rerun at the
-release stamp) and `assembleDebug` produces a working APK; the **manual
-on-device acceptance checklists** in `docs/TESTING.md` (M7.1 gates are
-§41-§45) remain the hardware pass — a green build alone never completes a
+packages affordance) and live external-keyboard detection, rebuilt in
+M7.1.1 after the real-device failure: ONE authoritative keyboard-state
+model (persistent On-screen keyboard preference + hardware state + explicit
+user request), the gated terminal-canvas tap, the confirm deadline against
+event storms, the configuration-change cross-check as a second detection
+mechanism, and both-direction transition notices — event-driven, no
+polling, no new permissions. Full JVM suite 746/746 green (app 601 +
+terminal-emulator 145, forced clean rerun at the stamp) and
+`assembleDebug` produces a working APK; the **manual on-device acceptance
+checklists** in `docs/TESTING.md` remain the hardware pass — the M7.1.1
+real-device gate is §47 and a green build alone never completes a
 milestone.
