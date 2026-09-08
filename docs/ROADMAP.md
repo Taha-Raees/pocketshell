@@ -878,9 +878,26 @@ request → `shouldShowOnscreenKeyboard`), the gated canvas-tap reopen, the
 configuration-change cross-check as a second mechanism, and both-direction
 transition notices. 746/746 JVM clean rerun; 6 permissions unchanged; the
 mandatory real-device gate is TESTING §47 (run on the phone, no JVM
-completion). M7.2 remains NOT started.
+completion).
 
-**Next milestone (NOT started): M7.2 — Notification & agent-activity
-system** (agent-running detection, completion notifications, actionable
-notification controls, Home/session integration). It starts after the §47
+**M7.2 — Notification & agent-activity system — P0 COMPLETE (audit +
+design only; no production code):** the full architecture audit is
+`docs/M7.2-P0-AUDIT.md` — the real session/PTY/process architecture
+(proot is the PTY's direct child; waitpid sees the direct child only),
+the honest capability line (session-level lifecycle RELIABLE;
+command/agent-level NOT knowable today; waiting-for-input has no real
+signal), the launcher→session metadata trace (label only; structured id
+not carried), the Tier 1/2/3 detection classification over the real
+9-entry registry, the notification-infrastructure inventory (one FGS
+channel; POST_NOTIFICATIONS declared but never requested at runtime),
+and the proposed authoritative state model (extend
+TerminalSessionManager; spawn-origin metadata; policy-gated
+NotificationCoordinator). Phase adjustments: P1 gains the missing
+notification-permission request; P2 stays session-level; P3 splits into
+metadata propagation (P3a) and the device-verified /proc scanner (P3b);
+P7 is conditional on real signals only.
+
+**Next milestone (NOT started): M7.2 P1 — notification foundation**
+(channels, the POST_NOTIFICATIONS runtime request, the coordinator
+skeleton, the stale-notification startup sweep). It starts after the §47
 real-device gate passes, on top of the M7.1.1 stamp.
