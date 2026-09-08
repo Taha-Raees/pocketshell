@@ -2390,3 +2390,18 @@ $ next dev -p 3000
  GET / 200 in 126ms
  GET / 200 in 187ms
  GET / 200 in 126ms
+ GET / 200 in 532ms
+ GET / 200 in 524ms
+ GET / 200 in 134ms
+ GET / 200 in 112ms
+ GET / 200 in 291ms
+ GET / 200 in 129ms
+ GET / 200 in 127ms
+ GET / 200 in 322ms
+ GET / 200 in 162ms
+ GET / 200 in 132ms
+ GET / 200 in 387ms
+ GET / 200 in 123ms
+ GET / 200 in 129ms
+ GET / 200 in 454ms
+ GET / 200 in 176ms
