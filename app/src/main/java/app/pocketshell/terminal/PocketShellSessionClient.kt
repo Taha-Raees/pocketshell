@@ -20,6 +20,14 @@ class PocketShellSessionClient(
     private val context: Context,
     private val onTitleChanged: () -> Unit = {},
     private val onSessionFinished: () -> Unit = {},
+    /**
+     * M7.2 P2 — invoked ONCE per session, on the main thread, right after the
+     * PTY child was actually forked (upstream fires [setTerminalShellPid] from
+     * initializeEmulator before any waiter thread can deliver an exit). This is
+     * the REAL "process started" signal the lifecycle machine requires — the
+     * lazy fork (audit §1.3) means entry-existence alone proves nothing.
+     */
+    private val onProcessStarted: () -> Unit = {},
     /** Invoked on the main thread whenever this session's screen changes. */
     private val onScreenUpdate: () -> Unit = {},
 ) : TerminalSessionClient {
@@ -86,6 +94,7 @@ class PocketShellSessionClient(
 
     override fun setTerminalShellPid(session: TerminalSession, pid: Int) {
         Log.d(LOG_TAG, "session pid=$pid")
+        onProcessStarted()
     }
 
     // ---- logging (honest, no-op safe) ------------------------------------------

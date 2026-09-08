@@ -20,7 +20,10 @@ import app.pocketshell.packages.installedCatalogApps
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
+import app.pocketshell.terminal.AgentHint
+import app.pocketshell.terminal.AgentMatchedBy
 import app.pocketshell.terminal.ShellEnvironment
+import app.pocketshell.terminal.SpawnOrigin
 import app.pocketshell.terminal.TerminalSessionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -133,6 +136,8 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                             listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
                             GUEST_SESSION_LABEL,
                             sysDataBinds,
+                            // M7.2 P2: structured launch identity (plain guest shell — no agent hint).
+                            origin = SpawnOrigin.LinuxShell,
                         ).id
                         guestSessionIds.add(newId)
                         _selectedId.value = newId
@@ -208,6 +213,9 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                             ),
                             GUEST_SESSION_LABEL,
                             sysDataBinds,
+                            // M7.2 P2: Files' "Open Terminal Here" — its own origin,
+                            // distinguishable from a plain Linux shell at spawn.
+                            origin = SpawnOrigin.FilesTerminal,
                         ).id
                         guestSessionIds.add(newId)
                         _selectedId.value = newId
@@ -368,6 +376,13 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 launchCommand = app.launchCommand,
                 guestShell = ShellEnvironment.SHELL_PATH_GUEST,
             ),
+            // M7.2 P2: the registry launcher is the spawn-time agent identity.
+            origin = SpawnOrigin.CommandApp(app.id),
+            agent = AgentHint(
+                displayName = app.displayName,
+                command = app.launchCommand.joinToString(" "),
+                matchedBy = AgentMatchedBy.LAUNCH_METADATA,
+            ),
             onReady = onReady,
         )
     }
@@ -389,6 +404,14 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 command = tool.command,
                 guestShell = ShellEnvironment.SHELL_PATH_GUEST,
             ),
+            // M7.2 P2: the custom tool's own identity (a user-defined launcher —
+            // its id distinguishes it from any same-named registry app).
+            origin = SpawnOrigin.CustomTool(tool.id),
+            agent = AgentHint(
+                displayName = tool.name,
+                command = tool.command,
+                matchedBy = AgentMatchedBy.LAUNCH_METADATA,
+            ),
             onReady = onReady,
         )
     }
@@ -399,11 +422,17 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
      * spawn (Main, the upstream MainThreadHandler contract) → select +
      * navigate on real success. Extracted verbatim from openCommandApp in
      * M7.1 P1 — no behavior change for registry apps.
+     *
+     * M7.2 P2: carries the caller's structured [SpawnOrigin] + [AgentHint]
+     * through to the single factory, so the session entry knows AT SPAWN what
+     * it was launched as (spawn metadata — never a process claim).
      */
     private fun launchGuestCommand(
         displayName: String,
         probeName: String,
         commandChain: String,
+        origin: SpawnOrigin,
+        agent: AgentHint?,
         onReady: () -> Unit,
     ) {
         val application = getApplication<Application>()
@@ -447,6 +476,8 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                             ),
                             displayName,
                             sysDataBinds,
+                            origin = origin,
+                            agent = agent,
                         ).id
                         guestSessionIds.add(newId)
                         _selectedId.value = newId
@@ -583,6 +614,13 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                             ),
                             entry.name,
                             sysDataBinds,
+                            // M7.2 P2: the catalog "Open" path is its own origin.
+                            origin = SpawnOrigin.CatalogApp(entry.id),
+                            agent = AgentHint(
+                                displayName = entry.name,
+                                command = entry.launchCommand.joinToString(" "),
+                                matchedBy = AgentMatchedBy.LAUNCH_METADATA,
+                            ),
                         ).id
                         guestSessionIds.add(newId)
                         _selectedId.value = newId
@@ -639,5 +677,9 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun createSession(): Long =
-        TerminalSessionManager.createSession(getApplication()).id
+        TerminalSessionManager.createSession(
+            getApplication(),
+            // M7.2 P2: the host-shell path, labeled at the spawn site itself.
+            origin = SpawnOrigin.Shell,
+        ).id
 }
