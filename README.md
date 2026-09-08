@@ -51,10 +51,10 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P3c — runtime transition & event engine (internal
-checkpoint on the inherited v0.11.2-m7.1.1 /
-versionCode 47 stamp; M7.2 P3b, P3a, P2, P1, the M7.1.1 fix release and M7.1
-release below it)**
+Current state: **M7.2 P4 — notification consumption of the runtime event
+engine (the first user-visible M7.2 phase, on the inherited
+v0.11.2-m7.1.1 / versionCode 47 stamp; M7.2 P3c, P3b, P3a, P2, P1, the
+M7.1.1 fix release and M7.1 release below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -102,13 +102,26 @@ into the deduplicated typed event vocabulary (`Launched` /
 runtime disappearance only, never completion — / `RuntimeUnknown` /
 `SessionEnded`), staleness-safe, replay-free, zero own polling, no
 notifications yet: the substrate the future notification phase subscribes
-to without ever seeing /proc or PID trees. Full JVM suite
-1850/1850 green (app 780 + terminal-emulator 145 per variant, 0 skipped,
+to without ever seeing /proc or PID trees. M7.2 P4 connected that stream to
+Android's notification system — the first user-visible M7.2 phase: ONE
+consumer subscribing exactly once at Application start (the replay-free
+stream's correctness requirement), ONE pure truth contract turning events
+into honest surfaces (confirmed running → "<RegistryName> is running";
+runtime unknown → honest uncertainty in place; no longer detected → the
+running claim withdrawn, never re-labeled; session ended → a one-shot
+factual "Session ended" / "exited (code X)" statement about the session's
+own status), deterministic per-session notification identity, defensive
+dedup + tombstones, one calm `agent_runtime` channel, the FGS retention
+notification untouched, zero new permission machinery, and stale surfaces
+removed in-process, across processes and after process death — with the
+honesty line pinned over the shipped strings: no notification can claim
+completed/success/finished/failed. Full JVM suite
+1934/1934 green (app 822 + terminal-emulator 145 per variant, 0 skipped,
 forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
 the hardware pass — the M7.1.1 gate is §47, the M7.2 P1 gate is §48, the
 M7.2 P2 parity gate is §49, the M7.2 P3b runtime-detection gate is §51
 (the per-agent /proc shape table), P3c requires no device gate (§52
-records its observability note), and a green build alone never
-completes a milestone.
+records its observability note), and the M7.2 P4 notification-shade gate
+is §53 (ten steps — a green build alone never completes the phase).

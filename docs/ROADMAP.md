@@ -1051,3 +1051,45 @@ without any /proc/matching/polling knowledge; the honest UNKNOWN and
 NOT_APPLICABLE states must never be dressed up; completion claims remain
 unrepresentable — P0 PART D/E and the P2/P3a/P3b/P3c seams are the design
 baseline; the source tree remains the implementation authority).
+
+### M7.2 P4 — notification infrastructure & runtime notification consumption (COMPLETE, 2026-09-09)
+
+The first user-visible M7.2 phase: P3c's deduplicated event stream now
+drives honest Android notifications through ONE new consumer
+(`AgentRuntimeNotificationConsumer`, subscribed ONCE at Application start —
+the replay-free stream's correctness requirement, wired after the P1
+coordinator's init) folding events through ONE pure truth contract
+(`AgentRuntimeNotificationMapping`: Launched → silent; ConfirmedRunning →
+ongoing "<RegistryName> is running" surface; RuntimeUnknown → the surface
+updates to "runtime unknown" in place; NoLongerDetected → the surface is
+CANCELLED — disappearance is never completion; SessionEnded → the surface
+yields to a one-shot factual "Session ended" / "Terminal session N exited
+(code X)" / "terminated by signal Y" statement, gated on the session having
+ever been announced). Identity is deterministic
+(`AGENT_RUNTIME_BASE + sessionId`, no hash/random/display strings); the
+notification layer adds its own defensive dedup (posted/everPosted/
+tombstones — identical surfaces never repost, ended sessions refuse every
+later event) without becoming a second event state machine; one new
+channel (`agent_runtime`, "Agent activity") beside the untouched P1
+channel, `setOnlyAlertOnce` + ongoing-vs-auto-cancel keeping it calm; the
+FGS retention notification (TerminalService, channel `terminal_sessions`,
+id 1) is untouched and structurally pinned so; P4 adds ZERO permission
+machinery (the P1 gate/policy remain the only path; the manifest is
+unchanged); stale surfaces die three ways (tombstone in-process, the P1
+startup sweep across processes, no restoration after process death —
+nothing fake is re-shown). The honesty line is pinned over the shipped
+string literals: no produced notification can claim
+completed/success/finished/failed, exit 0 is never "success", and
+"NoLongerDetected" is only ever a withdrawal. 1934/1934 JVM forced-rerun
+green (app 822 = 780 + 42 new × debug+release + TE 145 × 2, 0 skipped);
+APK audited at the inherited stamp (cert + 6-permission set unchanged; P4
+symbols in the dex). Full contract: `docs/M7.2-P4-NOTIFICATION-CONSUMPTION.md`;
+device gate: TESTING §53 (ten steps — the shade must be verified on
+hardware).
+
+**Next milestone (NOT started, not yet mandated): M7.2 P5** — unassigned
+by design; the completion-detection / waiting-for-input tiers remain
+REJECTED until a phase arrives with real, authoritative evidence (the P0
+audit's line stands). Any future consumer (per-agent channels, rich
+content, re-surfacing policy) extends the P4 truth contract — never around
+it.

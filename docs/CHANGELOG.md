@@ -3,6 +3,31 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p4] — 2026-09-09 — M7.2 P4 notification consumption of the runtime event engine
+
+The sixth M7.2 phase, and the first USER-VISIBLE one: P3c's deduplicated
+runtime-transition stream now drives honest Android notifications. One
+consumer (`AgentRuntimeNotificationConsumer`) subscribes exactly once at
+Application start (the replay-free stream's correctness requirement) and
+folds every event through one pure truth contract
+(`AgentRuntimeNotificationMapping`): confirmed running → ongoing
+"<RegistryName> is running" surface; runtime unknown → the surface updates
+to honest uncertainty in place; no longer detected → the running claim is
+withdrawn (never re-labeled as finished); session ended → a one-shot factual
+"Session ended" / "Terminal session N exited (code X)" statement about the
+session's own waitpid status — exit 0 is never agent success. Deterministic
+notification identity (AGENT_RUNTIME_BASE + sessionId), defensive dedup
+(posted/everPosted/tombstones), one calm new channel (`agent_runtime`,
+"Agent activity") with setOnlyAlertOnce, the FGS retention notification
+untouched and pinned, zero new permission machinery (the P1 gate remains the
+only path), stale surfaces removed in-process (tombstones), across processes
+(the P1 startup sweep) and after process death (nothing restored, nothing
+faked). The honesty line is pinned over the shipped string literals: no
+notification can claim completed/success/finished/failed. No version bump
+(inherited vc47 / `0.11.2-m7.1.1` stamp), no new permissions, no UI beyond
+the shade surfaces. Full contract: `docs/M7.2-P4-NOTIFICATION-CONSUMPTION.md`;
+device gate: `docs/TESTING.md` §53 (ten steps on hardware).
+
 ## [0.11.2-m7.1.1-m72p3c] — 2026-09-09 — M7.2 P3c runtime transition & event engine
 
 The fifth M7.2 phase: the third truth level — trusted runtime transitions.

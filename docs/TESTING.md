@@ -3295,3 +3295,81 @@ names an agent completed/success/finished.
 
 If no device is attached: nothing is owed — §51 remains the phase that
 owns the on-device /proc shape verification; P3c rides its stream.
+
+## 53. Manual acceptance — M7.2 P4 (notification consumption of the runtime event engine) — DEVICE GATE REQUIRED
+
+P4 IS user-visible: the notification shade now carries honest agent-runtime
+surfaces fed by the P3c event stream. This section is the physical-device gate;
+a JVM pass does NOT substitute for it. Setup: one Android 13+ device (Android 12
+or lower exercises the pre-13 permission arm instead of POST_NOTIFICATIONS), the
+P4 debug APK installed, `adb logcat -s PocketShellNotif AgentRuntimeEvents
+AgentRuntimeDetector` attached, and a supported agent launcher ready (per the
+§50 registry). Expected channel layout under Settings → App notifications:
+**Terminal sessions** (the FGS channel, unchanged), **Session activity** (P1),
+**Agent activity** (P4).
+
+1.  **FGS regression first.** Open a plain shell (Terminal). EXPECT: the
+    "Terminal sessions" retention notification appears (id 1, the `terminal_
+    sessions` channel) exactly as before P4; close the session. EXPECT: the
+    service stops and the notification disappears. The P4 surfaces must not
+    have altered the FGS behavior in any way.
+2.  **Confirmed running.** Launch a supported agent from its Home launcher and
+    leave the app. EXPECT (after the detector's real confirmation — NOT at
+    launch): an **Agent activity** notification "<Agent> is running" /
+    "Agent process confirmed in terminal session N", ongoing (no swipe-dismiss
+    X), appearing once. Cross-check `PocketShellNotif` logcat: `runtime surface
+    session=N ... posted=true` exactly when `AgentRuntimeEvents` logged
+    `CONFIRMED_RUNNING`.
+3.  **No duplicate notifications.** Keep the agent running for ≥ 3 detector
+    ticks (~6 s) and interact with it. EXPECT: NO additional notifications —
+    the same id stays, no re-alert sound, no stacking. (P3c dedups the
+    transitions; the shade must show it.)
+4.  **Stops being detected.** Exit the agent process (e.g. `exit` the agent
+    CLI, or kill its process) while the session stays open. EXPECT: the
+    "<Agent> is running" notification is REMOVED (cancelled), and NOTHING
+    replaces it claiming finished/completed/success — no such wording may
+    appear anywhere in the shade. Logcat: `runtime surface withdrawn`.
+5.  **Session exit — factual wording.** In the now-idle guest session, run
+    `exit`. EXPECT (only if the runtime surface had been shown for that
+    session): a one-shot "Session ended" notification whose body reads
+    "Terminal session N exited (code 0)". Then relaunch the agent, let the
+    session end abnormally (e.g. `kill -9 $$` from the guest shell or closing
+    via a signal): EXPECT "... exited (code N)" or "... was terminated by
+    signal N" with the code/signal preserved verbatim. NEVER any "agent
+    completed/finished/succeeded" wording. Tapping the fact dismisses it
+    (auto-cancel).
+6.  **Runtime unknown (honest uncertainty).** Force the scanner uncertain:
+    `adb shell stop` is destructive — instead use the §51 Success-B parity
+    shape (a session whose agent matches ambiguously) or temporarily rename
+    the agent binary mid-session so the previously-matched pids no longer
+    match. EXPECT: the surface updates IN PLACE to "<Agent> runtime unknown" /
+    "Runtime state cannot be verified right now" — the same single
+    notification, no new one, no certainty claimed. (A persistent UNKNOWN is
+    a valid recorded outcome — never a heuristic.)
+7.  **Notification permission.** On a fresh install (clear the app's
+    notification permission state or reinstall): (a) ALLOW at the prompt —
+    surfaces appear normally; (b) DENY — no crash, no re-ask on relaunch, the
+    terminal works identically, the FGS service still runs (its notification
+    is simply hidden on 13+), and logcat shows `posted=false` honest no-ops;
+    (c) already-granted / pre-13 installs — the app must never prompt at bare
+    startup (the P1 gate asks only around the first session, once per
+    install).
+8.  **App restart — no stale running surfaces.** With an agent confirmed
+    running, kill the PocketShell process (`adb shell am force-stop
+    app.pocketshell` — note this also kills the guest sessions, which is the
+    honest point of the test). Relaunch. EXPECT: NO "Agent running"
+    notification; the P1 sweep cancels any ledgered surface from the dead
+    process; the shade shows nothing about a runtime the new process cannot
+    prove.
+9.  **Multiple sessions — isolation.** Run 2–3 agent sessions (different
+    launchers; optionally one plain shell). EXPECT: one runtime surface per
+    confirmed agent session, each naming its own session id; closing one
+    agent's session removes/replaces ONLY its surface; the others stand
+    untouched. A plain shell NEVER produces an Agent-activity surface.
+10. **Honesty sweep (the whole point).** Across steps 2–9, search the shade
+    and logcat for completed/success/finished/failed claims about agents:
+    EXPECT ZERO. Every surface must name either the confirmed runtime state,
+    the honest uncertainty, or the session's own exit fact.
+
+Pass requires all ten. Record deviations verbatim (wording included) — a
+notification that overstates the evidence is a FAIL even when it looks nice.
