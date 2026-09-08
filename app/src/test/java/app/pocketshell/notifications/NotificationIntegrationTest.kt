@@ -238,18 +238,29 @@ class NotificationIntegrationTest {
     }
 
     @Test
-    fun `the coordinator is the single owner of exactly one event channel`() {
+    fun `the coordinator is the single owner of exactly the two event channels`() {
+        // M7.2 P4 EVOLUTION (authorized by the P4 mandate Part D): the
+        // agent-runtime notification surfaces are a genuinely new event
+        // class, so the coordinator now owns TWO event channels —
+        // `session_events` (P1) and `agent_runtime` (P4) — still as the
+        // ONE owner (no other file may create either). Channel bloat is
+        // pinned against: exactly two, no more.
         val raw = coordinatorPair.first
         val code = coordinatorPair.second
         assertTrue(code.contains("CHANNEL_SESSION_EVENTS"))
+        assertTrue(code.contains("CHANNEL_AGENT_RUNTIME"))
         assertEquals(
-            "exactly one createNotificationChannel call lives in the coordinator",
-            1,
+            "exactly two createNotificationChannel calls live in the coordinator",
+            2,
             Regex("createNotificationChannel").findAll(code).count(),
         )
         assertTrue(
-            "the event channel id must be a stable literal",
+            "the session-activity channel id must be a stable literal",
             raw.contains("const val CHANNEL_SESSION_EVENTS = \"session_events\""),
+        )
+        assertTrue(
+            "the agent-runtime channel id must be a stable literal",
+            raw.contains("const val CHANNEL_AGENT_RUNTIME = \"agent_runtime\""),
         )
     }
 

@@ -30,12 +30,18 @@ import kotlinx.coroutines.launch
  * Channel ownership (P1 spec §5): TerminalService keeps its
  * `terminal_sessions` foreground-service channel, untouched. This
  * coordinator owns the M7.2 activity/event channel(s) — created here, and
- * only here (idempotent; no duplicate creation logic anywhere else).
+ * only here (idempotent; no duplicate creation logic anywhere else). Two
+ * event channels exist: `session_events` (P1) and `agent_runtime` (M7.2
+ * P4 — the honest agent-runtime state surfaces). Both are minimal: the
+ * per-session agent-runtime notification UPDATES IN PLACE across state
+ * changes, so no further channel is needed and none will be added without
+ * a genuinely new event class.
  *
- * The P1 foundation posts NO production event notifications (there are no
- * real lifecycle events to report yet — P2 builds the session lifecycle
- * engine). [post] exists as the tested, permission-aware API surface those
- * phases will call; using it is the only supported way to post
+ * The P1 foundation itself posted NO production event notifications (there
+ * were no real events to report yet). The FIRST production caller is the
+ * M7.2 P4 notification consumer (AgentRuntimeNotificationConsumer), which
+ * feeds P3c's deduplicated runtime transitions through [post]/[cancel];
+ * using this coordinator remains the only supported way to post
  * coordinator-owned notifications, which is what makes accidental
  * un-channelled, un-identified, permission-blind posts difficult.
  */
@@ -44,11 +50,20 @@ object NotificationCoordinator {
     private const val LOG_TAG = "PocketShellNotif"
 
     /**
-     * The M7.2 activity/event channel: future session and agent activity
-     * notifications (P2+) post here. Kept deliberately small — more channels
-     * are added by this one owner only when a real event class arrives.
+     * The M7.2 session-activity channel (P1). Kept deliberately small —
+     * more channels are added by this one owner only when a real event
+     * class arrives (P4's agent-runtime surfaces are exactly such a class).
      */
     const val CHANNEL_SESSION_EVENTS = "session_events"
+
+    /**
+     * The M7.2 P4 agent-runtime channel: the honest agent-runtime state
+     * surfaces ("X is running" / "runtime unknown") and the one-shot
+     * session-exit fact post here. One channel for the whole class — the
+     * per-session surface updates in place, so polling-derived transitions
+     * never spawn notification storms (Part D: minimum channels, calm).
+     */
+    const val CHANNEL_AGENT_RUNTIME = "agent_runtime"
 
     @Volatile
     private var appContext: Context? = null
@@ -86,6 +101,16 @@ object NotificationCoordinator {
                 description = "Notifications about terminal session activity."
             }
         )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_AGENT_RUNTIME,
+                "Agent activity",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description =
+                    "Notifications about agent runtime state in terminal sessions."
+            }
+        )
     }
 
     /**
@@ -106,14 +131,22 @@ object NotificationCoordinator {
         val sessionId: Long,
         val title: String,
         val text: String,
+        /**
+         * True for LIVE-STATE surfaces (the P4 agent-runtime state): the
+         * notification represents a current state and must not be dismissed
+         * by tapping (it lives until the truth changes it). False for one-shot
+         * facts (the default): tapping dismisses them.
+         */
+        val ongoing: Boolean = false,
     )
 
     /**
      * The closed set of event classes the coordinator can carry. Extending
      * it is a compile-time-forced decision: the identity `when` in [post]
-     * must map every kind to its notification id space explicitly.
+     * must map every kind to its notification id space AND its channel
+     * explicitly.
      */
-    enum class EventKind { SESSION_ACTIVITY }
+    enum class EventKind { SESSION_ACTIVITY, AGENT_RUNTIME }
 
     /**
      * Post an event notification on the event channel. Honest no-op (false)
@@ -132,14 +165,24 @@ object NotificationCoordinator {
 
         val id = when (request.kind) {
             EventKind.SESSION_ACTIVITY -> NotificationIds.sessionEvent(request.sessionId)
+            EventKind.AGENT_RUNTIME -> NotificationIds.agentRuntime(request.sessionId)
         }
 
-        val notification: Notification = Notification.Builder(context, CHANNEL_SESSION_EVENTS)
+        val channel = when (request.kind) {
+            EventKind.SESSION_ACTIVITY -> CHANNEL_SESSION_EVENTS
+            EventKind.AGENT_RUNTIME -> CHANNEL_AGENT_RUNTIME
+        }
+
+        val notification: Notification = Notification.Builder(context, channel)
             .setSmallIcon(app.pocketshell.R.drawable.ic_launcher_foreground)
             .setContentTitle(request.title)
             .setContentText(request.text)
             .setContentIntent(contentIntent(context, id))
-            .setAutoCancel(true)
+            // A repeated delivery of the SAME surface (an in-place state
+            // update on an existing id) must never re-alert — the calm rule.
+            .setOnlyAlertOnce(true)
+            .setOngoing(request.ongoing)
+            .setAutoCancel(!request.ongoing)
             .build()
 
         notificationManager(context).notify(id, notification)

@@ -65,4 +65,44 @@ class NotificationIdsTest {
         assertThrows(IllegalStateException::class.java) { NotificationIds.sessionEvent(topOfSpace + 1) }
         assertThrows(IllegalStateException::class.java) { NotificationIds.sessionEvent(Int.MAX_VALUE.toLong()) }
     }
+
+    // ------------------------------- M7.2 P4 — the agent-runtime id space
+
+    @Test
+    fun `agent-runtime identity is deterministic - same session id maps to the same id`() {
+        assertEquals(NotificationIds.agentRuntime(1), NotificationIds.agentRuntime(1))
+        assertEquals(NotificationIds.agentRuntime(42), NotificationIds.agentRuntime(42))
+    }
+
+    @Test
+    fun `the agent-runtime space starts at its base and never reaches the FGS id`() {
+        assertEquals(NotificationIds.AGENT_RUNTIME_BASE + 1, NotificationIds.agentRuntime(1))
+        assertTrue(NotificationIds.AGENT_RUNTIME_BASE > NotificationIds.EVENT_BASE)
+        for (sessionId in 1L..200L) {
+            assertTrue(NotificationIds.agentRuntime(sessionId) >= NotificationIds.AGENT_RUNTIME_BASE)
+            assertNotEquals(1, NotificationIds.agentRuntime(sessionId))
+        }
+    }
+
+    @Test
+    fun `the two coordinator spaces never collide for realistic session ids`() {
+        val sessionIds = (1L..500L).map { it }
+        val eventIds = sessionIds.map { NotificationIds.sessionEvent(it) }.toSet()
+        val runtimeIds = sessionIds.map { NotificationIds.agentRuntime(it) }.toSet()
+        assertTrue(eventIds.intersect(runtimeIds).isEmpty())
+    }
+
+    @Test
+    fun `zero and negative session ids are refused in the agent-runtime space`() {
+        assertThrows(IllegalStateException::class.java) { NotificationIds.agentRuntime(0L) }
+        assertThrows(IllegalStateException::class.java) { NotificationIds.agentRuntime(-1L) }
+        assertThrows(IllegalStateException::class.java) { NotificationIds.agentRuntime(Long.MIN_VALUE) }
+    }
+
+    @Test
+    fun `session ids beyond the agent-runtime space are refused - no silent wraparound`() {
+        val topOfSpace = (Int.MAX_VALUE - NotificationIds.AGENT_RUNTIME_BASE).toLong()
+        assertEquals(Int.MAX_VALUE, NotificationIds.agentRuntime(topOfSpace))
+        assertThrows(IllegalStateException::class.java) { NotificationIds.agentRuntime(topOfSpace + 1) }
+    }
 }

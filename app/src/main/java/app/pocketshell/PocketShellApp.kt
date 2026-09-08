@@ -36,6 +36,15 @@ class PocketShellApp : Application() {
         // Output/integration layer only: it owns no session or agent state
         // and never blocks app start (sweep runs off the main thread).
         app.pocketshell.notifications.NotificationCoordinator.init(this)
+        // M7.2 P4: the notification consumer — the ONE subscriber to the
+        // P3c agent-runtime event stream (replay-free, transition-only).
+        // Application scope is the lifecycle owner: the stream has NO
+        // replay, so the subscription must exist before the first session
+        // can spawn — and nothing spawns before Application.onCreate
+        // returns. Consumer-only: it polls nothing, scans nothing, owns no
+        // lifecycle truth; it folds events through the pure truth contract
+        // and posts/cancels via the coordinator above.
+        app.pocketshell.notifications.AgentRuntimeNotificationConsumer.ensureStarted()
     }
 }
 
