@@ -3244,3 +3244,54 @@ docs/M7.2-P3B-RUNTIME-DETECTION.md §4 with the results).
 If a registry agent reports UNKNOWN persistently on device: that is a
 VALID outcome (Success B — the agent's true shape matches neither graded
 rule); record its real /proc shape and stop — do not add heuristics.
+
+## 52. M7.2 P3c (runtime transition & event engine) — NO DEVICE GATE REQUIRED
+
+Honest visibility statement: P3c adds NO user-visible behavior — no UI, no
+notification, no state the phone's owner could see or act on. The event
+engine is internal infrastructure (the deduplicated transition stream the
+future notification phase will consume). Per the project rule — internal
+phases the user cannot meaningfully see always deliver a NEW GIT BUNDLE,
+never a mandatory APK install — the delivery for this phase is the bundle
+cut at the P3c record tip; the APK was still built and audited at the
+inherited stamp (versionCode 47 / 0.11.2-m7.1.1, the unchanged
+6-permission set, cert d96a6f66…8bf659, all five P3c symbol groups in the
+dex) purely as the regression gate.
+
+What WAS verified without a device (forced JVM rerun at the P3c tip):
+1850/1850 green, 0 skipped — including 29 pure transition-matrix tests
+(every mandated transition, the dedup storms, the restart story, unknown
+safety, finish/remove/stale-observation rejection, the never-completion
+guards, non-agent silence, multi-session isolation) and 14 structural
+source pins (no notification APIs, no /proc access, observer-only, no own
+timers, replay-free stream).
+
+Optional device observability (only if the phone is already attached for
+the §51 pass): the engine's transitions appear in the SAME logcat stream —
+`adb logcat -s AgentRuntimeEvents` alongside `-s AgentRuntimeDetector`.
+Expected shapes during a §51-style controlled launch of a supported agent:
+
+1.  Launch the agent from its Home launcher. EXPECT one
+    `session N LAUNCHED agent=<name>` line (the spawn fact — emitted even
+    before the first scan).
+2.  When the agent's process appears: EXPECT
+    `session N CONFIRMED_RUNNING ... (pids=[...], grade=...)` exactly once
+    per entry into RUNNING (no repeats while it stays running).
+3.  Exit the agent. EXPECT `session N NO_LONGER_DETECTED ... —
+    disappearance is not completion` exactly once.
+4.  Kill the session's tab while running. EXPECT
+    `session N SESSION_ENDED ... cause=SESSION_REMOVED` and NO further
+    event for that session — a stale detector result must not fabricate
+    one.
+5.  Let the session exit naturally (exit the guest). EXPECT
+    `cause=SESSION_FINISHED` carrying the session's direct-child exit
+    status — which is NOT the agent's completion, and must never be
+    described as one.
+
+Absence is the pass criterion too: plain shells, catalog tools (nano,
+htop) and custom tools produce ZERO `AgentRuntimeEvents` lines; a RUNNING
+agent produces NO further lines between transitions (dedup); nothing ever
+names an agent completed/success/finished.
+
+If no device is attached: nothing is owed — §51 remains the phase that
+owns the on-device /proc shape verification; P3c rides its stream.

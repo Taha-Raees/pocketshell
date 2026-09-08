@@ -1015,10 +1015,39 @@ audited at the inherited stamp (cert and 6-permission set unchanged; all
 P3b symbols in the dex). Device-gated remainder: TESTING §51 (each
 registry agent's real /proc shape, hidepid/SELinux listing behavior).
 
-**Next milestone (NOT started): M7.2 P3c — notification consumption of
-the graded evidence** (policy-gated posts over the P1 foundation;
-RUNNING/NOT_RUNNING edges as real, evidence-backed events; the honest
-UNKNOWN and NOT_APPLICABLE states must never be dressed up; completion
-claims remain unrepresentable — P0 PART D/E and the P2/P3a/P3b seams are
-the design baseline; the source tree remains the implementation
-authority).
+**M7.2 P3c (COMPLETE): the runtime transition & event engine — the third
+truth level (trusted runtime transitions)** (the phase reframed by its
+mandate: events first, notifications NOT in this phase). The pure
+`AgentRuntimeTransitions.reduce` folds the P3b detector's published
+observations plus the manager's authoritative session state into the typed
+`AgentRuntimeEvent` vocabulary — Launched / ConfirmedRunning (with the
+exact pids + grade) / NoLongerDetected (runtime disappearance ONLY, never
+completion) / RuntimeUnknown (honest uncertainty) / SessionEnded
+(SESSION_FINISHED with the direct child's waitpid status, explicitly not
+the agent's completion, or SESSION_REMOVED) — with per-session in-memory
+deduplication (same-state re-observation = no event; silent birth-UNKNOWN
+emits nothing and can never seed an absence), reappearance re-emission,
+staleness rejection (a detector result arriving after session closure can
+never fabricate an event; ONE sequential collector over both StateFlows),
+and terminal edges derived from the manager's own authoritative state (the
+ONE lifecycle authority untouched). The stream is a replay-free SharedFlow
+with a named 64-event buffer and logged drops — the future notification
+consumer subscribes without ever needing /proc, process groups, PID
+ancestry, token matching or polling. `AgentRuntimeEventEngine` is an
+observer woken from the manager's spawn path beside the detector; it adds
+ZERO polling, mutates nothing, and logs transitions only (Log.d
+AgentRuntimeEvents — no UI). The repository re-exposes
+`agentRuntimeEvents` like `lifecycleEvents`. 1850/1850 JVM forced-rerun
+green (app 780 = 737 + 43 new × debug+release + TE 145 × 2, 0 skipped);
+APK audited at the inherited stamp (cert + 6-permission set unchanged; all
+five P3c symbol groups in classes14.dex). Full contract:
+`docs/M7.2-P3C-EVENT-ENGINE.md`; no device gate required (no user-visible
+change — TESTING §52 records the observability note).
+
+**Next milestone (NOT started, not yet mandated): M7.2 P4 — notification
+consumption of the event engine** (policy-gated posts over the P1
+foundation, subscribing to `AgentActivityRepository.agentRuntimeEvents`
+without any /proc/matching/polling knowledge; the honest UNKNOWN and
+NOT_APPLICABLE states must never be dressed up; completion claims remain
+unrepresentable — P0 PART D/E and the P2/P3a/P3b/P3c seams are the design
+baseline; the source tree remains the implementation authority).

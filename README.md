@@ -51,9 +51,9 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P3b — runtime agent detection via /proc (internal
+Current state: **M7.2 P3c — runtime transition & event engine (internal
 checkpoint on the inherited v0.11.2-m7.1.1 /
-versionCode 47 stamp; M7.2 P3a, P2, P1, the M7.1.1 fix release and M7.1
+versionCode 47 stamp; M7.2 P3b, P3a, P2, P1, the M7.1.1 fix release and M7.1
 release below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
@@ -94,12 +94,21 @@ correlation (ppid-chain ∪ process-group under the session's recorded
 root), graded exact-token matching (`PROCFS_EXE`/`PROCFS_CMDLINE`), the
 four-state contract (`NOT_APPLICABLE / UNKNOWN / NOT_RUNNING / RUNNING`
 — never a completion claim, never a false RUNNING), and 2-second polling
-that exists only while a known-agent session is live. Full JVM suite
-1764/1764 green (app 737 + terminal-emulator 145 per variant, 0 skipped,
+that exists only while a known-agent session is live. M7.2 P3c implemented
+the third truth level: the transition/event engine — a pure reducer folding
+the detector's observations plus the manager's authoritative session state
+into the deduplicated typed event vocabulary (`Launched` /
+`ConfirmedRunning` with the exact pids + grade / `NoLongerDetected` —
+runtime disappearance only, never completion — / `RuntimeUnknown` /
+`SessionEnded`), staleness-safe, replay-free, zero own polling, no
+notifications yet: the substrate the future notification phase subscribes
+to without ever seeing /proc or PID trees. Full JVM suite
+1850/1850 green (app 780 + terminal-emulator 145 per variant, 0 skipped,
 forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
 the hardware pass — the M7.1.1 gate is §47, the M7.2 P1 gate is §48, the
 M7.2 P2 parity gate is §49, the M7.2 P3b runtime-detection gate is §51
-(the per-agent /proc shape table), and a green build alone never
+(the per-agent /proc shape table), P3c requires no device gate (§52
+records its observability note), and a green build alone never
 completes a milestone.

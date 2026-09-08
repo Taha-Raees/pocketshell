@@ -3,6 +3,51 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p3c] — 2026-09-09 — M7.2 P3c runtime transition & event engine
+
+The fifth M7.2 phase: the third truth level — trusted runtime transitions.
+The pure `AgentRuntimeTransitions.reduce` folds the P3b detector's
+observations plus the manager's authoritative session state into the typed
+`AgentRuntimeEvent` vocabulary (Launched / ConfirmedRunning with the exact
+pids + grade / NoLongerDetected — runtime disappearance only, never
+completion — / RuntimeUnknown / SessionEnded with the session's own
+waitpid status or the removal cause), deduplicated per session in memory
+(same-state re-observation = no event; the silent birth-UNKNOWN emits
+nothing and can never seed an absence), staleness-safe (a detector result
+arriving after session closure can never fabricate an event), and
+published on a replay-free SharedFlow the future notification system
+subscribes to without ever needing /proc, process groups, PID ancestry,
+token matching or polling. Internal infrastructure only: no user-visible
+change, no notifications posted, no UI, no /proc access in the event
+layer, no version bump (inherited vc47 / `0.11.2-m7.1.1` stamp), no new
+permissions. Full contract: `docs/M7.2-P3C-EVENT-ENGINE.md`; observability
+note: `docs/TESTING.md` §52.
+
+- **Added**: `terminal/AgentRuntimeEvents.kt` — the pure event vocabulary,
+  inputs, per-session transition memory and the exhaustive transition
+  matrix (launch / confirm / disappearance / uncertainty / session end,
+  with reappearance and the defensive contract guards).
+- **Added**: `terminal/AgentRuntimeEventEngine.kt` — the observer-only
+  seam: ONE sequential collector over the manager's `sessions` and the
+  detector's `observations` StateFlows, zero own polling, woken from the
+  manager's spawn path beside the detector, `Log.d AgentRuntimeEvents`
+  transitions as the diagnostic channel.
+- **Added**: `AgentActivityRepository.agentRuntimeEvents` — the re-exposed
+  event stream (stores nothing, decides nothing, no replay).
+- **Changed**: `TerminalSessionManager.spawn` wakes the event engine
+  (one idempotent line beside the P3b detector wake — no transition path
+  touched); the P3a running-vocabulary confinement pin names the two P3c
+  files as the authorized consumer seam.
+- **Tests**: +43 per variant — `AgentRuntimeEventsTest` (29 pure) +
+  `AgentRuntimeEventEngineIntegrationTest` (14 structural). FULL JVM
+  forced `--rerun-tasks`: 1850/1850 green (app 780×2 + terminal-emulator
+  145×2), 0 failures / 0 errors / 0 skipped.
+- **Build**: app-debug.apk 30,530,112 B sha256 976cca91…e0c at the
+  inherited stamp; the unchanged 6-permission set; cert d96a6f66…8bf659;
+  all five P3c symbol groups in classes14.dex. Delivery: the git bundle
+  cut at the P3c record tip (the APK is the regression gate, not the
+  delivery — no device-visible change exists).
+
 ## [0.11.2-m7.1.1-m72p3b] — 2026-09-09 — M7.2 P3b runtime agent detection via /proc
 
 The fourth M7.2 phase: the second truth level — runtime process evidence
