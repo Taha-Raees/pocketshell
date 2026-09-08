@@ -31,6 +31,11 @@ class PocketShellApp : Application() {
         // m4.1.0: the host is the REBUILT CompanionWebHost (the proven
         // baseline recipe; docs/RENDER-RESET-M4.0.9.md verdict).
         app.pocketshell.companion.CompanionWebHost.init(this)
+        // M7.2 P1: notification foundation — the ONE owner of the event
+        // notification channels + the startup stale-notification sweep.
+        // Output/integration layer only: it owns no session or agent state
+        // and never blocks app start (sweep runs off the main thread).
+        app.pocketshell.notifications.NotificationCoordinator.init(this)
     }
 }
 
