@@ -2167,3 +2167,17 @@ Work Log:
 
 Stage Summary:
 - The delivery surface is fully restored after the sandbox reset with ZERO re-cuts: every served byte is the audited P4 artifact (upload/ insurance → download/ master → public/ serving copy), all hashes equal the page pins; the page needed no change. Platform preview armed via the web_dev completion flow. P4 remains the delivered phase; P5 NOT started.
+
+---
+Task ID: 43-serving-repair
+Agent: main (Super Z)
+Task: User reports the download page stuck on the Z splash after the sandbox reset — diagnose and repair the preview serving (three Complete re-arms had not revived the platform's managed server).
+
+Work Log:
+- Diagnosis: the platform serves this workspace in DEV mode (`next dev -p 3000`, per the committed dev.log/dev-server-*.log history); dev.log shows NO platform restart since the 21:14 reset — the managed server was simply gone. The app itself was never broken: dev-mode test on :3000 returned page 200 + APK 206; prod build returned page 200 (58,467 B) + APK/bundle 206 with range support.
+- Found one process surviving across tool-call boundaries: a bare `next-server` (my earlier :3210 probe whose `pkill -f "next start"` missed the renamed process) — proving detached single-process servers CAN outlive the boundary reaper, while an npm-wrapper dev-server process tree did NOT survive.
+- Repair: killed the orphan (:3210), rebuilt the prod artifacts (the dev-mode probe had clobbered .next), and started the platform-expected port with the survivor pattern: detached `next start -p 3000` (single next-server process, pid 1934). Verified page 200 + APK 206 + bundle 206, then a fresh-tool-call boundary check: STILL 200/206 — the server is live across calls.
+- The platform proxy target (:3000) is now served by the audited P4 prod build; Complete re-arm follows so the proxy re-resolves the workspace.
+
+Stage Summary:
+- Serving restored at the platform's port (:3000) with the byte-exact P4 set (page 58,467 B; APK ab73b24a…, bundle 9c6e4a1b…, glibc ed82daa8… all range-served). No repo byte changed — worklog-only ride-along. P4 remains the delivered phase.

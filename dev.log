@@ -31,3 +31,17 @@ $ next dev -p 3000
  ○ Compiling / ...
  ✓ Compiled / in 3.7s (539 modules)
  GET / 200 in 4164ms
+
+> pocketshell-download@0.4.1 dev
+> next dev -p 3000
+
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.7.136:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1521ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.6s (539 modules)
+ GET / 200 in 4031ms
