@@ -1,19 +1,20 @@
-const VERSION = "v0.11.2-m7.1.1";
+const VERSION = "v0.11.2-m7.1.1-m72p1";
 
-// SHA pins — the M7.1.1 FIX RELEASE delivery. The payload cutter stages
-// from the pinned fix tip (3cbfec2) with zeroed mtimes; the embedded git
-// bundle's pack bytes are not re-cut-stable, so these pins refer to the ONE
-// delivered cut. Semantic pins: versionCode 47, versionName 0.11.2-m7.1.1
-// (the sub-milestone precedent), cert d96a6f66…8bf659, embedded layer asset
-// 898131ff… /17,920,000 B == GlibcRuntimePin. The glibc layer is UNCHANGED
-// rev=2 (byte-identical artifact ed82daa8…). The M7.1 release APK
-// (2d298c85…) is superseded by this fix and withdrawn below; its history
-// rides in the bundle.
+// SHA pins — the M7.2 P1 (notification foundation) delivery. The payload
+// cutter stages from the pinned record tip (a7c635e) with zeroed mtimes; the
+// embedded git bundle's pack bytes are not re-cut-stable, so these pins refer
+// to the ONE delivered cut. Semantic pins: versionCode 47, versionName
+// 0.11.2-m7.1.1 (the M7.x phase-build precedent — the -m72p1 suffix is
+// filename-only), cert d96a6f66…8bf659, embedded layer asset 898131ff… /
+// 17,920,000 B == GlibcRuntimePin. The glibc layer is UNCHANGED rev=2
+// (byte-identical artifact ed82daa8…). The M7.1.1 fix APK (5d876141…) is
+// superseded by this phase build and withdrawn below; its content and
+// history ride in the bundle.
 const HASHES = {
-  apk: "5d8761418324950815588f170149342a6aea5fe90b963dfda3364e3d787e5dc1",
-  zip: "d8c1ef85bb850c3ba6fad363912d559a2129b22f03ddbea59c6e64fa7034bd1b",
-  tgz: "d183c3eb4e7461ac5f5ec59204cf9d056bb502b32465e402221fbae01b53a954",
-  bundle: "af73c57b216206ce7e61acaf7bdf2ffe5dbf9b60b91772821d2dc26869a5632f",
+  apk: "e63fb9b539f4b786307f6597b3a54427c7b8b63bedd1a081f50880719d18bf5b",
+  zip: "b4c9eb53d66e847a751d447c9c3dbc223a7f0b756f096e71965b998e270f8eb1",
+  tgz: "147441d49354021cd261e57ac7d6098b7a127f0e96bd7a35731dc53d9cdf659b",
+  bundle: "23c9117e4586e034abe59673ea90566982a171fe7568c0f004305500b4a722f9",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
 
@@ -35,58 +36,65 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M7.1.1 FIX RELEASE — the external-keyboard detection rebuilt from
-          the real-device failure{" "}
-          <span className="badge">fix tip 3cbfec2 · vc47</span>
+          M7.2 P1 — NOTIFICATION FOUNDATION: the declared-but-never-requested
+          permission is finally asked, the coordinator layer exists{" "}
+          <span className="badge">record tip a7c635e · vc47</span>
         </h2>
         <p>
           <b>
-            M7.1 P3 passed every JVM suite and FAILED on the real phone
-            (Samsung SM-F711B / Galaxy Z Flip 3, One UI). This release fixes
-            the audited causes — it does not patch blindly: <b>Fix 1</b> the
-            terminal-canvas tap no longer cancels the auto-hide (the primary
-            defect — the most-used gesture in a terminal app popped the deck
-            straight back up after every connect; the gate now lives in the
-            ONE authoritative state model); <b>Fix 2</b> a hard 2,000 ms
-            confirm deadline ends debounce starvation — the old stability
-            window restarted on every input-device event with no ceiling, so
-            periodic Bluetooth LE re-announcements could defer detection
-            forever; <b>Fix 3</b> a SECOND detection mechanism — the
-            Application-level configuration-change cross-check feeds the same
-            coalescing detector, covering OEM stacks that miss
-            InputDeviceListener callbacks for Bluetooth HID reconnections;{" "}
-            <b>Fix 4</b> both-direction notices — exactly one per confirmed
-            transition (&quot;External keyboard detected — onscreen keyboard
-            disabled.&quot; and &quot;External keyboard disconnected.&quot;),
-            still in-app only, zero new permissions; <b>Fix 5</b> the
-            persistent On-screen keyboard preference (DataStore, default ON)
-            — detection is a temporary runtime override that never writes it;
-            a disconnect re-evaluates the preference, an OFF preference is
-            never forced back on, and the user&apos;s explicit [⌨] / deck
-            actions always win. ONE authoritative model
-            (ExternalKeyboardVisibilityModel) owns the state; the root holds
-            no local copy. <b>VERIFICATION AT THIS STAMP</b>: the FULL JVM
-            suite forced --rerun-tasks — 746/746 green (app 601 +
-            terminal-emulator 145, 0 failures, 0 errors) — and a fresh APK
-            audited end-to-end: aapt2 badging versionCode=&apos;47&apos;
-            versionName=&apos;0.11.2-m7.1.1&apos;, the UNCHANGED 6-permission
-            set, exactly 26 launcher icon entries, the new VisibilityModel +
-            Detector dex symbols present, targetSdk 28, the pinned cert
-            d96a6f66…8bf659. The mandatory REAL-DEVICE gate is
-            docs/TESTING.md §47 (16 steps: USB + Bluetooth, all four
-            transitions, the settings matrix, the canvas-tap regression) — a
-            green build never claims the hardware pass. M7.2 (notification
-            &amp; agent-activity) starts only AFTER that gate passes.
+            First M7.2 production code, infrastructure only, per the approved
+            P0 audit (docs/M7.2-P0-AUDIT.md). <b>The permission fix</b>:
+            POST_NOTIFICATIONS was declared in the manifest since M2.4 and
+            never requested at runtime — on Android 13+ every notification
+            (including the session-retention foreground-service notification)
+            was invisible until the user found Settings on their own. Now the
+            native dialog is shown EXACTLY ONCE per install, fired when the
+            FIRST terminal session exists (the moment notifications become
+            meaningful), with the request flag persisted to the new
+            notifications DataStore BEFORE the dialog opens — so rotation,
+            activity recreation and process death mid-dialog can never re-ask
+            — and with a denial (or the system&apos;s own implicit prompt
+            being denied) respected forever after: never nagged, never
+            blocked. <b>The coordinator</b> (app.pocketshell.notifications/):
+            ONE output/integration layer owning the new session_events channel
+            beside the untouched terminal_sessions FGS channel, deterministic
+            notification ids (EVENT_BASE + sessionId, refusing silent
+            wraparound), FLAG_IMMUTABLE content intents carrying the routing
+            extra, a DataStore ledger of posted ids, and the startup
+            stale-notification sweep that cancels exactly what this
+            coordinator posted and never the FGS notification (id 1) or
+            anything else. <b>The routing</b>: MainActivity now processes
+            notification intents on BOTH paths — cold start (onCreate) and
+            the existing-instance singleTask path (onNewIntent, unhandled
+            since forever per the P0 audit §8.4 finding) — through one
+            exhaustive route handler. <b>VERIFICATION</b>: FULL JVM suite
+            forced --rerun-tasks 780/780 green (app 635 + terminal-emulator
+            145, 0 failures, 0 errors) including 34 new notifications tests
+            (the complete anti-nag truth table, identity collision/FGS-space
+            proofs, the routing parser, 14 structural integration pins); a
+            fresh APK audited on the exact bytes: aapt2 badging
+            versionCode=&apos;47&apos; versionName=&apos;0.11.2-m7.1.1&apos;
+            targetSdk 28, the UNCHANGED 6-permission merged set, 26 launcher
+            icon assets, the seven notifications dex symbols, the pinned cert
+            d96a6f66…8bf659. <b>HONEST SCOPE</b>: P1 posts NO production event
+            notifications — no agent detection, no completion claims, no
+            waiting-for-input heuristics, no /proc scanning, no OSC 133 (P2+
+            scope). The mandatory REAL-DEVICE gate is docs/TESTING.md §48
+            (12 steps: no-ask-before-first-session, grant/deny, anti-nag
+            relaunches, dual channels, warm+cold taps, pre-13, the §47
+            keyboard regression) — a green build never claims the hardware
+            pass.
           </b>
         </p>
-        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-debug.apk">
-          Download M7.1.1 fix APK (debug, 30.5 MB)
+        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p1-debug.apk">
+          Download M7.2 P1 APK (debug, 30.5 MB)
         </a>
         <Sha text={HASHES.apk} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
-          versionCode 47 / versionName 0.11.2-m7.1.1 (the sub-milestone fix
-          stamp) — installs in place over every earlier build (same cert) —
-          glibc layer ed82daa8… unchanged.
+          versionCode 47 / versionName 0.11.2-m7.1.1 (the M7.x phase-build
+          precedent — phase builds ride the inherited stamp, the -m72p1
+          suffix is filename-only) — installs in place over every earlier
+          build (same cert) — glibc layer ed82daa8… unchanged.
         </p>
       </div>
 
@@ -96,28 +104,33 @@ export default function Home() {
           <span className="badge">history preserved</span>
         </h2>
         <p>
-          The M7.1 release APK (2d298c85…, 30,448,845 B, vc46 /
-          0.11.1-m7.1.0) and its source set are SUPERSEDED by this fix
-          release: the release is FROZEN and remains the milestone record,
-          but its external-keyboard behavior is what the real-device gate
-          rejected — M7.1.1 supersedes it with the same architecture rebuilt.
-          The M7.1 release bytes are no longer served (the upload/ insurance
-          copies survive byte-exact); the complete history rides in the
-          bundle below (the M7.1 release tip 4e86e50 is a direct ancestor of
-          this fix tip 3cbfec2). Earlier withdrawals stand: the M7.1 P3 APK
-          (46fb0d8b…), the M7.1 P2.2 APK (7e0e99a9…), the M7.1 P2.1 APK
-          (97c04120…), the M7.1 P2 APK (ae6f6445…), the M7.1 P1 APK
-          (4d7349f7…), the M7.0 release APK (8826d30d…), the m7p8.1 (vc44)
-          and the reset-lost m7p8/m7p7.1/m7p6/m6.0.4 sets — their content and
-          history are fully contained in this bundle. The glibc layer
-          artifact (rev=2) is byte-identical and served below.
+          The M7.1.1 fix APK (5d876141…, 30,451,377 B, vc47 / 0.11.2-m7.1.1)
+          and its source set are SUPERSEDED by this phase build: same stamp
+          (vc47), same cert, the keyboard system unchanged — the P1 build
+          simply carries the notification foundation on top, and its source
+          archives are cut at a tip that contains the entire M7.1.1 chain.
+          The M7.1.1 bytes are no longer served (the upload/ insurance copies
+          survive byte-exact); the complete history rides in the bundle below
+          (the fix tip 3cbfec2 is a direct ancestor of this record tip
+          a7c635e). Earlier withdrawals stand: the M7.1 release APK
+          (2d298c85…), the M7.1 P3 APK (46fb0d8b…), the M7.1 P2.2 APK
+          (7e0e99a9…), the M7.1 P2.1 APK (97c04120…), the M7.1 P2 APK
+          (ae6f6445…), the M7.1 P1 APK (4d7349f7…), the M7.0 release APK
+          (8826d30d…), the m7p8.1 (vc44) and the reset-lost
+          m7p8/m7p7.1/m7p6/m6.0.4 sets — their content and history are fully
+          contained in this bundle, as is the M7.2 P0 audit
+          (docs/M7.2-P0-AUDIT.md, the P0 bundle 17475b7f… was a docs-only
+          direct-URL artifact). The glibc layer artifact (rev=2) is
+          byte-identical and served below.
         </p>
       </div>
 
       <div className="card">
         <h2>Update — no uninstall, no runtime reinstall</h2>
         <p>
-          versionCode 47 installs <b>in place over the M7.1 release (46), the
+          versionCode 47 installs <b>in place over the M7.1.1 fix release
+          (47 — same versionCode, updated content, same pinned cert), the
+          M7.1 release (46), the
           M7.1 phase builds (all
           45 — P1, P2, P2.1, P2.2, P3), the M7.0 release (45),
           v0.10.0-m6.0.4
@@ -133,9 +146,11 @@ export default function Home() {
           v0.7.0-m4.0.9 (33) and every earlier pinned-cert build</b>. Your
           Alpine runtime, installed packages, Cline installation, the procfs
           contract, all Files explorer data, all Companion data and the
-          launcher visibility/icon settings are untouched. M7.1.1 is APP-side
+          launcher visibility/icon settings are untouched. M7.2 P1 is APP-side
           only: the layer marker and the glibc files stay byte-identical
-          (rev=2, ed82daa8…).
+          (rev=2, ed82daa8…), and the notifications DataStore starts empty —
+          the first session after the update triggers the one-time Android 13+
+          permission dialog.
         </p>
       </div>
 
@@ -188,8 +203,8 @@ export default function Home() {
             affordance, and live external-keyboard detection.
           </li>
           <li>
-            <b>M7.1.1 (this build):</b> the external-keyboard system rebuilt
-            after the real-device failure — the ONE authoritative
+            <b>M7.1.1 (v0.11.2-m7.1.1):</b> the external-keyboard system
+            rebuilt after the real-device failure — the ONE authoritative
             ExternalKeyboardVisibilityModel (persistent On-screen keyboard
             preference + hardware state + explicit user request → effective
             visibility), the GATED terminal-canvas tap (it no longer undoes
@@ -199,44 +214,53 @@ export default function Home() {
             disconnect), and the preference-aware restore (an OFF preference
             is never forced back on).
           </li>
+          <li>
+            <b>M7.2 P1 (this build):</b> the notification foundation — the
+            POST_NOTIFICATIONS runtime request exactly once per install on
+            Android 13+ (first-session trigger, flag-before-dialog anti-nag,
+            system-prompt denials respected, denial never blocks the
+            terminal), the notifications/ coordinator layer (session_events
+            channel, deterministic ids, posted-id ledger, startup stale
+            sweep, FLAG_IMMUTABLE routing intents), and intent routing on
+            both activity paths — infrastructure only, no event notifications
+            posted yet, no agent detection, no heuristics.
+          </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Device gates (docs/TESTING.md — §47 is the M7.1.1 gate)</h2>
+        <h2>Device gates (docs/TESTING.md — §48 is the M7.2 P1 gate)</h2>
         <ol className="steps">
           <li>
-            <b>External keyboard — USB flow (§47):</b> connect while a
-            terminal is open — the deck hides within ~0.5–2 s, ONE
-            &quot;External keyboard detected&quot; banner, no spam;{" "}
-            <b>then tap the terminal canvas — the deck STAYS hidden</b> (the
-            M7.1 failure); the floating [⌨] still opens it on demand;{" "}
-            <b>unplug — the deck returns per the preference</b> with the
-            &quot;External keyboard disconnected.&quot; banner.
+            <b>Permission — the once-per-install ask (§48):</b> fresh install
+            on Android 13+ → open the app → NO dialog on Home; create the
+            first session → the native POST_NOTIFICATIONS dialog appears
+            exactly once; grant → background the app → the session-retention
+            FGS notification is finally VISIBLE in the shade.
           </li>
           <li>
-            <b>Bluetooth + launch-attached (§47):</b> the same behavior over
-            BT (reconnect, sleep/wake), no flicker across flaps, and starting
-            the app cold with the keyboard already attached disables the deck
-            immediately.
+            <b>Deny + anti-nag (§48):</b> deny the dialog → no crash, the
+            terminal keeps working, the FGS service still keeps the session
+            alive (only the notification is hidden); relaunch, create more
+            sessions, kill and restart the process — the dialog NEVER
+            re-appears.
           </li>
           <li>
-            <b>Settings matrix (§47):</b> &quot;On-screen keyboard&quot; OFF
-            while connected → the deck stays hidden after disconnect and
-            across restart (the persistent preference); OFF with no keyboard
-            → the deck closes now; ON again → the override applies while
-            connected and the deck returns on disconnect.
+            <b>Channels + taps (§48):</b> dumpsys lists BOTH channels
+            (terminal_sessions + session_events, created exactly once each);
+            tapping the FGS notification works warm (app open → onNewIntent
+            path) and cold (swiped away → cold start); no notification ever
+            claims an agent or command completed.
           </li>
           <li>
-            <b>Home + launchers (§41-§44):</b> one x-scroll Companions row,
-            two tools rows with scroll dots, themed marks flipping live with
-            the theme, Manage opening packages, curated + custom tools
-            launching through verify-then-launch, badges and hide/restore.
+            <b>Keyboard regression (§47):</b> the M7.1.1 external-keyboard
+            sweep still passes — USB/BT flows, the canvas-tap-stays-hidden
+            rule, the settings matrix (P1 touches no keyboard code).
           </li>
           <li>
-            <b>Regression:</b> extra keys, modifiers, arrow keys, deck
-            animations, the keyboard inset on Terminal/Editor/Files/Companion,
-            and the M7.0 Files scrolling fix — all as before.
+            <b>Home + launchers + terminal (§41-§45):</b> launchers render and
+            launch, sessions spawn/close/background as before — the FGS
+            lifecycle policy (runs iff ≥ 1 session) is unchanged.
           </li>
         </ol>
         <p>
@@ -249,30 +273,32 @@ export default function Home() {
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Source at the M7.1.1 FIX tip 3cbfec2 (the rebuilt keyboard state
-          system, the TESTING §47 real-device gate, and the full M7.1 release
-          + P3 + P2.2 + P2.1 + P2 + P1 + M7.0 chain below it). The zip
-          intentionally contains no dotfiles; full history rides in the git
-          bundle — the complete milestone history (M0 → the m7.1.1 fix), all
-          design contracts, the procfs contract, and the runtime
-          documentation. Bundle main tip 3cbfec2 = the exact app tip this APK
-          was built from; the archived tree is cut at the same commit.
+          Source at the M7.2 P1 record tip a7c635e (the notification
+          foundation chain c6ced97 → 0ed5da0 → fd54aa0 → the Task 39 worklog
+          record, on top of the M7.1.1 fix 3cbfec2 and the M7.2 P0 audit
+          c8d0059/024cd28, with the full M7.1 release + P3 + P2.2 + P2.1 + P2
+          + P1 + M7.0 chain below). The zip intentionally contains no
+          dotfiles; full history rides in the git bundle — the complete
+          milestone history (M0 → m7.2-p1), all design contracts, the procfs
+          contract, and the runtime documentation. Bundle main tip a7c635e =
+          the tip the source archives are cut at; the APK was built from the
+          identical app sources (the app tree is unchanged since 0ed5da0 —
+          the two commits after it touch only docs, scripts and the worklog).
           History note: this bundle continues the user-restored P7.1 delivery
           bundle (fb01540) through the M7.0 release chain (47bed42 → 709d126
-          → dd81bc8), the P1 launcher phase (3abb2e8), the P2 UI-repair phase
-          (1b15bde), the P2.1 owner-marks phase (e0a2471 — worklog Tasks
-          22–32), the P2.2 theme-icons phase (6004805 — Task 33), the P3
-          external-keyboard phase (93ee631 — Task 34), the M7.1 release
-          closure (4e86e50 — Task 35), and this fix (3cbfec2).
+          → dd81bc8), the M7.1 phases (3abb2e8 → 1b15bde → e0a2471 → 6004805
+          → 93ee631), the M7.1 release closure (4e86e50 — Task 35), the
+          M7.1.1 fix (3cbfec2 — Task 36), and the M7.2 P0 audit
+          (c8d0059 → 024cd28 — Task 38).
         </p>
-        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-source.zip">
-          source.zip (M7.1.1 fix tip)
+        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-m72p1-source.zip">
+          source.zip (M7.2 P1 record tip)
         </a>
-        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-source.tar.gz">
-          source.tar.gz (M7.1.1 fix tip)
+        <a className="btn secondary" href="/PocketShell-v0.11.2-m7.1.1-m72p1-source.tar.gz">
+          source.tar.gz (M7.2 P1 record tip)
         </a>
-        <a className="btn secondary" href="/pocketshell-m7.1.1.gitbundle">
-          git bundle (full history, M7.1.1 fix tip)
+        <a className="btn secondary" href="/pocketshell-m7.2-p1.gitbundle">
+          git bundle (full history, M7.2 P1 record tip)
         </a>
         <Sha text={HASHES.zip} />
         <Sha text={HASHES.tgz} />
@@ -282,7 +308,7 @@ export default function Home() {
         </a>
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m7.1.1.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7.2-p1.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
           with the same signing identity (d96a6f66…8bf659, unchanged since
           v0.4.1).
@@ -327,12 +353,21 @@ export default function Home() {
         keyboard Settings toggle, manual controls preserved, no new
         permissions · v0.11.1-m7.1.0: the OFFICIAL M7.1 RELEASE — five phases
         closed under one stamp, the clean-rerun release verification
-        (734/734 JVM), M7.1 tagged and FROZEN ·{" "}
-        <b>v0.11.2-m7.1.1 (this build): the M7.1.1 external-keyboard fix —
-        the real-device failure causes rebuilt (the gated canvas tap, the
-        confirm deadline, the config-change cross-check, both-direction
-        notices, the persistent preference), ONE authoritative visibility
-        model, 746/746 JVM, the §47 real-device gate mandatory</b>.
+        (734/734 JVM), M7.1 tagged and FROZEN · v0.11.2-m7.1.1: the M7.1.1
+        external-keyboard fix — the real-device failure causes rebuilt (the
+        gated canvas tap, the confirm deadline, the config-change
+        cross-check, both-direction notices, the persistent preference), ONE
+        authoritative visibility model, the §47 real-device gate ·
+        m7.2 p0: the notification &amp; agent-activity architecture audit —
+        what PocketShell can actually know (session-level lifecycle reliable,
+        agent-level unknowable today, waiting-for-input has no real signal),
+        the phase plan validated ·{" "}
+        <b>m7.2 p1 (this build): the notification foundation — POST_NOTIFICATIONS
+        asked exactly once per install on Android 13+ at the first session,
+        the coordinator layer (event channel, deterministic ids, ledger,
+        stale sweep, routing intents), tap routing on both activity paths,
+        780/780 JVM, infrastructure only — no agent claims, no heuristics,
+        the §48 real-device gate mandatory</b>.
         Correctness before cleverness. Visible UI before diagnostics.
       </footer>
     </main>
