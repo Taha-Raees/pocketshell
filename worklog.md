@@ -1993,3 +1993,16 @@ Work Log:
 
 Stage Summary:
 - M7.2 P1 is complete and delivered: the notification foundation exists (permission requested once per install on 13+, coordinator + channel + identity + ledger + stale sweep + two-path tap routing), 780/780 JVM green at the phase tip, APK audited (6-permission set unchanged, cert unchanged, inherited stamp), P0's no-second-truth-source and no-heuristics rules hold in code and tests. P1 posts NO production event notifications and implements NO agent detection — P2 (session lifecycle engine + structured exit status) is next per the validated plan. The standing hardware gate: docs/TESTING.md §48 (12 steps) on a real Android 13+ device.
+
+---
+Task ID: 39-c1 (M7.2 P1 delivery — P0 bundle record correction, found during the insurance sweep)
+Agent: main (Super Z)
+Task: The Task 39 delivery's upload/ insurance sweep surfaced a bytes-vs-record disagreement on the WITHDRAWN M7.2 P0 bundle; the honesty-correction standard requires fixing the record before final delivery.
+
+Work Log:
+- Found: upload/ + download/ pocketshell-m7.2-p0.gitbundle = 37,607,042 B, sha256 0d8c5eb0c150046b3f47cce862e017795ba1ec4aa93600878cf5e485b0eeadb5, bundle head 02e8166 (the Task 38 CORRECTION commit itself) — but the Task 38 correction text quotes "37,606,989 B, sha256 17475b7f…" as the delivered cut's facts. Explanation reconstructed: the correction was written from the cut made BEFORE the correction commit existed; committing the correction (02e8166) then re-cutting the bundle changed the head AND the bytes, and the correction's quoted numbers were never refreshed.
+- Verification of the SURVIVING bytes (the authoritative insurance copy): clone drill green — lands on 02e8166, 291 commits, docs/M7.2-P0-AUDIT.md present, clean tree. Content-wise this is a superset of the corrected record (the correction text itself rides as the head commit). The 17475b7f… cut is superseded and no longer exists anywhere; nothing external depends on it.
+- Corrected the record: download/README.md's P0 withdrawal line now cites the real surviving bytes (37,607,042 B, 0d8c5eb0…, head 02e8166, clone-verified). The P0 bundle remains withdrawn (its entire history is contained in pocketshell-m7.2-p1.gitbundle, head a7c635e).
+
+Stage Summary:
+- The P0 record now matches the surviving bytes. The P1 delivery set is unaffected (all four new pieces re-verified against their pins in the same sweep: e63fb9b5…, b4c9eb53…, 147441d4…, 23c9117e…).
