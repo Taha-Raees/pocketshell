@@ -1926,3 +1926,17 @@ Work Log:
 
 Stage Summary:
 - M7.1.1 is complete and delivered: the real-device failure is explained at the code level (the canvas-tap suppression cancel as the primary defect; debounce starvation; single-mechanism detection; the missing disconnect notice; the missing persistent preference), the keyboard state system is rebuilt as ONE authoritative model with multi-mechanism detection and a starvation-proof deadline, and 746/746 JVM green at the vc47 stamp with 6 permissions unchanged. Delivery verified 5/5 byte-exact on the wire, stale set 404, clone drill green, insurance refreshed. The Definition of Done's hardware clause is now THE gate: docs/TESTING.md §47 (16 steps) must be run by the user on the actual phone with the actual external keyboard — the final report states honestly that no JVM/sandbox run can complete that pass, and M7.2 starts only after it does.
+
+---
+Task ID: 37 (post-delivery ops — download-server recovery after sandbox reset)
+Agent: main (Super Z)
+Task: "Run download server" — bring the :3000 delivery page back up after the sandbox reset wiped the serving surface.
+
+Work Log:
+- Found: server + watchdog dead; public/ WIPED again by the sandbox reset (the Task 36 delivery surface gone); download/ reduced to README.md + glibc-sidecar manifests; git history, upload/ insurance, and the delivery scripts intact.
+- Restored the five M7.1.1 artifact masters byte-exact: four from upload/ insurance (APK 5d876141…, zip d8c1ef85…, tgz d183c3eb…, bundle af73c57b… — all re-verified against the published pins BEFORE staging) plus the glibc layer from the tracked in-tree asset app/src/main/assets/guest/ (ed82daa8… == pin, rev=2 unchanged); staged into public/ (serving) AND download/ (masters).
+- Full wire verification via scripts/verify_http_m711.sh (single-call protocol): page markers 9/9 + stale-href absent, 5/5 artifacts byte-exact on the wire at exact byte sizes, stale M7.1-release APK 404.
+- Watchdog relaunched detached (setsid nohup) after the previous copy died at a tool-call boundary; server answering HTTP 200.
+
+Stage Summary:
+- The M7.1.1 delivery surface (v0.11.2-m7.1.1 / vc47, tip 3cbfec2) is fully restored and serving: https://preview-chat-af9ee1f3-ca8c-465f-89b3-fb2137e3b7e6.space-z.ai/ — no re-pin, no re-cut, no version change; the delivered bytes are the same 5d876141… APK. The pending gate remains docs/TESTING.md §47 (16-step real-device pass on the user's hardware). M7.2 not started.
