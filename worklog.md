@@ -2061,3 +2061,21 @@ Work Log:
 
 Stage Summary:
 - M7.2 P3b is complete per Success A: PocketShell can now correlate a supported launched agent session with real process evidence and truthfully expose RUNNING (with the exact pids + grade) / NOT_RUNNING (proven absence, never completion) / UNKNOWN (scanner unavailable, never-observed, or ambiguous) / NOT_APPLICABLE (non-agent identities) — and it structurally cannot claim RUNNING from a launch alone, from a name alone, or from a process outside the session's fork-proven tree. 1764/1764 JVM green with 0 skipped; APK audited at the inherited stamp; the device gate (§51) owns the remaining per-agent /proc-shape verification. P3c NOT started per the mandate.
+
+---
+Task ID: 42-delivery
+Agent: main (Super Z)
+Task: User-requested follow-up to the P3b delivery — "provide apk nd gitbundle" then "run download, server": stage the P3b pair for download and re-pin/run the delivery page.
+
+Work Log:
+- Verified the P3b deliverables byte-exact against the delivery record (bf97339): bundle e6d22571…69c05 (37,771,483 B) + APK fc1edb51…704e (30,802,996 B); staged both into download/ from the upload/ insurance copies.
+- Fresh clone drill on the delivered bundle: GREEN — bundle head = main → 0f091e7 == the cut, 315 commits, clean tree, P3b sources (AgentRuntimeDetection/RuntimeAgentDetector + both test classes), docs/M7.2-P3B-RUNTIME-DETECTION.md, TESTING §51, worklog Task 42 present, versionCode 47 / 0.11.2-m7.1.1.
+- APK structural re-check: valid multidex, RuntimeAgentDetector/AgentRuntimeDetection symbols confirmed in classes14.dex (aapt absent in this environment — badging audit stands from the recorded session).
+- User then requested the download server. Re-pinned app/page.tsx to the P3b pair per the established per-phase page convention (VERSION/HASHES, primary card = the P3b runtime-detection story with the four-state contract, correlation, exact-token matching, polling discipline, 1764/1764 JVM, §51 device gate + the honest no-UI visibility note; P2 set moved to superseded/withdrawn with its record tip 3b144be noted as an ancestor of 0f091e7; P3a bullet added; footer milestones extended). The phase-internal "no page re-pin" default is superseded by the user's explicit request.
+- Staged public/ (gitignored runtime scaffold): P3b APK, P3b bundle, glibc transparency copy ed82daa8… (6,764,916 B, hash re-verified from app assets).
+- Server: the sandbox now reaps ALL session-spawned processes at tool-call boundaries — the reset-#11-era dev_watchdog.sh no longer survives; single-call end-to-end verification instead: page 200 with all P3b pins, and APK/bundle/glibc served byte-exact over HTTP (sha256 match on all three). Platform preview serving (re)armed via the web_dev completion flow.
+
+Stage Summary:
+- download/ holds the P3b pair (bundle + APK) with SHAs matching the delivery record; public/ holds the served copies (byte-identical).
+- app/page.tsx re-pinned to v0.11.2-m7.1.1-m72p3b (commit "delivery page re-pin" on top of 232c033).
+- Serving verified end-to-end within-call; the preview link serves the P3b page via the platform flow. P3c NOT started.
