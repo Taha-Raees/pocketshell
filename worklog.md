@@ -1961,3 +1961,16 @@ Work Log:
 
 Stage Summary:
 - M7.2 P0 is complete and delivered: the capability line is documented from real code (what PocketShell knows vs cannot know), the authoritative state model and M7.2 architecture are proposed, the phase plan is validated, and the NewGitBundle (pocketshell-m7.2-p0.gitbundle) carries the exact P1 implementation baseline. NO M7.2 production code exists; P1 NOT started — waiting for the user's approval per the P0 mandate.
+
+CORRECTION (Task 38, same session): the bundle was cut AFTER this worklog
+commit was made, so pocketshell-m7.2-p0.gitbundle actually carries this
+commit itself as its head (the full P0 chain including the worklog record)
+— not c8d0059 as the delivery line above states. Cut facts for the final
+bytes: 37,606,989 B, sha256 17475b7fb8cc786c93254b094fb69cdf05e2b0cb71c7a977dab7c4488891e360,
+clone drill re-verified on these exact bytes (lands on the final P0 HEAD,
+290 commits, audit doc + vc47 stamp + ROADMAP P0 note present in the
+cloned tree). A second sandbox reset also hit mid-delivery (public/ and
+the server wiped again after Task 37's identical recovery); both were
+restored from the upload/ insurance + the in-tree glibc asset and
+re-verified byte-exact on the wire (M7.1.1 page set 5/5, 9/9 markers, P0
+bundle direct URL HTTP 200 at exact size and sha).
