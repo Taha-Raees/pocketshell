@@ -116,7 +116,7 @@ notification untouched, zero new permission machinery, and stale surfaces
 removed in-process, across processes and after process death — with the
 honesty line pinned over the shipped strings: no notification can claim
 completed/success/finished/failed. Full JVM suite
-1934/1934 green (app 822 + terminal-emulator 145 per variant, 0 skipped,
+1932/1932 green (app 821 + terminal-emulator 145 per variant, 0 skipped,
 forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain

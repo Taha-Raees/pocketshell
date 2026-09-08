@@ -1080,8 +1080,8 @@ startup sweep across processes, no restoration after process death —
 nothing fake is re-shown). The honesty line is pinned over the shipped
 string literals: no produced notification can claim
 completed/success/finished/failed, exit 0 is never "success", and
-"NoLongerDetected" is only ever a withdrawal. 1934/1934 JVM forced-rerun
-green (app 822 = 780 + 42 new × debug+release + TE 145 × 2, 0 skipped);
+"NoLongerDetected" is only ever a withdrawal. 1932/1932 JVM forced-rerun
+green (app 821 = 780 + 41 new × debug+release + TE 145 × 2, 0 skipped);
 APK audited at the inherited stamp (cert + 6-permission set unchanged; P4
 symbols in the dex). Full contract: `docs/M7.2-P4-NOTIFICATION-CONSUMPTION.md`;
 device gate: TESTING §53 (ten steps — the shade must be verified on
