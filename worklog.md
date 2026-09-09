@@ -2376,3 +2376,20 @@ Work Log:
 Stage Summary:
 - P8 complete: notifications and Home Sessions are two views of one runtime state. The user-visible change is exactly the compact status line ("<Agent> — Running" / "<Agent> — Runtime unknown") on the existing Home rows, gated by the same evidence and the same truth boundary as the shade. 2074/2074 JVM, 0 skipped; APK e984842d…ee53 at the inherited vc47 / 0.11.2-m7.1.1 stamp. Device gate: TESTING §57 pending on hardware (human step, as always).
 - PART V decision: production UI behavior changed → deliver APK + git bundle (+ page re-pin per the P5/P6 delivery convention).
+
+---
+Task ID: 48
+Agent: main (Super Z)
+Task: Post-P8 session-reset restore — re-stage the download page serving set and run the :3000 server (user request: "Update download page and run server").
+
+Work Log:
+- Read worklog + git log: P8 fully delivered (record f2c6b7f, page re-pin 430794a, record tip 9986fda), tree clean; the session reset had wiped the GITIGNORED serving/staging state: public/ gone, .next gone, download/ artifacts gone (only README.md ledger + glibc-sidecar/ metadata survived); upload/ insurance copies intact.
+- Found the page already carries the correct P8 re-pin (app/page.tsx VERSION v0.11.2-m7.1.1-m72p8, HASHES apk e984842d…ee53 / bundle 607fd3f7…0154 / glibc ed82daa8…c3d) — NO page-content edit needed; the "update" is the re-stage of the serving set.
+- SHA-verified the survivors against the pins: upload/PocketShell-v0.11.2-m7.1.1-m72p8-debug.apk = e984842d5d5278e2214354854b03692ab0e22243cf5bd09883fd222e33ceee53 (30,873,738 B) EXACT; upload/pocketshell-m7.2-p8.gitbundle = 607fd3f7ed04fde16dfb1dc40a81e8933b8f18d05c0e4015542db43027a80154 (38,022,637 B) EXACT; app/src/main/assets/guest/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz = ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d (6,764,916 B, rev=2 unchanged) EXACT. git bundle verify: complete history, HEAD = 9986fda = the P8 record tip — bundle integrity intact.
+- Re-staged public/ with the byte-verified trio (copies of the verified bytes); re-copied the same trio into download/ (user-facing artifacts restored alongside the committed README ledger); re-verified staged-copy sha256 = pins.
+- Server: port 3000 free, node_modules intact; hit the watchdog bootstrap race (dev_watchdog's 3s probe times out during the dev-mode first compile of the 677-line page and kills next dev mid-compile in a loop — new cold-start condition because the reset also wiped .next). Fix: killed the watchdog, started bun run dev manually, warmed the first compile with a 180s-timeout request (HTTP 200, 94,936 B dev-mode payload in ~4s), then restarted the watchdog against the warm server (scripts/watchdog.log).
+- Wire verification over HTTP 127.0.0.1:3000: page 200; APK 200 full 30,873,738 B + Range 0-1023 -> 206; bundle 200 full 38,022,637 B + Range -> 206; glibc 200 full 6,764,916 B + Range -> 206; served-byte sha256 of all three downloaded copies == the page pins EXACTLY (e984842d… / 607fd3f7… / ed82daa8…); served HTML carries the v0.11.2-m7.1.1-m72p8 badge, the HOME SESSIONS INTEGRATION primary card and all three pinned hashes.
+
+Stage Summary:
+- The P8 download page is live and serving the exact committed P8 delivery set: APK e984842d…ee53 (30,873,738 B), bundle 607fd3f7…0154 (38,022,637 B, cut at record tip 9986fda), glibc ed82daa8…c3d (rev=2); served bytes sha-identical to the pins over 200/206 Range responses; download/ artifacts restored next to the committed ledger.
+- ZERO repo changes: no source, no page-content, no version (versionCode 47 / 0.11.2-m7.1.1 untouched), no history rewrite — the serving state is restored purely from sha-verified survivors (upload/ insurance copies + the tracked glibc asset); P9 still NOT started (P8 HARD STOP holds).

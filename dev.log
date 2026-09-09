@@ -45,3 +45,81 @@ $ next dev -p 3000
  ○ Compiling / ...
  ✓ Compiled / in 3.6s (539 modules)
  GET / 200 in 4031ms
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.12.155:3000
+   - Environments: .env
+
+ ✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+ ✓ Ready in 1605ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.12.155:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1571ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.12.155:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1553ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.12.155:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1539ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.12.155:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1492ms
+ ○ Compiling / ...
+[?25h
+$ next dev -p 3000
+   ▲ Next.js 15.5.25
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.12.155:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1576ms
+ ○ Compiling / ...
+ ✓ Compiled / in 3.7s (539 modules)
+ GET / 200 in 4211ms
+ GET / 200 in 69ms
+ GET / 200 in 64ms
+ GET / 200 in 61ms
+ GET / 200 in 93ms
+ GET / 200 in 67ms
+ GET / 200 in 118ms
+ GET / 200 in 67ms
+ GET / 200 in 99ms
+ GET / 200 in 80ms
+ GET / 200 in 70ms
+ GET / 200 in 68ms
+ GET / 200 in 67ms
