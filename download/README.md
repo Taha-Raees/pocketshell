@@ -1,6 +1,39 @@
 # download/ — delivery masters
 
-Current: **v0.11.2-m7.1.1-m72p6** (M7.2 P6 — agent runtime notification
+Current: **v0.11.2-m7.1.1-m72p7** (M7.2 P7 — trusted waiting-for-user
+evidence audit; the EVIDENCE-AUDIT PHASE with the honest P7B verdict and
+zero production delta: PocketShell cannot KNOW today that an agent is
+waiting for the user, so NO production NeedsInput state shipped — the
+boundary is test-pinned instead (AgentRuntimeWaitingEvidenceBoundaryTest,
+4 tests/variant: the session client's attention seams have no path into
+the evidence machinery; zero screen-scraping references app-wide; the
+runtime surface watches no files and reads no terminal text; the
+notification layer has NO write path — tap-to-terminal stays the ONLY
+interaction) and the honesty ban lists gained `needs input`; full JVM
+forced rerun 2016/2016 (app 863×2 = 859+4 new, terminal-emulator 145×2),
+0 failures / 0 errors / 0 skipped; the assembleDebug rebuild measured
+BYTE-IDENTICAL to the P5/P6 audited APK (sha256 69ab4402…c57f), so per
+the phase's Part R decision rule the P7 delivery is THE BUNDLE ONLY —
+the P6 APK and source zip below REMAIN the current device/page artifacts
+unchanged; phase on the inherited versionCode 47 / versionName
+0.11.2-m7.1.1 stamp).
+
+P7 CUT NOTE: pocketshell-m7.2-p7.gitbundle (37,993,372 B, sha256
+1abf2f2b…22edc, complete history) was cut at the P7 RECORD TIP 326ee2a
+(chain 8af2856 tests → 677edb3 docs → the Task 46 worklog record 326ee2a)
+per the disclosed record-tip cut convention; this delivery-record note
+rides after the cut with zero implementation delta. Clone drill GREEN:
+clone HEAD == 326ee2a == the cut, 347 commits, clean tree, the P7
+boundary test + docs/M7.2-P7-WAITING-EVIDENCE-AUDIT.md + TESTING §56 +
+the m72p7 CHANGELOG entry + the 2016/2016 counts + versionCode 47 /
+versionName 0.11.2-m7.1.1 present in the cloned tree; zero .apk and zero
+.gitbundle tracked. Insurance copy byte-identical in upload/
+(1abf2f2b…). NO page re-pin (the APK is byte-identical and P7 is
+internal-only — the page keeps serving the P6 set).
+
+--- the P6 phase record (its APK + source zip REMAIN the current served artifacts) ---
+
+Previous phase: **v0.11.2-m7.1.1-m72p6** (M7.2 P6 — agent runtime notification
 device-state refinement; the VERIFICATION PHASE with zero production
 delta: the P3c/P4 runtime state transitions were audited end-to-end,
 pinned as one continuous JVM story (the new
