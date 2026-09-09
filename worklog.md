@@ -2340,3 +2340,39 @@ Work Log:
 Stage Summary:
 - P7 VERDICT: P7B — PocketShell cannot KNOW today that an agent is waiting for the user; no trustworthy evidence channel exists in this architecture; no production NeedsInput state shipped; the boundary is test-pinned and the future requirements documented.
 - Chain: c883486 → 8af2856 (tests) → 677edb3 (docs) → this record; delivery follows; P7 STOPPED per the mandate — P8 NOT started.
+
+---
+Task ID: P8-A (baseline audit)
+Agent: Super Z (main)
+Task: M7.2 P8 PART A — baseline audit before implementation (recorded per mandate).
+
+Work Log:
+- git status: clean working tree, branch main. HEAD = 40cf81e.
+- Commits above the P7 bundle tip 326ee2a: exactly ONE — 40cf81e, classified: P7 delivery-record ledger note (bundle cut metadata, clone-drill result, download/README header note; ZERO implementation delta). P7 chain below it: 8af2856 (waiting-evidence boundary tests, tests-only) → 677edb3 (P7 docs + TESTING §56) → 326ee2a (worklog Task 46). No page re-pin, no platform snapshot, no dev.log ride-along above the P7 tip.
+- Version verified untouched: app/build.gradle.kts versionCode = 47, versionName = "0.11.2-m7.1.1".
+- No reset/rebase/squash/history rewrite performed or needed.
+- TOOLCHAIN RESET DISCLOSED (recurring sandbox pattern, Task 4/5 recipe): JDK and Android SDK were absent this session. Restored per the repository recipe: Temurin JDK 21.0.12.1+1 at /home/z/tools/jdk-21.0.12.1+1 (system java is JRE-only, no javac), Android SDK at /home/z/android-sdk (cmdline-tools 11076708, platform-tools, platforms;android-36, build-tools;36.0.0, ndk;28.2.13676358, licenses accepted), local.properties (sdk.dir) rewritten. No repo file changed by the restore (local.properties is gitignored).
+
+Stage Summary:
+- Baseline verified honestly: HEAD 40cf81e = the P7 tip 326ee2a + one zero-implementation delivery-record ride-along; versionCode 47 / 0.11.2-m7.1.1 intact; clean tree. P8 implementation may proceed on this baseline.
+
+---
+Task ID: 47
+Agent: Super Z (main)
+Task: M7.2 P8 — Home Sessions Integration & Unified Agent Activity (consumer/UI phase).
+
+Work Log:
+- PART A baseline verified honestly: HEAD 40cf81e = the P7 tip 326ee2a + exactly one zero-implementation delivery-record ride-along; clean tree; versionCode 47 / 0.11.2-m7.1.1 intact (recorded in the P8-A baseline entry above). TOOLCHAIN RESET DISCLOSED and restored per the repository recipe (Temurin JDK 21.0.12.1+1 at /home/z/tools, SDK at /home/z/android-sdk incl. NDK 28.2.13676358, local.properties); baseline assembleDebug green (6m45s) before implementation.
+- PART B audit: HomeScreen = the Phase 3.3 OS-home canvas; SessionsSection = flat rows (8dp session-lifecycle dot, displayLabel + "(exited)", #id), fed by TerminalViewModel.sessions (pass-through of the manager's StateFlow), selection via onOpenSession → terminalViewModel.select only; no close affordance, no /proc, no metadata of its own. Authorities already exposed: SessionEntry.origin/agent → LaunchIdentity.of (P3a), RuntimeAgentDetector.observations (P3b), AgentActivityRepository projections (P2/P3a/P3b), P3c events → P4 mapping.
+- PART C decision (Option B, the smallest adapter): ONE new PURE decision step (AgentHomeSessionClaims) + ONE new projection on the ONE derived read model (AgentActivityRepository.homeSessionClaims = combine(sessions, observations) → present, distinctUntilChanged) + ONE read-only ViewModel pass-through + ONE lifecycle-aware Home collector. No second discovery path, no /proc scan from Home, no detector duplication, no second lifecycle owner, no UI-state inference.
+- THE PARITY DESIGN (Part I): the claim gate is the detector's everObservedRunning — birth UNKNOWN stays silent on Home exactly as P4's shade is silent (Launched posts nothing), informed UNKNOWN (evidence held, then ambiguous) shows "<Agent> — Runtime unknown" exactly where P4 posts the unknown surface, RUNNING shows "<Agent> — Running" exactly where P4 posts the running surface, and NOT_RUNNING withdraws the claim exactly where P4 cancels. Display name = the registry displayName (the P4 wording's own source), so the row stays truthful even when a terminal title overrode the tab label.
+- Production delta (4 files, +122/-11 lines total incl. tests): AgentHomeSessionClaims.kt NEW (pure; Claim {RUNNING, UNKNOWN} + SessionClaim + HomeSessionInput + claimFor + present); AgentActivityRepository +29 (the homeSessionClaims projection); TerminalViewModel +15 (the verbatim pass-through); HomeScreen +64 (the collect + the compact 11sp status Text under the existing label; row identity/dot/#id/(exited)/tap untouched; wording carries the state — runningGreen vs textDim backed by the exact literals).
+- PART N/O tests +29/variant (app 863→892): AgentHomeSessionClaimsTest 18 (pure matrix), AgentRuntimeHomeParityTest 5 (the PART N #10 parity fold — the SAME authoritative sequence through the shipped engine→mapping chain AND the Home projection must agree at every step: the full §55 device story with the exit-3 factual statement, multi-session worlds + middle-session close, the R→U→R→U→R flapping storm, the never-announced silent ending, exit-0 still factual), AgentHomeSessionIntegrationBoundaryTest 6 (source-reading pins: decision-only claim step; two-authority projection; lifecycle-aware never-polling collection; NO PTY write path; exactly ONE clickable in Sessions = the existing onOpenSession seam; honesty ban list over Sessions literals with the two claim literals pinned).
+- One disclosed test-file edit: LaunchIdentityIntegrationTest's running-vocabulary confinement allowlist gained AgentHomeSessionClaims.kt — the third ROADMAP-authorized consumer (after the repository projection and the P3c engine; it reads published observations, performs no detection; the pin's own comment documents the evolution path).
+- VERIFICATION (PART T): focused first 29/29; then assembleDebug; then full forced --rerun-tasks per-task chunks (the P6/P7 recipe): app debug 892/892 + app release 892/892 + TE 145/145 ×2 = 2074/2074, 0 failures / 0 errors / 0 skipped (scripts/test-m72p8.log). APK audit: vc47 / 0.11.2-m7.1.1, cert d96a6f66…bf659, the inherited 6-permission set, P8 symbols in the dex (AgentHomeSessionClaims ×21, homeSessionClaims ×9, "Runtime unknown" ×1); APK sha256 e984842d…ee53, 30,873,738 B (a real build — production UI changed, unlike P6/P7's byte-identity proof).
+- Freeze audit: 1 new production file + 3 modified production files (repository projection, VM seam, Home row) + 3 new test files + 1 disclosed test-file edit + docs/log; ZERO frozen-area changes (PTY/JNI, emulator, session lifecycle engine, P3b, P3c, P4, P5, P6, permission model, FGS, keyboard, Files/SAF, Companion, launchers, installer all untouched).
+- Docs (PART U): docs/M7.2-P8-HOME-SESSION-INTEGRATION.md (contract, seam diagram, state-mapping table, parity table, six rejected designs, truth limitations, the NeedsInput exclusion); TESTING §57 device gate (baseline / running / multi-session / withdrawal / session end / P5+P6+FGS+keyboard+Home regressions; no needs-input step anywhere); ROADMAP P8 complete, P9 unassigned-by-design; CHANGELOG [0.11.2-m7.1.1-m72p8]; README refreshed. Chain 40cf81e → c7a9da4 (impl) → e19e5a9 (docs) → this record; delivery follows.
+
+Stage Summary:
+- P8 complete: notifications and Home Sessions are two views of one runtime state. The user-visible change is exactly the compact status line ("<Agent> — Running" / "<Agent> — Runtime unknown") on the existing Home rows, gated by the same evidence and the same truth boundary as the shade. 2074/2074 JVM, 0 skipped; APK e984842d…ee53 at the inherited vc47 / 0.11.2-m7.1.1 stamp. Device gate: TESTING §57 pending on hardware (human step, as always).
+- PART V decision: production UI behavior changed → deliver APK + git bundle (+ page re-pin per the P5/P6 delivery convention).
