@@ -1,6 +1,64 @@
 # download/ — delivery masters
 
-Current: **v0.11.2-m7.1.1-m72p7** (M7.2 P7 — trusted waiting-for-user
+Current: **v0.11.2-m7.1.1-m72p8** (M7.2 P8 — home sessions integration &
+unified agent activity; the CONSUMER/UI PHASE and a USER-VISIBLE one: the
+EXISTING Home → Sessions rows now state the SAME authoritative agent
+activity the notification shade states — ONE pure decision step
+(AgentHomeSessionClaims) over the SAME two authorities P3c/P4 consume
+(the manager's session StateFlow + the P3b detector's graded observation
+StateFlow), ONE new projection on the ONE derived read model
+(AgentActivityRepository.homeSessionClaims), ONE read-only ViewModel
+pass-through, ONE lifecycle-aware Home collector. A row may say only
+"<Agent> — Running" (the registry display name the P4 wording uses) or
+"<Agent> — Runtime unknown" (gated on the detector's everObservedRunning
+so a birth-unknown agent session stays silent exactly like the P4
+shade); a withdrawn (NOT_RUNNING) runtime, non-agent tools, custom
+launchers and plain shells render the normal row; ended sessions keep
+the pre-existing "(exited)" session fact; claims are keyed by the
+manager's authoritative session id — no stale label survives a removal,
+a finish, or a new session, and nothing is fabricated after process
+death. The NOTIFICATION PARITY is test-pinned (AgentRuntimeHomeParityTest:
+the same authoritative sequence folded through the shipped engine→mapping
+chain AND the Home projection must agree about running / unknown /
+absence at every step). Home is an OBSERVER: no polling, no timers, no
+/proc, no terminal-text reading, NO PTY write path, one clickable per
+row — the existing onOpenSession tap seam; no detector, no dashboard, no
+Home redesign, no second navigation, no second lifecycle owner. P7's
+verdict stands: generic needs-input cannot truthfully exist, so P8
+states no waiting claim. Full JVM forced rerun 2074/2074 (app 892×2 =
+863+29 new, terminal-emulator 145×2), 0 failures / 0 errors / 0 skipped;
+phase on the inherited versionCode 47 / versionName 0.11.2-m7.1.1 stamp
+(the -m72p8 suffix is filename-only)).
+
+P8 DELIVERED SET (the APK IS new this phase — the first APK-byte change
+since P5, because P8 is user-visible):
+- PocketShell-v0.11.2-m7.1.1-m72p8-debug.apk — 30,873,738 B, sha256
+  e984842d…ee53; aapt2 badging: app.pocketshell vc47 /
+  0.11.2-m7.1.1, targetSdk 28; apksigner: the pinned debug cert
+  d96a6f66…bf659; the unchanged 6-permission set; the P8 symbols in the
+  dex (AgentHomeSessionClaims ×21, homeSessionClaims ×9, the "Runtime
+  unknown" literal); the §57 device gate owns the on-device verification.
+- pocketshell-m7.2-p8.gitbundle — 38,022,637 B, sha256 607fd3f7…0154,
+  complete history (git bundle verify).
+
+P8 CUT NOTE: the bundle was cut at the P8 RECORD TIP 9986fda (chain
+c7a9da4 impl → e19e5a9 docs → the Task 47 worklog record 9986fda) per
+the disclosed record-tip cut convention; the page re-pin and this
+delivery-record note ride after the cut with zero implementation delta.
+Clone drill GREEN: clone HEAD == 9986fda == the cut, 351 commits, clean
+tree, the P8 pure step + the three new test files + docs/
+M7.2-P8-HOME-SESSION-INTEGRATION.md + TESTING §57 + the m72p8 CHANGELOG
+entry + the 2074/2074 counts + versionCode 47 / versionName 0.11.2-m7.1.1
+present in the cloned tree; zero .apk and zero .gitbundle tracked.
+Insurance copies byte-identical in upload/ (APK e984842d…, bundle
+607fd3f7…). PAGE RE-PINNED to the P8 set and wire-verified over HTTP
+(page 200 77,097 B; APK/bundle/glibc all 200/206 Range, served
+sha-identical to the pins e984842d… / 607fd3f7… / ed82daa8…; the P6-era
+zip is no longer served and P8 ships no zip).
+
+--- the P7 phase record (bundle-only by its Part R rule; never served) ---
+
+Previous phase: **v0.11.2-m7.1.1-m72p7** (M7.2 P7 — trusted waiting-for-user
 evidence audit; the EVIDENCE-AUDIT PHASE with the honest P7B verdict and
 zero production delta: PocketShell cannot KNOW today that an agent is
 waiting for the user, so NO production NeedsInput state shipped — the
@@ -14,8 +72,8 @@ forced rerun 2016/2016 (app 863×2 = 859+4 new, terminal-emulator 145×2),
 0 failures / 0 errors / 0 skipped; the assembleDebug rebuild measured
 BYTE-IDENTICAL to the P5/P6 audited APK (sha256 69ab4402…c57f), so per
 the phase's Part R decision rule the P7 delivery is THE BUNDLE ONLY —
-the P6 APK and source zip below REMAIN the current device/page artifacts
-unchanged; phase on the inherited versionCode 47 / versionName
+the P6 APK and source zip REMAINED the current device/page artifacts
+until P8; phase on the inherited versionCode 47 / versionName
 0.11.2-m7.1.1 stamp).
 
 P7 CUT NOTE: pocketshell-m7.2-p7.gitbundle (37,993,372 B, sha256
@@ -29,9 +87,9 @@ the m72p7 CHANGELOG entry + the 2016/2016 counts + versionCode 47 /
 versionName 0.11.2-m7.1.1 present in the cloned tree; zero .apk and zero
 .gitbundle tracked. Insurance copy byte-identical in upload/
 (1abf2f2b…). NO page re-pin (the APK is byte-identical and P7 is
-internal-only — the page keeps serving the P6 set).
+internal-only — the page kept serving the P6 set until the P8 re-pin).
 
---- the P6 phase record (its APK + source zip REMAIN the current served artifacts) ---
+--- the P6 phase record (superseded by the P8 set above) ---
 
 Previous phase: **v0.11.2-m7.1.1-m72p6** (M7.2 P6 — agent runtime notification
 device-state refinement; the VERIFICATION PHASE with zero production
@@ -52,16 +110,20 @@ the P5 audited build (sha256 69ab4402…c57f) — the strongest proof of zero
 production change; phase build on the inherited versionCode 47 /
 versionName 0.11.2-m7.1.1 stamp — the -m72p6 suffix is filename-only).
 
-The P6 set (APK + bundle + source zip) is the CURRENT SERVED SET on the
-delivery page. The M7.2 P5 pair (the previous served set) is superseded
-by this phase build — which is BYTE-IDENTICAL in APK content — and is
-withdrawn from the serving surface; its insurance copies SURVIVE in
+The P6 set (APK + bundle + source zip) WAS the current served set on the
+delivery page from the P6 re-pin until the P8 re-pin (P7 rode on top of
+it, bundle-only); it is now SUPERSEDED by the P8 set at the top of this
+ledger and withdrawn from the serving surface — its insurance copies
+SURVIVE byte-exact. The M7.2 P5 pair (the previous served set) was
+superseded
+by this phase build — which was BYTE-IDENTICAL in APK content — and was
+withdrawn from the serving surface at the P6 re-pin; its insurance copies SURVIVE in
 upload/ byte-exact (APK 69ab4402…, bundle ffe236b3…), and its content and
 history ride in this bundle (the P5 record tip d24bfde, the page re-pin
 38512ea and the delivery record 1cbd287 are direct ancestors of the P6
 record tip 08cad7e). The source zip (pocketshell-m7.2-p6-source.zip,
-sha256 0d776ca3…9686, 13,050,239 B) is a git-archive snapshot of the
-record tip 08cad7e — by construction it contains NO APK and NO bundle
+sha256 0d776ca3…9686, 13,050,239 B) was a git-archive snapshot of the
+record tip 08cad7e — by construction it contained NO APK and NO bundle
 (612 files; the Android delivery binaries stay out of the archives).
 
 CUT NOTE: the P6 bundle (pocketshell-m7.2-p6.gitbundle, 37,928,340 B,
