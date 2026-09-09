@@ -51,11 +51,12 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P7 — trusted waiting-for-user evidence audit (the
-evidence-audit phase, P7B verdict: no production needs-input claim, zero
-production delta, on the inherited v0.11.2-m7.1.1 / versionCode 47 stamp;
-M7.2 P6, P5, P4, P3c, P3b, P3a, P2, P1, the M7.1.1 fix release and M7.1
-release below it)**
+Current state: **M7.2 P8 — home sessions integration & unified agent
+activity (the consumer/UI phase: the existing Home Sessions rows now
+state the same authoritative agent activity as the notifications, on
+the inherited v0.11.2-m7.1.1 / versionCode 47 stamp; M7.2 P7, P6, P5,
+P4, P3c, P3b, P3a, P2, P1, the M7.1.1 fix release and M7.1 release
+below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -139,8 +140,17 @@ spoofable by arbitrary output), so NO NeedsInput state shipped: the
 boundary is pinned instead (no screen scraping, no file watching, no
 notification-to-terminal write path — tap-to-terminal stays the only
 interaction) and the future-integration requirements are documented
-(docs/M7.2-P7-WAITING-EVIDENCE-AUDIT.md). Full JVM suite
-2016/2016 green (app 863 + terminal-emulator 145 per variant,
+(docs/M7.2-P7-WAITING-EVIDENCE-AUDIT.md). M7.2 P8 made the existing
+Home → Sessions rows state the SAME runtime truth as the shade — one
+pure projection over the manager's sessions + the detector's
+observations (`AgentHomeSessionClaims` / `AgentActivityRepository.
+homeSessionClaims`), a compact status line per row: `<Agent> — Running`
+or `<Agent> — Runtime unknown` only, birth-unknown/withdrawal/non-agent
+rows stay normal, claims keyed by the authoritative session id, the
+notification-parity fold test-pinned, no detector, no polling, no
+needs-input claim, no dashboard (docs/
+M7.2-P8-HOME-SESSION-INTEGRATION.md). Full JVM suite
+2074/2074 green (app 892 + terminal-emulator 145 per variant,
 0 skipped, forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
@@ -155,4 +165,6 @@ mid-flight unknown cycle is honestly recorded as not device-reproducible),
 and the M7.2 P7 evidence-audit gate is §56 (the negative-result gate —
 running wording unchanged, the on-device spoof proof, P5/P6/FGS
 regressions; no needs-input device instructions exist because the state
-does not exist).
+does not exist), and the M7.2 P8 home-integration gate is §57 (Home and
+the shade agree about running / unknown / absence — baseline, running,
+multi-session, withdrawal, session end, regressions).

@@ -1162,10 +1162,44 @@ documented in the audit. Full contract:
 the assembleDebug rebuild is byte-identical to the P5/P6 audited APK
 (sha `69ab4402…c57f`) — no new APK delivered, the P6 one stays current.
 
-**Next milestone (NOT started, not yet mandated): M7.2 P8** — unassigned
+**M7.2 P8 — COMPLETE (2026-09-09): home sessions integration & unified
+agent activity (consumer/UI phase)** — the EXISTING Home → Sessions rows
+now state the SAME authoritative agent activity the notification system
+states, through ONE pure projection over the SAME two authorities P3c/P4
+consume (`TerminalSessionManager.sessions` + `RuntimeAgentDetector.
+observations` → `AgentHomeSessionClaims.present`, exposed by
+`AgentActivityRepository.homeSessionClaims` and re-exposed verbatim by
+`TerminalViewModel`). A row may say only `<Agent> — Running` (registry
+name, green) or `<Agent> — Runtime unknown` (dim); a birth-unknown agent
+session, a withdrawn (`NOT_RUNNING`) runtime, non-agent tools, custom
+launchers and plain shells render the NORMAL row, and ended sessions keep
+their pre-existing `(exited)` session fact — claims are keyed by the
+manager's authoritative id, so nothing stale can survive a removal, a
+finish, or a new session. The PARITY CONTRACT (notification surface ⇄
+Home claim agree state-for-state, including the birth-silence gate via
+the detector's `everObservedRunning` and the withdrawal arm) is pinned by
+the new `AgentRuntimeHomeParityTest` (5 tests/variant — the same
+authoritative sequence folded through the shipped engine→mapping chain
+AND the Home projection must agree at every step); the pure claim matrix
+is pinned by `AgentHomeSessionClaimsTest` (18/variant); the structural
+observer rules (decision-only claim step, two-authority projection,
+lifecycle-aware collection, no polling, no /proc, no second lifecycle
+owner, NO PTY write path, one clickable per row — the existing
+`onOpenSession` seam, honesty ban list over the Sessions literals) are
+pinned by `AgentHomeSessionIntegrationBoundaryTest` (6/variant); the
+running-vocabulary confinement allowlist gained the P8 consumer (the
+established ROADMAP-authorized consumer-boundary evolution, disclosed).
+No detector, no polling, no process heuristics, no completion/success/
+failure/needs-input claim, no dashboard, no Home redesign, no second
+navigation, no version bump (vc47 / 0.11.2-m7.1.1). Full contract:
+`docs/M7.2-P8-HOME-SESSION-INTEGRATION.md`; device gate: TESTING §57.
+Full JVM forced rerun 2074/2074 (app 892×2 = 863+29 new,
+terminal-emulator 145×2), 0 skipped.
+
+**Next milestone (NOT started, not yet mandated): M7.2 P9** — unassigned
 by design; the completion-detection / waiting-for-input tiers remain
 REJECTED until a phase arrives with real, authoritative evidence that
-passes the P7 evidence standard (the P0 audit's line stands, now
-re-verified at the P7 baseline). Any future consumer (per-agent channels,
-rich content, re-surfacing policy, trusted attention evidence) extends
-the P4/P5 truth contract — never around it.
+passes the P7 evidence standard (the P0 audit's line stands, re-verified
+at the P7 baseline and inherited untouched by P8). Any future consumer
+(per-agent channels, rich content, re-surfacing policy, trusted attention
+evidence) extends the P4/P5/P8 truth contract — never around it.

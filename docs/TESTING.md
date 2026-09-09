@@ -3570,3 +3570,75 @@ agent, cause a genuine permission/input request, verify the exact truthful
 attention wording, tap routing, resolution, and stale-attention clearing
 across two sessions) — after revising the P7 boundary tests and
 `docs/M7.2-P7-WAITING-EVIDENCE-AUDIT.md` consciously.
+
+## §57 — M7.2 P8 gate: HOME SESSIONS SHOW THE SAME RUNTIME TRUTH AS THE SHADE
+
+P8 wired the existing Home → Sessions rows to the SAME authoritative
+runtime state the notification system states (the pure projection
+`AgentActivityRepository.homeSessionClaims` over the manager's sessions +
+the P3b detector's observations; decision step `AgentHomeSessionClaims`).
+The row may say only `<Agent> — Running` or `<Agent> — Runtime unknown`;
+a birth-unknown agent session and a withdrawn (`NoLongerDetected`) runtime
+render the NORMAL row. This gate verifies the unified view on hardware.
+There is NO needs-input step anywhere — P7 established that no generic
+waiting evidence exists (§56 stands).
+
+### A — Existing Home baseline
+
+Open Home with sessions created normally (some plain shells, one
+exited). EXPECT: Home is visually unchanged apart from any status lines —
+same sections, same rows, same dot, same `#id`, same `(exited)` suffix;
+rows without agent activity look exactly as before P8.
+
+### B — Running agent
+
+1. From Home, launch a supported agent (e.g. Kilo Code).
+2. Confirm the notification says "<Name> is running" (§55 Part A).
+3. Return to Home (the agent keeps running).
+4. EXPECT: the corresponding Sessions row shows the compact status line
+   `Kilo Code — Running` under the row label — the SAME registry name the
+   shade uses. The row's dot, label and `#id` are unchanged.
+5. Tap the row. EXPECT: the correct existing terminal session opens (the
+   P5 routing seam, unchanged). No new screen, no second navigation.
+
+### C — Multiple sessions
+
+With several sessions alive (a plain shell, two different agents), open
+Home. EXPECT: each row shows only its own runtime truth — the plain shell
+has NO status line; each agent row names ITS agent. Close the MIDDLE
+session's tab from the Terminal, return to Home. EXPECT: only that row's
+status disappears; the neighbors are unchanged (no cross-session
+contamination).
+
+### D — Withdrawal
+
+Stop the agent process (as §55 B1). EXPECT: the notification
+disappears (P4 cancel) AND the Home row's status line disappears with
+it — the row returns to its normal presentation. A "Runtime unknown"
+row is equally honest when the evidence turns ambiguous (§55 B4's
+notification-level unknown); it must NEVER read as running.
+
+### E — Session end
+
+Exit or close a session that showed an agent status (as §55 D).
+EXPECT: the row shows its session-level `(exited)` fact as always, with
+NO agent status line — Home does not retain an active runtime claim for
+an ended session.
+
+### F — Regression
+
+1. P5 notification tap routing: re-run §54 steps 2, 3 and 6. EXPECT:
+   identical behavior.
+2. P6 runtime transitions: re-run §55 Part A, B1, B3 and D. EXPECT:
+   identical behavior (P8 added a consumer; it changed no producer).
+3. FGS: as §55 Part F — the retention notification behaves exactly as
+   recorded.
+4. Keyboard: open the on-screen deck and type into a session opened from
+   a Home row — identical to §54's keyboard regression.
+5. Existing Home navigation: Settings, Diagnostics, Files, Companions,
+   Tools and the launcher long-press flows behave exactly as before.
+
+Pass requires every step green with Home and the shade never
+contradicting each other about running / unknown / absence, and no
+completion / success / failure / needs-input wording anywhere in Home.
+Record deviations verbatim.

@@ -3,6 +3,59 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p8] — 2026-09-09 — M7.2 P8 home sessions integration & unified agent activity (consumer/UI phase)
+
+The tenth M7.2 phase makes the EXISTING Home → Sessions section state the
+SAME authoritative agent activity the notification system already states —
+one runtime truth, two views. The integration is the smallest existing
+seam, not a new system: a new PURE decision step (`AgentHomeSessionClaims`)
+consumes exactly the two authorities P3c/P4 already consume (the manager's
+session StateFlow + the P3b detector's graded observation StateFlow),
+`AgentActivityRepository` gains one more derived projection
+(`homeSessionClaims` — the ONE read model's charter since P2; it stores
+nothing and decides nothing), `TerminalViewModel` re-exposes it verbatim,
+and `HomeScreen` collects it lifecycle-aware to render a compact status
+line on the existing session rows. A row can now say only
+`<Agent> — Running` (the registry display name, the same source the P4
+wording uses) or `<Agent> — Runtime unknown`; a birth-unknown agent
+session (the shade is silent there too — the detector's
+`everObservedRunning` gates the claim exactly to P4's surface semantics),
+a withdrawn (`NOT_RUNNING`) runtime, non-agent tools, custom launchers and
+plain shells render the normal row, and ended sessions keep the
+pre-existing `(exited)` session fact. Claims are keyed by the manager's
+authoritative session id, so a removed middle session corrupts nothing, a
+finished session cannot hold a claim, and a new session inherits nothing.
+The NOTIFICATION PARITY is test-pinned (`AgentRuntimeHomeParityTest`, 5
+tests/variant): the same authoritative sequence folded through the shipped
+engine→mapping chain AND the Home projection must agree about running /
+unknown / absence for every session at every step — covering the §55
+device story (spawn → birth-unknown → running → unknown → withdrawal →
+reappearance → exit 3 → removal), mixed multi-session worlds with
+middle-session close, the R→U→R→U→R flapping storm, and the
+never-announced ending; exit 0 still ends in the factual session wording.
+The pure claim matrix (18 tests/variant: the two-claim vocabulary, the
+withdrawal arm, non-agent silence, multi-session isolation, stale-claim
+impossibility, purity) and the structural observer rules (6 tests/variant:
+the claim step is decision-only — no /proc, no matching, no PID discovery,
+no timers, no parsing, no regex, no persistence, no notifications; the
+projection consumes only the two authorities; Home collects
+lifecycle-aware and never polls; Home has NO PTY write path; the Sessions
+section keeps exactly one clickable — the existing `onOpenSession` seam;
+the honesty ban list holds over every Sessions literal) pin the phase
+against becoming another detector. P7's verdict is untouched: generic
+"Needs input" cannot truthfully exist, so P8 states no waiting claim and
+adds no detector, no polling, no process heuristics, no dashboard, no Home
+redesign, no second navigation, no second lifecycle owner; versionCode 47
+/ `0.11.2-m7.1.1` unchanged. One pre-existing structural pin
+(`LaunchIdentityIntegrationTest`'s running-vocabulary confinement) gained
+the P8 consumer authorization — the same ROADMAP-authorized consumer
+boundary the P3c event engine used, disclosed in the freeze audit.
+Full JVM forced rerun 2074/2074 (app 892×2 = 863+29 new,
+terminal-emulator 145×2), 0 failures / 0 errors / 0 skipped. Full
+contract: `docs/M7.2-P8-HOME-SESSION-INTEGRATION.md`; device gate:
+TESTING §57. This phase IS user-visible (the Home Sessions status line):
+a new APK and bundle are delivered.
+
 ## [0.11.2-m7.1.1-m72p7] — 2026-09-09 — M7.2 P7 trusted waiting-for-user evidence audit (evidence-audit phase, P7B)
 
 The ninth M7.2 phase, and an evidence audit by design: the mandate allowed a
