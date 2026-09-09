@@ -1,20 +1,21 @@
-const VERSION = "v0.11.2-m7.1.1-m72p6";
+const VERSION = "v0.11.2-m7.1.1-m72p8";
 
-// SHA pins — the M7.2 P6 (runtime notification device-state refinement)
-// delivery set. The bundle is cut at the P6 record tip (08cad7e; the page
-// re-pin and the delivery record ride after the cut — every P6 contract doc
-// inside the bundle is final); the APK is the audited phase build at the
-// inherited stamp (versionCode 47, versionName 0.11.2-m7.1.1 — the -m72p6
-// suffix is filename-only), cert d96a6f66…8bf659, the unchanged
-// 6-permission set. The P6 rebuild is BYTE-IDENTICAL to the P5 audited APK
-// (69ab4402… on both — the reproducible-build proof of zero production
-// delta). The glibc layer is UNCHANGED rev=2 (byte-identical artifact
-// ed82daa8…). The source zip is a git-archive snapshot of the record tip —
-// by construction it contains NO APK and NO bundle.
+// SHA pins — the M7.2 P8 (home sessions integration & unified agent
+// activity) delivery set. The bundle is cut at the P8 record tip (9986fda;
+// the page re-pin and the delivery record ride after the cut — every P8
+// contract doc inside the bundle is final); the APK is the phase build at
+// the inherited stamp (versionCode 47, versionName 0.11.2-m7.1.1 — the
+// -m72p8 suffix is filename-only), cert d96a6f66…8bf659, the unchanged
+// 6-permission set. THIS IS THE FIRST APK-BYTE CHANGE SINCE P5: P8 is a
+// user-visible consumer/UI phase (the Home Sessions status line), so the
+// rebuild is a real build — no byte-identity proof applies (that was the
+// P6/P7 zero-delta instrument). The glibc layer is UNCHANGED rev=2
+// (byte-identical artifact ed82daa8…). P8 ships no source zip (the
+// mandate's delivery pair is APK + bundle; the P6 zip bytes are
+// superseded/withdrawn from serving).
 const HASHES = {
-  apk: "69ab44021b607307e06197b5acafbb53de1df840a4bc802f63da57852ccfc57f",
-  bundle: "c16552e28fd4a29e94dda20bb994d4926fe5160408d5ee169eafaaaf7bc3ed97",
-  sourceZip: "0d776ca390095ba52903177812be6433c1abf21c8370acdc1f350f7df6439686",
+  apk: "e984842d5d5278e2214354854b03692ab0e22243cf5bd09883fd222e33ceee53",
+  bundle: "607fd3f7ed04fde16dfb1dc40a81e8933b8f18d05c0e4015542db43027a80154",
   glibc: "ed82daa8b0d487080d833913bfa74def01a628d58a4f7258e31eb3bef56a7c3d",
 };
 
@@ -36,75 +37,69 @@ export default function Home() {
 
       <div className="card primary">
         <h2>
-          M7.2 P6 — RUNTIME NOTIFICATION DEVICE-STATE REFINEMENT: the
-          verification phase — every honest runtime transition audited,
-          pinned as one continuous story, and gated on hardware where
-          naturally reproducible — with ZERO production change{" "}
-          <span className="badge">record tip 08cad7e · vc47</span>
+          M7.2 P8 — HOME SESSIONS INTEGRATION &amp; UNIFIED AGENT ACTIVITY:
+          the EXISTING Home → Sessions rows now state the SAME runtime truth
+          as the notification shade — one authoritative state, two views{" "}
+          <span className="badge">record tip 9986fda · vc47</span>
         </h2>
         <p>
           <b>
-            Eighth M7.2 phase, and a VERIFICATION phase by design: P6 adds NO
-            production behavior and NO new detection power — what changed is
-            how tightly the existing truthful transitions are pinned.{" "}
-            <b>THE TRANSITION STORY (one JVM fold, 11 new tests/variant)</b>:
-            running → unknown updates ONE deterministic notification identity
-            in place (uncertainty-only wording); unknown → running restores
-            it on the same identity; running/unknown → no-longer-detected
-            CANCELS it (never re-worded as completed/success/finished); an
-            ever-announced session&apos;s end yields only the factual exit
-            statement — exit 0 is never success through every fold;
-            duplicate-delivery storms produce one surface per real state;
-            runtime flapping never accumulates notifications or tombstones.{" "}
-            <b>ONE IDENTITY PER SESSION STORY</b>: every ShowRuntime /
-            ShowExitFact / Cancel action of a story lands on the single id
-            NotificationIds.agentRuntime(sessionId) — assertOneIdentity over
-            every fold. <b>THE DEVICE GATE IS HONESTLY SPLIT (§55)</b>:
-            naturally reproducible on hardware — withdrawal (quit the agent
-            inside a live session), in-session reappearance (relaunch), birth
-            silence (no uncontextualized unknown notification at spawn),
-            exit / exit-3 / tab-close facts, the §54 tap regression, FGS —
-            and NOT DEVICE-REPRODUCIBLE IN P6: the mid-flight
-            notification-level unknown cycle (needs a failed procfs scan or a
-            matched-pid argv-shape mutation — neither deterministically
-            producible without fabricating evidence, which is forbidden; it
-            stays JVM-pinned and documented). <b>ZERO PRODUCTION DELTA,
-            PROVEN BY BYTES</b>: the assembleDebug rebuild came out
-            BYTE-IDENTICAL to the P5 audited APK (sha256 69ab4402… on both —
-            the strongest possible statement that shipped behavior did not
-            change). <b>THE P4/P5 CONTRACTS ARE UNTOUCHED</b>: the P4 wording
-            byte-frozen, the P5 tap routing byte-frozen, no new permission,
-            channel, manifest entry, detector power, debug button, or fake
-            injection. <b>VERIFICATION</b>: FULL JVM suite forced
-            --rerun-tasks 2008/2008 green (app 859×2 = 848+11 new ×
-            terminal-emulator 145×2, 0 failures, 0 errors, 0 skipped),
-            measured before the docs were written.{" "}
-            <b>HONEST SCOPE</b>: P6 proves the existing transition machinery
-            is coherent, identity-stable, dedup-safe and honest — and NOTHING
-            about agents: no completion, no success, no failure, no
-            waiting-for-input, no control action. The REAL-DEVICE gate is
-            docs/TESTING.md §55 (the naturally reproducible subset; B4 is a
-            documentation gate whose NOT-REPRODUCIBLE status is the expected
-            outcome). Full contract:
-            docs/M7.2-P6-RUNTIME-STATE-TRANSITIONS.md.
+            Tenth M7.2 phase, and a CONSUMER/UI phase by design: P8 adds no
+            detector, no polling, no process heuristics and no second
+            lifecycle system — it wires the EXISTING Home → Sessions section
+            to the SAME two authorities the notification system already
+            consumes (the manager&apos;s session StateFlow + the P3b
+            detector&apos;s graded observation StateFlow) through ONE pure
+            decision step (AgentHomeSessionClaims), ONE new projection on the
+            ONE derived read model (AgentActivityRepository.homeSessionClaims)
+            and ONE read-only ViewModel pass-through.{" "}
+            <b>WHAT YOU SEE</b>: a compact status line on the existing session
+            rows — <b>Kilo Code — Running</b> when the detector holds process
+            evidence (the same registry name the shade uses),{" "}
+            <b>Kilo Code — Runtime unknown</b> when proven evidence turned
+            ambiguous (the same uncertainty the shade states), and NOTHING
+            where the shade is silent: a just-launched agent, a withdrawn
+            (no-longer-detected) runtime, plain shells, non-agent tools,
+            custom launchers and ended sessions all keep the normal row (the
+            existing (exited) session fact stays).{" "}
+            <b>NOTIFICATION PARITY, TEST-PINNED</b>: the same authoritative
+            sequence folded through the shipped engine→mapping chain AND the
+            Home projection must agree about running / unknown / absence for
+            every session at every step (AgentRuntimeHomeParityTest — the
+            full §55 device story, multi-session worlds with middle-session
+            close, the R→U→R→U→R flapping storm, the never-announced silent
+            ending, exit 0 never success). <b>NO STALE LABELS</b>: claims are
+            keyed by the manager&apos;s authoritative session id — a removed
+            middle session corrupts nothing, a finished session cannot hold a
+            claim, a new session inherits nothing, and after process death
+            nothing is fabricated. <b>HOME IS AN OBSERVER</b>: no polling, no
+            timers, no /proc, no terminal-text reading, and NO write path
+            into the terminal — the row tap stays the existing session
+            routing (P5), the claim adds no click target, no dashboard, no
+            Home redesign. <b>P7 STANDS</b>: generic needs-input cannot be
+            claimed truthfully, so P8 states no waiting claim.{" "}
+            <b>VERIFICATION</b>: focused 29/29 first, then FULL JVM suite
+            forced --rerun-tasks 2074/2074 (app 892×2 = 863+29 new ×
+            terminal-emulator 145×2, 0 failures, 0 errors, 0 skipped); APK
+            audit: vc47 / 0.11.2-m7.1.1, the pinned cert, the unchanged
+            6-permission set, the P8 symbols in the dex. The REAL-DEVICE gate
+            is docs/TESTING.md §57 (baseline / running / multi-session /
+            withdrawal / session end / regressions). Full contract:
+            docs/M7.2-P8-HOME-SESSION-INTEGRATION.md.
           </b>
         </p>
-        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p6-debug.apk">
-          Download M7.2 P6 APK (debug, 30.5 MB — byte-identical to the P5
-          audited build)
+        <a className="btn" href="/PocketShell-v0.11.2-m7.1.1-m72p8-debug.apk">
+          Download M7.2 P8 APK (debug, 30.9 MB — the Home Sessions runtime
+          display)
         </a>
         <Sha text={HASHES.apk} />
-        <a className="btn secondary" href="/pocketshell-m7.2-p6.gitbundle">
-          git bundle — full history M0 → P6 record tip (37.9 MB)
+        <a className="btn secondary" href="/pocketshell-m7.2-p8.gitbundle">
+          git bundle — full history M0 → P8 record tip (38.0 MB)
         </a>
         <Sha text={HASHES.bundle} />
-        <a className="btn secondary" href="/pocketshell-m7.2-p6-source.zip">
-          source zip — git archive of the P6 record tip (12.4 MB, no binaries)
-        </a>
-        <Sha text={HASHES.sourceZip} />
         <p className="mono" style={{ border: "none", background: "transparent", padding: 0 }}>
           versionCode 47 / versionName 0.11.2-m7.1.1 (the M7.x phase-build
-          precedent — phase builds ride the inherited stamp, the -m72p6
+          precedent — phase builds ride the inherited stamp, the -m72p8
           suffix is filename-only) — installs in place over every earlier
           build (same cert) — glibc layer ed82daa8… unchanged.
         </p>
@@ -116,17 +111,32 @@ export default function Home() {
           <span className="badge">history preserved</span>
         </h2>
         <p>
-          The M7.2 P5 served pair (APK 69ab4402…, bundle ffe236b3…) is
-          SUPERSEDED by this phase set: the P6 APK is BYTE-IDENTICAL to the
-          P5 audited build (the zero-production-delta proof — same stamp,
-          same cert, the unchanged 6-permission set and glibc layer; only
-          the filename carries the phase), and the P6 bundle contains the
-          entire chain (the P5 record tip d24bfde, the page re-pin 38512ea
+          The M7.2 P6 served set (APK 69ab4402…, bundle c16552e2…, source zip
+          0d776ca3…) is SUPERSEDED by this phase set: the P8 APK carries the
+          phase&apos;s real UI change (e984842d… — the FIRST APK-byte change
+          since P5, because P8 is user-visible; the P6/P7 bytes were the
+          zero-delta rebuilds and remain in the upload/ insurance set), the
+          P8 bundle contains the entire chain (the P7 record tip 326ee2a, the
+          P7 delivery record 40cf81e, and the P6 record tip 08cad7e are
+          direct ancestors of this record tip 9986fda), and the P6 APK/bundle/
+          zip bytes are no longer served (the upload/ insurance copies
+          survive byte-exact). The M7.2 P7 delivery was THE BUNDLE ONLY by
+          its own Part R decision rule (1abf2f2b… — an audit/tests/docs
+          phase with zero production delta; its bundle was never served on
+          the page, the page kept serving the P6 set with NO re-pin, as that
+          record disclosed). The P6 served pair (APK 69ab4402… byte-identical
+          to the P5 audited build, bundle c16552e2…) is superseded in turn:
+          same stamp (vc47), same cert — the P5 build added the
+          session-targeted tap routing on top of the P4 consumer, the P3b
+          detector and the P3c event engine, and the bundle contains
+          the entire chain (the P5 record tip d24bfde, the page re-pin 38512ea
           and the delivery record 1cbd287 are direct ancestors of this
-          record tip 08cad7e). The P5 bytes are no longer served (the
-          upload/ insurance copies survive byte-exact). P6 also ships a
+          record tip). The P5 bytes are no longer served (the
+          upload/ insurance copies survive byte-exact). P6 also shipped a
           source zip (0d776ca3…) — a git-archive snapshot of the record tip
-          with NO binaries by construction. The M7.2 P4 served pair (APK
+          with NO binaries by construction; P8 ships no source zip (the
+          mandate&apos;s delivery pair is APK + bundle). The M7.2 P4 served
+          pair (APK
           ab73b24a…, bundle 9c6e4a1b…) is superseded in turn: same stamp
           (vc47), same cert — the P5 build added the
           session-targeted tap routing on top of the P4 consumer, the P3b
@@ -184,10 +194,12 @@ export default function Home() {
           byte-identical (rev=2, ed82daa8…), and the tap-routing layer adds
           no persistence at all — one nullable activity-scoped navigation
           target beside the P1 posted-id ledger, like the process-scoped
-          sessions themselves. M7.2 P6 changes NO shipped byte: the P6 APK
-          is byte-identical to the P5 audited build (the rebuild proves it —
-          69ab4402… on both), and the verification phase adds only test
-          sources and documents — zero runtime delta, zero persistence.
+          sessions themselves. M7.2 P6/P7 changed NO shipped byte (the
+          rebuilds measured byte-identical — 69ab4402… both). M7.2 P8 is
+          APP-SIDE UI only: a pure in-memory projection and a status line on
+          the existing Home rows — zero runtime delta, zero persistence, no
+          new permission, channel or manifest entry; the glibc files stay
+          byte-identical (rev=2, ed82daa8…).
         </p>
       </div>
 
@@ -346,7 +358,7 @@ export default function Home() {
             untouched; no second lifecycle engine.
           </li>
           <li>
-            <b>M7.2 P6 (this build):</b> runtime notification device-state
+            <b>M7.2 P6:</b> runtime notification device-state
             refinement — the VERIFICATION phase with zero production delta:
             the P3c/P4 transitions were audited end-to-end and pinned as one
             continuous JVM story (11 new tests/variant — the
@@ -363,82 +375,110 @@ export default function Home() {
             changed; no detection power, debug button, or fake injection was
             added.
           </li>
+          <li>
+            <b>M7.2 P7:</b> the trusted waiting-for-user evidence audit —
+            the honest negative result: PocketShell cannot KNOW that an agent
+            is waiting for the user (raw PTY bytes are unreachable; stdin is
+            one untagged door; every structured emulator seam is spoofable by
+            arbitrary output; OSC 133/9;4/777 + APC are swallowed; no
+            receiver, no generation concept, no per-session binding exists;
+            Claude Code hooks / Codex notify / OpenCode plugins classify
+            strong-but-agent-specific, the rest no-signal), so NO NeedsInput
+            state shipped — the boundary is test-pinned instead (no screen
+            scraping app-wide, the runtime surface watches no files and reads
+            no terminal text, the notification layer cannot write to the
+            terminal — tap-to-terminal stays the only interaction) and the
+            future-integration requirements are documented.
+          </li>
+          <li>
+            <b>M7.2 P8 (this build):</b> home sessions integration &amp;
+            unified agent activity — the existing Home → Sessions rows now
+            state the SAME authoritative agent activity as the shade, through
+            ONE pure projection over the SAME two authorities P3c/P4 consume
+            (the manager&apos;s sessions + the detector&apos;s observations).
+            A row may say only <b>&quot;&lt;Agent&gt; — Running&quot;</b> or{" "}
+            <b>&quot;&lt;Agent&gt; — Runtime unknown&quot;</b> (the registry
+            name, wording-carried — never color-only); a birth-unknown agent
+            session, a withdrawn runtime, non-agent tools, custom launchers
+            and plain shells render the normal row; claims are keyed by the
+            authoritative session id (no stale labels across removal, finish
+            or a new session; nothing fabricated after process death). The
+            notification-parity fold is test-pinned (the shade and Home must
+            agree at every step); the structural observer rules pin no
+            polling, no /proc, no terminal-text reading, no PTY write path,
+            one clickable per row (the existing tap seam). No detector, no
+            dashboard, no Home redesign, no second navigation, no needs-input
+            claim — P7&apos;s verdict stands untouched.
+          </li>
         </ul>
       </div>
 
       <div className="card">
-        <h2>Device gates (docs/TESTING.md — §55 is the M7.2 P6 gate)</h2>
+        <h2>Device gates (docs/TESTING.md — §57 is the M7.2 P8 gate)</h2>
         <ol className="steps">
           <li>
-            <b>Confirm running (§55 Part A):</b> start a supported runtime —
-            one running notification, no duplicates — and tap it: PocketShell
-            opens with THAT session selected (the P5 baseline re-proven).
+            <b>Existing Home baseline (§57 A):</b> open Home with normal
+            sessions (plain shells, one exited) — EXPECT: visually unchanged
+            apart from any status lines; rows without agent activity look
+            exactly as before P8.
           </li>
           <li>
-            <b>Withdrawal (§55 B1):</b> quit the agent INSIDE the live session
-            (tab stays) — EXPECT: the running notification DISAPPEARS;
-            nothing replaces it; no completed/success/finished/stopped
-            wording anywhere (disappearance is not completion).
+            <b>Running agent (§57 B):</b> launch a supported agent — the
+            notification says &quot;&lt;Name&gt; is running&quot;; return to
+            Home — EXPECT: the corresponding Sessions row shows
+            &quot;&lt;Agent&gt; — Running&quot; under the label (the SAME
+            registry name); tap the row — EXPECT: the correct existing
+            terminal opens (the P5 routing seam, no new screen).
           </li>
           <li>
-            <b>In-session reappearance (§55 B2):</b> relaunch the agent in the
-            SAME session — EXPECT: the running notification returns as ONE
-            in-place surface on the same identity, never a second card, never
-            a storm.
+            <b>Multiple sessions (§57 C):</b> a plain shell + two agents —
+            EXPECT: each row shows only its own runtime truth; close the
+            MIDDLE session&apos;s tab — EXPECT: only that row&apos;s status
+            disappears, the neighbors unchanged (no cross-session
+            contamination).
           </li>
           <li>
-            <b>Birth silence (§55 B3):</b> launch an agent and watch the shade
-            before the first confirmation — EXPECT: NO uncontextualized
-            &quot;runtime unknown&quot; notification at birth.
+            <b>Withdrawal (§57 D):</b> quit the agent inside the live session
+            — EXPECT: the notification disappears (P4 cancel) AND the Home
+            row&apos;s status line disappears with it (the normal row
+            returns); an ambiguous-evidence row reads &quot;Runtime
+            unknown&quot;, NEVER running.
           </li>
           <li>
-            <b>Mid-flight unknown (§55 B4) — NOT DEVICE-REPRODUCIBLE IN P6:</b>
-            a visible running→unknown→running cycle needs a failed procfs
-            scan or a matched-pid argv-shape mutation — neither can be
-            produced on hardware without fabricating evidence (forbidden;
-            no debug buttons, no fake injection). The arm stays JVM-pinned;
-            B4&apos;s NOT-REPRODUCIBLE status is the EXPECTED outcome.
+            <b>Session end (§57 E):</b> exit or close a session that showed
+            an agent status — EXPECT: the row shows its existing
+            &quot;(exited)&quot; fact with NO agent status line (no retained
+            runtime claim).
           </li>
           <li>
-            <b>Session-end facts (§55 Part D):</b> type <code>exit</code> —
-            EXPECT one factual &quot;Session ended / Terminal session N
-            exited (code 0)&quot; (never success wording); repeat with
-            <code>exit 3</code> — EXPECT &quot;exited (code 3)&quot;; close the
-            tab instead — EXPECT no exit fact at all (SESSION_REMOVED has no
-            status to state).
-          </li>
-          <li>
-            <b>The P5 regression (§55 Part E):</b> re-run §54 steps 2, 3 and 6
-            on this build — identical behavior (P6 added no production
-            change, so a deviation means an environment problem).
-          </li>
-          <li>
-            <b>FGS + the honesty sweeps (§55 Part F, §54 step 8, §53
-            verbatim):</b> the Terminal sessions retention notification
-            (id 1, terminal_sessions) unchanged; zero
-            completed/success/finished/failed claims anywhere in the shade or
-            the log. The §53/§54 gates remain in force below this one.
+            <b>Regressions (§57 F):</b> P5 tap routing (§54 steps 2/3/6), P6
+            transitions (§55 Part A/B1/B3/D), the FGS retention notification,
+            the keyboard, and the existing Home navigation (Settings,
+            Diagnostics, Files, Companions, Tools, long-press) — EXPECT:
+            identical behavior (P8 added a consumer; it changed no producer).
           </li>
         </ol>
         <p>
-          <b>Honest visibility note:</b> P6 is a verification phase — the
-          shipped bytes are identical to P5, so the shade and the taps look
-          and behave exactly as §53/§54 recorded. §55 exists to prove the
-          TRANSITION behaviors on hardware where they are naturally
-          reproducible, and to honestly document the one arm that is not
-          (B4) rather than fake it: the full matrix is JVM-pinned
-          (AgentRuntimeNotificationTransitionMatrixTest, 11 tests/variant).
+          <b>Honest parity note:</b> Home and the shade must never contradict
+          each other about running / unknown / absence — that agreement is
+          JVM-pinned by AgentRuntimeHomeParityTest over the same
+          authoritative sequence, and §57 proves it on hardware. There is NO
+          needs-input device step anywhere — P7 established that no generic
+          waiting evidence exists (§56 stands). The §53–§56 gates remain in
+          force below this one.
         </p>
       </div>
 
       <div className="card">
         <h2>Source (version control)</h2>
         <p>
-          Source at the M7.2 P6 record tip 08cad7e (the verification chain
-          2c20e38 tests → 797ece1 docs → the Task 45 worklog record, on top
-          of the P5 interaction chain 4672e36 → 894d108 → d24bfde with its
-          delivery ride-alongs 38512ea/1cbd287, the P4 notification chain
-          bede512 → 49039e2 → 5b236df and its delivery
+          Source at the M7.2 P8 record tip 9986fda (the integration chain
+          c7a9da4 impl → e19e5a9 docs → the Task 47 worklog record, on top
+          of the P7 evidence-audit chain 8af2856 → 677edb3 → 326ee2a with its
+          delivery record 40cf81e, the P6 verification chain 2c20e38 →
+          797ece1 → 08cad7e, the P5 interaction chain 4672e36 → 894d108 →
+          d24bfde with its delivery ride-alongs 38512ea/1cbd287, the P4
+          notification chain bede512 → 49039e2 → 5b236df and its delivery
           chain 7444d28 → 2e8f0c6 → e385021 (+ the b825302 addendum), the
           P3c event-engine chain f782272 → 15d2ee4 → 66d91da, the P3b
           detection chain 5993fd3 → 3683fd1 → 0f091e7, the P3a chain f4c8afd →
@@ -449,12 +489,10 @@ export default function Home() {
           + P2 + P1 + M7.0 chain below). The bundle is cut at the RECORD tip
           (the docs are final there, so the clean record-tip cut
           stands; the page re-pin and the delivery record ride after the cut
-          by the disclosed P4-addendum convention and contain zero
+          by the disclosed record-tip convention and contain zero
           implementation delta; the APK was
-          built from the identical app sources at that tip — and is
-          byte-identical to the P5 audited build). The source zip is a
-          git-archive snapshot of the SAME tip — by construction it contains
-          NO APK and NO bundle (612 files). History note: this
+          built from the identical app sources at that tip). History note:
+          this
           bundle continues the user-restored P7.1 delivery bundle (fb01540)
           through the M7.0 release chain (47bed42 → 709d126 → dd81bc8), the
           M7.1 phases (3abb2e8 → 1b15bde → e0a2471 → 6004805 → 93ee631), the
@@ -469,23 +507,28 @@ export default function Home() {
           P4 delivery chain (7444d28 → 2e8f0c6 → e385021 → b825302 — Task
           43-delivery), the two disclosed platform worklog snapshots (539c632,
           57f242d), the P5 interaction chain (4672e36 → 894d108 → d24bfde —
-          Task 44) with its delivery ride-alongs (38512ea, 1cbd287), and the
-          P6 verification chain (2c20e38 → 797ece1 → 08cad7e — Task 45).
+          Task 44) with its delivery ride-alongs (38512ea, 1cbd287), the
+          P6 verification chain (2c20e38 → 797ece1 → 08cad7e — Task 45), the
+          P7 evidence-audit chain (8af2856 → 677edb3 → 326ee2a — Task 46)
+          with its delivery record (40cf81e), and the P8 integration chain
+          (c7a9da4 → e19e5a9 → 9986fda — Task 47).
         </p>
-        <a className="btn secondary" href="/pocketshell-m7.2-p6.gitbundle">
-          git bundle (full history, M7.2 P6 record tip)
+        <a className="btn secondary" href="/pocketshell-m7.2-p8.gitbundle">
+          git bundle (full history, M7.2 P8 record tip)
         </a>
         <Sha text={HASHES.bundle} />
-        <a className="btn secondary" href="/pocketshell-m7.2-p6-source.zip">
-          source zip (git archive, P6 record tip — no binaries)
-        </a>
-        <Sha text={HASHES.sourceZip} />
+        <p>
+          P8 ships no source zip (the mandate&apos;s delivery pair is APK +
+          bundle; the P6-era zip bytes are superseded — a source snapshot of
+          this tip is recoverable from the bundle via{" "}
+          <code>git archive</code>).
+        </p>
         <a className="btn secondary" href="/pocketshell-glibc-aarch64-2.41-12.deb13u3.tar.gz">
           glibc layer artifact (transparency copy, rev=2 unchanged)
         </a>
         <Sha text={HASHES.glibc} />
         <p>
-          Restore: <code>git clone pocketshell-m7.2-p6.gitbundle pocketshell</code>.
+          Restore: <code>git clone pocketshell-m7.2-p8.gitbundle pocketshell</code>.
           Includes <code>keystore/debug.keystore</code> — clones build APKs
           with the same signing identity (d96a6f66…8bf659, unchanged since
           v0.4.1).
@@ -584,7 +627,7 @@ export default function Home() {
         permissions/channels/manifest entries, the FGS untouched,
         1986/1986 JVM with 0 skipped — the §54 tap gate owns the device
         pass</b> ·{" "}
-        <b>m7.2 p6 (this build): runtime notification device-state
+        <b>m7.2 p6: runtime notification device-state
         refinement — the VERIFICATION phase with ZERO production delta: the
         existing truthful transitions audited end-to-end and pinned as one
         continuous JVM story (11 new tests/variant — running→unknown→running
@@ -598,7 +641,33 @@ export default function Home() {
         honestly NOT device-reproducible without fabricated evidence), the
         rebuild byte-identical to the P5 audited APK (69ab4402… both — no
         shipped byte changed), no detector power, no debug buttons, no fake
-        injection, 2008/2008 JVM with 0 skipped</b>. Correctness before
+        injection, 2008/2008 JVM with 0 skipped</b> · m7.2 p7: the trusted
+        waiting-for-user evidence audit — the honest P7B verdict: NO
+        production needs-input state (the audit proved PocketShell cannot
+        KNOW that an agent is waiting: raw PTY bytes unreachable, stdin one
+        untagged door, every structured seam spoofable by a one-line printf,
+        OSC 133/9;4/777 + APC swallowed, no receiver/generation/per-session
+        binding; Claude Code hooks / Codex notify / OpenCode plugins class B
+        strong-but-agent-specific, the other six class D), the boundary
+        pinned instead — no screen scraping, the runtime surface watches no
+        files and reads no terminal text, the notification layer cannot
+        write to the terminal, the on-device spoof proof in §56, 2016/2016
+        JVM with 0 skipped ·{" "}
+        <b>m7.2 p8 (this build): home sessions integration &amp; unified
+        agent activity — the EXISTING Home → Sessions rows now state the
+        SAME authoritative agent activity as the shade: ONE pure projection
+        over the SAME two authorities P3c/P4 consume, the two-claim
+        vocabulary (&quot;&lt;Agent&gt; — Running&quot; / &quot;&lt;Agent&gt; —
+        Runtime unknown&quot;), birth-unknown and withdrawn runtimes render
+        the normal row, claims keyed by the authoritative session id (no
+        stale labels, nothing fabricated after process death), the
+        notification-parity fold test-pinned (shade and Home agree at every
+        step), the structural observer rules pinned (no polling, no /proc,
+        no terminal-text reading, NO PTY write path, one clickable per row —
+        the existing tap seam), no detector, no dashboard, no Home redesign,
+        no second navigation, no needs-input claim, 2074/2074 JVM with 0
+        skipped, the first APK-byte change since P5 (a real UI phase), the
+        §57 gate owns the device pass</b>. Correctness before
         cleverness. Visible UI before diagnostics. False confidence is
         failure.
       </footer>
