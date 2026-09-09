@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://code.claude.com",
+    "name": "Intercept and control agent behavior with hooks",
+    "snippet": "Use Notification hooks to receive system notifications from the agent and forward them to external services. In SDK sessions, Claude Code runs this hook for the ... Read more",
+    "host_name": "code.claude.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "Add hook for user input/question events (UserInputRequired)",
+    "snippet": "Oct 23, 2025 — PermissionRequest fires the moment Claude asks for permission to run a tool. Notification fires with type permission_prompt. Docs: https://code ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "Oct 23, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://claudefa.st",
+    "name": "Claude Code Hooks: Complete Guide to All 30 Lifecycle Events",
+    "snippet": "The 30 Hook Lifecycle Events ; PermissionRequest , A tool call needs a permission decision, YES, Auto-approve/deny ; PermissionDenied, Auto mode's classifier ... Read more",
+    "host_name": "claudefa.st",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dev.to",
+    "name": "How I Built a Mobile Approval System for Claude Code So",
+    "snippet": "Feb 28, 2026 — Claude Code has a Hooks system that lets you run external scripts on specific events. By registering a hook on the PermissionRequest event, you ... Read more",
+    "host_name": "dev.to",
+    "rank": 3,
+    "date": "Feb 28, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://blog.promptlayer.com",
+    "name": "Understanding Claude Code hooks documentation",
+    "snippet": "Feb 4, 2026 — Hooks are user-defined event handlers that run shell commands or scripts at specific points in Claude Code's lifecycle. Think of them as ... Read more",
+    "host_name": "blog.promptlayer.com",
+    "rank": 4,
+    "date": "Feb 4, 2026",
+    "favicon": ""
+  }
+]

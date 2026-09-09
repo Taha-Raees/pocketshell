@@ -1,0 +1,29 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "[Bug]: CLI notify_on_complete injects notification as user",
+    "snippet": "Jun 7, 2026 — Agent receives the notification as chat input and may respond to it, but the user is unaware the process completed.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "Jun 7, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.cursor.com",
+    "name": "Notification when a CLI agent needs input",
+    "snippet": "Feb 18, 2026 — I would like to be notified if a Cursor CLI agent is waiting for my input . Currently the system notifications seem to work only for the IDE, ...",
+    "host_name": "forum.cursor.com",
+    "rank": 1,
+    "date": "Feb 18, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://hermes-agent.nousresearch.com",
+    "name": "CLI Interface - Hermes Agent - NOUS RESEARCH",
+    "snippet": "Hermes Agent's CLI is a full terminal user interface (TUI) — not a web UI. It features multiline editing, slash-command autocomplete, conversation history, ... Read more",
+    "host_name": "hermes-agent.nousresearch.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,29 @@
+[
+  {
+    "url": "https://antigravity.google",
+    "name": "Using AGY CLI | Google Antigravity Docs",
+    "snippet": "Antigravity CLI provides a flexible configuration system to customize workspace behavior, safety restrictions, editor preferences, visual style, and ...",
+    "host_name": "antigravity.google",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "feat: Add Antigravity CLI (agy) as a built-in terminal agent",
+    "snippet": "May 28, 2026 — Users can currently run agy as a generic CLI agent in any Superset terminal , Notification hooks ( agent lifecycle events ) First-class agent",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "May 28, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.oreilly.com",
+    "name": "Agentic Coding with Google Antigravity CLI",
+    "snippet": "Apply Antigravity CLI and Antigravity 2.0 handoff patterns to real development work, including codebase exploration, refactoring, test generation, documentation ... Read more",
+    "host_name": "www.oreilly.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -51,10 +51,11 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P6 — runtime notification device-state refinement
-(the verification phase, zero production delta, on the inherited
-v0.11.2-m7.1.1 / versionCode 47 stamp; M7.2 P5, P4, P3c, P3b, P3a, P2,
-P1, the M7.1.1 fix release and M7.1 release below it)**
+Current state: **M7.2 P7 — trusted waiting-for-user evidence audit (the
+evidence-audit phase, P7B verdict: no production needs-input claim, zero
+production delta, on the inherited v0.11.2-m7.1.1 / versionCode 47 stamp;
+M7.2 P6, P5, P4, P3c, P3b, P3a, P2, P1, the M7.1.1 fix release and M7.1
+release below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
 runtime via proot with real package management and the pinned glibc layer
 (M2 + M6), the Midnight/Daylight design system and workspace (M3 + M5), the
@@ -128,9 +129,19 @@ id). The shade's wording is byte-identical to P4 — P5 changed what a tap
 DOES, never what the shade may SAY — with zero new permissions, channels or
 manifest entries and the FGS untouched. M7.2 P6 verified those transitions
 as a continuous device story with zero production delta (the rebuild is
-byte-identical to the P5 APK). Full JVM suite
-2008/2008 green (app 859 + terminal-emulator 145 per variant, 0 skipped,
-forced clean
+byte-identical to the P5 APK). M7.2 P7 audited whether PocketShell can
+KNOW that an agent is waiting for the user — and honestly concluded no
+trustworthy evidence channel exists (the only documented agent channels
+— Claude Code hooks, Codex notify, OpenCode plugins — require config
+staging, an app-side receiver, per-session binding and a
+generation concept that do not exist, and every protocol-level seam is
+spoofable by arbitrary output), so NO NeedsInput state shipped: the
+boundary is pinned instead (no screen scraping, no file watching, no
+notification-to-terminal write path — tap-to-terminal stays the only
+interaction) and the future-integration requirements are documented
+(docs/M7.2-P7-WAITING-EVIDENCE-AUDIT.md). Full JVM suite
+2016/2016 green (app 863 + terminal-emulator 145 per variant,
+0 skipped, forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
 the hardware pass — the M7.1.1 gate is §47, the M7.2 P1 gate is §48, the
@@ -140,4 +151,8 @@ records its observability note), the M7.2 P4 notification-shade gate
 is §53 (ten steps), the M7.2 P5 notification-interaction gate is §54
 (eight steps — a green build alone never completes the phase), and the
 M7.2 P6 transition gate is §55 (the naturally reproducible subset — the
-mid-flight unknown cycle is honestly recorded as not device-reproducible).
+mid-flight unknown cycle is honestly recorded as not device-reproducible),
+and the M7.2 P7 evidence-audit gate is §56 (the negative-result gate —
+running wording unchanged, the on-device spoof proof, P5/P6/FGS
+regressions; no needs-input device instructions exist because the state
+does not exist).

@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://opencode.ai",
+    "name": "CLI",
+    "snippet": "This command will guide you through creating a new agent with a custom system prompt and permission configuration. Anything you don't allow is denied in the ... Read more",
+    "host_name": "opencode.ai",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dev.to",
+    "name": "Does OpenCode Support Hooks? A Complete Guide to",
+    "snippet": "Oct 9, 2025 — Yes, absolutely! Plugins are JavaScript or TypeScript files that can intercept events and tool executions.",
+    "host_name": "dev.to",
+    "rank": 1,
+    "date": "Oct 9, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com",
+    "name": "OpenCode CLI Plugin: Audio Permission Notifications",
+    "snippet": "This guide shows how to create an OpenCode CLI plugin that plays an audio notification when OpenCode needs user permissions .",
+    "host_name": "gist.github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://smithery.ai",
+    "name": "creating-opencode-plugins - Skill",
+    "snippet": "OpenCode plugins are JavaScript/TypeScript modules that hook into 25+ events across the OpenCode AI assistant lifecycle. Managing permissions (auto-approve ...",
+    "host_name": "smithery.ai",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://code.claude.com",
+    "name": "Hooks reference - Claude Code Docs",
+    "snippet": "The Configuration section below documents the full schema, and each hook event section documents what input your command receives and what output it can return. Read more",
+    "host_name": "code.claude.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.assistant-ui.com",
+    "name": "Hooks",
+    "snippet": "OpenCode pauses tool execution to ask the user for permission (e.g. running shell commands, writing files). Permission requests waiting for a reply.",
+    "host_name": "www.assistant-ui.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

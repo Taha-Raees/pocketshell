@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "Add notification hooks for task completion and approval",
+    "snippet": "Apr 5, 2026 — Request to add a notification/hook system to Qwen Code that plays sounds or triggers callbacks when: Tasks complete successfully; Errors occur ... Read more",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "Apr 5, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://qwen.ai",
+    "name": "Qwen Code is an open-source AI agent",
+    "snippet": "Qwen Code is an open-source AI agent for the terminal, optimized for Qwen series models. It helps you understand large codebases, automate tedious work, ... Read more",
+    "host_name": "qwen.ai",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zitniklab.hms.harvard.edu",
+    "name": "Qwen Code - ToolUniverse Documentation",
+    "snippet": "Qwen Code is a coding agent CLI that can query and edit large codebases and automate workflows. For tools and optional summarization hooks Installation and ...",
+    "host_name": "zitniklab.hms.harvard.edu",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.datacamp.com",
+    "name": "Qwen Code CLI: A Guide With Examples",
+    "snippet": "Jul 28, 2025 — Learn how to set up and use Qwen Code CLI for agentic coding tasks, including codebase exploration, refactoring, and more.",
+    "host_name": "www.datacamp.com",
+    "rank": 3,
+    "date": "Jul 28, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://rits.shanghai.nyu.edu",
+    "name": "Alibaba's Open‑Source CLI for Agentic Coding with Qwen3",
+    "snippet": "Jul 28, 2025 — Qwen-Code , a command-line interface (CLI) tool 's designed for agentic programming workflows. Interactive Coding Edit, generate, and explain  ...",
+    "host_name": "rits.shanghai.nyu.edu",
+    "rank": 4,
+    "date": "Jul 28, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://qwenlm-qwen-code.mintlify.app",
+    "name": "CLI Overview - Qwen Code",
+    "snippet": "Qwen Code is an AI-powered coding assistant that runs directly in your terminal. The CLI supports both interactive and headless modes, making it suitable for ... Read more",
+    "host_name": "qwenlm-qwen-code.mintlify.app",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

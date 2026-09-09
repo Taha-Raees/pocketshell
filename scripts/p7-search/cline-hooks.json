@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "Notification sound when Cline is ready for input #5953",
+    "snippet": "Sep 2, 2025 — Add an optional notification sound (e.g., a short beep) to indicate when Cline has finished processing and is waiting for user input.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "Sep 2, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://alexop.dev",
+    "name": "Claude Code Notifications: Get Alerts When Tasks Finish",
+    "snippet": "Nov 23, 2025 — Claude Code provides two notification hooks : permission_prompt - Claude needs your permission to do something; idle_prompt - Claude is waiting ... Read more",
+    "host_name": "alexop.dev",
+    "rank": 1,
+    "date": "Nov 23, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://code.claude.com",
+    "name": "Automate actions with hooks - Claude Code Docs",
+    "snippet": "This walkthrough creates a desktop notification hook , so you get alerted whenever Claude is waiting for your input instead of watching the terminal .",
+    "host_name": "code.claude.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.cursor.com",
+    "name": "Notification when a CLI agent needs input",
+    "snippet": "Feb 18, 2026 — I would like to be notified if a Cursor CLI agent is waiting for my input . Currently the system notifications seem to work only for the IDE, ...",
+    "host_name": "forum.cursor.com",
+    "rank": 3,
+    "date": "Feb 18, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://appga.pl",
+    "name": "Hook-Based Notifications for CLI Coding Assistants",
+    "snippet": "Jan 2, 2026 — Cline Cline also supports hooks . As of January 2026 it is still an experimental feature, so you must enable it in the Cline settings first.",
+    "host_name": "appga.pl",
+    "rank": 4,
+    "date": "Jan 2, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.aidonenow.com",
+    "name": "Get a Ding When Codex Is Done or Needs Input",
+    "snippet": "Aug 9, 2026 — The notify hook tells you when a turn ends. It's a native macOS app that watches your Codex CLI sessions and fires a proper system notification ...",
+    "host_name": "www.aidonenow.com",
+    "rank": 5,
+    "date": "Aug 9, 2026",
+    "favicon": ""
+  }
+]

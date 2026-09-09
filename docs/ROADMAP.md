@@ -1124,9 +1124,48 @@ frozen. Full contract: `docs/M7.2-P6-RUNTIME-STATE-TRANSITIONS.md`; device
 gate: TESTING §55 (the naturally reproducible subset). 2008/2008 JVM,
 0 skipped; APK at the inherited vc47 / 0.11.2-m7.1.1 stamp.
 
-**Next milestone (NOT started, not yet mandated): M7.2 P7** — unassigned
+**M7.2 P7 — COMPLETE (2026-09-09): trusted waiting-for-user evidence audit
+(evidence-audit phase, P7B verdict, zero production delta)** — the phase
+asked whether PocketShell can KNOW that an agent is waiting for the user,
+and the honest answer is NO, so no `NeedsInput` state shipped. The audit
+mapped the real I/O path (raw PTY bytes are unreachable outside the
+vendored emulator; stdin is one untagged door with kernel echo; the
+emulator's only structured seams are title/colors/clipboard/BEL/cursor/
+exit — OSC 133/9;4/777 and APC are swallowed — and every one of them is
+spoofable by arbitrary output such as `printf '\a'`), audited all nine
+curated launchers (bare commands, zero config staging, exit status
+structurally discarded) plus external docs for their machine-readable
+channels, and applied the mandate's eight-condition evidence standard:
+Claude Code hooks / Codex `notify` / OpenCode plugins classify **B —
+strong but agent-specific** (config staging + an app-side receiver +
+per-session binding + a runtime-generation concept, none of which exist;
+the strongest arm is also inactivity-based or completion-flavored), the
+other six classify **D — no signal found**, and no candidate passes the
+standard. Bell/title/exit-code/text-regex/inactivity heuristics remain
+REJECTED, now with the spoofability proof recorded. P7's production delta
+is ZERO: the boundary is pinned instead — `AgentRuntimeWaitingEvidenceBoundaryTest`
+(4 tests/variant: the session client's attention seams terminate at
+repaint/title/logging with no path into the evidence machinery; zero
+screen-scraping references in the app layer; the runtime surface watches
+no files and reads no terminal text; the notification layer cannot write
+to the terminal — tap-to-terminal stays the ONLY interaction) and the
+honesty ban lists extended with `needs input`. TESTING §56 records the
+negative-result device gate (running wording unchanged, the on-device
+spoof proof, P5/P6/FGS regressions) — no fake needs-input instructions.
+The future-integration requirements (versioned per-agent evidence
+contract, env-var session binding, runtime-generation concept, app-side
+receiver, launcher-staging policy, typed attention event alongside — not
+instead of — RUNNING, and the response-action safety contract) are
+documented in the audit. Full contract:
+`docs/M7.2-P7-WAITING-EVIDENCE-AUDIT.md`. Full JVM forced rerun
+2016/2016 (app 863×2 = 859+4 new, terminal-emulator 145×2), 0 skipped;
+the assembleDebug rebuild is byte-identical to the P5/P6 audited APK
+(sha `69ab4402…c57f`) — no new APK delivered, the P6 one stays current.
+
+**Next milestone (NOT started, not yet mandated): M7.2 P8** — unassigned
 by design; the completion-detection / waiting-for-input tiers remain
-REJECTED until a phase arrives with real, authoritative evidence (the P0
-audit's line stands). Any future consumer (per-agent channels, rich
-content, re-surfacing policy) extends the P4/P5 truth contract — never
-around it.
+REJECTED until a phase arrives with real, authoritative evidence that
+passes the P7 evidence standard (the P0 audit's line stands, now
+re-verified at the P7 baseline). Any future consumer (per-agent channels,
+rich content, re-surfacing policy, trusted attention evidence) extends
+the P4/P5 truth contract — never around it.

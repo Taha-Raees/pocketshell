@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://code.claude.com",
+    "name": "Hooks reference - Claude Code Docs",
+    "snippet": "Reference for Claude Code hook events, configuration schema, JSON input/output formats, exit codes, async hooks , HTTP hooks , prompt hooks , and MCP tool hooks . Read more",
+    "host_name": "code.claude.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://appga.pl",
+    "name": "Hook-Based Notifications for CLI Coding Assistants",
+    "snippet": "Jan 2, 2026 — The `Stop` hook runs when the task is finished. The ` Notification ` hooks correspond to the built-in Claude Code prompts: `permission_prompt` ... Read more",
+    "host_name": "appga.pl",
+    "rank": 1,
+    "date": "Jan 2, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "Terminal support for CLI notifications via OSC9 (`ESC ] 9 ;",
+    "snippet": "Jan 26, 2026 — Coming from Ghostty where OSC9/OSC777 notifications work out of the box with Claude Code , the absence of this in Zed's terminal is worrying, ... Read more",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "Jan 26, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.cursor.com",
+    "name": "Notification when a CLI agent needs input",
+    "snippet": "Feb 18, 2026 — Is there a way to get proactively get notified in this case with CLI agents ? For example. Claude Code has this: Automate workflows with hooks - ... Read more",
+    "host_name": "forum.cursor.com",
+    "rank": 3,
+    "date": "Feb 18, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://hidekazu-konishi.com",
+    "name": "CLI Coding Agents Comparison - Claude Code, Codex CLI",
+    "snippet": "Jul 5, 2026 — A continuously updated, official- documentation -only comparison of terminal -first CLI coding agents - Claude Code , OpenAI Codex CLI , ...",
+    "host_name": "hidekazu-konishi.com",
+    "rank": 4,
+    "date": "Jul 5, 2026",
+    "favicon": ""
+  }
+]

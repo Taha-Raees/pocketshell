@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://learn.chatgpt.com",
+    "name": "Configuration Reference",
+    "snippet": "Use this page as a searchable reference for Codex configuration files . For conceptual guidance and examples, start with Config basics and Advanced Config. Read more",
+    "host_name": "learn.chatgpt.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "completion notification config appears ignored in app-",
+    "snippet": "Feb 27, 2026 — Clarify supported notification settings for Desktop app-server mode. Add a supported “ notify on turn complete ” option in Desktop app. Add ... Read more",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "Feb 27, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.aidonenow.com",
+    "name": "Get a Ding When Codex Is Done or Needs Input",
+    "snippet": "Aug 9, 2026 — Codex runs when a notification-worthy event happens — most importantly when an agent turn completes, i.e. when Codex has stopped working and ...",
+    "host_name": "www.aidonenow.com",
+    "rank": 2,
+    "date": "Aug 9, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.openai.com",
+    "name": "Codex - Advanced configurations - Winsock's personal library",
+    "snippet": "Mar 12, 2026 — config . toml ordl agents . Technical specifications, API documentation , runbooks. Claim verification, documentation audit, reference validation.",
+    "host_name": "community.openai.com",
+    "rank": 3,
+    "date": "Mar 12, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://wow.pjh.is",
+    "name": "Get notified when Codex and Claude Code finish work | AI Wow",
+    "snippet": "Nov 16, 2025 — Oddly, neither Codex nor Claude Code have good built-in notifications settings. I'd like a notification every time the agent finishes work:. Read more",
+    "host_name": "wow.pjh.is",
+    "rank": 4,
+    "date": "Nov 16, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.morphllm.com",
+    "name": "Codex config.toml (2026): Add Any Custom Provider in 6",
+    "snippet": "A repo-level . codex / config . toml cannot override provider, auth, notification , telemetry, or profile-selection keys. This is a security boundary: cloning a ... Read more",
+    "host_name": "www.morphllm.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -3,6 +3,45 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p7] — 2026-09-09 — M7.2 P7 trusted waiting-for-user evidence audit (evidence-audit phase, P7B)
+
+The ninth M7.2 phase, and an evidence audit by design: the mandate allowed a
+production `NeedsInput` state ONLY if a trustworthy evidence source exists, so
+P7 audited first and shipped the honest negative result. The real I/O path was
+mapped end-to-end (raw PTY bytes are unreachable outside the vendored emulator;
+stdin is one untagged door with kernel echo; the emulator's only structured
+seams — title/colors/clipboard/BEL/cursor/exit — are spoofable by arbitrary
+output, and OSC 133/9;4/777 + APC are silently swallowed), all nine curated
+launchers were audited (bare commands, zero config staging, exit status
+structurally discarded by the `sh -c; exec` chain) alongside external
+documentation for their machine-readable channels, and the eight-condition
+evidence standard was applied: Claude Code hooks, Codex `notify` and OpenCode
+plugins classify **B — strong but agent-specific** (all require config staging,
+an app-side receiver, per-session binding and a runtime-generation concept —
+none of which exist — and the strongest arms are inactivity-based or
+completion-flavored), the remaining six curated agents classify **D — no
+signal found**, so NO candidate passes and NO `NeedsInput` state shipped.
+Production delta is ZERO; the boundary is pinned instead:
+`AgentRuntimeWaitingEvidenceBoundaryTest` (4 tests/variant — the session
+client's attention seams have no path into the evidence machinery; zero
+screen-scraping references app-wide; the runtime surface watches no files and
+reads no terminal text; the notification layer cannot write to the terminal —
+tap-to-terminal stays the only interaction), plus `needs input` added to the
+honesty ban lists. TESTING §56 records the negative-result device gate
+(running wording unchanged, the on-device spoof proof, P5/P6/FGS regressions).
+Rejected heuristics (text regex, BEL/title claims, exit-code-derived state,
+inactivity/CPU/sleep, OSC 9/777 bodies) are documented with the spoofability
+proof, never shipped. The future-integration requirements (versioned per-agent
+evidence contract, env-var session binding, runtime-generation concept,
+app-side receiver, launcher-staging policy, typed attention event orthogonal
+to RUNNING, and the response-action safety contract) are recorded in the audit.
+No APK was built — no production behavior changed; the P6-audited APK remains
+the current device artifact (the phase's assembleDebug rebuild measured
+byte-identical, sha256 `69ab4402…c57f`). Full JVM suite forced rerun
+2016/2016 (app 863×2 = 859+4 new, terminal-emulator 145×2),
+0 failures / 0 errors / 0 skipped. Full contract:
+docs/M7.2-P7-WAITING-EVIDENCE-AUDIT.md.
+
 ## [0.11.2-m7.1.1-m72p6] — 2026-09-09 — M7.2 P6 runtime notification device-state refinement (verification phase)
 
 The eighth M7.2 phase, and a verification phase by design: P6 adds NO

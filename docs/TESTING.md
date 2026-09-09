@@ -3523,3 +3523,50 @@ Pass requires every step marked reproducible (A1–2, B1–B3, C or B1, D1–3,
 E, F). B4 is a documentation gate: its NOT DEVICE-REPRODUCIBLE status is
 the expected outcome and must not be "fixed" by weakening production logic
 or adding fake injection. Record deviations verbatim.
+
+## §56 — M7.2 P7 evidence-audit gate: NO PRODUCTION NEEDS-INPUT CLAIM YET
+
+P7 was an evidence audit (the mandate: ship "needs input" ONLY if
+trustworthy evidence exists). The audit's verdict is P7B: no channel in
+this architecture can carry evidence that satisfies the evidence standard
+(no receiver, no generation concept, no per-session binding, and every
+protocol-level seam is spoofable by arbitrary output — `printf '\a'` or
+`printf '\033]2;…\007'`). Consequences, all test-pinned in
+`AgentRuntimeWaitingEvidenceBoundaryTest`: the notification layer reads no
+terminal text, watches no files, and cannot write to the terminal;
+tap-to-terminal is the only interaction. There is NO device gate for a
+needs-input state because the state does not exist — fabricating one would
+violate the phase. What §56 owns instead is the regression proof that the
+audit-only phase left P4–P6 byte-identical on hardware:
+
+1. **Running wording unchanged.** Launch a curated agent (e.g. Claude
+   Code). EXPECT: the notification says exactly "<Name> is running" — the
+   shade NEVER shows "needs input", "requesting permission" or any
+   attention wording (no such string ships in this build).
+2. **The spoof proof (the device-visible form of the boundary pin).** With
+   the agent surface posted, type inside that same session:
+   `printf '\a'; printf '\033]2;needs input\007'`. EXPECT: NO new
+   notification and NO change to the existing one — the tab title may
+   change (display-only, as always) and the shade must not react. Any
+   needs-input surface appearing here is a FAIL (it would mean the build
+   is not the audited one).
+3. **P5 tap regression.** Re-run §54 steps 2, 3 and 6 (running-tap
+   routing, multi-session isolation, stale-tap degradation). EXPECT:
+   identical behavior.
+4. **P6 transition regression.** Re-run §55 Part A (running baseline),
+   B1 (withdrawal on process kill), D1 (`exit` → the factual exit
+   statement) and Part E's §54 spot-checks. EXPECT: identical behavior —
+   P7 changed zero production code, so a deviation means an environment
+   problem, not a P7 regression.
+5. **FGS.** As §55 Part F: the retention notification (id 1,
+   `terminal_sessions`) behaves exactly as recorded.
+
+Pass requires every step green with the shade free of any attention
+wording. Record deviations verbatim.
+
+A future phase that legitimately ships trusted attention evidence MUST
+replace this section with a real supported-agent request gate (start the
+agent, cause a genuine permission/input request, verify the exact truthful
+attention wording, tap routing, resolution, and stale-attention clearing
+across two sessions) — after revising the P7 boundary tests and
+`docs/M7.2-P7-WAITING-EVIDENCE-AUDIT.md` consciously.
