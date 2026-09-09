@@ -158,7 +158,7 @@ class AgentRuntimeNotificationTransitionMatrixTest {
             val wording = "${title.lowercase()} ${text.lowercase()}"
             for (banned in listOf(
                 "complet", "success", "succeed", "finish", "failed",
-                "waiting for input",
+                "waiting for input", "needs input",
             )) {
                 assertTrue(
                     "produced wording must never claim '$banned': \"$title\" / \"$text\"",

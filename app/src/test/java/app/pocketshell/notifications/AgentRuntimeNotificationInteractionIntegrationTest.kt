@@ -322,7 +322,7 @@ class AgentRuntimeNotificationInteractionIntegrationTest {
         val banned = listOf(
             "completed", "completion", "success", "succeeded", "successful",
             "finished", "failed", "failure", "task done", "work done",
-            "waiting for input", "needs attention",
+            "waiting for input", "needs attention", "needs input",
         )
         for ((name, pair) in listOf(
             "NotificationRoute" to routePair,
