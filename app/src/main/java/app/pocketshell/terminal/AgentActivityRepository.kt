@@ -182,4 +182,33 @@ object AgentActivityRepository {
             }
         }
         .distinctUntilChanged()
+
+    /**
+     * M7.2 P8 — the HOME presentation claim per session: what the EXISTING
+     * Home Sessions row may honestly say about agent work in that session,
+     * so Home and the notification shade state the SAME truth. Still a pure
+     * projection of the SAME two authorities (the manager's authoritative
+     * session list + the detector's graded observations) — this projection
+     * adds no scan, no polling and no vocabulary of its own; the decision
+     * lives in the pure [AgentHomeSessionClaims] step (see its KDoc for the
+     * claim vocabulary and the P4-parity contract it mirrors state-for-state:
+     * birth UNKNOWN silent, RUNNING claimed, informed UNKNOWN uncertain,
+     * NOT_RUNNING withdrawn, non-agents and finished sessions absent).
+     */
+    val homeSessionClaims: Flow<Map<Long, AgentHomeSessionClaims.SessionClaim>> =
+        combine(
+            TerminalSessionManager.sessions,
+            RuntimeAgentDetector.observations,
+        ) { list, observations ->
+            AgentHomeSessionClaims.present(
+                live = list.filter { !it.isFinished }.map { entry ->
+                    AgentHomeSessionClaims.HomeSessionInput(
+                        sessionId = entry.id,
+                        identity = LaunchIdentity.of(entry.origin, entry.agent),
+                    )
+                },
+                observations = observations,
+            )
+        }
+        .distinctUntilChanged()
 }

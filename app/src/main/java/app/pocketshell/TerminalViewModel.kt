@@ -20,8 +20,11 @@ import app.pocketshell.packages.installedCatalogApps
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeStorage
+import app.pocketshell.terminal.AgentActivityRepository
+import app.pocketshell.terminal.AgentHomeSessionClaims
 import app.pocketshell.terminal.AgentHint
 import app.pocketshell.terminal.AgentMatchedBy
+import kotlinx.coroutines.flow.Flow
 import app.pocketshell.terminal.ShellEnvironment
 import app.pocketshell.terminal.SpawnOrigin
 import app.pocketshell.terminal.TerminalSessionManager
@@ -42,6 +45,18 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     val sessions = TerminalSessionManager.sessions
     val creating = TerminalSessionManager.creating
+
+    /**
+     * M7.2 P8 — Home's per-session agent activity claims: the SAME
+     * authoritative runtime state the notification layer states, projected
+     * for the EXISTING Home Sessions rows. Read-only — Home is an observer;
+     * this seam exposes a projection, it does not create one (the derivation
+     * and its parity contract live in AgentActivityRepository /
+     * AgentHomeSessionClaims).
+     */
+    val homeSessionClaims:
+        Flow<Map<Long, AgentHomeSessionClaims.SessionClaim>> =
+        AgentActivityRepository.homeSessionClaims
 
     /** Runtime state (M2) — Home shows the honest Linux Shell availability. */
     val runtimeState = RuntimeManager.state

@@ -1,0 +1,5 @@
+=== M7.2 P8 full forced JVM suite (2026-09-09T10:56:02Z) ===
+app testDebugUnitTest --rerun-tasks: 892 tests, 0 failures, 0 errors, 0 skipped
+app testReleaseUnitTest --rerun-tasks: 892 tests, 0 failures, 0 errors, 0 skipped
+terminal-emulator testDebugUnitTest --rerun-tasks: 145 tests, 0 failures, 0 errors, 0 skipped
+terminal-emulator testReleaseUnitTest --rerun-tasks: 145 tests, 0 failures, 0 errors, 0 skipped

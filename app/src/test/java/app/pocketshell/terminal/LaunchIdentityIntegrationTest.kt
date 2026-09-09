@@ -209,13 +209,19 @@ class LaunchIdentityIntegrationTest {
         // repository projection) and, since M7.2 P3c, in the event layer
         // that CONSUMES it (the ROADMAP-authorized consumer boundary: the
         // event engine folds the detector's published observations into
-        // transitions — it performs no detection of its own). Every other
-        // file stays free of it.
+        // transitions — it performs no detection of its own). Since M7.2 P8,
+        // also in the pure HOME presentation claim, the third authorized
+        // consumer: it reads the detector's published observations to decide
+        // what the Home Sessions row may say — it performs no detection of
+        // its own either (the P8 parity contract keeps it aligned with the
+        // notification layer state-for-state). Every other file stays free
+        // of it.
         val runningTokens = listOf("AgentRuntimeState", "AgentRuntimeDetection")
         val seamFiles = setOf(
             "AgentRuntimeDetection.kt", "RuntimeAgentDetector.kt",
             "AgentActivityRepository.kt", "SessionLifecycle.kt",
             "AgentRuntimeEvents.kt", "AgentRuntimeEventEngine.kt",
+            "AgentHomeSessionClaims.kt",
         )
         val completionOffenders = mutableListOf<String>()
         val runningOffenders = mutableListOf<String>()

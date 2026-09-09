@@ -74,6 +74,7 @@ import app.pocketshell.launchers.ToolLauncher
 import app.pocketshell.launchers.visibleCompanions
 import app.pocketshell.launchers.visibleTools
 import app.pocketshell.runtime.RuntimeState
+import app.pocketshell.terminal.AgentHomeSessionClaims
 import app.pocketshell.terminal.TerminalSessionManager
 import app.pocketshell.ui.theme.TerminalTheme
 import kotlin.math.ceil
@@ -139,6 +140,16 @@ fun HomeScreen(
     // the existing verify-then-launch path (guest probe → spawn → honest
     // refusal banner). The spinner below still runs during that verification.
     val verifyingApp by terminalViewModel.verifyingApp.collectAsStateWithLifecycle()
+
+    // M7.2 P8 — the per-session agent activity claims: the SAME authoritative
+    // runtime state the notification layer states, projected for the Sessions
+    // rows below. Lifecycle-aware, event-driven (a pure projection of the
+    // manager's session StateFlow + the detector's observation StateFlow —
+    // no polling, no timer, no scan lives here). Home is an observer: it
+    // renders the claims and nothing else; selection stays the existing
+    // onOpenSession seam.
+    val agentClaims by terminalViewModel.homeSessionClaims
+        .collectAsStateWithLifecycle(initialValue = emptyMap())
 
     // Long-press "Remove from Home" confirmation target (id to label).
     var removeTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -254,7 +265,7 @@ fun HomeScreen(
                     Spacer(Modifier.height(16.dp))
                     SectionDivider()
                     Spacer(Modifier.height(8.dp))
-                    SessionsSection(activeSessions, onOpenSession)
+                    SessionsSection(activeSessions, agentClaims, onOpenSession)
                 }
 
                 // bottom clearance (the Companion bar zone rides here)
@@ -861,6 +872,7 @@ private fun LauncherGridEntry(
 @Composable
 private fun SessionsSection(
     sessions: List<TerminalSessionManager.SessionEntry>,
+    agentClaims: Map<Long, AgentHomeSessionClaims.SessionClaim>,
     onOpenSession: (Long) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
@@ -869,6 +881,12 @@ private fun SessionsSection(
         val visible = sessions.take(4)
         visible.forEachIndexed { index, entry ->
             val finished = entry.isFinished
+            // M7.2 P8 — the agent activity claim for THIS session only (keyed
+            // by the manager's authoritative id; finished/removed sessions are
+            // structurally absent, so no stale agent label can survive). The
+            // claim is presentation-only: the row keeps its identity, its
+            // session-level state and its existing tap behavior.
+            val claim = agentClaims[entry.id]
             val interaction = remember { MutableInteractionSource() }
             val pressed by interaction.collectIsPressedAsState()
             Row(
@@ -894,14 +912,42 @@ private fun SessionsSection(
                         ),
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(
-                    text = entry.displayLabel + if (finished) " (exited)" else "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (finished) HomeTokens.textDim else HomeTokens.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = entry.displayLabel + if (finished) " (exited)" else "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (finished) HomeTokens.textDim else HomeTokens.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // M7.2 P8 — the compact agent activity line: the SAME
+                    // truth the notification shade states ("<Name> is
+                    // running" / "<Name> runtime unknown"), never more. The
+                    // WORDING carries the state (not color alone); the claim
+                    // names the agent by its REGISTRY display name even when
+                    // a terminal title has overridden the row's own label.
+                    // Plain shells, tools, custom launchers, withdrawn and
+                    // finished runtimes simply keep the normal presentation.
+                    claim?.let { c ->
+                        Text(
+                            text = when (c.claim) {
+                                AgentHomeSessionClaims.Claim.RUNNING ->
+                                    c.agentDisplayName + " — Running"
+                                AgentHomeSessionClaims.Claim.UNKNOWN ->
+                                    c.agentDisplayName + " — Runtime unknown"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp,
+                            color = when (c.claim) {
+                                AgentHomeSessionClaims.Claim.RUNNING -> HomeTokens.runningGreen
+                                AgentHomeSessionClaims.Claim.UNKNOWN -> HomeTokens.textDim
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 1.dp),
+                        )
+                    }
+                }
                 Text(
                     text = "#${entry.id}",
                     fontFamily = TerminalTheme.mono,
