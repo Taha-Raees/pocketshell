@@ -7,6 +7,7 @@ import app.pocketshell.apps.CommandApp
 import app.pocketshell.apps.availableCommandApps
 import app.pocketshell.apps.guestCustomCommandChain
 import app.pocketshell.apps.guestLaunchChain
+import app.pocketshell.apps.guestLaunchChainWithRecords
 import app.pocketshell.apps.guestTerminalChain
 import app.pocketshell.apps.probeName
 import app.pocketshell.launchers.CustomTool
@@ -23,11 +24,13 @@ import app.pocketshell.runtime.RuntimeStorage
 import app.pocketshell.terminal.AgentActivityRepository
 import app.pocketshell.terminal.AgentHomeSessionClaims
 import app.pocketshell.terminal.AgentHint
+import app.pocketshell.terminal.AgentLaunchRecords
 import app.pocketshell.terminal.AgentMatchedBy
 import kotlinx.coroutines.flow.Flow
 import app.pocketshell.terminal.ShellEnvironment
 import app.pocketshell.terminal.SpawnOrigin
 import app.pocketshell.terminal.TerminalSessionManager
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -349,6 +352,14 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         const val COMMAND_PROBE_FRESHNESS_MS = 60_000L
 
         /**
+         * M7.2 P9 — a launch-record file older than this at spawn time is a
+         * crash orphan (a live session's file is appended to on every event,
+         * so its mtime is always recent). A spawn-time comparison, never a
+         * timer.
+         */
+        const val ORPHAN_RECORD_AGE_MS = 24L * 60 * 60 * 1000
+
+        /**
          * p7.1 — the pinned fallback label of a plain Linux-shell session
          * (openLinuxShell / openLinuxShellAt). One constant, referenced by
          * both spawn sites and the "+" kind check, so the string can never
@@ -387,10 +398,11 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         launchGuestCommand(
             displayName = app.displayName,
             probeName = app.probeName(),
-            commandChain = guestLaunchChain(
-                launchCommand = app.launchCommand,
-                guestShell = ShellEnvironment.SHELL_PATH_GUEST,
-            ),
+            // M7.2 P9: registry launches carry the session-bound record
+            // channel (the anchor + exit fact); the chain composes inside
+            // launchGuestCommand once the channel file exists.
+            launchCommand = app.launchCommand,
+            customChain = null,
             // M7.2 P2: the registry launcher is the spawn-time agent identity.
             origin = SpawnOrigin.CommandApp(app.id),
             agent = AgentHint(
@@ -415,7 +427,11 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         launchGuestCommand(
             displayName = tool.name,
             probeName = tool.commandHead(),
-            commandChain = guestCustomCommandChain(
+            // M7.2 P9: custom tools keep the UNCHANGED verbatim chain — an
+            // arbitrary user shell line cannot be exec'd by the anchor, so
+            // no record channel exists for them (documented boundary).
+            launchCommand = null,
+            customChain = guestCustomCommandChain(
                 command = tool.command,
                 guestShell = ShellEnvironment.SHELL_PATH_GUEST,
             ),
@@ -441,11 +457,21 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
      * M7.2 P2: carries the caller's structured [SpawnOrigin] + [AgentHint]
      * through to the single factory, so the session entry knows AT SPAWN what
      * it was launched as (spawn metadata — never a process claim).
+     *
+     * M7.2 P9: exactly ONE of [launchCommand] (registry argv tokens — the
+     * record-channel path) or [customChain] (a verbatim user line — the
+     * unchanged plain chain) is non-null. For the registry path the launch
+     * composes a FRESH per-launch record file first (the runtime
+     * generation: sweep 24h-old crash-orphans, touch the new file) and the
+     * chain becomes the anchor/exit-record form; a channel that cannot be
+     * created degrades honestly to the plain chain (the channel is
+     * additional evidence, never a launch requirement).
      */
     private fun launchGuestCommand(
         displayName: String,
         probeName: String,
-        commandChain: String,
+        launchCommand: List<String>?,
+        customChain: String?,
         origin: SpawnOrigin,
         agent: AgentHint?,
         onReady: () -> Unit,
@@ -477,6 +503,26 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 val sysDataBinds = withContext(Dispatchers.IO) {
                     TerminalSessionManager.prepareLinuxSession(application)
                 }
+                // M7.2 P9: the launch-record channel (registry launches only).
+                val record = if (launchCommand != null) {
+                    withContext(Dispatchers.IO) { prepareLaunchRecord() }
+                } else {
+                    null
+                }
+                val commandChain = when {
+                    launchCommand != null && record != null ->
+                        guestLaunchChainWithRecords(
+                            launchCommand = launchCommand,
+                            guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                            guestRecordFile = record.second,
+                        )
+                    launchCommand != null ->
+                        guestLaunchChain(
+                            launchCommand = launchCommand,
+                            guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                        )
+                    else -> customChain ?: error("launchGuestCommand: exactly one of launchCommand/customChain is required")
+                }
                 val ok = withContext(Dispatchers.Main) {
                     // TerminalSession construction belongs on the main thread
                     // (upstream MainThreadHandler contract, same as M2.3 flow)
@@ -493,6 +539,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                             sysDataBinds,
                             origin = origin,
                             agent = agent,
+                            launchRecordPath = record?.first,
                         ).id
                         guestSessionIds.add(newId)
                         _selectedId.value = newId
@@ -512,6 +559,43 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 _verifyingApp.value = null
             }
         }
+    }
+
+    /**
+     * M7.2 P9 — the fresh per-launch record file: the runtime GENERATION
+     * made physical. Creates the guest-visible events dir inside the
+     * app-owned rootfs, sweeps crash-orphans (files untouched for 24h —
+     * a live session's file is appended to, so its mtime is always
+     * recent; the mtime check is a spawn-time comparison, never a timer),
+     * then touches the new generation's file. Returns (hostPath,
+     * guestPath) or null when the channel is unavailable — the launch
+     * then uses the plain chain and loses nothing but the anchor/exit
+     * extra evidence.
+     */
+    private fun prepareLaunchRecord(): Pair<String, String>? = try {
+        val rootfs = RuntimeStorage(getApplication<Application>().noBackupFilesDir).rootfsDir
+        if (!rootfs.isDirectory) {
+            null
+        } else {
+            val dir = File(rootfs, "var/lib/pocketshell-agent")
+            if (!dir.isDirectory && !dir.mkdirs()) {
+                null
+            } else {
+                val now = System.currentTimeMillis()
+                dir.listFiles()?.forEach { f ->
+                    if (f.isFile && f.lastModified() < now - ORPHAN_RECORD_AGE_MS) f.delete()
+                }
+                val token = AgentLaunchRecords.newToken(java.util.UUID.randomUUID().toString())
+                val host = File(dir, "$token.jsonl")
+                if (host.createNewFile()) {
+                    host.absolutePath to AgentLaunchRecords.guestFilePath(token)
+                } else {
+                    null
+                }
+            }
+        }
+    } catch (_: Exception) {
+        null // the channel is additional evidence, never a launch requirement
     }
 
     // ------------------------------------------------------------- M2.4 flows

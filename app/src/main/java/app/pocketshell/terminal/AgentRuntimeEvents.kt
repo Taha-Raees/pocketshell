@@ -194,10 +194,19 @@ sealed class AgentEventInput {
      * FINISHED such session to its recorded direct-child exit status. A
      * tracked session missing from BOTH maps was REMOVED (the user closed
      * its tab) — the only two ways a session leaves this layer.
+     *
+     * M7.2 P9: [finishedStatuses] carries the waitpid-proven exit status of
+     * EVERY finished session (not only known-agent launches), so a
+     * DISCOVERED session (tracked lazily by the observations arm below)
+     * that reaches a real terminal state ends with the honest
+     * SESSION_FINISHED cause and its real status — never mislabeled as a
+     * tab removal. It changes nothing for sessions this layer never
+     * tracked: the reducer consults it only for tracked ids.
      */
     data class SessionsChanged(
         val live: List<TrackedAgentLaunch>,
         val finished: Map<Long, FinishedAgentLaunch>,
+        val finishedStatuses: Map<Long, ExitStatus> = emptyMap(),
     ) : AgentEventInput()
 
     /**
@@ -332,18 +341,26 @@ object AgentRuntimeTransitions {
         //    READ the session before removing it (each id is processed
         //    exactly once: the manager's session ids are monotonic and
         //    never reused, so the live and finished groups are disjoint).
+        //    M7.2 P9: the cause consults [input.finishedStatuses] (EVERY
+        //    finished session's real status), so a DISCOVERED session that
+        //    finished ends as SESSION_FINISHED with its true status — the
+        //    SESSION_REMOVED shape stays reserved for tab closures.
         for (sessionId in tracked.keys.sorted()) {
             if (sessionId in liveIds) continue
             val session = tracked[sessionId] ?: continue
-            val finished = input.finished[sessionId]
+            // The finish signal: the KnownAgent finished map (spawn-truth
+            // launches, unchanged contract) OR the P9 all-sessions status
+            // map (discovered sessions). The real waitpid status wins.
+            val finishedStatus = input.finishedStatuses[sessionId]
+                ?: input.finished[sessionId]?.exitStatus
             tracked = tracked - sessionId
             ended += sessionId
-            events += if (finished != null) {
+            events += if (finishedStatus != null) {
                 AgentRuntimeEvent.SessionEnded(
                     sessionId = sessionId,
                     agent = session.agent,
                     cause = AgentRuntimeEvent.SessionEnded.Cause.SESSION_FINISHED,
-                    sessionExitStatus = finished.exitStatus,
+                    sessionExitStatus = finishedStatus,
                     lastState = session.lastState,
                     occurredAtMs = nowMs,
                 )
@@ -386,6 +403,27 @@ object AgentRuntimeTransitions {
      * Runtime edges — the deduplication core (Part F). Only CHANGES of the
      * detector's state derive events; identical re-observations (the 2s
      * polling tick re-delivering the same state) derive nothing.
+     *
+     * M7.2 P9 — DISCOVERY TRACKING (two new arms, the exact-discovery
+     * counterpart of the launch edge):
+     *
+     *   LAZY TRACK: an observation for a session this memory has never
+     *   tracked whose [Observation.agent] is RESOLVED tracks the session
+     *   SILENTLY (no Launched event exists to emit — no launcher named the
+     *   command; the process evidence IS the first fact) and falls through
+     *   to the normal arms, so a first RUNNING observation emits
+     *   ConfirmedRunning(from=null) — the "(birth)" arm the notification
+     *   mapping already handles. Unresolved observations (UNKNOWN with no
+     *   agent, the birth baseline of every discovery session) stay ignored
+     *   — the anti-storm rule is unchanged.
+     *
+     *   IDENTITY SWITCH: a tracked session whose resolved agent CHANGES
+     *   (a discovered session's user stopped kilo and started claude) is a
+     *   story boundary: if the old story was announced as RUNNING, its
+     *   running claim is WITHDRAWN first (NoLongerDetected for the OLD
+     *   identity), the memory resets, and the new agent's story starts
+     *   from its own first real evidence. The old name is never reused for
+     *   the new agent's events.
      */
     private fun reduceObservations(
         memory: AgentRuntimeEventMemory,
@@ -397,9 +435,44 @@ object AgentRuntimeTransitions {
 
         for (sessionId in input.observations.keys.sorted()) {
             val observation = input.observations[sessionId] ?: continue
-            val session = tracked[sessionId] ?: continue // stale/unknown: rejected (Part G)
+            var session = tracked[sessionId]
+            if (session == null) {
+                // M7.2 P9 lazy track: only a RESOLVED agent may open a
+                // story (the process evidence named it); anything else for
+                // an untracked session is stale/birth-baseline noise.
+                val discovered = observation.agent ?: continue
+                if (sessionId in memory.ended) continue // defensive: ended sessions never emit
+                session = AgentRuntimeEventMemory.TrackedAgentSession(
+                    agent = discovered,
+                    lastState = null,
+                    lastEvidence = null,
+                )
+                tracked = tracked + (sessionId to session)
+            }
             if (sessionId in memory.ended) continue // defensive: ended sessions never emit
             if (observation.state == AgentRuntimeState.NOT_APPLICABLE) continue
+
+            // M7.2 P9 identity switch: the resolved agent changed — close
+            // the old story honestly (withdraw a RUNNING claim; an UNKNOWN
+            // surface the consumer still holds is corrected by the new
+            // story's own next event), then reset and re-track.
+            if (observation.agent != null && observation.agent != session.agent) {
+                if (session.lastState == AgentRuntimeState.RUNNING) {
+                    events += AgentRuntimeEvent.NoLongerDetected(
+                        sessionId = sessionId,
+                        agent = session.agent,
+                        from = AgentRuntimeState.RUNNING,
+                        lastEvidence = session.lastEvidence,
+                        occurredAtMs = nowMs,
+                    )
+                }
+                session = AgentRuntimeEventMemory.TrackedAgentSession(
+                    agent = observation.agent,
+                    lastState = null,
+                    lastEvidence = null,
+                )
+                tracked = tracked + (sessionId to session)
+            }
 
             if (observation.state == session.lastState) {
                 // Same state re-observed: no event (Part F). A RUNNING

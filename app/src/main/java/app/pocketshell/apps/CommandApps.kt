@@ -1,5 +1,7 @@
 package app.pocketshell.apps
 
+import app.pocketshell.terminal.AgentLaunchRecords
+
 /**
  * Phase 3.2 — command-launchable apps (docs/PHASE-3.2-DESIGN.md §4).
  *
@@ -162,6 +164,52 @@ fun guestLaunchChain(
         if (token.matches(Regex("[A-Za-z0-9._/+%-]+"))) token else "'$token'"
     }
     return "$command; exec $guestShell -l"
+}
+
+/**
+ * M7.2 P9 — the RECORD-CARRYING launch chain: [guestLaunchChain]'s sibling
+ * for REGISTRY command apps, adding the session-bound launch-record anchor
+ * (docs/M7.2-P9-AGENT-OBSERVATION-ARCHITECTURE.md). The behavioral contract
+ * is IDENTICAL to the plain chain — the same agent runs with the same argv,
+ * the same terminal, the same trailing-exec login shell — with TWO pure
+ * additions, both sandbox-prototype-proven on real Linux (E1/E3):
+ *
+ *   1. THE ANCHOR: a nested `sh -c` records its own pid / pgrp /
+ *      /proc-self starttime into the session's record file and then EXECS
+ *      the real agent — exec preserves all three, so the record names THE
+ *      agent's exact live process identity (the pid-reuse-proof anchor the
+ *      detector validates against a live /proc snapshot).
+ *   2. THE EXIT FACT: the outer chain records the nested shell's `$?` —
+ *      the agent's REAL exit status — which the plain chain structurally
+ *      discards (P3a truth-loss point 3). A fact, never an interpretation.
+ *
+ * The command tokens are the registry's own argv tokens (the same
+ * allowlist/quoting [guestLaunchChain] applies). The record file path is
+ * composed by the Android side from a random per-launch token (the runtime
+ * generation). Custom tools DO NOT take this path (arbitrary user shell
+ * lines cannot be exec'd by the anchor) — they keep the plain chain.
+ *
+ * Pure and test-pinned: the single chain form, the anchor placement, the
+ * trailing exec, and (in the CommandAppsTest execution fixture) the real
+ * end-to-end behavior through /bin/sh.
+ */
+fun guestLaunchChainWithRecords(
+    launchCommand: List<String>,
+    guestShell: String,
+    guestRecordFile: String,
+): String {
+    // Registry launch commands are plain single tokens today; apply the
+    // same allowlist/quoting as the plain chain for defense in depth.
+    val command = launchCommand.joinToString(" ") { token ->
+        if (token.matches(Regex("[A-Za-z0-9._/+%-]+"))) token else "'$token'"
+    }
+    val token = launchCommand.first()
+    return AgentLaunchRecords.launchChain(
+        agentCommand = command,
+        agentToken = token,
+        guestShell = guestShell,
+        guestRecordFile = guestRecordFile,
+    )
 }
 
 /**

@@ -51,10 +51,12 @@ Requirements: JDK 17+, Android SDK (platform 36, build-tools 36.0.0) and NDK
 
 ## Status
 
-Current state: **M7.2 P8 — home sessions integration & unified agent
-activity (the consumer/UI phase: the existing Home Sessions rows now
-state the same authoritative agent activity as the notifications, on
-the inherited v0.11.2-m7.1.1 / versionCode 47 stamp; M7.2 P7, P6, P5,
+Current state: **M7.2 P9 — universal agent activity detection & the
+Linux ↔ Android signal bridge (agents are now detected in ANY live guest
+session — launcher taps AND typed commands in plain Terminal sessions, at
+any directory — plus the session-bound launch-record channel anchoring
+the agent's exact pid and capturing its real exit status, on the
+inherited v0.11.2-m7.1.1 / versionCode 47 stamp; M7.2 P8, P7, P6, P5,
 P4, P3c, P3b, P3a, P2, P1, the M7.1.1 fix release and M7.1 release
 below it)**
 (see `docs/ROADMAP.md`). The stack: native PTY terminal (M1), Linux Alpine
@@ -149,8 +151,12 @@ or `<Agent> — Runtime unknown` only, birth-unknown/withdrawal/non-agent
 rows stay normal, claims keyed by the authoritative session id, the
 notification-parity fold test-pinned, no detector, no polling, no
 needs-input claim, no dashboard (docs/
-M7.2-P8-HOME-SESSION-INTEGRATION.md). Full JVM suite
-2074/2074 green (app 892 + terminal-emulator 145 per variant,
+M7.2-P8-HOME-SESSION-INTEGRATION.md; M7.2 P9 made detection universal —
+any live guest session is scanned against the registry tokens (discovery)
+with the session-bound launch-record channel anchoring the exec'd agent's
+pid and capturing its real exit status (docs/
+M7.2-P9-AGENT-OBSERVATION-ARCHITECTURE.md)). Full JVM suite
+2178/2178 green (app 944 + terminal-emulator 145 per variant,
 0 skipped, forced clean
 rerun at the tip) and `assembleDebug` produces a working APK; the
 **manual on-device acceptance checklists** in `docs/TESTING.md` remain
@@ -167,4 +173,7 @@ running wording unchanged, the on-device spoof proof, P5/P6/FGS
 regressions; no needs-input device instructions exist because the state
 does not exist), and the M7.2 P8 home-integration gate is §57 (Home and
 the shade agree about running / unknown / absence — baseline, running,
-multi-session, withdrawal, session end, regressions).
+multi-session, withdrawal, session end, regressions), and the M7.2 P9
+universal-detection gate is §58 (Kilo root AND subdirectory — the
+mandatory regression target — multi-session, sequential runs, closure,
+the launch-record anchor, regressions).

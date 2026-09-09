@@ -172,30 +172,58 @@ class AgentRuntimeDetectionIntegrationTest {
     }
 
     // ------------------------------------------- 4. the activation boundary
+    //
+    // M7.2 P9 re-scope (the Part-B root-cause fix, disclosed): the P3b-era
+    // pin "KnownAgent only, everything else dropped" described the gate
+    // that left every plain-Terminal agent run structurally invisible.
+    // P9 replaces it with the TWO-CLASS contract — predicted (spawn truth)
+    // + discovered (registry-token process evidence in any live guest
+    // session) — with the host-Shell exclusion and the resolver kept.
 
     @Test
-    fun `the scanner activates only for KnownAgent identities - never for tools or custom launchers`() {
+    fun `the scanner activates for predicted AND discovered guest sessions - host shells stay excluded`() {
         val detector = source(detectorPath).second
-        // The eligibility filter: the identity must classify KnownAgent and
-        // everything else is dropped before any scan happens.
-        assertTrue(
-            "eligibility must filter on the P3a classifier's KnownAgent kind",
-            detector.contains("identity !is LaunchIdentity.KnownAgent"),
-        )
+        // The eligibility extraction still consults the real P3a resolver.
         assertTrue(
             "eligibility must consult the real P3a resolver (LaunchIdentity.of)",
             detector.contains("LaunchIdentity.of("),
         )
-        // The repository states the negative explicitly: tools and custom
-        // launchers are NOT_APPLICABLE, never RUNNING.
-        val repository = source(repositoryPath).second
         assertTrue(
-            "KnownNonAgentTool must map to NOT_APPLICABLE",
-            repository.contains("is LaunchIdentity.KnownNonAgentTool -> AgentRuntimeState.NOT_APPLICABLE"),
+            "predicted sessions carry the spawn-truth identity",
+            detector.contains("predetermined = identity"),
         )
         assertTrue(
-            "CustomOrUnknown must map to NOT_APPLICABLE",
-            repository.contains("is LaunchIdentity.CustomOrUnknown -> AgentRuntimeState.NOT_APPLICABLE"),
+            "every other live guest session is a discovery session (the Part-B fix)",
+            detector.contains("discovery = identity == null"),
+        )
+        assertTrue(
+            "host-side plain shells stay excluded (no guest tree, no agent binaries)",
+            detector.contains("SpawnOrigin.Shell"),
+        )
+        assertTrue(
+            "finished sessions stay excluded",
+            detector.contains("entry.isFinished"),
+        )
+        // The repository states the negative explicitly: tools and custom
+        // launchers are NOT_APPLICABLE exactly while discovery has not
+        // resolved an agent in their tree — and upgrade to the RESOLVED
+        // agent when it has (never RUNNING from the identity alone).
+        val repository = source(repositoryPath).second
+        assertTrue(
+            "the NOT_APPLICABLE arm must remain for un-resolved tool/custom sessions",
+            repository.contains("AgentRuntimeState.NOT_APPLICABLE"),
+        )
+        assertTrue(
+            "the discovery upgrade must name the RESOLVED agent, never an invented one",
+            repository.contains("observation.agent!!"),
+        )
+        assertTrue(
+            "a plain session with nothing discovered stays absent (no claim)",
+            repository.contains("observation?.agent != null ->"),
+        )
+        assertTrue(
+            "the absence arm stays the final fall-through of the fold",
+            repository.contains("else -> null"),
         )
     }
 

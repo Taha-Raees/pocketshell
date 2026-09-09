@@ -229,6 +229,16 @@ enum class AgentMatchedBy {
 
     /** The command line matched by exact argv element (argv[0] or the shebang script path at argv[1]). */
     PROCFS_CMDLINE,
+
+    /**
+     * M7.2 P9 — the launch-record anchor matched: the session's own launch
+     * channel (AgentLaunchRecords) recorded this pid at the moment the
+     * nested shell exec'd the agent, and the live /proc snapshot confirms
+     * the pid is alive with the SAME birth stamp (starttime — the kernel's
+     * pid-reuse-proof identity). The strongest process claim: the launch
+     * itself named the exact process now alive.
+     */
+    LAUNCH_ANCHOR,
 }
 
 /**

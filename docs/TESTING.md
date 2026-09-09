@@ -3642,3 +3642,89 @@ Pass requires every step green with Home and the shade never
 contradicting each other about running / unknown / absence, and no
 completion / success / failure / needs-input wording anywhere in Home.
 Record deviations verbatim.
+
+## §58 — M7.2 P9 gate: universal agent detection (any session, any directory) + the launch-record bridge
+
+Prerequisites: §55's environment (a real agent install in the guest — Kilo
+Code is the primary target; the user's own install), `adb logcat -s
+AgentRuntimeDetector AgentRuntimeEvents` attached. NO needs-input step
+exists anywhere in this gate (P7's verdict holds). The mandatory regression
+target is step B — the real-device discrepancy that motivated P9.
+
+### A — Kilo from the Home launcher (root flow)
+
+Home → Kilo Code. EXPECT: identical behavior to §55 B — the agent
+notification appears ("<Kilo Code> is running" within one scan tick) and
+the Home row carries the running status line. This path already worked
+(spawn-truth eligibility); P9 must not change it.
+
+### B — Kilo typed in a PLAIN Terminal session, in a SUBDIRECTORY (the mandatory regression target)
+
+1. Home → Linux Shell (a PLAIN guest session — no launcher identity).
+2. `cd` into any non-home directory (e.g. `/tmp` or a project dir).
+3. Type `kilo`. Wait ~3 seconds (two scan ticks).
+4. EXPECT: the agent notification appears and the Home row states the
+   running status — the SAME detection quality as step A, at any directory.
+   This is the fix for the reported discrepancy (the directory was never
+   the discriminator; the session's spawn origin was — P9 discovery now
+   scans every live guest session against the registry tokens).
+5. Logcat cross-check: `AgentRuntimeEvents ... CONFIRMED_RUNNING
+   agent=Kilo Code` with pids= the kilo process; `AgentRuntimeDetector ...
+   agent state ... -> RUNNING`.
+6. Exit kilo. EXPECT: the notification cancels (proven absence), exactly
+   §55's withdrawal semantics.
+
+### C — Multiple sessions, strict isolation
+
+Session 1 → `kilo` (typed, plain session). Session 2 → Kilo via the Home
+launcher. Session 3 → plain shell, no agent. EXPECT: two independent
+running claims, each naming Kilo Code with ITS session's tap-through; the
+third session claims nothing. Closing session 1 leaves session 2's claim
+untouched (per-session keyed state).
+
+### D — Sequential runs, no stale leaks
+
+In one plain session: run `kilo`, exit it, run `kilo` again. EXPECT: the
+claim withdraws on the first exit and re-confirms for the second run
+(ConfirmedRunning reappearance); the second run's notification opens the
+same session and shows current pids. The launch-record anchor (registry
+launches) must never resurrect a dead pid: logcat shows the new pids.
+
+### E — Session closure clears everything
+
+Close the session (tab ×) while the agent runs. EXPECT: the notification
+cancels, the Home row disappears — no stale claim, no anchor resurrection
+(the launch-record file is deleted with the session).
+
+### F — Registry-launch anchor (the bridge)
+
+1. Home → Kilo Code. In logcat, confirm the claim's evidence references
+   the exec'd agent's exact pid (the launch record's anchor:
+   `var/lib/pocketshell-agent/<token>.jsonl` — check the file exists under
+   the app's rootfs and contains a launch line with pid/pgrp/start).
+2. Exit kilo; confirm the record file then contains the exit line with the
+   REAL status (`{"t":"exit","status":N,...}`) and that the notification
+   cancelled. The status is a FACT — the UI must not claim
+   success/failure/completion in any wording.
+
+### G — Regressions
+
+1. P5 tap routing: §54 steps 2, 3, 6 — identical.
+2. P6 transitions: §55 Part A, B1, B3, D — identical (P9 added evidence
+   sources; the transition matrix is unchanged).
+3. FGS: §55 Part F — the retention notification is unchanged.
+4. Plain-shell baseline: a plain session with NO agent (typing `ls`, `htop`
+   etc.) posts NO agent notification and claims NOTHING on Home — only
+   registry-token processes are discoverable.
+5. Host-shell exclusion: the Android-side Terminal (`SpawnOrigin.Shell`)
+   never activates the scanner.
+6. Custom tools: a custom tool whose line is NOT an agent claims nothing
+   beyond the identity metadata (NOT_APPLICABLE); if its process tree runs
+   a registry-token binary, discovery states it (never its custom name).
+
+### H — Richer evidence discipline
+
+The exit FACT (status N) is factual only: no surface may word it as
+completed/failed/success. If a future phase ships richer states, they ride
+§58 F's record channel with agent-provided evidence only (P7's standard);
+this gate tests NO such state because P9 ships none.

@@ -112,20 +112,30 @@ object AgentHomeSessionClaims {
 
     /**
      * Present the claims for ALL live sessions in one fold. Sessions with
-     * no claim (plain shells, tools, custom launchers, birth-UNKNOWN agent
-     * sessions, withdrawn runtimes) are simply ABSENT from the result — the
-     * keyed-by-id map can never attach a claim to the wrong session, and a
-     * session that leaves [live] (finished or removed) loses its claim
-     * structurally: no stale agent label can survive its session.
+     * no claim (plain shells with nothing discovered, tools, custom
+     * launchers, birth-UNKNOWN agent sessions, withdrawn runtimes) are
+     * simply ABSENT from the result — the keyed-by-id map can never attach
+     * a claim to the wrong session, and a session that leaves [live]
+     * (finished or removed) loses its claim structurally: no stale agent
+     * label can survive its session.
+     *
+     * M7.2 P9 — DISCOVERED claims: a session with NO launch identity whose
+     * runtime observation RESOLVED an agent (the process evidence matched
+     * a registry token) claims with the RESOLVED registry display name —
+     * the same parity mapping, one resolution source deeper. The session's
+     * own launch identity still wins (spawn truth); the observation's
+     * resolved agent is the fallback, never an override, and it can never
+     * name anything but a real registry entry.
      */
     fun present(
         live: List<HomeSessionInput>,
         observations: Map<Long, AgentRuntimeDetection.Observation>,
     ): Map<Long, SessionClaim> =
         live.mapNotNull { session ->
-            val identity = session.identity as? LaunchIdentity.KnownAgent
-                ?: return@mapNotNull null
             val observation = observations[session.sessionId]
+            val identity = session.identity as? LaunchIdentity.KnownAgent
+                ?: observation?.agent
+                ?: return@mapNotNull null
             val claim = claimFor(
                 state = observation?.state ?: AgentRuntimeState.UNKNOWN,
                 everObservedRunning = observation?.everObservedRunning ?: false,

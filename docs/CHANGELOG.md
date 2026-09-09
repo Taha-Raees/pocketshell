@@ -3,6 +3,60 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.11.2-m7.1.1-m72p9] — 2026-09-09 — M7.2 P9 universal agent activity detection & the Linux ↔ Android signal bridge
+
+The eleventh M7.2 phase (investigation + implementation; verdict P9A+B)
+makes agent activity detection UNIVERSAL: an agent run in ANY live guest
+session is now stated from real process evidence — whether it was launched
+by a Home launcher tap or typed by the user into a plain Terminal session,
+at any working directory.
+
+- **THE FIX (Part-B root cause):** the reported "Kilo detected at root but
+  not in a subdirectory" discrepancy was never directory-dependent — the
+  old eligibility gate scanned only registry-launcher sessions
+  (`SpawnOrigin.CommandApp`), so agents typed into plain Terminal sessions
+  were structurally invisible (no scan, no events, no notification), while
+  the "root" that worked was the launcher session's own post-agent prompt
+  (spawn identity persists there). P9 replaces the gate with TWO classes:
+  PREDICTED (spawn-truth token, unchanged) and DISCOVERED (every other
+  live guest session scanned against the whole registry token set — the
+  matched token RESOLVES the agent identity the claim names; exact-token
+  rules, the correlation domain and the four-state honesty contract all
+  unchanged; host-side shells stay excluded).
+- **THE BRIDGE:** a session-bound launch-record channel — the registry
+  launch chain now anchors the agent at exec time (a nested `sh -c`
+  records its own pid/pgrp//proc-starttime and execs the agent: exec
+  preserves all three, prototype-proven on real Linux) and records the
+  agent's REAL exit status (P2's truth-loss point 3 restored as a fact,
+  never an interpretation). The JSONL records live in the app-owned
+  rootfs (`var/lib/pocketshell-agent/<token>.jsonl` — one fresh file per
+  launch tap = the runtime generation; deleted with the session; 24h
+  orphans swept at spawn, no timers). The detector validates the anchor
+  against the live snapshot (pid + starttime — pid-reuse-proof) INSIDE
+  the session's correlation domain (anti-spoof), as the new
+  `LAUNCH_ANCHOR` grade. No daemon, no new polling, no PTY changes.
+- **UNCHANGED:** the notification vocabulary (Running / Runtime unknown /
+  factual exit wording / cancel-on-absence), the P5 routing, the P6
+  transition matrix, the P8 Home claim parity (discovered sessions claim
+  the resolved registry name through the same pure step), P7's NeedsInput
+  verdict (no waiting claim exists), the rejected completion/success
+  tiers, versionCode 47 / versionName 0.11.2-m7.1.1, the 6-permission
+  set, the certificate.
+- **TESTS:** +52/variant (AgentLaunchRecordsTest 12 — parser strictness,
+  chain composition, real /bin/sh execution fixtures proving the anchor
+  records the exec'd agent's live pid/starttime and the real exit status,
+  and that stdin/stdout pass through untouched; AgentRuntimeDiscoveryTest
+  19 — the discovery matrix, anchor anti-reuse/anti-spoof, birth silence,
+  multi-session independence, purity; AgentDiscoveryEventTest 10 — lazy
+  tracking, identity switches, staleness, discovered-session endings;
+  AgentDiscoveryHomeClaimTest 7 — shade/Home parity for discovered
+  claims; AgentObservationTopologyTest 4 — the Part-B reproduction pinned
+  against REAL processes and REAL /proc). Two disclosed test-file
+  re-scopes (the P3b-era eligibility boundary pin and the
+  AgentMatchedBy enum pin now pin the P9 contract). Full JVM forced
+  rerun 2178/2178 (app 944×2, terminal-emulator 145×2), 0 failures /
+  0 errors / 0 skipped.
+
 ## [0.11.2-m7.1.1-m72p8] — 2026-09-09 — M7.2 P8 home sessions integration & unified agent activity (consumer/UI phase)
 
 The tenth M7.2 phase makes the EXISTING Home → Sessions section state the

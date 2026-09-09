@@ -135,13 +135,17 @@ object AgentActivityRepository {
      * lifecycle authority.
      *
      * Mapping (each arm pinned structurally):
-     *   - plain shells (identity `null`) are absent, exactly as in
-     *     [classifiedLaunches] — no launcher named a command, no claim;
+     *   - a session with NO launch identity and NO resolved observation is
+     *     absent: nothing is known, nothing is claimed (M7.2 P9: a plain
+     *     session whose runtime evidence RESOLVED an agent appears with
+     *     that agent — the discovery class, the Part-B root-cause fix);
      *   - [LaunchIdentity.KnownAgent] -> the detector's current observation,
      *     or UNKNOWN before the first scan (never invented running);
      *   - [LaunchIdentity.KnownNonAgentTool] and
-     *     [LaunchIdentity.CustomOrUnknown] -> NOT_APPLICABLE: the scanner
-     *     does not run for them, and this state says so explicitly;
+     *     [LaunchIdentity.CustomOrUnknown] -> NOT_APPLICABLE — exactly
+     *     while the scanner's discovery has not RESOLVED an agent in the
+     *     session's tree (P9: the process evidence upgrades the story; a
+     *     nano session whose user typed `kilo` afterwards states kilo);
      *   - a FINISHED session is absent: its process tree is gone and the
      *     session layer's own waitpid-proven lifecycle (FINISHED +
      *     [ExitStatus]) is the truth that story — the runtime projection
@@ -166,19 +170,46 @@ object AgentActivityRepository {
             list.mapNotNull { entry ->
                 if (entry.isFinished) return@mapNotNull null
                 val identity = LaunchIdentity.of(entry.origin, entry.agent)
-                    ?: return@mapNotNull null // plain shell: no claim, absent
-                val state = when (identity) {
-                    is LaunchIdentity.KnownAgent ->
-                        observations[entry.id]?.state ?: AgentRuntimeState.UNKNOWN
-                    is LaunchIdentity.KnownNonAgentTool -> AgentRuntimeState.NOT_APPLICABLE
-                    is LaunchIdentity.CustomOrUnknown -> AgentRuntimeState.NOT_APPLICABLE
+                val observation = observations[entry.id]
+                when {
+                    identity is LaunchIdentity.KnownAgent ->
+                        AgentRuntimeActivity(
+                            sessionId = entry.id,
+                            label = entry.displayLabel,
+                            identity = identity,
+                            state = observation?.state ?: AgentRuntimeState.UNKNOWN,
+                        )
+                    identity != null ->
+                        // Known non-agent tool / custom launcher: claimed
+                        // NOT_APPLICABLE exactly while discovery has not
+                        // resolved an agent in the session's tree.
+                        if (observation?.agent != null) {
+                            AgentRuntimeActivity(
+                                sessionId = entry.id,
+                                label = entry.displayLabel,
+                                identity = observation.agent!!, // resolved by process evidence
+                                state = observation.state,
+                            )
+                        } else {
+                            AgentRuntimeActivity(
+                                sessionId = entry.id,
+                                label = entry.displayLabel,
+                                identity = identity,
+                                state = AgentRuntimeState.NOT_APPLICABLE,
+                            )
+                        }
+                    observation?.agent != null ->
+                        // Plain guest session, discovery resolved an agent:
+                        // the claim names the registry entry the EVIDENCE
+                        // found, never the session's label or title.
+                        AgentRuntimeActivity(
+                            sessionId = entry.id,
+                            label = entry.displayLabel,
+                            identity = observation.agent!!, // resolved by process evidence
+                            state = observation.state,
+                        )
+                    else -> null // plain session, nothing discovered: absent, no claim
                 }
-                AgentRuntimeActivity(
-                    sessionId = entry.id,
-                    label = entry.displayLabel,
-                    identity = identity,
-                    state = state,
-                )
             }
         }
         .distinctUntilChanged()

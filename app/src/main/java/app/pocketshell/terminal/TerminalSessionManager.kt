@@ -80,6 +80,15 @@ object TerminalSessionManager {
          * manager ever reads TerminalSession.getPid() for lifecycle purposes.
          */
         val shellPid: Int = 0,
+        /**
+         * M7.2 P9 — the session's launch-record channel (AgentLaunchRecords):
+         * the HOST path of the per-launch JSONL file the guest chain appends
+         * to (the anchor + exit fact), when the launch composed one. Null
+         * for launches without records (plain shells, custom tools). The
+         * detector reads it as additional evidence; the manager deletes the
+         * file when the session closes (the channel dies with its session).
+         */
+        val launchRecordPath: String? = null,
     ) {
         val displayLabel: String get() = title ?: label
 
@@ -223,6 +232,7 @@ object TerminalSessionManager {
         sysDataBinds: List<String>,
         origin: SpawnOrigin,
         agent: AgentHint? = null,
+        launchRecordPath: String? = null,
     ): SessionEntry {
         val appContext = context.applicationContext
         val state = RuntimeManager.state.value
@@ -250,10 +260,17 @@ object TerminalSessionManager {
             env = spec.environment.toTypedArray(),
             origin = origin,
             agent = agent,
+            launchRecordPath = launchRecordPath,
         )
     }
 
-    /** Single real-session factory: real PTY, real process, real environment. */
+    /**
+     * Single real-session factory: real PTY, real process, real environment.
+     *
+     * @param launchRecordPath optional host path of the session's launch-record
+     *   channel (M7.2 P9); carried on the entry for the detector and deleted
+     *   with the session.
+     */
     private fun spawn(
         context: Context,
         label: String?,
@@ -263,6 +280,7 @@ object TerminalSessionManager {
         env: Array<String>,
         origin: SpawnOrigin,
         agent: AgentHint?,
+        launchRecordPath: String? = null,
     ): SessionEntry {
         _creating.value = true
         try {
@@ -300,6 +318,7 @@ object TerminalSessionManager {
                 lifecycleState = SessionLifecycleState.STARTING,
                 origin = origin,
                 agent = agent,
+                launchRecordPath = launchRecordPath,
             )
             _sessions.update { it + entry }
             // M7.2 P3b: wake the runtime evidence provider. The detector is an
@@ -344,6 +363,17 @@ object TerminalSessionManager {
             // (STARTING) or already-finished (pid == -1) session is just removed.
             if (removed.session.getPid() > 0) {
                 removed.session.finishIfRunning()
+            }
+            // M7.2 P9: the launch-record channel dies with its session (the
+            // per-launch file IS the runtime generation — no stale anchor
+            // may outlive the session it belongs to). Best-effort: an
+            // undeletable file is logged, never fatal.
+            removed.launchRecordPath?.let { path ->
+                try {
+                    File(path).delete()
+                } catch (e: Exception) {
+                    Log.w(LOG_TAG, "closeSession($id): launch record cleanup failed: ${e.message}")
+                }
             }
             _sessions.update { list -> list.filterNot { it.id == id } }
             _lastContext?.let { syncService(it) }

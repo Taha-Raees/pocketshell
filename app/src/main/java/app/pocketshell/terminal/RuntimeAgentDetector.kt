@@ -136,16 +136,28 @@ object RuntimeAgentDetector {
         }
     }
 
-    /** One scan: read /proc once, fold through the pure step, publish. */
+    /** One scan: read /proc once, read the launch channels, fold through the pure step, publish. */
     internal suspend fun scanOnce(eligible: List<AgentRuntimeDetection.EligibleAgentSession>) {
         if (eligible.isEmpty()) return
-        // File I/O stays off the caller; the pure step is synchronous.
-        val snapshot = runInterruptible(Dispatchers.IO) { procfsReader.snapshot() }
+        // File I/O stays off the caller; the pure step is synchronous. The
+        // P9 launch-record reads ride the SAME single IO hop as the /proc
+        // snapshot — one small app-private file per eligible session that
+        // carries a channel (a few hundred bytes at most), still
+        // microseconds of work per tick.
+        val (snapshot, records) = runInterruptible(Dispatchers.IO) {
+            val snap = procfsReader.snapshot()
+            val recs = eligible.associate { session ->
+                session.sessionId to (session.recordPath?.let(AgentLaunchRecords::readFile)
+                    ?: AgentLaunchRecords.EMPTY)
+            }
+            snap to recs
+        }
         val next = AgentRuntimeDetection.compute(
             eligible = eligible,
             previous = _observations.value,
             snapshot = snapshot,
             nowMs = System.currentTimeMillis(),
+            records = records,
         )
         publishChanged(next)
     }
@@ -168,23 +180,41 @@ object RuntimeAgentDetector {
     }
 
     /**
-     * Eligibility extraction from the manager's authoritative entries: a
-     * LIVE (not FINISHED) session classified exactly [LaunchIdentity.KnownAgent]
-     * by the P3a resolver. Everything else — plain shells, known non-agent
-     * tools, custom/unknown launchers, finished sessions — never activates
-     * the scanner (PART K/L; pinned structurally).
+     * Eligibility extraction from the manager's authoritative entries.
+     *
+     * M7.2 P9 — TWO classes (the Part-B root-cause fix), both LIVE
+     * (not FINISHED) sessions:
+     *
+     *   - PREDICTED: the launch identity resolves exactly
+     *     [LaunchIdentity.KnownAgent] — the registry-launcher sessions,
+     *     scanned for their OWN token (spawn truth), plus their launch
+     *     record channel when the launch produced one.
+     *   - DISCOVERED: every other LIVE GUEST session (plain Linux shells,
+     *     Files' Open-Terminal-Here, catalog tools, custom tools) — the
+     *     tree is scanned against the whole registry token set. This is
+     *     the line the old gate got wrong: a plain Terminal session typing
+     *     `kilo` is a REAL agent run and now states exactly that.
+     *
+     * Excluded, structurally: FINISHED sessions (their process tree is
+     * gone) and host-side plain shells ([SpawnOrigin.Shell] — no guest
+     * tree, no agent binaries live there). The scanner still never
+     * claims anything for a process outside the session's own
+     * correlation domain.
      */
     internal fun eligibleSessions(
         entries: List<TerminalSessionManager.SessionEntry>,
     ): List<AgentRuntimeDetection.EligibleAgentSession> =
         entries.mapNotNull { entry ->
             if (entry.isFinished) return@mapNotNull null
-            val identity = LaunchIdentity.of(entry.origin, entry.agent)
-            if (identity !is LaunchIdentity.KnownAgent) return@mapNotNull null
+            if (entry.origin == SpawnOrigin.Shell) return@mapNotNull null
+            val identity = LaunchIdentity.of(entry.origin, entry.agent) as? LaunchIdentity.KnownAgent
             AgentRuntimeDetection.EligibleAgentSession(
                 sessionId = entry.id,
                 rootPid = entry.shellPid,
-                token = AgentProcessMatcher.commandToken(identity.command),
+                token = identity?.command?.let { AgentProcessMatcher.commandToken(it) } ?: "",
+                predetermined = identity,
+                discovery = identity == null,
+                recordPath = entry.launchRecordPath,
             )
         }
 }
@@ -230,16 +260,18 @@ class HostProcfsReader(private val procRoot: String = "/proc") : ProcfsReader {
             state = stat.first,
             argv = argv,
             exe = exe,
+            startTime = stat.fourth,
         )
     }
 
     /**
-     * /proc/<pid>/stat -> (state, ppid, pgrp), comm-aware: everything
-     * before the LAST ')' is "pid (comm"; the remaining fields are
-     * state(1) ppid(2) pgrp(3) per procfs(5) — immune to comm strings
-     * containing spaces or parentheses.
+     * /proc/<pid>/stat -> (state, ppid, pgrp, starttime), comm-aware:
+     * everything before the LAST ')' is "pid (comm"; the remaining fields
+     * are state(1) ppid(2) pgrp(3) … starttime(20) per procfs(5) — immune
+     * to comm strings containing spaces or parentheses. (M7.2 P9 added the
+     * starttime: the launch-record anchor's pid-reuse guard.)
      */
-    private fun readStat(pid: Int): Triple<Char, Int, Int>? {
+    private fun readStat(pid: Int): Quadruple<Char, Int, Int, Long>? {
         val text = try {
             File("$procRoot/$pid/stat").readText()
         } catch (_: Exception) {
@@ -248,12 +280,21 @@ class HostProcfsReader(private val procRoot: String = "/proc") : ProcfsReader {
         val close = text.lastIndexOf(')')
         if (close < 0 || close == text.length) return null
         val tail = text.substring(close + 1).trim().split(Regex("\\s+"))
-        if (tail.size < 3) return null
+        if (tail.size < 20) return null
         val state = tail[0].firstOrNull() ?: return null
         val ppid = tail[1].toIntOrNull() ?: return null
         val pgrp = tail[2].toIntOrNull() ?: return null
-        return Triple(state, ppid, pgrp)
+        val start = tail[19].toLongOrNull() ?: return null
+        return Quadruple(state, ppid, pgrp, start)
     }
+
+    /** Minimal 4-component value carrier (the stdlib has Triple but no Quadruple). */
+    private data class Quadruple<A, B, C, D>(
+        val first: A,
+        val second: B,
+        val third: C,
+        val fourth: D,
+    )
 
     /** /proc/<pid>/cmdline as argv; empty list for zombies / pre-exec pids; null when unreadable. */
     private fun readArgv(pid: Int): List<String>? {

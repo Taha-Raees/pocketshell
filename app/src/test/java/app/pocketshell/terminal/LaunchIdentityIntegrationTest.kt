@@ -288,18 +288,20 @@ class LaunchIdentityIntegrationTest {
             assertTrue("SpawnOrigin must keep the $kind kind", code.contains(kind))
         }
         // AgentMatchedBy: P3a shipped exactly LAUNCH_METADATA; the ROADMAP
-        // named P3b's two procfs grades as the compile-time-forced extension.
-        // The enum now declares EXACTLY those three values — no others.
+        // named P3b's two procfs grades as the compile-time-forced extension,
+        // and M7.2 P9 added the launch-record anchor grade (the session's
+        // own launch channel naming the exact exec'd pid). The enum now
+        // declares EXACTLY those four values — no others.
         val enumStart = rawLifecycle.indexOf("enum class AgentMatchedBy")
         val enumEnd = rawLifecycle.indexOf("}", enumStart)
         val enumBody = stripCommentsAndStrings(rawLifecycle.substring(enumStart, enumEnd))
-        for (grade in listOf("LAUNCH_METADATA", "PROCFS_EXE", "PROCFS_CMDLINE")) {
+        for (grade in listOf("LAUNCH_METADATA", "PROCFS_EXE", "PROCFS_CMDLINE", "LAUNCH_ANCHOR")) {
             assertTrue("AgentMatchedBy must declare $grade", enumBody.contains(grade))
         }
         val declaredValues = Regex("[A-Z_]+,").findAll(enumBody).map { it.value.dropLast(1) }.toSet()
         assertEquals(
-            "AgentMatchedBy must declare exactly the three graded evidence sources",
-            setOf("LAUNCH_METADATA", "PROCFS_EXE", "PROCFS_CMDLINE"),
+            "AgentMatchedBy must declare exactly the four graded evidence sources (P9 added the anchor)",
+            setOf("LAUNCH_METADATA", "PROCFS_EXE", "PROCFS_CMDLINE", "LAUNCH_ANCHOR"),
             declaredValues,
         )
     }

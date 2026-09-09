@@ -124,6 +124,15 @@ object AgentRuntimeEventEngine {
                     input = AgentEventInput.SessionsChanged(
                         live = liveAgentLaunches(entries),
                         finished = finishedAgentLaunches(entries),
+                        // M7.2 P9: every finished session's real waitpid
+                        // status, so a DISCOVERED session tracked by the
+                        // observations arm ends with its honest cause.
+                        finishedStatuses = entries
+                            .filter { it.isFinished }
+                            .mapNotNull { entry ->
+                                entry.exitStatus?.let { entry.id to it }
+                            }
+                            .toMap(),
                     ),
                     nowMs = nowMs,
                 )
@@ -139,9 +148,13 @@ object AgentRuntimeEventEngine {
 
     /**
      * The LIVE sessions classified exactly [LaunchIdentity.KnownAgent] —
-     * the same eligibility line as the P3b scanner, extracted through the
-     * same P3a resolver. Plain shells (identity null), known non-agent
-     * tools and custom/unknown launchers never reach the event layer.
+     * the PREDICTED eligibility line (M7.2 P9 keeps the Launched event
+     * spawn-truth-only: a launch event exists exactly when a launcher
+     * named the command at spawn). DISCOVERED sessions (plain guest
+     * shells and the rest — the P3b scanner's second eligibility class)
+     * enter this layer lazily through the observations arm instead: the
+     * process evidence resolves them, and their story starts at its own
+     * first real fact (ConfirmedRunning), never at an invented launch.
      */
     private fun liveAgentLaunches(
         entries: List<TerminalSessionManager.SessionEntry>,

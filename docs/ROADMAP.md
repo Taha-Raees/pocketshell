@@ -1196,10 +1196,43 @@ navigation, no version bump (vc47 / 0.11.2-m7.1.1). Full contract:
 Full JVM forced rerun 2074/2074 (app 892×2 = 863+29 new,
 terminal-emulator 145×2), 0 skipped.
 
-**Next milestone (NOT started, not yet mandated): M7.2 P9** — unassigned
+**M7.2 P9 — COMPLETE (2026-09-09): universal agent activity detection &
+the Linux ↔ Android signal bridge.** The Part-B audit proved the
+real-device "Kilo works at root but not in a subdirectory" discrepancy was
+never directory-dependent: the old eligibility gate scanned ONLY
+registry-launcher sessions, leaving every agent a user typed into a plain
+Terminal session structurally invisible (the "root" that worked was the
+launcher session's own post-agent prompt, whose spawn identity persists).
+The fix is generic, not Kilo-specific: (1) DISCOVERY — every LIVE guest
+session (plain shells, Open-Terminal-Here, catalog tools, custom tools) is
+now scanned against the whole registry token set; a match RESOLVES the
+agent to the registry entry the process evidence found (spawn truth keeps
+precedence; exact-token rules, correlation domain and the four-state
+honesty contract unchanged; host shells stay excluded); the engine lazily
+tracks discovered sessions at their first real evidence (ConfirmedRunning
+from birth; identity switches withdraw the old claim first); (2) the
+LAUNCH-RECORD CHANNEL — the registry launch chain records the agent's
+exec-anchored pid/pgrp/starttime (exec preserves all three: prototype
+E1/E3) and the agent's REAL exit status (P2's truth-loss point 3 restored
+as a FACT, never an interpretation) into a per-launch JSONL file inside
+the app-owned rootfs (`var/lib/pocketshell-agent/<token>.jsonl`); the
+detector validates the anchor (pid + starttime, INSIDE the correlation
+domain — anti-reuse and anti-spoof) as the `LAUNCH_ANCHOR` grade. No
+daemon, no polling beyond the existing gated 2s tick, no PTY changes, no
+new notification vocabulary, no dashboard; P7's NeedsInput verdict and
+the rejected completion/success tiers stand untouched. New tests
+52/variant (AgentLaunchRecordsTest 12 incl. real-chain execution fixtures,
+AgentRuntimeDiscoveryTest 19, AgentDiscoveryEventTest 10,
+AgentDiscoveryHomeClaimTest 7, AgentObservationTopologyTest 4 — real
+processes, real /proc); +52/variant → 2178/2178 forced JVM, 0/0/0.
+`docs/M7.2-P9-AGENT-OBSERVATION-ARCHITECTURE.md`; device gate: TESTING
+§58 (step B = the mandatory subdirectory regression target).
+
+**Next milestone (NOT started, not yet mandated): M7.2 P10** — unassigned
 by design; the completion-detection / waiting-for-input tiers remain
 REJECTED until a phase arrives with real, authoritative evidence that
 passes the P7 evidence standard (the P0 audit's line stands, re-verified
-at the P7 baseline and inherited untouched by P8). Any future consumer
-(per-agent channels, rich content, re-surfacing policy, trusted attention
-evidence) extends the P4/P5/P8 truth contract — never around it.
+at the P7 baseline and inherited untouched by P8/P9 — the P9 record
+channel is the transport a future agent-adapter phase would use, not a
+semantic change). Any future consumer extends the P4/P5/P8/P9 truth
+contract — never around it.
