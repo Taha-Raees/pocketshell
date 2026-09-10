@@ -6,7 +6,13 @@
 #   Build tools come from ANDROID_HOME (or ANDROID_SDK_ROOT), build-tools 36.0.0.
 #   Works on the historical Z.ai sandbox (env vars set) and on GitHub Actions
 #   runners (ANDROID_HOME preinstalled by the workflow setup step).
-set -euo pipefail
+#
+# NO `pipefail`: every check below ends in a grep/head whose exit code IS the
+# check's result — pipefail would let the producer's SIGPIPE (grep -q and
+# head close the pipe early; dexdump dies with 141 MID-MATCH) flip PRESENT
+# symbols to MISSING (the exact false failure CI run #1 hit, 2026-09-10).
+# `set -e` stays: unexpected command failures still abort.
+set -eu
 
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 APK="${1:-$REPO/app/build/outputs/apk/debug/app-debug.apk}"
@@ -60,5 +66,11 @@ done
 
 echo "=== Embedded glibc asset pin ==="
 unzip -l "$APK" | grep -i "glibc" || { echo "ASSET MISSING"; MISSING=1; }
+
+if [ "$MISSING" -eq 0 ]; then
+  echo "AUDIT PASS"
+else
+  echo "AUDIT FAIL (missing pins above)"
+fi
 
 exit "$MISSING"
