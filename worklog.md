@@ -2413,3 +2413,64 @@ Work Log:
 Stage Summary:
 - P9 closed as P9A+B: universal session-bound discovery (the cwd-discrepancy fix) + the production Linux↔Android launch-record bridge; the user-visible delta is detection parity for typed agents in ANY session/directory; the notification/Home vocabulary is unchanged.
 - 2178/2178 forced JVM 0/0/0; APK audited; version untouched; P10 NOT started (HARD STOP).
+
+## Task 50 — P9 delivery recovery + CI build infrastructure (M7.2 P9→P10 bridge)
+
+Environment handoff (Z.ai → Kilo Code, 2026-09-10): the P9 phase closed at the
+worklog record f83a23f ("delivery follows") but the reset hit BEFORE the
+delivery — verified: NO P9 APK staged anywhere, NO delivery-record commit,
+download/README.md still pinned P8, no page re-pin. The only survivor was the
+insurance bundle upload/pocketshell-m7.2-p9.gitbundle. The owner's real-device
+verdict stands: P9 "does not work as it should" — exact on-device symptom not
+yet re-captured (the discriminator is the existing TESTING §58 gate with
+logcat, on a CI-built P9 APK).
+
+- RECOVERY: git bundle verify on the survivor — "complete history", tip
+  f83a23f == HEAD; clone drill GREEN (clone HEAD == f83a23f == the cut, clean
+  tree); bundle sha256 e7af4bab…257e (38,087,920 B) pinned in the ledger.
+- AUDIT (handoff report): P9 code audited end-to-end (chain composition,
+  anchor stat-field math, quoting through both shells, discovery eligibility,
+  engine arms, repository/claims fallbacks) — structurally sound; the honest
+  gap analysis found (1) the delivery gap above, (2) P9's tiny user-visible
+  delta (no waiting/finished surface; the recovered exit FACT is consumed by
+  no UI/notification — verified by reference), (3) per-agent /proc shapes
+  device-unverified beyond Kilo stand-ins, (4) record channel covers registry
+  taps only. Full report: .kilo/plans/1789074940198-p9-audit-p10-ci-plan.md
+  (untracked agent workspace record).
+- CI (the build/test surface moves to GitHub Actions — this environment has
+  JDK 21 but no Android SDK/NDK and Gradle is unavailable to the agent;
+  owner-approved): new .github/workflows/android-ci.yml — every push/PR to
+  main runs the FULL JVM suite (:app test debug+release, :terminal-emulator
+  test debug+release), counts it with scripts/count_tests.py (fails the job
+  on any failure/error), then :app:assembleDebug + scripts/p9_apk_audit.sh +
+  APK artifact with SHA256SUMS. New .github/workflows/delivery-build.yml
+  (manual) — the delivery cut: suite gate → assembleDebug → audit → APK +
+  SHA256SUMS + BUILD.txt (commit tip). Toolchain pins mirror
+  scripts/install_toolchain.sh (Temurin 21, platform-36, build-tools 36.0.0,
+  NDK 28.2.13676358, wrapper 8.14.5); the committed debug keystore keeps CI
+  builds in-place-update compatible.
+- SCRIPTS: count_tests.py now takes the repo root as argv[1] (default cwd) —
+  the hardcoded /home/z/my-project/ sandbox path is gone, CI passes
+  $GITHUB_WORKSPACE, the historical layout keeps working by passing the path.
+  p9_apk_audit.sh parameterized (APK path arg; build-tools from ANDROID_HOME
+  — no more hardcoded /home/z paths or JAVA_HOME export) and its dex-symbol
+  pin list extended with the P8/P9 phase symbols (AgentHomeSessionClaims,
+  homeSessionClaims, "Runtime unknown", AgentLaunchRecords, LAUNCH_ANCHOR,
+  var/lib/pocketshell-agent); missing symbols now FAIL the audit (exit 1).
+- LEDGER: download/README.md gains the P9 delivery record (honest recovery
+  disclosure: bundle pin + clone drill + the CI-artifact delivery policy; the
+  phase APK sha256 is pinned from the first CI run — this environment cannot
+  produce the bytes; until then the P8 APK remains the installed artifact).
+- ZERO production-source delta: no app/terminal-emulator/terminal-view source
+  touched; versionCode 47 / versionName 0.11.2-m7.1.1 untouched; P10 remains
+  unassigned-by-design pending (a) the first green CI run (true re-measure of
+  the 2178/2178 claim) and (b) the §58 device pass on the CI-built P9 APK.
+
+Stage Summary:
+- The P9 delivery gap is closed structurally: recoverable git state verified
+  end-to-end, the ledger records the truth, and every future build/test is
+  reproducible on CI with published artifacts.
+- Track 1 (P10 agent-signal adapters over the P9 record channel: Claude Code
+  hooks / Codex notify / OpenCode plugins + surfacing the exit fact) stays
+  gated on the CI green run + the §58 device evidence pass, per the handoff
+  plan.

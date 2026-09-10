@@ -1,6 +1,60 @@
 # download/ — delivery masters
 
-Current: **v0.11.2-m7.1.1-m72p8** (M7.2 P8 — home sessions integration &
+Current: **v0.11.2-m7.1.1-m72p9** (M7.2 P9 — universal agent activity
+detection & the Linux ↔ Android signal bridge. Every LIVE guest session's
+agent activity is stated from real process evidence — launcher taps
+(PREDICTED, own token) AND agents typed into plain terminals / Open-
+Terminal-Here / catalog / custom sessions (DISCOVERED against the whole
+registry token set, exact-token rules, spawn truth precedence, the
+four-state honesty contract unchanged, host shells excluded) — plus the
+SESSION-BOUND LAUNCH-RECORD CHANNEL: the registry launch chain anchors
+the agent at exec (nested sh records pid/pgrp//proc-starttime then
+execs; exec preserves all three — prototype 21/21, scripts/
+p9_proc_prototype.sh) and records the agent's REAL exit status as a
+FACT into a per-launch JSONL file in the app-owned rootfs
+(var/lib/pocketshell-agent/<token>.jsonl; fresh file per tap = the
+runtime generation; deleted at closeSession; 24h orphans swept at
+spawn); the detector validates the anchor (pid + starttime INSIDE the
+correlation domain — anti-reuse, anti-spoof) as the LAUNCH_ANCHOR grade
+and reads the exit fact in the same single IO hop as the /proc
+snapshot. NO PTY/JNI change, NO polling beyond the existing gated 2s
+tick, NO new notification vocabulary, NO dashboard, NO second
+authority; P7's NeedsInput verdict untouched. Full contract:
+docs/M7.2-P9-AGENT-OBSERVATION-ARCHITECTURE.md; device gate: TESTING
+§58 (step B = the mandatory typed-agent-subdirectory regression
+target). Full JVM forced rerun in the phase environment: 2178/2178
+(app 944×2 + terminal-emulator 145×2), 0 failures / 0 errors / 0
+skipped (logs scripts/test-m72p9-*.log); phase on the inherited
+versionCode 47 / versionName 0.11.2-m7.1.1 stamp).
+
+P9 DELIVERY RECORD (written by the recovery environment 2026-09-10,
+after the phase environment reset BEFORE its delivery could complete —
+the original phase closed at the worklog record f83a23f saying
+"delivery follows", and no P9 APK or delivery record ever landed):
+
+- pocketshell-m7.2-p9.gitbundle — 38,087,920 B, sha256
+  e7af4bab236a8fd3a8b3762cd5aee603693bbcf58ca648e5d4440ddeac43257e,
+  complete history, cut at the P9 record tip f83a23f. `git bundle
+  verify`: "The bundle records a complete history." Clone drill GREEN
+  (2026-09-10): clone HEAD == f83a23f == the cut, clean tree, the P9
+  sources + contract doc + TESTING §58 + the counts + the stamps
+  present. Insurance copy IS this file (upload/, gitignored by design).
+- PocketShell debug APK — delivered AS A CI ARTIFACT from now on:
+  .github/workflows/android-ci.yml builds + audits + publishes the
+  debug APK (badging vc47 / 0.11.2-m7.1.1, the committed debug
+  keystore, the 6-permission set, the P8/P9 dex-symbol audit) on every
+  push to main, and .github/workflows/delivery-build.yml (manual) cuts
+  an audited delivery artifact (APK + SHA256SUMS + build tip). The
+  apk sha256 PIN for this phase is taken from the first CI run's
+  artifact (this recovery environment cannot run Gradle; scripts/
+  p9_apk_audit.sh is the same audit the phase environment used). Until
+  that run exists, the last APK with the P8 content remains the
+  installed artifact — P9 code reaches devices ONLY through a CI-built
+  APK.
+
+--- the P8 phase record (superseded by the P9 record above) ---
+
+Previous phase: **v0.11.2-m7.1.1-m72p8** (M7.2 P8 — home sessions integration &
 unified agent activity; the CONSUMER/UI PHASE and a USER-VISIBLE one: the
 EXISTING Home → Sessions rows now state the SAME authoritative agent
 activity the notification shade states — ONE pure decision step

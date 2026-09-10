@@ -1,0 +1,91 @@
+name: android-ci
+
+# PocketShell CI — the JVM test suite + the debug APK, on every push/PR.
+# Toolchain pins mirror scripts/install_toolchain.sh (JDK 21, platform 36,
+# build-tools 36.0.0, NDK 28.2.13676358, Gradle wrapper 8.14.5). The debug
+# keystore is committed by design (app/build.gradle.kts), so CI builds sign
+# identically to every shipped build and stay in-place updates.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # Pinned toolchain versions (scripts/install_toolchain.sh).
+      ANDROID_PKGS: "platform-tools platforms;android-36 build-tools;36.0.0 ndk;28.2.13676358"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK (sdkmanager on PATH)
+        uses: android-actions/setup-android@v3
+
+      - name: Install pinned SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install $ANDROID_PKGS
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: JVM test suite (app debug+release, terminal-emulator debug+release)
+        run: >
+          ./gradlew --no-daemon
+          :app:testDebugUnitTest
+          :app:testReleaseUnitTest
+          :terminal-emulator:testDebugUnitTest
+          :terminal-emulator:testReleaseUnitTest
+
+      - name: Count tests (fails the job on any failure/error)
+        run: python3 scripts/count_tests.py "$GITHUB_WORKSPACE"
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+            terminal-emulator/build/reports/tests/
+            terminal-emulator/build/test-results/
+          retention-days: 14
+
+      - name: Assemble debug APK
+        run: ./gradlew --no-daemon :app:assembleDebug
+
+      - name: APK audit (badging, permissions, dex symbols, asset pin)
+        run: bash scripts/p9_apk_audit.sh
+
+      - name: Stage APK + sha256
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/
+          sha256sum app/build/outputs/apk/debug/app-debug.apk | tee dist/SHA256SUMS
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocketshell-debug-apk
+          path: dist/
+          retention-days: 30

@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
-"""Count tests/failures/errors across Gradle test-result XML dirs."""
+"""Count tests/failures/errors across Gradle test-result XML dirs.
+
+Usage: count_tests.py [repo-root]
+The repo root defaults to the current directory (CI passes it explicitly;
+the historical Z.ai sandbox layout /home/z/my-project keeps working by
+passing that path).
+"""
 import glob
+import os
 import re
 import sys
+
+base = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
+if not base.endswith("/"):
+    base += "/"
 
 DIRS = [
     "app/build/test-results/testDebugUnitTest",
@@ -10,7 +21,6 @@ DIRS = [
     "terminal-emulator/build/test-results/testDebugUnitTest",
     "terminal-emulator/build/test-results/testReleaseUnitTest",
 ]
-base = "/home/z/my-project/"
 grand = {"tests": 0, "failures": 0, "errors": 0}
 for d in DIRS:
     t = f = e = 0

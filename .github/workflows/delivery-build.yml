@@ -1,0 +1,75 @@
+name: delivery-build
+
+# Manual delivery build: one clean assembleDebug + the full APK audit, with
+# the APK + SHA256SUMS published as downloadable artifacts. Run this when a
+# phase closes and the delivery set needs a fresh, audited APK artifact.
+on:
+  workflow_dispatch:
+
+jobs:
+  build-delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ANDROID_PKGS: "platform-tools platforms;android-36 build-tools;36.0.0 ndk;28.2.13676358"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK (sdkmanager on PATH)
+        uses: android-actions/setup-android@v3
+
+      - name: Install pinned SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install $ANDROID_PKGS
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: JVM test suite (delivery gate — must pass before the APK ships)
+        run: >
+          ./gradlew --no-daemon
+          :app:testDebugUnitTest
+          :app:testReleaseUnitTest
+          :terminal-emulator:testDebugUnitTest
+          :terminal-emulator:testReleaseUnitTest
+
+      - name: Count tests (fails the job on any failure/error)
+        run: python3 scripts/count_tests.py "$GITHUB_WORKSPACE"
+
+      - name: Assemble debug APK
+        run: ./gradlew --no-daemon :app:assembleDebug
+
+      - name: APK audit (badging, permissions, dex symbols, asset pin)
+        run: bash scripts/p9_apk_audit.sh
+
+      - name: Stage delivery set (APK + sha256 + git tip record)
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/
+          {
+            sha256sum app/build/outputs/apk/debug/app-debug.apk
+          } | tee dist/SHA256SUMS
+          {
+            echo "commit=$(git rev-parse HEAD)"
+            echo "branch=$(git rev-parse --abbrev-ref HEAD || echo detached)"
+          } > dist/BUILD.txt
+          cat dist/BUILD.txt
+
+      - name: Upload delivery artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocketshell-delivery-${{ github.sha }}
+          path: dist/
+          retention-days: 90
