@@ -8,10 +8,9 @@
 #   runners (ANDROID_HOME preinstalled by the workflow setup step).
 #
 # NO `pipefail`: every check below ends in a grep/head whose exit code IS the
-# check's result — pipefail would let the producer's SIGPIPE (grep -q and
-# head close the pipe early; dexdump dies with 141 MID-MATCH) flip PRESENT
-# symbols to MISSING (the exact false failure CI run #1 hit, 2026-09-10).
-# `set -e` stays: unexpected command failures still abort.
+# check's result — pipefail would let a producer's SIGPIPE (grep -q and head
+# close the pipe early) flip a matched check into failure (the false failure
+# CI run #1 hit, 2026-09-10). `set -e` stays: unexpected failures still abort.
 set -eu
 
 REPO=$(cd "$(dirname "$0")/.." && pwd)
@@ -35,10 +34,21 @@ echo "=== Permissions (uses-permission) ==="
 "$BT/aapt2" dump badging "$APK" 2>/dev/null | grep "uses-permission" | sed 's/uses-permission: name=//;s/ .*//' | sort
 
 echo "=== Feature symbols (dex) ==="
-DEXDUMP=$(ls "$BT"/dexdump 2>/dev/null || echo "")
-echo "dexdump tool: ${DEXDUMP:-<absent — raw strings fallback>}"
+# ONE deterministic dex-text dump: the raw dex string pool via unzip|strings,
+# captured to a file and grepped from there. No native dexdump: it is absent
+# from newer build-tools and unstable on large APKs (the flake that turned
+# CI runs #1/#2 red while run #4 — same pins, same source — went green).
+# The control pin separates "pin genuinely absent" from "dump unreadable".
+DUMP="$APK.dexstrings.txt"
+unzip -p "$APK" "classes*.dex" 2>/dev/null | strings > "$DUMP" || true
+if [ ! -s "$DUMP" ]; then
+  echo "DUMP EMPTY — the dex content is unreadable (tooling failure, not missing pins)"
+  rm -f "$DUMP"
+  exit 1
+fi
+echo "dex dump: $(wc -l < "$DUMP") lines (unzip|strings, single pass)"
 SYMS=(
-  "app.pocketshell"                                   # CONTROL — must always hit; a miss here means the dump pipeline itself is broken
+  "app.pocketshell"                                   # CONTROL — must always hit
   "Lapp/pocketshell/ui/files/FilesScreenKt;"          # M7 files screen (scroll+longpress+single close)
   "Lapp/pocketshell/files/FileSearch;"                # M7 search core
   "Lapp/pocketshell/files/MultiSelectOps;"            # M7 multi-select
@@ -57,27 +67,10 @@ SYMS=(
   "var/lib/pocketshell-agent"                         # M7.2 P9 channel path
 )
 MISSING=0
-CONTROL_OK=0
 for s in "${SYMS[@]}"; do
-  if [ -n "$DEXDUMP" ]; then
-    if "$DEXDUMP" "$APK" 2>/dev/null | grep -q "$s"; then echo "PRESENT  $s"; else echo "MISSING  $s"; MISSING=1; fi
-  else
-    # fallback: raw dex strings scan
-    if unzip -p "$APK" classes*.dex 2>/dev/null | strings | grep -q "$s"; then echo "PRESENT  $s (strings)"; else echo "MISSING  $s (strings)"; MISSING=1; fi
-  fi
+  if grep -q "$s" "$DUMP"; then echo "PRESENT  $s"; else echo "MISSING  $s"; MISSING=1; fi
 done
-# The control separates "the pins are genuinely absent" from "the dump
-# pipeline produced nothing readable" — only the former is a real audit FAIL.
-if [ "$MISSING" -eq 1 ]; then
-  if [ -n "$DEXDUMP" ]; then
-    "$DEXDUMP" "$APK" 2>/dev/null | grep -q "app.pocketshell" && CONTROL_OK=1
-  else
-    unzip -p "$APK" classes*.dex 2>/dev/null | strings | grep -q "app.pocketshell" && CONTROL_OK=1
-  fi
-  if [ "$CONTROL_OK" -eq 0 ]; then
-    echo "DUMP PIPELINE BROKEN — even the control string 'app.pocketshell' is unreadable; the MISSING verdicts above are a tooling failure, not missing pins"
-  fi
-fi
+rm -f "$DUMP"
 
 echo "=== Embedded glibc asset pin ==="
 unzip -l "$APK" | grep -i "glibc" || { echo "ASSET MISSING"; MISSING=1; }
@@ -85,7 +78,7 @@ unzip -l "$APK" | grep -i "glibc" || { echo "ASSET MISSING"; MISSING=1; }
 if [ "$MISSING" -eq 0 ]; then
   echo "AUDIT PASS"
 else
-  echo "AUDIT FAIL (missing pins above; CONTROL_OK=$CONTROL_OK — 0 means the dump pipeline is broken, not the pins)"
+  echo "AUDIT FAIL (missing pins above)"
 fi
 
 exit "$MISSING"

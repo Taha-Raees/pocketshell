@@ -106,8 +106,8 @@ jobs:
         if: steps.audit.outcome == 'failure'
         run: |
           {
-            grep -m1 'dexdump tool' audit.log || true
-            grep -E 'DUMP PIPELINE|AUDIT (PASS|FAIL)' audit.log || true
+            grep -m1 'dex dump' audit.log || true
+            grep -E 'DUMP EMPTY|AUDIT (PASS|FAIL)' audit.log || true
           } | while IFS= read -r line; do echo "::error::$line"; done
           echo "::error::$(grep 'MISSING' audit.log | tr '\n' '|' | cut -c1-3000)"
           exit 1
