@@ -75,17 +75,33 @@ jobs:
         run: ./gradlew --no-daemon :app:assembleDebug
 
       - name: APK audit (badging, permissions, dex symbols, asset pin)
-        run: bash scripts/p9_apk_audit.sh
+        id: audit
+        continue-on-error: true
+        run: bash scripts/p9_apk_audit.sh 2>&1 | tee audit.log
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: apk-audit-log
+          path: audit.log
+          retention-days: 14
 
       - name: Stage APK + sha256
+        if: always()
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk dist/
           sha256sum app/build/outputs/apk/debug/app-debug.apk | tee dist/SHA256SUMS
 
-      - name: Upload debug APK
+      - name: Upload debug APK (unaudited suffix while the audit is red)
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: pocketshell-debug-apk
+          name: pocketshell-debug-apk${{ steps.audit.outcome == 'success' && '' || '-unaudited' }}
           path: dist/
           retention-days: 30
+
+      - name: Enforce audit result (the job stays red on any audit miss)
+        if: steps.audit.outcome == 'failure'
+        run: exit 1

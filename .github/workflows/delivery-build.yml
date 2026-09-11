@@ -52,7 +52,17 @@ jobs:
         run: ./gradlew --no-daemon :app:assembleDebug
 
       - name: APK audit (badging, permissions, dex symbols, asset pin)
-        run: bash scripts/p9_apk_audit.sh
+        run: |
+          bash scripts/p9_apk_audit.sh 2>&1 | tee audit.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: apk-audit-log
+          path: audit.log
+          retention-days: 90
 
       - name: Stage delivery set (APK + sha256 + git tip record)
         run: |

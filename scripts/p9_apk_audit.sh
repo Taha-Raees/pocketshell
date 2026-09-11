@@ -36,7 +36,9 @@ echo "=== Permissions (uses-permission) ==="
 
 echo "=== Feature symbols (dex) ==="
 DEXDUMP=$(ls "$BT"/dexdump 2>/dev/null || echo "")
+echo "dexdump tool: ${DEXDUMP:-<absent — raw strings fallback>}"
 SYMS=(
+  "app.pocketshell"                                   # CONTROL — must always hit; a miss here means the dump pipeline itself is broken
   "Lapp/pocketshell/ui/files/FilesScreenKt;"          # M7 files screen (scroll+longpress+single close)
   "Lapp/pocketshell/files/FileSearch;"                # M7 search core
   "Lapp/pocketshell/files/MultiSelectOps;"            # M7 multi-select
@@ -55,6 +57,7 @@ SYMS=(
   "var/lib/pocketshell-agent"                         # M7.2 P9 channel path
 )
 MISSING=0
+CONTROL_OK=0
 for s in "${SYMS[@]}"; do
   if [ -n "$DEXDUMP" ]; then
     if "$DEXDUMP" "$APK" 2>/dev/null | grep -q "$s"; then echo "PRESENT  $s"; else echo "MISSING  $s"; MISSING=1; fi
@@ -63,6 +66,18 @@ for s in "${SYMS[@]}"; do
     if unzip -p "$APK" classes*.dex 2>/dev/null | strings | grep -q "$s"; then echo "PRESENT  $s (strings)"; else echo "MISSING  $s (strings)"; MISSING=1; fi
   fi
 done
+# The control separates "the pins are genuinely absent" from "the dump
+# pipeline produced nothing readable" — only the former is a real audit FAIL.
+if [ "$MISSING" -eq 1 ]; then
+  if [ -n "$DEXDUMP" ]; then
+    "$DEXDUMP" "$APK" 2>/dev/null | grep -q "app.pocketshell" && CONTROL_OK=1
+  else
+    unzip -p "$APK" classes*.dex 2>/dev/null | strings | grep -q "app.pocketshell" && CONTROL_OK=1
+  fi
+  if [ "$CONTROL_OK" -eq 0 ]; then
+    echo "DUMP PIPELINE BROKEN — even the control string 'app.pocketshell' is unreadable; the MISSING verdicts above are a tooling failure, not missing pins"
+  fi
+fi
 
 echo "=== Embedded glibc asset pin ==="
 unzip -l "$APK" | grep -i "glibc" || { echo "ASSET MISSING"; MISSING=1; }
@@ -70,7 +85,7 @@ unzip -l "$APK" | grep -i "glibc" || { echo "ASSET MISSING"; MISSING=1; }
 if [ "$MISSING" -eq 0 ]; then
   echo "AUDIT PASS"
 else
-  echo "AUDIT FAIL (missing pins above)"
+  echo "AUDIT FAIL (missing pins above; CONTROL_OK=$CONTROL_OK — 0 means the dump pipeline is broken, not the pins)"
 fi
 
 exit "$MISSING"
