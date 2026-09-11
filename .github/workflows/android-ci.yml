@@ -104,4 +104,10 @@ jobs:
 
       - name: Enforce audit result (the job stays red on any audit miss)
         if: steps.audit.outcome == 'failure'
-        run: exit 1
+        run: |
+          {
+            grep -m1 'dexdump tool' audit.log || true
+            grep -E 'DUMP PIPELINE|AUDIT (PASS|FAIL)' audit.log || true
+          } | while IFS= read -r line; do echo "::error::$line"; done
+          echo "::error::$(grep 'MISSING' audit.log | tr '\n' '|' | cut -c1-3000)"
+          exit 1
