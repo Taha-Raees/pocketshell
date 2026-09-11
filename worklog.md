@@ -2466,6 +2466,31 @@ logcat, on a CI-built P9 APK).
   unassigned-by-design pending (a) the first green CI run (true re-measure of
   the 2178/2178 claim) and (b) the §58 device pass on the CI-built P9 APK.
 
+CI BRING-UP RECORD (Task 50 continuation, 2026-09-10 → 09-11):
+- run #1 (3560682) RED at the audit: pipefail + grep -q/head SIGPIPE
+  false-negative class → pipefail dropped, AUDIT PASS/FAIL summary added.
+- run #2 (cc6cece) RED at the audit again: with the verdict logic unchanged
+  the failure is systemic, not the pins — all 16 symbol pins verified
+  verbatim in source, the glibc sidecar asset IS tracked; instrumentation
+  added (a CONTROL pin, the dump-tool decision line, the audit teed to an
+  apk-audit-log artifact, the APK artifact published even on audit failure
+  as -unaudited with the job still red via an explicit enforce step).
+- run #4 (137140c) GREEN end-to-end: suite green, count gate 0/0, assemble
+  green, audit PASS (control + all 16 pins + the glibc asset), audited APK
+  artifact published. The verdict flip with unchanged pins/source between
+  #2 and #4 identifies runner-side native-dexdump instability as the flake.
+- run #5 (a4fd9ae) GREEN — the stabilized gate: the audit is now
+  deterministic (ONE unzip|strings dump of the dex pool captured to a file
+  and grepped; native dexdump dropped entirely), single pass ~2s. ::error::
+  annotation echoes keep any future audit failure owner- and agent-readable
+  without auth.
+- DELIVERY FACT: the first green audited CI build = run #5
+  (https://github.com/Taha-Raees/pocketshell/actions/runs/34567369477) —
+  its pocketshell-debug-apk artifact IS the P9 APK for the TESTING §58
+  device gate (the sha256 lives in the artifact's SHA256SUMS; owner-gated
+  download; mirror into the ledger at the next sync). The ledger
+  (download/README.md) records the full story.
+
 Stage Summary:
 - The P9 delivery gap is closed structurally: recoverable git state verified
   end-to-end, the ledger records the truth, and every future build/test is

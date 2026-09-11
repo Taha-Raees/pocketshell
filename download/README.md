@@ -44,13 +44,22 @@ the original phase closed at the worklog record f83a23f saying
   debug APK (badging vc47 / 0.11.2-m7.1.1, the committed debug
   keystore, the 6-permission set, the P8/P9 dex-symbol audit) on every
   push to main, and .github/workflows/delivery-build.yml (manual) cuts
-  an audited delivery artifact (APK + SHA256SUMS + build tip). The
-  apk sha256 PIN for this phase is taken from the first CI run's
-  artifact (this recovery environment cannot run Gradle; scripts/
-  p9_apk_audit.sh is the same audit the phase environment used). Until
-  that run exists, the last APK with the P8 content remains the
-  installed artifact — P9 code reaches devices ONLY through a CI-built
-  APK.
+  an audited delivery artifact (APK + SHA256SUMS + build tip).
+  FIRST GREEN AUDITED BUILD: android-ci run #5 (2026-09-11, commit
+  a4fd9ae, https://github.com/Taha-Raees/pocketshell/actions/runs/
+  34567369477) — JVM suite green (the count gate: 0 failures / 0
+  errors), assembleDebug green, audit PASS (the CONTROL + 16 dex pins
+  incl. AgentHomeSessionClaims / homeSessionClaims / "Runtime unknown"
+  / AgentLaunchRecords / LAUNCH_ANCHOR / var/lib/pocketshell-agent +
+  the glibc asset pin). THE P9 APK FOR THE TESTING §58 DEVICE GATE IS
+  THAT RUN'S pocketshell-debug-apk ARTIFACT (APK + SHA256SUMS; the
+  sha256 itself lives in the artifact — GitHub artifact download needs
+  the owner login; mirror the hash into this ledger at the next
+  owner-side sync). CI bring-up story: runs #1/#2 red on audit —
+  a pipefail SIGPIPE false-negative, then a runner-side native-dexdump
+  instability (verdict flipped with unchanged pins/source); the audit
+  is now deterministic (one unzip|strings dump, no dexdump) and runs
+  #4/#5 green. P9 code reaches devices ONLY through a CI-built APK.
 
 --- the P8 phase record (superseded by the P9 record above) ---
 
