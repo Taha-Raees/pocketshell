@@ -105,10 +105,19 @@ workflow at a time; per-project overrides allowed after measurement.
   `ndk_bin_common.sh` (official script rejects aarch64 hosts even when
   linux-aarch64 toolchains ship). `terminal-emulator/build.gradle.kts`
   honors `PS_LOCAL_NDK` (unset → the untouched CI pin 28.2.13676358).
-- **Self-adb**: adb verified working; the install→launch→logcat→screenshot→
-  uiautomator loop is scripted (`pocketshell-adb selftest`) but UNVERIFIED
-  against the real device until the owner enables Wireless debugging and
-  runs one pairing. Claimed only after that pass (TESTING.md gate).
+- **Self-adb: VERIFIED ON DEVICE (2026-09-12)** — paired and connected from
+  inside the guest to the phone itself (Wireless debugging, `adb pair` →
+  `adb connect 127.0.0.1:<port>`; connect port rotates per toggle; pairing
+  persists). Full loop proven: identity (`SM-F711B`, Android 15/SDK 35),
+  `pm list packages` (self-built `app.pocketshell` visible), `screencap`
+  (273 KB PNG into the guest), `uiautomator dump` (foreground window =
+  `app.pocketshell`), `logcat` streaming, `input`/`screencap` present.
+  Port discovery works without asking the user: scan loopback ephemeral
+  range (32768–60999) for listeners. Only step not executed: an actual
+  `adb install` of the self-built APK (reinstalling the running app would
+  kill the live session mid-test; install path itself is the standard
+  `adb install -r` and the signature already proved in-place-update
+  compatibility when the owner sideloaded the self-built APK).
 
 ## 8. Security posture
 
