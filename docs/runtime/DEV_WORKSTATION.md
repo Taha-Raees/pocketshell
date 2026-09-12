@@ -120,6 +120,14 @@ workflow at a time; per-project overrides allowed after measurement.
   kill the live session mid-test; install path itself is the standard
   `adb install -r` and the signature already proved in-place-update
   compatibility when the owner sideloaded the self-built APK).
+- **CROSS-DEVICE LOOP VERIFIED (2026-09-12)** — the phone guest built the
+  APK (30,573,569 B, sha256 `e196a6b1…6818`, incl. the devtools asset),
+  streamed-installed it onto a SECOND physical device over wireless
+  debugging (Galaxy Tab S7, `SM_T870` @ 172.20.10.2, paired from the
+  guest), launched it, and pulled a screenshot back: `topResumedActivity =
+  app.pocketshell/.MainActivity`, launcher UI rendering, Linux card
+  "Alpine · ready". Build → install → launch → capture, phone→tab, all
+  from inside PocketShell.
 
 ## 8. Security posture
 
