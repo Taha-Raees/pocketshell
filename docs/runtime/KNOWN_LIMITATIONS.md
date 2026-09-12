@@ -1,6 +1,26 @@
-# KNOWN_LIMITATIONS — the glibc runtime layer (M6.0)
+# KNOWN_LIMITATIONS — the glibc runtime layer (M6.0) + dev workstation
 
 Only verified, current limitations. Each with cause, evidence, fixability.
+
+## 0. Dev-workstation entries (2026-09-12 phase — see DEV_WORKSTATION.md)
+
+- **musl `openjdk21` (apk) cannot start in this environment** — a single
+  `mprotect(<4096B anon>, RWX)` (HotSpot polling page) fails with EACCES at
+  JVM init; the identical operation succeeds for the glibc Temurin build,
+  node/V8 and C probes in the same sandbox (master audit §H). Build-specific
+  root cause [UNKNOWN]. **Resolution**: the supported runtime is the glibc
+  Temurin JDK (JAVA_RUNTIME.md); the bootstrap removes the musl package.
+- **Official Android build-tools/platform-tools host binaries are x86_64
+  only** [MISSING TOOLING] — replaced in the guest by pinned community
+  static-aarch64 builds (provenance + limits: `build-tools/PROVENANCE.aarch64`).
+  NDK host toolchain has no official arm64 build and no pinned community
+  replacement yet — NDK-targeted native builds remain unavailable.
+- **`mount`/`chroot`/`unshare` syscalls from a guest process destabilize
+  proot's tracer and kill the session** [PROOT] — observed twice in the
+  master audit; never run them in a live guest session.
+- **Self-adb device loop requires user action** — Wireless debugging is an
+  Android Settings toggle with rotating ports; PocketShell cannot enable it
+  itself (by design). `pocketshell-adb` documents and drives the flow.
 
 ## 1. gconv modules excluded (iconv charset coverage)
 

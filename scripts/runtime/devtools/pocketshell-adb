@@ -1,0 +1,51 @@
+#!/bin/sh
+# pocketshell-adb — self-device ADB loop helper (Track E).
+#
+# The phone can adb to ITSELF over Wireless debugging (Android 11+, no root):
+#   Settings -> Developer options -> Wireless debugging -> enable
+#   -> "Pair device with pairing code" shows  IP:PORT  and a 6-digit code
+#   -> pocketshell-adb pair <port> <code>
+#   -> (after pairing) Wireless debugging main screen shows IP:PORT
+#   -> pocketshell-adb connect <port>
+# The connect port ROTATES every time Wireless debugging toggles, and the
+# toggle resets after reboot. This is Android behavior, not a PocketShell bug.
+#
+# Commands:
+#   status                adb server + device list
+#   pair   <port> <code>  one-time pairing against 127.0.0.1
+#   connect <port>        connect to 127.0.0.1:<port>
+#   selftest              full loop against the connected device:
+#                         identity, screenshot, ui dump, logcat ring
+#   install <apk>         install an APK onto THIS device
+set -u
+command -v adb >/dev/null 2>&1 || { echo "adb missing — run pocketshell-dev-bootstrap android-tools" >&2; exit 2; }
+
+case "${1:-status}" in
+  status)
+    adb start-server >/dev/null 2>&1
+    adb devices -l
+    ;;
+  pair)
+    [ $# -eq 3 ] || { echo "usage: pocketshell-adb pair <port> <code>" >&2; exit 2; }
+    adb pair "127.0.0.1:$2" "$3"
+    ;;
+  connect)
+    [ $# -eq 2 ] || { echo "usage: pocketshell-adb connect <port>" >&2; exit 2; }
+    adb connect "127.0.0.1:$2"
+    adb devices -l
+    ;;
+  selftest)
+    sel="$(adb devices | awk 'NR==2{print $1}')"
+    [ -n "$sel" ] && [ "$sel" != "List" ] || { echo "no device connected — connect first" >&2; exit 1; }
+    s() { adb -s "$sel" "$@"; }
+    echo "identity:";     s shell getprop ro.product.model; s shell getprop ro.build.version.sdk
+    echo "screenshot:";   s exec-out screencap -p > /root/selftest-screen.png && ls -la /root/selftest-screen.png
+    echo "ui dump:";      s exec-out uiautomator dump /dev/tty 2>/dev/null | head -1
+    echo "logcat tail:";  s logcat -d -t 5 2>/dev/null | tail -5
+    ;;
+  install)
+    [ $# -eq 2 ] || { echo "usage: pocketshell-adb install <apk>" >&2; exit 2; }
+    adb install -r "$2"
+    ;;
+  *) echo "usage: pocketshell-adb {status|pair <port> <code>|connect <port>|selftest|install <apk>}"; exit 2 ;;
+esac

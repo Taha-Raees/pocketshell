@@ -1,0 +1,169 @@
+#!/bin/sh
+# pocketshell-dev-bootstrap — deterministic dev-workstation bootstrap for the
+# PocketShell guest (docs/runtime/DEV_WORKSTATION.md).
+#
+# Installs pinned, checksum-verified development runtimes into the guest:
+#   core          — apk dev tool set (bash/gcc/clang/cmake/git/ssh/tmux/…)
+#   jdk           — glibc Temurin JDK 21 (runs via the M6 glibc sidecar loader)
+#   gradle        — official Gradle distribution
+#   android-tools — official cmdline-tools + platform/build-tools via sdkmanager,
+#                   then the pinned COMMUNITY arm64 host-tool overlay
+#                   (Google ships x86_64 host binaries only)
+#   doctor        — verify everything, print versions
+#
+# All artifacts: manifest.conf (exact URL + size + sha256). Downloads are
+# cached in $PS_DEV_CACHE and verified before installation; re-runs are
+# idempotent. Requires: network, the glibc sidecar layer (pocketshell-exec),
+# apk, and sha256sum (busybox ok).
+set -u
+
+HERE="$(dirname "$(readlink -f "$0")")"
+[ -f "$HERE/manifest.conf" ] || HERE="/usr/local/lib/pocketshell-dev"
+. "$HERE/manifest.conf"
+
+CACHE="${PS_DEV_CACHE:-/root/.cache/pocketshell-dev}"
+SDK_ROOT="${ANDROID_HOME:-/opt/android-sdk}"
+FAIL=0
+
+log() { printf '[ps-dev] %s\n' "$*"; }
+die() { printf '[ps-dev] FAIL: %s\n' "$*" >&2; FAIL=1; return 0; }
+
+fetch() { # fetch <name> <url> <sha256> <outfile>
+  name="$1" url="$2" sha="$3" out="$4"
+  if [ -f "$out" ] && echo "$sha  $out" | sha256sum -c - >/dev/null 2>&1; then
+    log "$name: cached copy verified"; return 0
+  fi
+  log "$name: downloading $url"
+  curl -fsSL -o "$out" "$url" || { rm -f "$out"; die "$name: download failed"; return 0; }
+  echo "$sha  $out" | sha256sum -c - >/dev/null 2>&1 || { rm -f "$out"; die "$name: sha256 mismatch"; return 0; }
+  log "$name: sha256 verified"
+}
+
+cmd_core() {
+  apk update >/dev/null 2>&1 || log "apk update failed (continuing; index may be cached)"
+  apk add bash coreutils findutils grep sed awk tar gzip xz unzip zip curl wget \
+    git openssh-client tmux vim nano neovim make gcc g++ clang cmake ninja samurai \
+    pkgconf sqlite python3 nodejs npm go cargo rust \
+    || die "core: apk add failed"
+  log "core: done"
+}
+
+cmd_jdk() {
+  mkdir -p "$CACHE" /usr/lib/jvm /etc/profile.d
+  fetch "jdk" "$JDK_URL" "$JDK_SHA256" "$CACHE/jdk-$JDK_VERSION.tar.gz" || return 0
+  [ -d "/usr/lib/jvm/$JDK_DIR" ] && rm -rf "/usr/lib/jvm/$JDK_DIR"
+  tar xzf "$CACHE/jdk-$JDK_VERSION.tar.gz" -C /usr/lib/jvm ||
+    { die "jdk: extraction failed"; return 0; }
+  # Adoptium tarball root dir may differ from our canonical name: re-link.
+  extracted="$(tar tzf "$CACHE/jdk-$JDK_VERSION.tar.gz" | head -1 | cut -d/ -f1)"
+  [ "$extracted" != "$JDK_DIR" ] && mv "/usr/lib/jvm/$extracted" "/usr/lib/jvm/$JDK_DIR"
+  ln -sfn "$JDK_DIR" "/usr/lib/jvm/$JDK_LINK"
+  cat > /etc/profile.d/pocketshell-java.sh <<EOF
+# PocketShell Java runtime (docs/runtime/JAVA_RUNTIME.md)
+JAVA_HOME=/usr/lib/jvm/$JDK_LINK
+if [ -d "\$JAVA_HOME/bin" ]; then
+  case ":\$PATH:" in
+    *":\$JAVA_HOME/bin:"*) ;;
+    *) PATH="\$JAVA_HOME/bin:\$PATH" ;;
+  esac
+  export JAVA_HOME PATH
+fi
+EOF
+  # /usr/local/bin shims: glibc java wins in NON-login shells too, and the
+  # broken musl openjdk21 (apk) must never shadow the supported runtime.
+  for b in java javac keytool jar; do
+    ln -sfn "/usr/lib/jvm/$JDK_LINK/bin/$b" "/usr/local/bin/$b"
+  done
+  apk del openjdk21 openjdk21-jre >/dev/null 2>&1 || true
+  log "jdk: installed at /usr/lib/jvm/$JDK_LINK"
+}
+
+cmd_gradle() {
+  [ -d /usr/lib/jvm/"$JDK_LINK" ] || { die "gradle: run 'jdk' first"; return 0; }
+  mkdir -p "$CACHE" /opt
+  fetch "gradle" "$GRADLE_URL" "$GRADLE_SHA256" "$CACHE/gradle-$GRADLE_VERSION-bin.zip" || return 0
+  [ -d "/opt/gradle-$GRADLE_VERSION" ] && rm -rf "/opt/gradle-$GRADLE_VERSION"
+  unzip -q "$CACHE/gradle-$GRADLE_VERSION-bin.zip" -d /opt || { die "gradle: unzip failed"; return 0; }
+  ln -sfn "/opt/gradle-$GRADLE_VERSION/bin/gradle" /usr/local/bin/gradle
+  mkdir -p /root/.gradle
+  cat > /root/.gradle/gradle.properties <<'EOF'
+# PocketShell device defaults (docs/runtime/JAVA_RUNTIME.md §memory)
+# Tuned for a 7.4 GB-RAM Android device sharing RAM with the host OS.
+org.gradle.jvmargs=-Xmx1792m -XX:MaxMetaspaceSize=512m
+org.gradle.workers.max=4
+org.gradle.parallel=true
+org.gradle.caching=true
+kotlin.daemon.jvmargs=-Xmx1024m
+EOF
+  log "gradle: installed at /opt/gradle-$GRADLE_VERSION"
+}
+
+cmd_android_tools() {
+  [ -d /usr/lib/jvm/"$JDK_LINK" ] || { die "android-tools: run 'jdk' first"; return 0; }
+  mkdir -p "$CACHE" "$SDK_ROOT"
+  fetch "cmdline-tools" "$CMDTOOLS_URL" "$CMDTOOLS_SHA256" "$CACHE/cmdtools-$CMDTOOLS_VERSION.zip" || return 0
+  if [ ! -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+    unzip -q "$CACHE/cmdtools-$CMDTOOLS_VERSION.zip" -d "$SDK_ROOT/.ct-tmp" || { die "cmdline-tools: unzip failed"; return 0; }
+    mkdir -p "$SDK_ROOT/cmdline-tools"
+    mv "$SDK_ROOT/.ct-tmp/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
+    rmdir "$SDK_ROOT/.ct-tmp"
+  fi
+  log "android-tools: sdkmanager (official, on glibc JDK): licenses + platform + build-tools"
+  yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1
+  "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" "$SDK_PLATFORM" "$SDK_BUILD_TOOLS" >/dev/null ||
+    { die "android-tools: sdkmanager install failed"; return 0; }
+
+  # COMMUNITY arm64 overlay (Google host binaries are x86_64-only).
+  fetch "aarch64-tools" "$AARCH64_TOOLS_URL" "$AARCH64_TOOLS_SHA256" "$CACHE/aarch64-tools-$AARCH64_TOOLS_UPSTREAM_VERSION.zip" || return 0
+  rm -rf "$CACHE/aarch64-extract" && mkdir -p "$CACHE/aarch64-extract"
+  unzip -q "$CACHE/aarch64-tools-$AARCH64_TOOLS_UPSTREAM_VERSION.zip" -d "$CACHE/aarch64-extract" ||
+    { die "aarch64-tools: unzip failed"; return 0; }
+  BT="$SDK_ROOT/build-tools/36.0.0"
+  cp "$CACHE/aarch64-extract/sdk-tools-aarch64/build-tools/"{aapt,aapt2,aidl,dexdump,split-select,zipalign} "$BT/" ||
+    { die "aarch64-tools: overlay copy failed"; return 0; }
+  cp "$CACHE/aarch64-extract/sdk-tools-aarch64/platform-tools/"{adb,fastboot} /usr/local/bin/
+  sed -e "s|@UPSTREAM@|$AARCH64_TOOLS_UPSTREAM_VERSION|g" -e "s|@SHA@|$AARCH64_TOOLS_SHA256|g" \
+    "$HERE/provenance.aarch64.template" > "$BT/PROVENANCE.aarch64" 2>/dev/null ||
+    printf 'community aarch64 host tools: lzhiyong/android-sdk-tools %s sha256 %s\n' \
+      "$AARCH64_TOOLS_UPSTREAM_VERSION" "$AARCH64_TOOLS_SHA256" > "$BT/PROVENANCE.aarch64"
+  log "android-tools: installed ($SDK_PLATFORM, $SDK_BUILD_TOOLS, arm64 overlay + adb)"
+}
+
+cmd_doctor() {
+  ok() { printf '  [ok]   %s\n' "$1"; }
+  bad() { printf '  [FAIL] %s\n' "$1"; FAIL=1; }
+  echo "PocketShell dev-workstation doctor"
+  command -v git >/dev/null && ok "git $(git --version | awk '{print $3}')" || bad "git"
+  command -v gcc >/dev/null && ok "gcc $(gcc -dumpversion)" || bad "gcc"
+  command -v g++ >/dev/null || bad "g++"
+  command -v clang >/dev/null && ok "clang $(clang -dumpversion)" || bad "clang"
+  command -v cmake >/dev/null && ok "cmake $(cmake --version | head -1 | awk '{print $3}')" || bad "cmake"
+  command -v ninja >/dev/null && ok "ninja $(ninja --version)" || bad "ninja"
+  command -v python3 >/dev/null && ok "python3 $(python3 --version | awk '{print $2}')" || bad "python3"
+  command -v node >/dev/null && ok "node $(node --version)" || bad "node"
+  command -v go >/dev/null && ok "go $(go version | awk '{print $3}')" || bad "go"
+  command -v cargo >/dev/null && ok "rustc $(rustc --version | awk '{print $2}')" || bad "rustc"
+  if [ -x "/usr/lib/jvm/$JDK_LINK/bin/java" ]; then
+    ok "jdk $(/usr/lib/jvm/$JDK_LINK/bin/java -version 2>&1 | head -1)"
+  else bad "jdk (missing — run: pocketshell-dev-bootstrap jdk)"; fi
+  command -v gradle >/dev/null && ok "gradle $(gradle --version 2>/dev/null | grep '^Gradle' | awk '{print $2}')" || bad "gradle"
+  BT="$SDK_ROOT/build-tools/36.0.0"
+  [ -x "$BT/aapt2" ] && "$BT/aapt2" version >/dev/null 2>&1 &&
+    ok "aapt2 (arm64 overlay, $("$BT/aapt2" version 2>&1 | tail -1))" || bad "aapt2"
+  command -v d8 >/dev/null || [ -x "$BT/d8" ] && ok "d8 ($(cd "$BT" && ./d8 --version 2>/dev/null | head -1))" || bad "d8"
+  [ -x "$BT/apksigner" ] && ok "apksigner $($BT/apksigner --version 2>/dev/null)" || bad "apksigner"
+  command -v adb >/dev/null && ok "adb $(adb version 2>/dev/null | sed -n 2p)" || bad "adb"
+  [ -f /lib/ld-linux-aarch64.so.1 ] && ok "glibc sidecar loader present" || bad "glibc sidecar loader (glibc runtime layer missing)"
+  return 0
+}
+
+case "${1:-}" in
+  core) cmd_core ;;
+  jdk) cmd_jdk ;;
+  gradle) cmd_gradle ;;
+  android-tools) cmd_android_tools ;;
+  doctor) cmd_doctor ;;
+  all) cmd_core; cmd_jdk; cmd_gradle; cmd_android_tools ;;
+  *) echo "usage: pocketshell-dev-bootstrap {core|jdk|gradle|android-tools|doctor|all}"; exit 2 ;;
+esac
+exit $FAIL
