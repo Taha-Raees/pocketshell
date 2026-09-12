@@ -1,0 +1,11 @@
+ARM64 host-tool replacements in this directory (aapt2/aapt/aidl/dexdump/
+split-select/zipalign) and /usr/local/bin/{adb,fastboot}:
+  source:   https://github.com/lzhiyong/android-sdk-tools
+  release:  @UPSTREAM@ (android-sdk-tools-static-aarch64.zip)
+  sha256:   @SHA@
+  type:     aarch64 static executables (no libc dependency)
+Official Google build-tools for Linux ship x86_64 host binaries only; these
+community statics replace the native tools. Java parts (d8/R8, apksigner,
+lib/*.jar) and android.jar remain OFFICIAL Google artifacts. Known limits:
+community build, not built/signed by Google; host-tool version skew accepted
+(format-stable); cross-check APK output against CI builds.

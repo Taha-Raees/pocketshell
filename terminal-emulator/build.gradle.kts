@@ -9,7 +9,9 @@ plugins {
 android {
     namespace = "com.termux.emulator"
     compileSdk = 36
-    ndkVersion = "28.2.13676358"
+    // PS_LOCAL_NDK lets an aarch64-host local build select a community NDK
+    // (e.g. lzhiyong/termux-ndk) without touching the CI pin. Unset = CI pin.
+    ndkVersion = System.getenv("PS_LOCAL_NDK") ?: "28.2.13676358"
 
     defaultConfig {
         minSdk = 26

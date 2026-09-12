@@ -94,6 +94,10 @@ org.gradle.workers.max=4
 org.gradle.parallel=true
 org.gradle.caching=true
 kotlin.daemon.jvmargs=-Xmx1024m
+# aarch64 host: AGP's Maven aapt2 is x86_64-only — use the arm64 build-tools
+# overlay installed by 'android-tools' (docs/runtime/DEV_WORKSTATION.md).
+android.aapt2FromMavenOverride=/opt/android-sdk/build-tools/36.0.0/aapt2
+kotlin.compiler.execution.strategy=in-process
 EOF
   log "gradle: installed at /opt/gradle-$GRADLE_VERSION"
 }
@@ -129,6 +133,24 @@ cmd_android_tools() {
   log "android-tools: installed ($SDK_PLATFORM, $SDK_BUILD_TOOLS, arm64 overlay + adb)"
 }
 
+cmd_ndk() {
+  mkdir -p "$CACHE" "$SDK_ROOT/ndk"
+  fetch "ndk" "$NDK_URL" "$NDK_SHA256" "$CACHE/android-ndk-aarch64.tar.xz" || return 0
+  rm -rf "$SDK_ROOT/ndk/$NDK_REVISION"
+  tar xJf "$CACHE/android-ndk-aarch64.tar.xz" -C "$SDK_ROOT/ndk/" ||
+    { die "ndk: extraction failed"; return 0; }
+  extracted="$(basename "$(tar tjf "$CACHE/android-ndk-aarch64.tar.xz" | head -1)")"
+  [ "$extracted" != "$NDK_REVISION" ] &&
+    mv "$SDK_ROOT/ndk/$extracted" "$SDK_ROOT/ndk/$NDK_REVISION"
+  # Official ndk-build host detection rejects aarch64; the repack ships
+  # linux-aarch64 toolchains but leaves the case unpatched. Standard patch:
+  sed -i '/x86_64|amd64) HOST_ARCH=x86_64;;/a\  aarch64|arm64) HOST_ARCH=aarch64;;' \
+    "$SDK_ROOT/ndk/$NDK_REVISION/build/tools/ndk_bin_common.sh" ||
+    { die "ndk: host-tag patch failed"; return 0; }
+  log "ndk: $NDK_REVISION (community aarch64) at $SDK_ROOT/ndk/$NDK_REVISION"
+  log "ndk: build with PS_LOCAL_NDK=$NDK_REVISION ./gradlew assembleDebug"
+}
+
 cmd_doctor() {
   ok() { printf '  [ok]   %s\n' "$1"; }
   bad() { printf '  [FAIL] %s\n' "$1"; FAIL=1; }
@@ -162,8 +184,9 @@ case "${1:-}" in
   jdk) cmd_jdk ;;
   gradle) cmd_gradle ;;
   android-tools) cmd_android_tools ;;
+  ndk) cmd_ndk ;;
   doctor) cmd_doctor ;;
-  all) cmd_core; cmd_jdk; cmd_gradle; cmd_android_tools ;;
-  *) echo "usage: pocketshell-dev-bootstrap {core|jdk|gradle|android-tools|doctor|all}"; exit 2 ;;
+  all) cmd_core; cmd_jdk; cmd_gradle; cmd_android_tools; cmd_ndk ;;
+  *) echo "usage: pocketshell-dev-bootstrap {core|jdk|gradle|android-tools|ndk|doctor|all}"; exit 2 ;;
 esac
 exit $FAIL

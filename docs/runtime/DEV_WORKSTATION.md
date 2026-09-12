@@ -85,12 +85,26 @@ workflow at a time; per-project overrides allowed after measurement.
 
 ## 7. Android development + self-device loop status (Tracks D/E)
 
-- **Toolchain**: complete for Java/Kotlin Android minus AGP-native host
-  tools gap (see provenance). Minimal APK: BUILT AND SIGNED on device.
-- **PocketShell self-build**: recorded in the phase delivery report
-  (attempted on device this phase; result documented honestly).
-- **NDK**: unavailable (no official/pinned arm64 host toolchain) — native
-  code targets out of scope for on-device builds this phase.
+- **Toolchain**: complete for Java/Kotlin Android. Minimal APK: BUILT AND
+  SIGNED on device. NDK: solved via the pinned community aarch64 NDK
+  (below).
+- **PocketShell self-build: SUCCESSFUL on device** — `./gradlew
+  assembleDebug` inside the guest produced `app-debug.apk`
+  (30,561,072 B; `app.pocketshell` vc47/0.11.2-m7.1.1; 18 dex;
+  all-ABI native libs) in **7m 20s** warm, while a heavy agent session was
+  running. Evidence: `/root/env-audit-lab/pocketshell-ondevice-build*.log`,
+  sha256 `6aa511a9abf2dbdf97ba83188fecf0b1b3709312024ca94d37b03cca85579dd0`.
+  Prerequisites recorded for reproduction: JDK (§ JAVA_RUNTIME) + gradle +
+  android-tools + ndk bootstrap targets + `PS_LOCAL_NDK=29.0.14206865`.
+  Aapt2 gotcha: AGP's Maven aapt2 is x86_64-only — the bootstrap's
+  gradle.properties sets `android.aapt2FromMavenOverride` to the arm64
+  overlay (first build attempt proved the failure without it).
+- **NDK (community aarch64-host)**: `pocketshell-dev-bootstrap ndk`
+  installs lzhiyong/termux-ndk r29 (29.0.14206865, sha256
+  `02e10e4d…684b`) and applies the standard one-line host-tag patch to
+  `ndk_bin_common.sh` (official script rejects aarch64 hosts even when
+  linux-aarch64 toolchains ship). `terminal-emulator/build.gradle.kts`
+  honors `PS_LOCAL_NDK` (unset → the untouched CI pin 28.2.13676358).
 - **Self-adb**: adb verified working; the install→launch→logcat→screenshot→
   uiautomator loop is scripted (`pocketshell-adb selftest`) but UNVERIFIED
   against the real device until the owner enables Wireless debugging and
