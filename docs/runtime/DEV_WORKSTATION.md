@@ -17,10 +17,12 @@ environment on Android — agent-agnostic, tool-agnostic, Linux-first.
 | Bootstrap | `pocketshell-dev-bootstrap {core|jdk|gradle|android-tools|doctor|all}` — pinned artifacts, checksum-verified, idempotent, cached (`manifest.conf`) |
 | Helpers | `pocketshell-dev-bootstrap doctor` (version matrix), `build-minimal-apk.sh` (CLI APK build), `pocketshell-adb` (self-device loop) |
 
-Delivery state: the bootstrap tooling is guest-installed from this repo
-(`scripts/runtime/devtools/` → `/usr/local/lib/pocketshell-dev` +
-`/usr/local/bin`). Shipping it via an APK asset (like the glibc layer) is
-the follow-up production step; the scripts are deliberately small.
+Delivery state: **the devtools are an APK asset** (`app/src/main/assets/guest/pocketshell-devtools-1.tar`,
+sha256 `2ed16f0b8d8bd3efeaff7c4d75c5c501d1a59ca303578b5e1de3dce04b6ec26b`,
+delivered by `GuestDevTools` in the session-prep seam — same idempotent
+marker/status/self-healing contract as the glibc layer) AND in-repo under
+`scripts/runtime/devtools/` (source of truth for re-packaging). A fresh
+rootfs converges on the first session spawn with zero manual steps.
 
 ## 2. Provenance (no random binaries)
 

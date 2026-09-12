@@ -89,7 +89,7 @@ cmd_gradle() {
   cat > /root/.gradle/gradle.properties <<'EOF'
 # PocketShell device defaults (docs/runtime/JAVA_RUNTIME.md §memory)
 # Tuned for a 7.4 GB-RAM Android device sharing RAM with the host OS.
-org.gradle.jvmargs=-Xmx1792m -XX:MaxMetaspaceSize=512m
+org.gradle.jvmargs=-Xmx1792m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8
 org.gradle.workers.max=4
 org.gradle.parallel=true
 org.gradle.caching=true
@@ -151,6 +151,28 @@ cmd_ndk() {
   log "ndk: build with PS_LOCAL_NDK=$NDK_REVISION ./gradlew assembleDebug"
 }
 
+cmd_locale() {
+  mkdir -p "$CACHE" /usr/lib/locale
+  fetch "libc-bin" "$LOCALE_BIN_URL" "$LOCALE_BIN_SHA256" "$CACHE/libc-bin.deb" || return 0
+  fetch "locales" "$LOCALE_DEFS_URL" "$LOCALE_DEFS_SHA256" "$CACHE/locales.deb" || return 0
+  rm -rf "$CACHE/locale-extract" && mkdir -p "$CACHE/locale-extract"
+  for d in "$CACHE/libc-bin.deb" "$CACHE/locales.deb"; do
+    (cd "$CACHE/locale-extract" && ar x "$d" && tar xf data.tar.*)
+  done
+  # Generate C.utf8 with the sidecar glibc's own localedef (Debian-built,
+  # runs in the guest). Directory form (--no-archive): no locale-archive
+  # needed, survives sidecar re-extraction (it writes OUTSIDE the layer).
+  ( cd "$CACHE/locale-extract" &&
+    I18NPATH="$PWD/usr/share/i18n" ./usr/bin/localedef --no-archive -c \
+      -f UTF-8 -i locales/C /usr/lib/locale/C.utf8 ) ||
+    { die "locale: localedef failed"; return 0; }
+  cat > /etc/profile.d/00-locale.sh <<'EOF'
+# UTF-8 filenames for glibc JVMs (sun.jnu.encoding) — see JAVA_RUNTIME.md.
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
+EOF
+  log "locale: C.utf8 generated; LC_ALL pinned in profile.d"
+}
+
 cmd_doctor() {
   ok() { printf '  [ok]   %s\n' "$1"; }
   bad() { printf '  [FAIL] %s\n' "$1"; FAIL=1; }
@@ -185,8 +207,9 @@ case "${1:-}" in
   gradle) cmd_gradle ;;
   android-tools) cmd_android_tools ;;
   ndk) cmd_ndk ;;
+  locale) cmd_locale ;;
   doctor) cmd_doctor ;;
-  all) cmd_core; cmd_jdk; cmd_gradle; cmd_android_tools; cmd_ndk ;;
-  *) echo "usage: pocketshell-dev-bootstrap {core|jdk|gradle|android-tools|ndk|doctor|all}"; exit 2 ;;
+  all) cmd_core; cmd_jdk; cmd_gradle; cmd_android_tools; cmd_ndk; cmd_locale ;;
+  *) echo "usage: pocketshell-dev-bootstrap {core|jdk|gradle|android-tools|ndk|locale|doctor|all}"; exit 2 ;;
 esac
 exit $FAIL

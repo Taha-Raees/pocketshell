@@ -3,6 +3,7 @@ package app.pocketshell.packages
 import android.content.Context
 import android.net.ConnectivityManager
 import app.pocketshell.runtime.GuestApkCompat
+import app.pocketshell.runtime.GuestDevTools
 import app.pocketshell.runtime.GuestEnvironment
 import app.pocketshell.runtime.GuestExecutionProfile
 import app.pocketshell.runtime.GuestGlibcRuntime
@@ -215,6 +216,17 @@ object PackageGateway {
         }.getOrElse {
             GuestGlibcRuntime.Result.Failed("glibc layer check failed: ${it.message ?: it.javaClass.simpleName}")
         }
+        // Workstation phase 2 (docs/runtime/DEV_WORKSTATION.md): the pinned
+        // dev-workstation toolset (bootstrap + manifest + adb helper), same
+        // contract as the glibc layer — idempotent marker fast path,
+        // sha-verified extraction, best-effort (musl sessions unaffected).
+        val devTools = runCatching {
+            GuestDevTools.ensureInstalled(rootfsDir, GuestDevTools.ASSET_SHA256) {
+                context.assets.open(GuestDevTools.ASSET_PATH)
+            }
+        }.getOrElse {
+            GuestDevTools.Result.Failed("devtools check failed: ${it.message ?: it.javaClass.simpleName}")
+        }
         // m6.0.2: prove WHICH app build owns this rootfs, from inside the
         // guest (suite PREFLIGHT reads it). Best-effort; never blocks a spawn.
         runCatching { stampAppVersion(context, rootfsDir) }
@@ -232,7 +244,7 @@ object PackageGateway {
             GuestEnvironment.ensureDnsResolvers(rootfsDir, deviceDnsServers(context))
             GuestEnvironment.ensureApkWorkspace(rootfsDir)
         }
-        return GuestSessionPreparation(compat, sysData, glibcRuntime)
+        return GuestSessionPreparation(compat, sysData, glibcRuntime, devTools)
     }
 
     /**
@@ -474,4 +486,5 @@ data class GuestSessionPreparation(
     val apkCompat: GuestApkCompat.Result,
     val sysData: GuestSysDataCompat.Result,
     val glibcRuntime: GuestGlibcRuntime.Result? = null,
+    val devTools: GuestDevTools.Result? = null,
 )
