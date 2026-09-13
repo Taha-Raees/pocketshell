@@ -214,9 +214,12 @@ class AgentObservationTopologyTest {
             val reader = HostProcfsReader()
             val snapshot = reader.snapshot()
             assertNotNull(snapshot)
-            // The test JVM's own pid, straight from /proc/self (the android
-            // jar's Process stubs are irrelevant here — this is real Linux).
-            val selfPid = File("/proc/self/stat").readText().substringBefore(' ').toInt()
+            // The test JVM's own pid — use the canonical path of /proc/self
+            // which resolves to /proc/<tgid> (the PROCESS pid the /proc
+            // directory listing shows). Parsing /proc/self/stat would give
+            // the THREAD pid (tid) in the proot environment, which may
+            // differ from the tgid when running on a Gradle worker thread.
+            val selfPid = File("/proc/self").canonicalFile.name.toInt()
             val me = snapshot!!.processes.firstOrNull { it.pid == selfPid }
             assertNotNull("the test JVM's own process is visible to the app-UID reader", me)
             assertNotNull(me!!.startTime)
