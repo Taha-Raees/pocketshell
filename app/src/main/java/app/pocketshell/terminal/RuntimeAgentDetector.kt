@@ -144,14 +144,22 @@ object RuntimeAgentDetector {
         // snapshot — one small app-private file per eligible session that
         // carries a channel (a few hundred bytes at most), still
         // microseconds of work per tick.
-        val (snapshot, records) = runInterruptible(Dispatchers.IO) {
+        val (snapshot, records, globalNotifs) = runInterruptible(Dispatchers.IO) {
             val snap = procfsReader.snapshot()
             val recs = eligible.associate { session ->
                 session.sessionId to (session.recordPath?.let(AgentLaunchRecords::readFile)
                     ?: AgentLaunchRecords.EMPTY)
             }
-            snap to recs
+            val globalBridgeFile = eligible.firstNotNullOfOrNull { it.recordPath }
+                ?.let { File(File(it).parentFile, "notifications.jsonl") }
+            val globals = if (globalBridgeFile != null && globalBridgeFile.isFile) {
+                AgentLaunchRecords.readFile(globalBridgeFile.absolutePath).notifications
+            } else {
+                emptyList()
+            }
+            Triple(snap, recs, globals)
         }
+        dispatchBridgeNotifications(records, globalNotifs, eligible)
         val next = AgentRuntimeDetection.compute(
             eligible = eligible,
             previous = _observations.value,
@@ -160,6 +168,54 @@ object RuntimeAgentDetector {
             records = records,
         )
         publishChanged(next)
+    }
+
+    private val processedNotificationIds = LinkedHashSet<Long>()
+
+    private fun isAttentionRequest(summary: String, body: String): Boolean {
+        val text = "$summary $body".lowercase()
+        return text.contains("permission") ||
+            text.contains("approval") ||
+            text.contains("confirm") ||
+            text.contains("needs input") ||
+            text.contains("waiting for user") ||
+            text.contains("allow?") ||
+            text.contains("attention")
+    }
+
+    private fun dispatchBridgeNotifications(
+        records: Map<Long, AgentLaunchRecords.SessionRecords>,
+        globalNotifs: List<AgentLaunchRecords.NotificationRecord>,
+        eligible: List<AgentRuntimeDetection.EligibleAgentSession>,
+    ) {
+        val defaultSessionId = eligible.firstOrNull()?.sessionId ?: 0L
+        val allNotifs = mutableListOf<AgentLaunchRecords.NotificationRecord>()
+        for ((sessionId, sessionRecs) in records) {
+            for (notif in sessionRecs.notifications) {
+                allNotifs.add(if (notif.sessionId > 0L) notif else notif.copy(sessionId = sessionId))
+            }
+        }
+        for (notif in globalNotifs) {
+            allNotifs.add(if (notif.sessionId > 0L) notif else notif.copy(sessionId = defaultSessionId))
+        }
+
+        for (notif in allNotifs) {
+            if (processedNotificationIds.add(notif.id)) {
+                if (processedNotificationIds.size > 500) {
+                    val iterator = processedNotificationIds.iterator()
+                    repeat(100) { if (iterator.hasNext()) { iterator.next(); iterator.remove() } }
+                }
+                val targetSessionId = notif.sessionId
+                if (notif.urgency == "critical" || isAttentionRequest(notif.summary, notif.body)) {
+                    TerminalSessionManager.touchBellPulse(targetSessionId)
+                }
+                TerminalSessionManager.onNotificationListener?.invoke(
+                    targetSessionId,
+                    notif.summary,
+                    notif.body,
+                )
+            }
+        }
     }
 
     private fun publishChanged(next: Map<Long, AgentRuntimeDetection.Observation>) {

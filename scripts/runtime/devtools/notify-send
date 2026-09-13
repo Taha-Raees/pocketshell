@@ -1,0 +1,88 @@
+#!/bin/sh
+# PocketShell smart notification bridge helper
+#
+# Delivers desktop notifications from ANY guest program, script, or CLI agent
+# to PocketShell's Android notification system.
+#
+# If DBUS_SESSION_BUS_ADDRESS is set and the D-Bus daemon is active, it forwards
+# directly to /usr/bin/notify-send (which talks to pocketshell-notif-bridge).
+# Otherwise (or if D-Bus fails), it parses standard notify-send options and
+# writes a structured JSONL record directly to the PocketShell bridge channel.
+
+BRIDGE_DIR="/var/lib/pocketshell-agent"
+DEFAULT_FILE="$BRIDGE_DIR/notifications.jsonl"
+TARGET_FILE="${POCKETSHELL_NOTIFICATION_FILE:-$DEFAULT_FILE}"
+
+# If D-Bus is configured and responding, try the real notify-send first
+if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ -x /usr/bin/notify-send ]; then
+    if /usr/bin/notify-send "$@" 2>/dev/null; then
+        exit 0
+    fi
+fi
+
+# Fallback: direct structured record emission (zero-D-Bus path)
+mkdir -p "$BRIDGE_DIR" 2>/dev/null || :
+
+APP_NAME="${POCKETSHELL_AGENT:-notify-send}"
+URGENCY="normal"
+TIMEOUT="-1"
+SUMMARY=""
+BODY=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -u|--urgency)
+            URGENCY="$2"; shift 2 ;;
+        --urgency=*)
+            URGENCY="${1#*=}"; shift ;;
+        -a|--app-name)
+            APP_NAME="$2"; shift 2 ;;
+        --app-name=*)
+            APP_NAME="${1#*=}"; shift ;;
+        -t|--expire-time)
+            TIMEOUT="$2"; shift 2 ;;
+        --expire-time=*)
+            TIMEOUT="${1#*=}"; shift ;;
+        -i|--icon|-c|--category|-h|--hint)
+            shift 2 ;;
+        --icon=*|--category=*|--hint=*)
+            shift ;;
+        -*)
+            shift ;;
+        *)
+            if [ -z "$SUMMARY" ]; then
+                SUMMARY="$1"
+            elif [ -z "$BODY" ]; then
+                BODY="$1"
+            else
+                BODY="$BODY $1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+[ -z "$SUMMARY" ] && exit 0
+
+# Escape quotes and backslashes for JSON
+escape_json() {
+    printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' | tr '\n' ' '
+}
+
+E_APP=$(escape_json "$APP_NAME")
+E_SUM=$(escape_json "$SUMMARY")
+E_BODY=$(escape_json "$BODY")
+E_URG=$(escape_json "$URGENCY")
+TS=$(date +%s 2>/dev/null || echo 0)
+SID="${POCKETSHELL_SESSION_ID:-0}"
+
+RECORD="{\"t\":\"notify\",\"id\":$TS,\"sessionId\":$SID,\"app\":\"$E_APP\",\"summary\":\"$E_SUM\",\"body\":\"$E_BODY\",\"urgency\":\"$E_URG\",\"ts\":$TS}"
+
+printf '%s\n' "$RECORD" >> "$TARGET_FILE" 2>/dev/null || :
+
+# Also write to global notifications.jsonl if TARGET_FILE was session-specific
+if [ "$TARGET_FILE" != "$DEFAULT_FILE" ]; then
+    printf '%s\n' "$RECORD" >> "$DEFAULT_FILE" 2>/dev/null || :
+fi
+
+exit 0

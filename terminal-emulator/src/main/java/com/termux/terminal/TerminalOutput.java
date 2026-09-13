@@ -29,4 +29,7 @@ public abstract class TerminalOutput {
 
     public abstract void onColorsChanged();
 
+    /** Notify the terminal client that a notification escape sequence (OSC 9 / OSC 777) was received. */
+    public void onNotification(String title, String message) {}
+
 }

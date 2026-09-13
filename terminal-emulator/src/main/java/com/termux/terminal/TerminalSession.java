@@ -285,6 +285,11 @@ public final class TerminalSession extends TerminalOutput {
     }
 
     @Override
+    public void onNotification(String title, String message) {
+        mClient.onNotification(this, title, message);
+    }
+
+    @Override
     public void onColorsChanged() {
         mClient.onColorsChanged(this);
     }

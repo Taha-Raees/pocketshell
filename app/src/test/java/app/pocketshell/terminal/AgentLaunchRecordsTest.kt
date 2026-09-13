@@ -53,6 +53,20 @@ class AgentLaunchRecordsTest {
     }
 
     @Test
+    fun `notification records parse from bridge format`() {
+        val parsed = AgentLaunchRecords.parse(
+            "{\"t\":\"notify\",\"id\":1789315059,\"sessionId\":42,\"app\":\"Claude Code\",\"summary\":\"Claude Code\",\"body\":\"Permission required to run git commit\",\"urgency\":\"critical\",\"ts\":1789315059}\n"
+        )
+        assertEquals(1, parsed.notifications.size)
+        val notif = parsed.notifications.single()
+        assertEquals(42L, notif.sessionId)
+        assertEquals("Claude Code", notif.app)
+        assertEquals("Claude Code", notif.summary)
+        assertEquals("Permission required to run git commit", notif.body)
+        assertEquals("critical", notif.urgency)
+    }
+
+    @Test
     fun `malformed lines are dropped - never guessed into an anchor`() {
         val parsed = AgentLaunchRecords.parse(
             listOf(

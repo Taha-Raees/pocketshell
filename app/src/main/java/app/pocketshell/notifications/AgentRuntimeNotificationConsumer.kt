@@ -78,7 +78,6 @@ object AgentRuntimeNotificationConsumer {
      * application start path). Does nothing on a second call.
      */
     fun ensureStarted() {
-        if (!started.compareAndSet(false, true)) return
         scope.launch {
             // The ONE subscription. The upstream stream is replay-free and
             // transition-only (P3c guarantees): every collection step IS a

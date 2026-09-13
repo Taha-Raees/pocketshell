@@ -37,6 +37,12 @@ class PocketShellSessionClient(
      * boundary stays intact — the client is a PTY callback adapter).
      */
     private val onBell: () -> Unit = {},
+    /**
+     * M7.2: in-band terminal notification (OSC 9 / OSC 777) received.
+     * Leaves through this plain lambda seam; names no detection/notification
+     * symbols, preserving the waiting-evidence boundary.
+     */
+    private val onNotification: (title: String, message: String) -> Unit = { _, _ -> },
 ) : TerminalSessionClient {
 
     private val clipboard: ClipboardManager? =
@@ -62,6 +68,11 @@ class PocketShellSessionClient(
         // pipeline; visual/audio bell polish remains M1.3.
         Log.d(LOG_TAG, "bell")
         onBell()
+    }
+
+    override fun onNotification(session: TerminalSession, title: String, message: String) {
+        Log.d(LOG_TAG, "notification title=\"$title\" message=\"$message\"")
+        onNotification(title, message)
     }
 
     // ---- clipboard -------------------------------------------------------------

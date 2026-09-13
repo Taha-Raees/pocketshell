@@ -67,6 +67,13 @@ object TerminalSessionManager {
     var onBellListener: ((sessionId: Long) -> Unit)? = null
 
     /**
+     * M7.2: hook for in-band (OSC 9 / OSC 777) and guest bridge desktop notifications.
+     * Invoked on the main thread with session id, notification title, and body.
+     */
+    @Volatile
+    var onNotificationListener: ((sessionId: Long, title: String, message: String) -> Unit)? = null
+
+    /**
      * M7.2 P6 — coalesced PTY activity pulses (the two facts the terminal
      * already knows: output recency and terminal bell), for live sessions.
      * Updated AT MOST once per second from the screen-update path (a busy
@@ -99,7 +106,7 @@ object TerminalSessionManager {
     }
 
     /** Record a bell pulse for [id] and emit IMMEDIATELY (attention is latency-sensitive). */
-    private fun touchBellPulse(id: Long) {
+    internal fun touchBellPulse(id: Long) {
         rawPulses.getOrPut(id) { RawActivityPulse() }.bellAtMs = android.os.SystemClock.elapsedRealtime()
         emitPulses()
     }
@@ -383,12 +390,22 @@ object TerminalSessionManager {
                     onScreenUpdateListener?.invoke(id)
                 },
                 onBell = { touchBellPulse(id) },
+                onNotification = { title, message ->
+                    mainHandler.post {
+                        touchBellPulse(id)
+                        onNotificationListener?.invoke(id, title, message)
+                    }
+                },
             )
+            val augmentedEnv = env + arrayOf(
+                "POCKETSHELL_SESSION_ID=$id",
+                "POCKETSHELL_AGENT=${agent?.command ?: ""}",
+            ) + (launchRecordPath?.let { arrayOf("POCKETSHELL_AGENT_RECORD=$it") } ?: emptyArray())
             val session = TerminalSession(
                 command,
                 workingDirectory,
                 args,
-                env,
+                augmentedEnv,
                 ShellEnvironment.TRANSCRIPT_ROWS,
                 client,
             )

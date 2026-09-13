@@ -53,9 +53,39 @@ public abstract class TerminalTestCase extends TestCase {
 			bellsRung++;
 		}
 
+		public final List<NotificationEvent> notifications = new ArrayList<>();
+
+		@Override
+		public void onNotification(String title, String message) {
+			notifications.add(new NotificationEvent(title, message));
+		}
+
 		@Override
 		public void onColorsChanged() {
 			colorsChanged++;
+		}
+	}
+
+	public static class NotificationEvent {
+		public final String title;
+		public final String message;
+
+		public NotificationEvent(String title, String message) {
+			this.title = title;
+			this.message = message;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (!(o instanceof NotificationEvent)) return false;
+			NotificationEvent that = (NotificationEvent) o;
+			return Objects.equals(title, that.title) && Objects.equals(message, that.message);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(title, message);
 		}
 	}
 

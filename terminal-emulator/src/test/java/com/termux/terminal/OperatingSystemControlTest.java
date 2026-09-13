@@ -193,4 +193,30 @@ public class OperatingSystemControlTest extends TerminalTestCase {
 		assertEnteringStringGivesResponse("\033]10;?\033\\", "\033]10;rgb:abab/cdcd/0000\033\\");
 	}
 
+	public void testOsc9Notification() throws Exception {
+		withTerminalSized(10, 10);
+		enterString("\033]9;Build finished\007");
+		assertEquals(1, mOutput.notifications.size());
+		assertEquals("Build finished", mOutput.notifications.get(0).message);
+
+		// With ST terminator
+		enterString("\033]9;Another notification\033\\");
+		assertEquals(2, mOutput.notifications.size());
+		assertEquals("Another notification", mOutput.notifications.get(1).message);
+	}
+
+	public void testOsc777Notification() throws Exception {
+		withTerminalSized(10, 10);
+		enterString("\033]777;notify;Agent;Task complete\007");
+		assertEquals(1, mOutput.notifications.size());
+		assertEquals("Agent", mOutput.notifications.get(0).title);
+		assertEquals("Task complete", mOutput.notifications.get(0).message);
+
+		// With ST terminator
+		enterString("\033]777;notify;Claude;Permission required\033\\");
+		assertEquals(2, mOutput.notifications.size());
+		assertEquals("Claude", mOutput.notifications.get(1).title);
+		assertEquals("Permission required", mOutput.notifications.get(1).message);
+	}
+
 }

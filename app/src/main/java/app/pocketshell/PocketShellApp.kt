@@ -45,6 +45,19 @@ class PocketShellApp : Application() {
         // lifecycle truth; it folds events through the pure truth contract
         // and posts/cancels via the coordinator above.
         app.pocketshell.notifications.AgentRuntimeNotificationConsumer.ensureStarted()
+        // M7.2: in-band and guest bridge desktop notifications route through
+        // the coordinator to produce real Android notifications targeted to the session.
+        app.pocketshell.terminal.TerminalSessionManager.onNotificationListener = { sessionId, title, message ->
+            app.pocketshell.notifications.NotificationCoordinator.post(
+                app.pocketshell.notifications.NotificationCoordinator.EventNotification(
+                    kind = app.pocketshell.notifications.NotificationCoordinator.EventKind.AGENT_RUNTIME,
+                    sessionId = sessionId,
+                    title = title,
+                    text = message,
+                    ongoing = false,
+                )
+            )
+        }
     }
 }
 

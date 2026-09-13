@@ -22,6 +22,8 @@ public interface TerminalSessionClient {
 
     void onBell(@NonNull TerminalSession session);
 
+    default void onNotification(@NonNull TerminalSession session, @NonNull String title, @NonNull String message) {}
+
     void onColorsChanged(@NonNull TerminalSession session);
 
     void onTerminalCursorStateChange(boolean state);

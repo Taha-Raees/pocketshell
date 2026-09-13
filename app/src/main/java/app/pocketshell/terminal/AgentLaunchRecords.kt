@@ -88,32 +88,48 @@ object AgentLaunchRecords {
         val agent: String,
     )
 
+    /**
+     * M7.2: Desktop notification record from the guest notification bridge
+     * (pocketshell-notif-bridge / notify-send).
+     */
+    data class NotificationRecord(
+        val id: Long,
+        val sessionId: Long = 0L,
+        val app: String,
+        val summary: String,
+        val body: String,
+        val urgency: String = "normal",
+        val timestamp: Long = 0L,
+    )
+
     /** The parsed content of one launch-record file. */
     data class SessionRecords(
         val launch: LaunchRecord?,
         val exits: List<ExitRecord>,
+        val notifications: List<NotificationRecord> = emptyList(),
     )
 
-    val EMPTY: SessionRecords = SessionRecords(launch = null, exits = emptyList())
+    val EMPTY: SessionRecords = SessionRecords(launch = null, exits = emptyList(), notifications = emptyList())
 
     /**
-     * Strict parser: accepts exactly the two record shapes the chain emits,
+     * Strict parser: accepts launch, exit, and notification records,
      * one JSON object per line, and nothing else. Unknown lines, malformed
-     * JSON, wrong types or out-of-domain values are DROPPED (the anchor
-     * simply disappears — missing evidence is never upgraded to a guess).
-     * A truncated final line (a crash mid-write) degrades to the records
-     * before it, which is exactly the honest state.
+     * JSON, wrong types or out-of-domain values are DROPPED (missing evidence
+     * is never upgraded to a guess). A truncated final line (a crash mid-write)
+     * degrades to the records before it, which is exactly the honest state.
      */
     fun parse(text: String): SessionRecords {
         var launch: LaunchRecord? = null
         val exits = ArrayList<ExitRecord>(2)
+        val notifs = ArrayList<NotificationRecord>(4)
         for (rawLine in text.lineSequence()) {
             val line = rawLine.trim()
             if (line.isEmpty()) continue
             parseLaunch(line)?.let { launch = it; continue }
-            parseExit(line)?.let { exits += it }
+            parseExit(line)?.let { exits += it; continue }
+            parseNotification(line)?.let { notifs += it }
         }
-        return SessionRecords(launch = launch, exits = exits)
+        return SessionRecords(launch = launch, exits = exits, notifications = notifs)
     }
 
     /** Read + parse one record file; unreadable == empty (the channel is simply absent). */
@@ -200,5 +216,29 @@ object AgentLaunchRecords {
         val agent = stringField(line, "agent") ?: return null
         if (agent.isEmpty()) return null
         return ExitRecord(status = status, agent = agent)
+    }
+
+    private fun stringFieldAny(line: String, name: String): String? =
+        Regex("\"$name\":\"((?:\\\\\"|[^\"])*)\"").find(line)?.groupValues?.get(1)?.replace("\\\"", "\"")
+
+    private fun parseNotification(line: String): NotificationRecord? {
+        if (!line.startsWith("{\"t\":\"notify\"") && !line.startsWith("{\"id\":")) return null
+        val id = longField(line, "id") ?: 0L
+        val sessionId = longField(line, "sessionId") ?: 0L
+        val app = stringFieldAny(line, "app") ?: "agent"
+        val summary = stringFieldAny(line, "summary") ?: ""
+        val body = stringFieldAny(line, "body") ?: ""
+        val urgency = stringFieldAny(line, "urgency") ?: "normal"
+        val ts = longField(line, "ts") ?: 0L
+        if (summary.isEmpty() && body.isEmpty()) return null
+        return NotificationRecord(
+            id = id,
+            sessionId = sessionId,
+            app = app,
+            summary = summary,
+            body = body,
+            urgency = urgency,
+            timestamp = ts,
+        )
     }
 }

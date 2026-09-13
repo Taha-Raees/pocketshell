@@ -2034,6 +2034,18 @@ public final class TerminalEmulator {
             case 2: // Change window title to T.
                 setTitle(textParameter);
                 break;
+            case 9: // OSC 9 ; <message> ST/BEL (iTerm2 desktop notification)
+                mSession.onNotification(mTitle != null ? mTitle : "Terminal", textParameter);
+                break;
+            case 777: // OSC 777 ; notify ; <title> ; <message> ST/BEL (rxvt-unicode / wezterm desktop notification)
+                if (textParameter.startsWith("notify;")) {
+                    String rest = textParameter.substring("notify;".length());
+                    int semi = rest.indexOf(';');
+                    String notifTitle = semi >= 0 ? rest.substring(0, semi) : rest;
+                    String notifBody = semi >= 0 ? rest.substring(semi + 1) : "";
+                    mSession.onNotification(notifTitle, notifBody);
+                }
+                break;
             case 4:
                 // P s = 4 ; c ; spec → Change Color Number c to the color specified by spec. This can be a name or RGB
                 // specification as per XParseColor. Any number of c name pairs may be given. The color numbers correspond
