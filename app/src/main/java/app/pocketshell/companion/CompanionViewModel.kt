@@ -40,6 +40,11 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope, SharingStarted.WhileSubscribed(5_000), 0f,
     )
 
+    /** The last raised height the user dragged to; restored on re-open. */
+    val lastExpandedHeight: StateFlow<Float> = repo.lastExpandedHeight.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), CompanionHeights.HALF,
+    )
+
     /** Active tab (defId), stale selections repaired against the tab list. */
     val activeTabId: StateFlow<String?> =
         combine(repo.tabs, repo.activeTabId) { tabs, active ->
@@ -132,7 +137,8 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
             repo.setTabs(CompanionTabs.opened(tabs, defId))
             repo.setActiveTabId(defId)
             if (!CompanionHeights.isRaised(repo.panelHeight.first())) {
-                repo.setPanelHeight(CompanionHeights.HALF)
+                // Restore to the user's last remembered drag position, not HALF.
+                repo.setPanelHeight(repo.lastExpandedHeight.first())
             }
         }
     }
@@ -239,6 +245,40 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
 
     /** Persist a settled drag height (contract §9: stay where released). */
     fun settleHeight(fraction: Float) {
-        viewModelScope.launch { repo.setPanelHeight(CompanionHeights.settled(fraction)) }
+        viewModelScope.launch {
+            val settled = CompanionHeights.settled(fraction)
+            repo.setPanelHeight(settled)
+            // Remember this raised position so re-opening restores it.
+            if (CompanionHeights.isRaised(settled)) {
+                repo.setLastExpandedHeight(settled)
+            }
+        }
+    }
+
+    /**
+     * Drag-bar tap toggle (M7.2 companion polish):
+     * - If raised → minimize (collapse to 0).
+     * - If collapsed → restore to the last remembered expanded height,
+     *   opening the default Companion first if no tab is currently open.
+     */
+    fun toggleExpanded() {
+        viewModelScope.launch {
+            if (CompanionHeights.isRaised(repo.panelHeight.first())) {
+                repo.setPanelHeight(0f)
+            } else {
+                // Ensure there's something to show before restoring.
+                if (repo.tabs.first().isEmpty()) {
+                    val defs = repo.defs.first()
+                    val target = repo.defaultId.first()
+                        ?.let { id -> defs.firstOrNull { it.id == id } }
+                        ?: defs.firstOrNull()
+                    if (target != null) {
+                        repo.setTabs(CompanionTabs.opened(emptyList(), target.id))
+                        repo.setActiveTabId(target.id)
+                    }
+                }
+                repo.setPanelHeight(repo.lastExpandedHeight.first())
+            }
+        }
     }
 }

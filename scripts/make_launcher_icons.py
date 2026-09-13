@@ -71,139 +71,77 @@ CONTENT_BOX = 156     # uniform content box inside the canvas (~81%)
 # tokens (ui/theme/TerminalTheme.kt) so the bundled icons and the badge
 # tiles (MonogramTile → HomeTokens.surfaceApp → TerminalTheme.keyAlt)
 # share ONE plate vocabulary:
-#   DARK_PLATE  = keyAlt in Midnight Sapphire  = #16233F
-#   LIGHT_PLATE = keyAlt in Daylight Sapphire  = #EDF1F7
-#   INK         = PaperInk (the Daylight text primary) = #17233B
+# M7.2 — theme-matched icons:
+# Light theme = Midnight Blue (the Daylight Sapphire text primary / chrome tone #17233B)
+# Dark theme  = Light Sapphire / Soft White (#DCE6F8)
+# All icons transparent background so they render natively in both tabs and grids.
+MIDNIGHT_BLUE = (23, 35, 59)
+LIGHT_COLOR = (220, 230, 248)
 DARK_PLATE = (22, 35, 63)
 LIGHT_PLATE = (237, 241, 247)
 INK = (23, 35, 59)
-GITHUB_INK = (36, 41, 47)   # GitHub's own light-mark near-black (#24292F)
+GITHUB_INK = (36, 41, 47)
 OPENAI_BLACK = (11, 11, 11)
 
 UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
 
-# id -> (label, [candidate first-party URLs], dark_opts, light_opts)
-#
-# opts (all optional):
-#   bg          composite the mark onto this OPAQUE plate color — the
-#               P2.2 theme-scheme plate (or a brand tile where the mark
-#               is inseparable from it);
-#   recolor     repaint the mark's alpha mask in this solid color (the
-#               standard monochrome brand treatment: white glyph on the
-#               dark plate, ink glyph on the light plate);
-#   trim_color  crop to the bbox of pixels that DIFFER from this background
-#               color (for full-bleed sources whose own background is not
-#               transparent).
-# light_opts None → the mark is theme-proof: identical rendering in both.
-# M7.1 P2.1 — owner-supplied official brand vectors vendored in-tree
-# (zonalogo.com mirrors of the official marks; original upload filenames
-# documented per entry). Tried BEFORE the network/cache path so the
-# refresh is fully offline and byte-reproducible.
 LOCAL_SVGS = {
-    "builtin-chatgpt": "builtin-chatgpt.svg",   # openai.svg (OpenAI knot)
-    "builtin-claude": "builtin-claude.svg",     # claude.svg (Claude starburst)
-    "builtin-zai": "builtin-zai.svg",           # Z AI Logo - Colored
-    "builtin-github": "builtin-github.svg",     # github.svg (octocat glyph)
-    "hermes": "hermes.svg",                     # Hermes Agent Logo - Black
-    "opencode": "opencode.svg",                 # OpenCode Logo - Colored
-    "kilo": "kilo.svg",                         # Kilo Code Logo - Colored
-    "cline": "cline.svg",                       # Cline Icon - Black
-    "agy": "agy.svg",                           # Google Antigravity Logo - Colored
-    # P2.2: ZCode is Z.ai's own CLI — the same owner-supplied Z.ai mark.
+    "builtin-chatgpt": "builtin-chatgpt.svg",
+    "builtin-claude": "builtin-claude.svg",
+    "builtin-zai": "builtin-zai.svg",
+    "builtin-github": "builtin-github.svg",
+    "hermes": "hermes.svg",
+    "opencode": "opencode.svg",
+    "kilo": "kilo.svg",
+    "cline": "cline.svg",
+    "agy": "agy.svg",
     "zcode": "builtin-zai.svg",
+    # Same logo for companions and CLI tools (Claude web & Claude code)
+    "claude": "builtin-claude.svg",
+    "codex": "builtin-chatgpt.svg",
 }
 
 SOURCES = {
-    # The OpenAI knot ships black (currentColor). P2.2 theme treatments:
-    # dark = white knot on the Midnight plate; light = the OpenAI-black
-    # knot on the Daylight plate (the brand's own light-app-icon look).
-    "builtin-chatgpt": ("ChatGPT", [
-        "https://chatgpt.com/apple-touch-icon.png",
-        "https://cdn.oaistatic.com/assets/apple-touch-icon-mz9nytnj.webp",
-        "https://openai.com/favicon.ico",
-    ], {"recolor": (255, 255, 255), "bg": DARK_PLATE},
-       {"recolor": OPENAI_BLACK, "bg": LIGHT_PLATE}),
-    # The starburst glyph ships black — recolored to the Claude terracotta,
-    # transparent background (colored brand mark, reads on both themes).
-    "builtin-claude": ("Claude", [
-        "https://cdn.prod.website-files.com/6889473510b50328dbb70ae6/68c33859cc6cd903686c66a2_apple-touch-icon.png",
-        "https://www.anthropic.com/favicon.ico",
-    ], {"recolor": (217, 119, 87)}, None),
-    # The Z.ai mark is a self-contained brand tile (charcoal tile + white
-    # glyph) — theme-proof as shipped.
-    "builtin-zai": ("Z.ai", [
-        "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-    ], {}, None),
-    # The octocat glyph ships black. P2.2: dark = white mark on the
-    # Midnight plate; light = GitHub's own light ink on the Daylight plate.
-    "builtin-github": ("GitHub", [
-        "https://github.githubassets.com/favicons/favicon-dark.svg",
-        "https://github.githubassets.com/favicons/favicon.png",
-    ], {"recolor": (255, 255, 255), "bg": DARK_PLATE},
-       {"recolor": GITHUB_INK, "bg": LIGHT_PLATE}),
-    # P2.2: the Hermes mascot ships pure black (verified single-color) —
-    # it VANISHES on the Midnight plate, so dark inverts the glyph to
-    # white; light keeps the black mascot on the Daylight plate.
-    "hermes": ("Hermes Agent (Nous Research)", [
-        "https://nousresearch.com/apple-touch-icon.png",
-        "https://nousresearch.com/favicon.ico",
-    ], {"recolor": (255, 255, 255), "bg": DARK_PLATE},
-       {"bg": LIGHT_PLATE}),
-    # The OpenCode mark is a self-contained dark brand tile with a silver
-    # glyph — reads on both themes as shipped.
-    "opencode": ("OpenCode", [
-        "https://opencode.ai/apple-touch-icon-v3.png",
-        "https://opencode.ai/favicon-96x96-v3.png",
-        "https://opencode.ai/favicon.ico",
-    ], {}, None),
-    # Claude Code keeps the Anthropic mark it has shipped since P2 (a
-    # self-contained colored tile, theme-proof).
-    "claude": ("Claude Code (Anthropic)", [
-        "https://cdn.prod.website-files.com/6889473510b50328dbb70ae6/68c33859cc6cd903686c66a2_apple-touch-icon.png",
-        "https://www.anthropic.com/favicon.ico",
-    ], {}, None),
-    # ZCode: the same Z.ai brand mark as the companion (see LOCAL_SVGS).
-    "zcode": ("ZCode (Z.ai)", [
-        "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-    ], {}, None),
-    # P2.2: the Kilo pixel letters ship NO fill (render black) — dark
-    # inverts to white on the Midnight plate; light keeps black on the
-    # Daylight plate (replacing the glaring white plate from P2.1).
-    "kilo": ("Kilo Code", [
-        "https://kilocode.ai/apple-touch-icon.png",
-        "https://kilocode.ai/favicon.ico",
-        "https://raw.githubusercontent.com/Kilo-Org/kilocode/main/apps/web/public/favicon.png",
-    ], {"recolor": (255, 255, 255), "bg": DARK_PLATE},
-       {"bg": LIGHT_PLATE}),
-    # P2.2: the Cline robot ships black — dark inverts to white on the
-    # Midnight plate; light keeps black on the Daylight plate.
-    "cline": ("Cline", [
-        "https://cline.bot/assets/branding/favicons/favicon-256x256.png",
-        "https://cline.bot/assets/branding/favicons/apple-touch-icon.png",
-    ], {"recolor": (255, 255, 255), "bg": DARK_PLATE},
-       {"bg": LIGHT_PLATE}),
-    # The Antigravity arc is colored on transparency — theme-proof.
-    "agy": ("Antigravity (Google)", [
-        "https://antigravity.google/favicon.ico",
-        "https://antigravity.google/apple-touch-icon.png",
-        "https://www.google.com/favicon.ico",
-    ], {}, None),
-    # The large official OpenAI flower source; Codex's own favicon ships
-    # the same glyph as a 48px black-on-transparent icon (too small and
-    # invisible on the dark canvas). P2.2 theme plates replace the P2
-    # OpenAI-black tile: dark = white flower on Midnight, light = ink
-    # flower on Daylight.
-    "codex": ("Codex (OpenAI)", [
-        "https://cdn.oaistatic.com/assets/apple-touch-icon-mz9nytnj.webp",
-        "https://openai.com/favicon.ico",
-    ], {"trim_color": (255, 255, 255), "recolor": (255, 255, 255), "bg": DARK_PLATE},
-       {"trim_color": (255, 255, 255), "recolor": INK, "bg": LIGHT_PLATE}),
-    # Qwen's mark is small colored art on transparency — theme-proof.
-    "qwen": ("Qwen Code", [
-        "https://assets.alicdn.com/g/qwenweb/qwen-chat-fe/0.2.91/favicon.png",
-        "https://img.alicdn.com/imgextra/i4/O1CN01OXv3EM1FN8t9W4P79_!!6000000000474-2-tps-80-80.png",
-    ], {}, None),
+    "builtin-chatgpt": ("ChatGPT", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "builtin-claude": ("Claude", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "builtin-zai": ("Z.ai", [],
+        {"recolor": LIGHT_COLOR, "cutout_white": True},
+        {"recolor": MIDNIGHT_BLUE, "cutout_white": True}),
+    "builtin-github": ("GitHub", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "hermes": ("Hermes Agent (Nous Research)", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "opencode": ("OpenCode", [],
+        {"recolor": LIGHT_COLOR, "cutout_white": True},
+        {"recolor": MIDNIGHT_BLUE, "cutout_white": True}),
+    "claude": ("Claude Code (Anthropic)", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "zcode": ("ZCode (Z.ai)", [],
+        {"recolor": LIGHT_COLOR, "cutout_white": True},
+        {"recolor": MIDNIGHT_BLUE, "cutout_white": True}),
+    "kilo": ("Kilo Code", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "cline": ("Cline", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "agy": ("Antigravity (Google)", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "codex": ("Codex (OpenAI)", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
+    "qwen": ("Qwen Code", [],
+        {"recolor": LIGHT_COLOR},
+        {"recolor": MIDNIGHT_BLUE}),
 }
 
 VARIANTS = (("dark", ""), ("light", "-light"))
@@ -242,8 +180,21 @@ def normalize(img: PIL.Image.Image, opts: dict) -> PIL.Image.Image:
     without transparency (RGB touch icons) still yield a clean glyph."""
     rgba = img.convert("RGBA")
     trim_color = opts.get("trim_color")
+    cutout_white = opts.get("cutout_white")
     mask = None
-    if trim_color:
+    if cutout_white:
+        rgb = rgba.convert("RGB")
+        mask = PIL.Image.new("L", rgb.size, 0)
+        px_rgb, px_a, out = rgb.load(), rgba.getchannel("A").load(), mask.load()
+        for y in range(rgb.height):
+            for x in range(rgb.width):
+                p = px_rgb[x, y]
+                if px_a[x, y] > 20 and p[0] < 150:
+                    out[x, y] = px_a[x, y]
+                else:
+                    out[x, y] = 0
+        bbox = mask.getbbox()
+    elif trim_color:
         rgb = rgba.convert("RGB")
         mask = PIL.Image.new("L", rgb.size, 0)
         px, out = rgb.load(), mask.load()
@@ -361,6 +312,9 @@ def main() -> int:
         if raw is None and raw_path.exists():
             raw = raw_path.read_bytes()
             used = "cache"
+        if raw is None and (OUT_DIR / f"{icon_id}.webp").exists():
+            raw = (OUT_DIR / f"{icon_id}.webp").read_bytes()
+            used = f"existing {icon_id}.webp"
         if raw is None:
             if keep_existing(icon_id):
                 results[icon_id] = ("KEPT", used, 0)

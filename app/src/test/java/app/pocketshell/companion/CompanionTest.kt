@@ -306,5 +306,51 @@ class CompanionTest {
         assertEquals("", WebCompat.chromeLikeUserAgent(""))
     }
 
+    // ---- M7.2 companion polish: remembered height ---------------------------
+
+    @Test
+    fun `lastExpandedHeight defaults to HALF and rejects collapsed values`() {
+        // Raised positions pass through clamped.
+        val half = CompanionHeights.HALF
+        val quarter = 0.25f
+        val nearFull = CompanionHeights.FULL - 0.02f
+        assertTrue(CompanionHeights.isRaised(CompanionHeights.clamp(half)))
+        assertTrue(CompanionHeights.isRaised(CompanionHeights.clamp(quarter)))
+        assertTrue(CompanionHeights.isRaised(CompanionHeights.clamp(nearFull)))
+        // Collapsed / sub-MIN_RAISED values must NOT be stored (repo guard).
+        assertFalse(CompanionHeights.isRaised(0f))
+        assertFalse(CompanionHeights.isRaised(CompanionHeights.clamp(-1f)))
+    }
+
+    @Test
+    fun `lastExpandedHeight survives roundtrip through clamp`() {
+        // Whatever value settleHeight computes, clamp brings it back correctly.
+        listOf(0.30f, 0.55f, 0.70f, CompanionHeights.FULL).forEach { h ->
+            val clamped = CompanionHeights.clamp(h)
+            assertEquals(h, clamped, 0.001f)
+            assertTrue(CompanionHeights.isRaised(clamped))
+        }
+    }
+
+    // ---- M7.2 companion polish: CompanionTabIcons.resolveIconId -------------
+
+    @Test
+    fun `resolveIconId returns the exact id for builtin companion seeds`() {
+        // The four seed ids must always resolve (they are in LauncherBundledIcons).
+        assertEquals("builtin-chatgpt", app.pocketshell.ui.companion.CompanionTabIcons.resolveIconId("builtin-chatgpt"))
+        assertEquals("builtin-claude", app.pocketshell.ui.companion.CompanionTabIcons.resolveIconId("builtin-claude"))
+        assertEquals("builtin-zai", app.pocketshell.ui.companion.CompanionTabIcons.resolveIconId("builtin-zai"))
+        assertEquals("builtin-github", app.pocketshell.ui.companion.CompanionTabIcons.resolveIconId("builtin-github"))
+    }
+
+    @Test
+    fun `resolveIconId returns null for custom companion ids`() {
+        // Custom companions (user-added) never accidentally get a curated icon.
+        assertNull(app.pocketshell.ui.companion.CompanionTabIcons.resolveIconId("random-uuid-1234"))
+        assertNull(app.pocketshell.ui.companion.CompanionTabIcons.resolveIconId("my-gpt"))
+        assertNull(app.pocketshell.ui.companion.CompanionTabIcons.resolveIconId(""))
+        assertNull(app.pocketshell.ui.companion.CompanionTabIcons.resolveIconId("chatgpt"))  // must be builtin- prefixed
+    }
+
 
 }

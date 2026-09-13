@@ -529,6 +529,9 @@ private fun TerminalViewHost(
                 view.setTextSize(textSize)
                 appliedSize.value = textSize
             }
+            view.setBackgroundColor(TerminalTheme.canvas.toArgb())
+            view.mEmulator?.mColors?.reset()
+            view.invalidate()
         },
         modifier = modifier,
     )

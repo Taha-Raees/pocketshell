@@ -11,6 +11,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -230,11 +231,10 @@ fun CompanionLayer(
             CompanionHandle(
                 dragging = dragFraction != null,
                 onTap = {
-                    // Phase 5 §1 — a single tap anywhere on the bar IMMEDIATELY
-                    // minimizes the Companion, at every raised height (25%,
-                    // 50%, 80%, near-full — no drag needed). When minimized the
-                    // tap does nothing: the bar is dragged UP to restore.
-                    if (raised) viewModel.collapse()
+                    // M7.2 companion polish — tap the drag bar to toggle:
+                    // minimize if raised, restore to last remembered position
+                    // if minimized. Both directions handled symmetrically.
+                    viewModel.toggleExpanded()
                 },
                 onDragStart = { startSheetDrag() },
                 onDrag = { delta -> dragSheetBy(delta) },
@@ -665,11 +665,14 @@ private fun CompanionEmptyState(
     onAdd: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
+    val sheetShape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .height(320.dp)
-            .background(TerminalTheme.canvas),
+            .clip(sheetShape)
+            .background(TerminalTheme.canvas)
+            .border(1.dp, TerminalTheme.divider, sheetShape),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
     ) {
