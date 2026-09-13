@@ -24,6 +24,7 @@ import app.pocketshell.files.terminalLaunchDirectory
 import app.pocketshell.files.TerminalLaunchResolution
 import app.pocketshell.files.TerminalLaunchSupport
 import app.pocketshell.files.openTerminalHereProblem
+import app.pocketshell.files.ZipArchiveOps
 import app.pocketshell.files.saf.AndroidDocumentArea
 import app.pocketshell.files.saf.FileShareOps
 import app.pocketshell.files.saf.SafFolderInfo
@@ -40,6 +41,10 @@ import app.pocketshell.ui.files.OpsNotice
 import app.pocketshell.ui.files.RenameEntryDialog
 import app.pocketshell.ui.files.ReplaceRequest
 import app.pocketshell.ui.files.ShareReady
+import app.pocketshell.ui.files.CompressDialogState
+import app.pocketshell.ui.files.ExtractDialogState
+import app.pocketshell.ui.files.OpenWithReady
+import app.pocketshell.ui.files.ZipProgress
 import java.io.File
 import java.io.FileNotFoundException
 import kotlinx.coroutines.Dispatchers
@@ -737,6 +742,28 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
                     }
                 }
             }
+            is OpsCommand.CompressZip -> {
+                val area = areaById[command.areaId] ?: return
+                startZipJob(ZipProgress.ZipKind.COMPRESS) { isCancelled ->
+                    // Confirmed Replace = delete the old archive, then run.
+                    val removed = area.delete(command.target)
+                    if (!removed.success) {
+                        return@startZipJob ZipArchiveOps.ZipResult(
+                            false,
+                            false,
+                            "Could not replace ${command.target.value}: " +
+                                "${removed.reason ?: "delete failed"} — nothing was changed.",
+                        )
+                    }
+                    ZipArchiveOps.compress(
+                        area = area,
+                        sources = command.sources,
+                        target = command.target,
+                        isCancelled = isCancelled,
+                        onProgress = ::onZipProgress,
+                    )
+                }
+            }
         }
     }
 
@@ -1219,5 +1246,339 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
                 }
             }
         }
+    }
+
+    // ============================================ M7.2-A — breadcrumb navigation
+
+    /**
+     * Navigate to an ancestor/folder location of the CURRENT area (a crumb
+     * tap). [target] is a validated [AreaPath] derived from the location the
+     * listing itself reports — the same safety surface as [openChild]
+     * ([ExplorerCore.openDirectory] re-lists it and fails honestly if it
+     * vanished). A selection never survives leaving its directory.
+     */
+    fun openBreadcrumb(target: app.pocketshell.files.AreaPath) {
+        exitSelection()
+        dispatch { core.openDirectory(target) }
+    }
+
+    // ================================= M7.2-A — archives (ZIP) + Open With engine
+
+    /**
+     * Archive work gets its OWN serial worker (the [searchIo] discipline):
+     * a long compress/extract must never delay navigation, which owns
+     * [explorerIo]. One archive operation at a time — a second request
+     * while one runs is refused honestly.
+     */
+    private val zipIo = Dispatchers.IO.limitedParallelism(1)
+
+    private val _zipProgress = MutableStateFlow<ZipProgress?>(null)
+    override val zipProgress: StateFlow<ZipProgress?> = _zipProgress.asStateFlow()
+
+    private val _compressDialog = MutableStateFlow<CompressDialogState?>(null)
+    override val compressDialog: StateFlow<CompressDialogState?> = _compressDialog.asStateFlow()
+
+    private val _extractDialog = MutableStateFlow<ExtractDialogState?>(null)
+    override val extractDialog: StateFlow<ExtractDialogState?> = _extractDialog.asStateFlow()
+
+    private val _openWithReady = MutableStateFlow<OpenWithReady?>(null)
+    override val openWithReady: StateFlow<OpenWithReady?> = _openWithReady.asStateFlow()
+
+    /**
+     * Monotonic generation guard (the [searchGen] discipline): [cancelZip]
+     * bumps it, the running operation observes the change between entries
+     * (cooperative cancel — blocking I/O never sees job cancellation) and
+     * stops with an honest partial result.
+     */
+    @Volatile private var zipGen = 0L
+
+    /** Throttle bookkeeping for [onZipProgress] (written from [zipIo]). */
+    @Volatile private var lastProgressPublishMillis = 0L
+
+    private fun postNotice(text: String, isError: Boolean) {
+        noticeSeq += 1
+        _notice.value = OpsNotice(text = text, isError = isError, seq = noticeSeq)
+    }
+
+    private fun notice(text: String) = postNotice(text, isError = true)
+
+    // ------------------------------------------------------------- compress
+
+    override fun requestCompress(names: List<String>) {
+        val state = _state.value
+        val dir = state.path
+        if (dir == null || names.isEmpty()) return
+        if (_zipProgress.value != null) {
+            notice("An archive operation is already running — cancel it first.")
+            return
+        }
+        // Only names the CURRENT listing genuinely shows are compressible;
+        // symlinks are refused up front (they are never archived).
+        val valid = names.filter { name ->
+            state.entries.firstOrNull { it.name == name }?.let {
+                it.kind == EntryKind.FILE || it.kind == EntryKind.DIRECTORY
+            } == true
+        }
+        if (valid.isEmpty()) {
+            notice("Nothing compressible is selected — symlinks and special files are not archived.")
+            return
+        }
+        val suggested = if (valid.size == 1) "${valid.first()}.zip" else "archive.zip"
+        _compressDialog.value = CompressDialogState(
+            targetDir = dir,
+            names = valid,
+            suggestedName = suggested,
+        )
+    }
+
+    override fun dismissCompressDialog() {
+        _compressDialog.value = null
+    }
+
+    override fun submitCompress(archiveName: String) {
+        val dialog = _compressDialog.value ?: return
+        ExplorerOps.nameError(archiveName)?.let {
+            _compressDialog.value = dialog.copy(error = it)
+            return
+        }
+        if (ZipArchiveOps.isZipName(archiveName).not()) {
+            _compressDialog.value = dialog.copy(error = "The archive name must end with \".zip\".")
+            return
+        }
+        val area = currentAreaOrNull() ?: return
+        val target = ExplorerOps.composeChild(dialog.targetDir, archiveName) ?: run {
+            _compressDialog.value = dialog.copy(error = "\"$archiveName\" is not a valid archive name here.")
+            return
+        }
+        val sources = dialog.names.mapNotNull { ExplorerOps.composeChild(dialog.targetDir, it) }
+        if (sources.size != dialog.names.size) {
+            _compressDialog.value = dialog.copy(error = "A selection is no longer addressable — reopen the dialog.")
+            return
+        }
+        _compressDialog.value = null
+        // The collision probe is a blocking area call — it belongs on IO
+        // (the established discipline), never on the main thread.
+        viewModelScope.launch {
+            val existing = withContext(explorerIo) { area.stat(target) }
+            if (existing != null) {
+                _confirmReplace.value = ReplaceRequest(
+                    opLabel = "Compress",
+                    name = archiveName,
+                    existingKind = existing.kind,
+                    command = OpsCommand.CompressZip(
+                        areaId = area.id,
+                        targetDir = dialog.targetDir,
+                        sources = sources,
+                        target = target,
+                    ),
+                )
+                return@launch
+            }
+            startZipJob(ZipProgress.ZipKind.COMPRESS) { isCancelled ->
+                ZipArchiveOps.compress(
+                    area = area,
+                    sources = sources,
+                    target = target,
+                    isCancelled = isCancelled,
+                    onProgress = ::onZipProgress,
+                )
+            }
+        }
+    }
+
+    // -------------------------------------------------------------- extract
+
+    override fun requestExtract(name: String) {
+        val state = _state.value
+        if (state.path == null) return
+        val entry = state.entries.firstOrNull { it.name == name }
+        if (entry?.kind != EntryKind.FILE || !ZipArchiveOps.isZipName(name)) return
+        if (_zipProgress.value != null) {
+            notice("An archive operation is already running — cancel it first.")
+            return
+        }
+        _extractDialog.value = ExtractDialogState(
+            zipName = name,
+            suggestedFolder = name.removeSuffix(".zip").ifBlank { "extracted" },
+        )
+    }
+
+    override fun setExtractReplace(replace: Boolean) {
+        val dialog = _extractDialog.value ?: return
+        _extractDialog.value = dialog.copy(replace = replace)
+    }
+
+    override fun dismissExtractDialog() {
+        _extractDialog.value = null
+    }
+
+    override fun submitExtract(folderName: String) {
+        val dialog = _extractDialog.value ?: return
+        val area = currentAreaOrNull() ?: return
+        val dir = _state.value.path ?: return
+        ExplorerOps.nameError(folderName)?.let {
+            _extractDialog.value = dialog.copy(error = it)
+            return
+        }
+        val destination = ExplorerOps.composeChild(dir, folderName) ?: run {
+            _extractDialog.value = dialog.copy(error = "\"$folderName\" is not a valid folder name here.")
+            return
+        }
+        val zipPath = ExplorerOps.composeChild(dir, dialog.zipName) ?: run {
+            _extractDialog.value = dialog.copy(error = "The archive is no longer addressable here.")
+            return
+        }
+        _extractDialog.value = null
+        startZipJob(ZipProgress.ZipKind.EXTRACT) { isCancelled ->
+            // The destination folder is created through the area itself when
+            // missing; extract refuses anything that is not a directory.
+            if (area.stat(destination) == null) {
+                val created = area.createDirectory(destination)
+                if (!created.success) {
+                    return@startZipJob ZipArchiveOps.ZipResult(
+                        false,
+                        false,
+                        "Could not create ${destination.value}: ${created.reason ?: "creation failed"}.",
+                    )
+                }
+            }
+            ZipArchiveOps.extract(
+                area = area,
+                zipPath = zipPath,
+                destinationDir = destination,
+                isCancelled = isCancelled,
+                onProgress = ::onZipProgress,
+                replace = dialog.replace,
+            )
+        }
+    }
+
+    override fun cancelZip() {
+        zipGen += 1
+    }
+
+    // ------------------------------------------------------- shared zip job
+
+    private fun startZipJob(kind: ZipProgress.ZipKind, work: (isCancelled: () -> Boolean) -> ZipArchiveOps.ZipResult) {
+        if (_zipProgress.value != null) {
+            notice("An archive operation is already running — cancel it first.")
+            return
+        }
+        zipGen += 1
+        val gen = zipGen
+        viewModelScope.launch {
+            _zipProgress.value = ZipProgress(kind, null, 0, 0, null)
+            val result = withContext(zipIo) {
+                work { zipGen != gen }
+            }
+            _zipProgress.value = null
+            postNotice(
+                buildString {
+                    append(result.message)
+                    val shown = result.warnings.take(3)
+                    if (shown.isNotEmpty()) {
+                        append(" ")
+                        append(shown.joinToString(" "))
+                        val rest = result.warnings.size - shown.size
+                        if (rest > 0) append(" And $rest more.")
+                    }
+                },
+                isError = !result.success,
+            )
+            // The listing must show what landed — refresh through the ONE
+            // serial dispatch slot (cheap: one area.list of the current dir).
+            dispatch { core.refresh() }
+        }
+    }
+
+    /**
+     * Progress ticks arrive from [zipIo]; the StateFlow itself is
+     * thread-safe, but per-64KiB-chunk updates would recompose the banner
+     * hundreds of times a second — throttled to ~4 Hz plus entry changes.
+     */
+    private fun onZipProgress(progress: ZipArchiveOps.Progress) {
+        val kind = _zipProgress.value?.kind ?: return
+        val now = System.currentTimeMillis()
+        val last = _zipProgress.value
+        val entryChanged = last?.currentName != progress.currentName ||
+            last?.entriesDone != progress.entriesDone
+        if (!entryChanged &&
+            now - lastProgressPublishMillis < 250 &&
+            progress.bytesDone - (last?.bytesDone ?: 0) < 512 * 1024
+        ) {
+            return
+        }
+        lastProgressPublishMillis = now
+        _zipProgress.value = ZipProgress(
+            kind = kind,
+            currentName = progress.currentName,
+            entriesDone = progress.entriesDone,
+            bytesDone = progress.bytesDone,
+            totalBytes = progress.totalBytes,
+        )
+    }
+
+    // ---------------------------------------------------------- open with
+
+    override fun requestOpenWith(name: String) {
+        val state = _state.value
+        val area = currentAreaOrNull() ?: return
+        val dir = state.path ?: return
+        val kind = state.entries.firstOrNull { it.name == name }?.kind
+        if (kind != EntryKind.FILE) {
+            notice("Only files can be opened in an Android app.")
+            return
+        }
+        val child = ExplorerOps.composeChild(dir, name) ?: return
+        viewModelScope.launch {
+            val staged = withContext(explorerIo) {
+                FileShareOps.stageForShare(
+                    sourceArea = area,
+                    source = child,
+                    stagingDir = File(getApplication<Application>().cacheDir, FileShareOps.STAGING_DIR_NAME),
+                )
+            }
+            when (staged) {
+                is FileShareOps.Staging.Error -> notice(staged.reason)
+                is FileShareOps.Staging.Ok -> {
+                    val application = getApplication<Application>()
+                    val mimeType = FileShareOps.guessMimeType(name)
+                    // Honest no-handler detection BEFORE launching: resolve
+                    // ACTION_VIEW for the staged content URI's type. (The
+                    // app targets SDK 28, so Android 11+ package filtering
+                    // does not hide resolvers from this probe.)
+                    val probe = Intent(Intent.ACTION_VIEW)
+                        .setDataAndType(
+                            Uri.parse("content://${FileShareOps.FILE_PROVIDER_AUTHORITY}/staging"),
+                            mimeType,
+                        )
+                    val handler = runCatching { probe.resolveActivity(application.packageManager) }
+                        .getOrNull()
+                    if (handler == null) {
+                        notice(
+                            "No installed Android app can open \"$name\" ($mimeType).",
+                        )
+                        return@launch
+                    }
+                    _openWithReady.value = OpenWithReady(
+                        name = name,
+                        uriString = FileProvider.getUriForFile(
+                            application,
+                            FileShareOps.FILE_PROVIDER_AUTHORITY,
+                            staged.file,
+                        ).toString(),
+                        mimeType = mimeType,
+                    )
+                }
+            }
+        }
+    }
+
+    override fun consumeOpenWithReady() {
+        _openWithReady.value = null
+    }
+
+    override fun openWithLaunchFailed(reason: String) {
+        notice(reason)
     }
 }

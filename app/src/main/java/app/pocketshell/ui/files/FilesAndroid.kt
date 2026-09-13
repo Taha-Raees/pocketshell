@@ -76,8 +76,9 @@ fun rememberFilesBridgeLaunchers(ops: FilesOpsSurface): FilesBridgeLaunchers {
 
 /**
  * The effects side of the bridge: launches the Android share sheet when a
- * staged file is ready, and the system save dialog when an export prompt is
- * open. Both consume their offer immediately after launching — a dismissed
+ * staged file is ready, the system save dialog when an export prompt is
+ * open, and an installed app (ACTION_VIEW) when an open-with staging is
+ * ready. Each consumes its offer immediately after launching — a dismissed
  * system dialog simply means nothing happens.
  */
 @Composable
@@ -85,6 +86,7 @@ fun FilesBridgeEffects(ops: FilesOpsSurface) {
     val context = LocalContext.current
     val shareReady by ops.shareReady.collectAsStateWithLifecycle()
     val exportPrompt by ops.exportPrompt.collectAsStateWithLifecycle()
+    val openWithReady by ops.openWithReady.collectAsStateWithLifecycle()
 
     val savePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -111,6 +113,35 @@ fun FilesBridgeEffects(ops: FilesOpsSurface) {
                 context.startActivity(Intent.createChooser(sendIntent, "Share \"${ready.name}\""))
             }
             ops.consumeShareReady()
+        }
+    }
+
+    // M7.2-A: "Open in Android app" — ACTION_VIEW over the FileProvider
+    // content:// URI of the staged copy, with temporary read permission for
+    // the receiving app only. The chooser is explicit so the user can pick
+    // the app every time (no silent default hijacks the action); the real
+    // no-handler case was already refused honestly by the ViewModel before
+    // this offer was staged. The catch stays as defense in depth.
+    LaunchedEffect(openWithReady) {
+        openWithReady?.let { ready ->
+            val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(Uri.parse(ready.uriString), ready.mimeType)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            try {
+                context.startActivity(
+                    Intent.createChooser(viewIntent, "Open \"${ready.name}\" with"),
+                )
+            } catch (e: android.content.ActivityNotFoundException) {
+                ops.openWithLaunchFailed(
+                    "No installed Android app can open \"${ready.name}\".",
+                )
+            } catch (e: Exception) {
+                ops.openWithLaunchFailed(
+                    "Could not open \"${ready.name}\" in an Android app: ${e.message ?: e.javaClass.simpleName}",
+                )
+            }
+            ops.consumeOpenWithReady()
         }
     }
 
