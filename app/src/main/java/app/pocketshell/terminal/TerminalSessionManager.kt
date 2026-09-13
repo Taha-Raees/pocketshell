@@ -100,14 +100,15 @@ object TerminalSessionManager {
      * the hot repaint path.
      */
     private fun touchOutputPulse(id: Long) {
-        val now = android.os.SystemClock.elapsedRealtime()
+        val now = System.currentTimeMillis()
+        val elapsed = android.os.SystemClock.elapsedRealtime()
         rawPulses.getOrPut(id) { RawActivityPulse() }.lastOutputAtMs = now
-        schedulePulseEmission(now)
+        schedulePulseEmission(elapsed)
     }
 
     /** Record a bell pulse for [id] and emit IMMEDIATELY (attention is latency-sensitive). */
     internal fun touchBellPulse(id: Long) {
-        rawPulses.getOrPut(id) { RawActivityPulse() }.bellAtMs = android.os.SystemClock.elapsedRealtime()
+        rawPulses.getOrPut(id) { RawActivityPulse() }.bellAtMs = System.currentTimeMillis()
         emitPulses()
     }
 
@@ -393,7 +394,12 @@ object TerminalSessionManager {
                 onNotification = { title, message ->
                     mainHandler.post {
                         touchBellPulse(id)
-                        onNotificationListener?.invoke(id, title, message)
+                        val resolvedTitle = if (title == "Terminal" && agent != null) {
+                            agent.displayName
+                        } else {
+                            title
+                        }
+                        onNotificationListener?.invoke(id, resolvedTitle, message)
                     }
                 },
             )

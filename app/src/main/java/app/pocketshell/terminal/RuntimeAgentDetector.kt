@@ -178,6 +178,8 @@ object RuntimeAgentDetector {
             text.contains("approval") ||
             text.contains("confirm") ||
             text.contains("needs input") ||
+            text.contains("ready for input") ||
+            text.contains("waiting for input") ||
             text.contains("waiting for user") ||
             text.contains("allow?") ||
             text.contains("attention")
