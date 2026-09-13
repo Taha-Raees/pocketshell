@@ -161,6 +161,19 @@ class AgentRuntimeHomeParityTest {
                             AgentHomeSessionClaims.Claim.UNKNOWN,
                             homeClaim,
                         )
+                    // M7.2 P6: WORKING/ATTENTION are shade-only refinements
+                    // of the running claim for now (Home shows RUNNING —
+                    // both truthful views of one running state; the deferred
+                    // pulse-flow wiring into Home is documented in
+                    // docs/M7.2-P6-AGENT-ACTIVITY-V2.md).
+                    AgentRuntimeNotificationMapping.PostedKind.WORKING,
+                    AgentRuntimeNotificationMapping.PostedKind.ATTENTION,
+                    ->
+                        assertEquals(
+                            "session $id: shade activity grade refines running, Home states the running claim",
+                            AgentHomeSessionClaims.Claim.RUNNING,
+                            homeClaim,
+                        )
                     null ->
                         assertNull(
                             "session $id: shade is silent, Home must claim nothing",

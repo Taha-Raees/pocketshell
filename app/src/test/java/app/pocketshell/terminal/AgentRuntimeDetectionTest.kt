@@ -546,11 +546,17 @@ class AgentRuntimeDetectionTest {
     }
 
     @Test
-    fun `the four-state contract is exactly the mandated vocabulary`() {
-        // PART E: the model distinguishes exactly NOT_APPLICABLE / UNKNOWN /
-        // NOT_RUNNING / RUNNING — and adds no certainty of its own.
+    fun `the state contract is exactly the mandated vocabulary (P6 adds the record-backed exits)`() {
+        // PART E originally distinguished exactly NOT_APPLICABLE / UNKNOWN /
+        // NOT_RUNNING / RUNNING. M7.2 P6 adds the three record-backed
+        // terminal states — the launch channel's OWN ExitRecord makes them
+        // provable (docs/M7.2-P6-AGENT-ACTIVITY-V2.md); no invented
+        // certainty (COMPLETED/FINISHED/WAITING/IDLE) exists.
         assertEquals(
-            listOf("NOT_APPLICABLE", "UNKNOWN", "NOT_RUNNING", "RUNNING"),
+            listOf(
+                "NOT_APPLICABLE", "UNKNOWN", "NOT_RUNNING", "RUNNING",
+                "EXITED_SUCCESS", "EXITED_FAILED", "EXITED_STOPPED",
+            ),
             AgentRuntimeState.entries.map { it.name },
         )
     }

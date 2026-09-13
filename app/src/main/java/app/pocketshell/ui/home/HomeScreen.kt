@@ -935,12 +935,25 @@ private fun SessionsSection(
                                     c.agentDisplayName + " — Running"
                                 AgentHomeSessionClaims.Claim.UNKNOWN ->
                                     c.agentDisplayName + " — Runtime unknown"
+                                // M7.2 P6 — the record-backed agent-exit
+                                // claims (the launch channel's own exit
+                                // fact, stronger than the row's "(exited)"
+                                // session fact).
+                                AgentHomeSessionClaims.Claim.EXITED_SUCCESS ->
+                                    c.agentDisplayName + " — Finished"
+                                AgentHomeSessionClaims.Claim.EXITED_FAILED ->
+                                    c.agentDisplayName + " — Failed"
+                                AgentHomeSessionClaims.Claim.EXITED_STOPPED ->
+                                    c.agentDisplayName + " — Stopped"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
                             color = when (c.claim) {
                                 AgentHomeSessionClaims.Claim.RUNNING -> HomeTokens.runningGreen
                                 AgentHomeSessionClaims.Claim.UNKNOWN -> HomeTokens.textDim
+                                AgentHomeSessionClaims.Claim.EXITED_SUCCESS -> HomeTokens.runningGreen
+                                AgentHomeSessionClaims.Claim.EXITED_FAILED -> HomeTokens.danger
+                                AgentHomeSessionClaims.Claim.EXITED_STOPPED -> HomeTokens.textDim
                             },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

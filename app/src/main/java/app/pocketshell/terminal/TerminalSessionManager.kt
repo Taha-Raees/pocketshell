@@ -56,6 +56,82 @@ object TerminalSessionManager {
     @Volatile
     var onScreenUpdateListener: ((sessionId: Long) -> Unit)? = null
 
+    /**
+     * M7.2 P6 — hook the bell seam installs so attention facts reach the
+     * activity pipeline. Called on the main thread with the id of the
+     * session whose program rang the terminal bell. The client stays clean
+     * of detection/notification symbols — this lambda is the ONLY seam
+     * (same pattern as [onScreenUpdateListener]).
+     */
+    @Volatile
+    var onBellListener: ((sessionId: Long) -> Unit)? = null
+
+    /**
+     * M7.2 P6 — coalesced PTY activity pulses (the two facts the terminal
+     * already knows: output recency and terminal bell), for live sessions.
+     * Updated AT MOST once per second from the screen-update path (a busy
+     * agent never spams this flow) and IMMEDIATELY on a bell (attention is
+     * latency-sensitive). Entries die with their session.
+     */
+    private val _activityPulses = MutableStateFlow<Map<Long, SessionActivityPulse>>(emptyMap())
+    val activityPulses: StateFlow<Map<Long, SessionActivityPulse>> = _activityPulses.asStateFlow()
+
+    /** Raw pulse facts, main-thread-confined (both producers post to [mainHandler]). */
+    private val rawPulses = HashMap<Long, RawActivityPulse>()
+
+    /** True while a coalesced pulse emission is scheduled on [mainHandler]. */
+    private var pulseEmissionScheduled = false
+
+    private data class RawActivityPulse(
+        var lastOutputAtMs: Long = 0L,
+        var bellAtMs: Long? = null,
+    )
+
+    /**
+     * Record an output pulse for [id] and schedule the coalesced emission
+     * (main thread). Cheap by contract: two field writes + a flag check on
+     * the hot repaint path.
+     */
+    private fun touchOutputPulse(id: Long) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        rawPulses.getOrPut(id) { RawActivityPulse() }.lastOutputAtMs = now
+        schedulePulseEmission(now)
+    }
+
+    /** Record a bell pulse for [id] and emit IMMEDIATELY (attention is latency-sensitive). */
+    private fun touchBellPulse(id: Long) {
+        rawPulses.getOrPut(id) { RawActivityPulse() }.bellAtMs = android.os.SystemClock.elapsedRealtime()
+        emitPulses()
+    }
+
+    /** Coalescing: at most one emission per [PULSE_COALESCE_MS] on the output path. */
+    private fun schedulePulseEmission(now: Long) {
+        if (pulseEmissionScheduled) return
+        val last = lastPulseEmissionAt
+        if (now - last >= PULSE_COALESCE_MS) {
+            emitPulses()
+        } else {
+            pulseEmissionScheduled = true
+            mainHandler.postDelayed({
+                pulseEmissionScheduled = false
+                emitPulses()
+            }, PULSE_COALESCE_MS - (now - last))
+        }
+    }
+
+    private var lastPulseEmissionAt = 0L
+
+    private fun emitPulses() {
+        lastPulseEmissionAt = android.os.SystemClock.elapsedRealtime()
+        _activityPulses.value = rawPulses.mapValues { (id, raw) ->
+            SessionActivityPulse(
+                sessionId = id,
+                lastOutputAtMs = raw.lastOutputAtMs,
+                bellAtMs = raw.bellAtMs,
+            )
+        }
+    }
+
     data class SessionEntry(
         val id: Long,
         val session: TerminalSession,
@@ -124,6 +200,9 @@ object TerminalSessionManager {
     val lifecycleEvents: SharedFlow<SessionLifecycleEvent> = _lifecycleEvents.asSharedFlow()
 
     private var nextId: Long = 1L
+
+    /** Pulse coalescing window (M7.2 P6): at most one output-path emission per window. */
+    private const val PULSE_COALESCE_MS = 1_000L
 
     /** True while a creation call is in flight (process spawn takes a moment). */
     private val _creating = MutableStateFlow(false)
@@ -296,7 +375,14 @@ object TerminalSessionManager {
                 onProcessStarted = { mainHandler.post { markStarted(id) } },
                 // Already on the main thread (TerminalSession MainThreadHandler);
                 // invoke the visible view's refresh hook directly.
-                onScreenUpdate = { onScreenUpdateListener?.invoke(id) },
+                onScreenUpdate = {
+                    // M7.2 P6: the output-arrival FACT feeds the activity
+                    // pipeline (coalesced 1 Hz — the hot repaint path only
+                    // pays two field writes and a flag check).
+                    touchOutputPulse(id)
+                    onScreenUpdateListener?.invoke(id)
+                },
+                onBell = { touchBellPulse(id) },
             )
             val session = TerminalSession(
                 command,
@@ -376,6 +462,10 @@ object TerminalSessionManager {
                 }
             }
             _sessions.update { list -> list.filterNot { it.id == id } }
+            // M7.2 P6: the session's activity pulse dies with it (bounded
+            // memory; the reducer ignores non-RUNNING sessions anyway).
+            rawPulses.remove(id)
+            emitPulses()
             _lastContext?.let { syncService(it) }
             emit(
                 SessionLifecycleEvent.Removed(

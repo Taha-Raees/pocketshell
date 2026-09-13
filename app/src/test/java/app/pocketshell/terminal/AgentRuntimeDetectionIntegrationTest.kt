@@ -124,7 +124,7 @@ class AgentRuntimeDetectionIntegrationTest {
     // ---------------------------------------------- 2. no completion claims
 
     @Test
-    fun `the runtime state vocabulary is exactly the four mandated states - no completion certainty`() {
+    fun `the runtime state vocabulary is exactly the proven states - no invented completion certainty`() {
         val raw = source(detectionPath).first
         val start = raw.indexOf("enum class AgentRuntimeState")
         val end = raw.indexOf("}", start)
@@ -133,7 +133,16 @@ class AgentRuntimeDetectionIntegrationTest {
         for (required in listOf("NOT_APPLICABLE", "UNKNOWN", "NOT_RUNNING", "RUNNING")) {
             assertTrue("AgentRuntimeState must declare $required", body.contains(required))
         }
-        for (forbidden in listOf("COMPLETED", "SUCCESS", "FINISHED", "WAITING", "IDLE")) {
+        // M7.2 P6: the three record-backed terminal states join the
+        // vocabulary — the launch channel's OWN ExitRecord makes them
+        // provable (docs/M7.2-P6-AGENT-ACTIVITY-V2.md). "SUCCESS" is
+        // therefore no longer forbidden: it is now evidence-backed.
+        for (required in listOf("EXITED_SUCCESS", "EXITED_FAILED", "EXITED_STOPPED")) {
+            assertTrue("AgentRuntimeState must declare $required", body.contains(required))
+        }
+        // Still forbidden: INVENTED completion/waiting certainty with no
+        // evidence source (the P0 Tier-3 line, unchanged).
+        for (forbidden in listOf("COMPLETED", "FINISHED", "WAITING", "IDLE")) {
             assertFalse(
                 "the runtime vocabulary must add no completion/waiting certainty (found '$forbidden')",
                 body.contains(forbidden),
@@ -279,12 +288,19 @@ class AgentRuntimeDetectionIntegrationTest {
             stripCommentsAndStrings(rawManager.substring(spawnStart, spawnEnd)).contains("getPid()"),
         )
         // The manager gained nothing else: still no registry, no LaunchIdentity,
-        // no polling (the P2/P3a engine pins restated).
+        // no polling (the P2/P3a engine pins restated). M7.2 P6: the ONE
+        // sanctioned postDelayed is the activity-pulse emission coalescer
+        // (a bounded 1 Hz presentation throttle over already-captured
+        // timestamps — never a polling loop; P6 doc §5).
         assertFalse(code.contains("CommandAppCatalog"))
         assertFalse(code.contains("CliAppCatalog"))
         assertFalse(code.contains("LaunchIdentity"))
         assertFalse(code.contains("/proc"))
-        assertFalse(Regex("\\bdelay\\(|\\bpostDelayed\\(|\\bTimer\\(").containsMatchIn(code))
+        val timerCount = Regex("\\bdelay\\(|\\bpostDelayed\\(|\\bTimer\\(").findAll(code).count()
+        assertTrue(
+            "the manager's only timer must be the documented pulse coalescer (found $timerCount)",
+            timerCount <= 1 && code.contains("PULSE_COALESCE_MS"),
+        )
     }
 
     // ---------------------------------------- 7. the detector owns nothing

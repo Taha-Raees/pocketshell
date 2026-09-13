@@ -397,4 +397,145 @@ class AgentRuntimeNotificationTransitionMatrixTest {
             assertTrue("exit-0 wording must not contain '$banned'", !wording.contains(banned))
         }
     }
+
+    // --------------------------------- M7.2 P6 — record-backed agent exits
+    // (docs/M7.2-P6-AGENT-ACTIVITY-V2.md: the launch channel's OWN ExitRecord
+    // makes success/failure/stopped wording TRUTHFUL — these arms are the
+    // conscious, evidence-backed lift of the old wording ban for the AGENT's
+    // own fact; the session-exit fact above stays session-scoped.)
+
+    private fun agentExited(
+        sessionId: Long = 7L,
+        status: Int,
+        from: AgentRuntimeState? = AgentRuntimeState.RUNNING,
+    ) = AgentRuntimeEvent.AgentExited(sessionId, agent(), exitStatus = status, from = from, occurredAtMs = 6_000L)
+
+    @Test
+    fun `agent exit record zero is worded as the agent finishing successfully`() {
+        val (memory, action) = AgentRuntimeNotificationMapping.reduce(
+            postedRunning,
+            agentExited(status = 0),
+        )
+        val exit = action as AgentRuntimeNotificationMapping.Action.ShowExitFact
+        assertEquals(expectedId, NotificationIds.agentRuntime(exit.sessionId))
+        assertEquals("Claude Code finished successfully", exit.title)
+        assertEquals("Agent process exited cleanly (code 0) in session 7", exit.text)
+        // the running surface is replaced, the story is recorded
+        assertTrue(memory.posted.isEmpty())
+        assertTrue(7L in memory.agentExitAnnounced)
+        assertTrue(7L in memory.everPosted)
+    }
+
+    @Test
+    fun `agent exit record nonzero is worded as the agent failing with the code preserved`() {
+        val (_, action) = AgentRuntimeNotificationMapping.reduce(
+            postedRunning,
+            agentExited(status = 1),
+        )
+        val exit = action as AgentRuntimeNotificationMapping.Action.ShowExitFact
+        assertEquals("Claude Code failed", exit.title)
+        assertEquals("Agent process exited with code 1 in session 7", exit.text)
+    }
+
+    @Test
+    fun `agent exit record 130 is worded as the agent being stopped`() {
+        val (_, action) = AgentRuntimeNotificationMapping.reduce(
+            postedRunning,
+            agentExited(status = 130),
+        )
+        val exit = action as AgentRuntimeNotificationMapping.Action.ShowExitFact
+        assertEquals("Claude Code was stopped", exit.title)
+        assertEquals("Agent process was stopped by signal 2 in session 7", exit.text)
+    }
+
+    @Test
+    fun `agent exit is announced exactly once per generation`() {
+        val (memory, actions) = fold(
+            postedRunning,
+            listOf(agentExited(status = 0), agentExited(status = 0)),
+        )
+        assertEquals(1, exits(actions).size)
+        assertTrue(actions.last() is AgentRuntimeNotificationMapping.Action.None)
+        assertTrue(7L in memory.agentExitAnnounced)
+    }
+
+    @Test
+    fun `session end after an announced agent exit adds no second exit line`() {
+        val (memory, actions) = fold(
+            postedRunning,
+            listOf(
+                agentExited(status = 0),
+                sessionEnded(exitStatus = ExitStatus.Exited(0)),
+            ),
+        )
+        assertEquals(1, exits(actions).size) // the AGENT exit fact only
+        assertTrue(actions.last() is AgentRuntimeNotificationMapping.Action.None)
+        assertTrue(7L in memory.ended)
+    }
+
+    // ------------------------------- M7.2 P6 — the PTY activity surfaces
+
+    private fun workingChanged(
+        active: Boolean,
+        attentionRequested: Boolean = false,
+        sessionId: Long = 7L,
+    ) = AgentRuntimeEvent.WorkingChanged(sessionId, agent(), active, attentionRequested, occurredAtMs = 7_000L)
+
+    @Test
+    fun `working output refines a posted running surface in place`() {
+        val (memory, action) = AgentRuntimeNotificationMapping.reduce(
+            postedRunning,
+            workingChanged(active = true),
+        )
+        val show = action as AgentRuntimeNotificationMapping.Action.ShowRuntime
+        assertEquals("Claude Code is working", show.title)
+        assertEquals("Producing output in terminal session 7", show.text)
+        assertEquals(
+            AgentRuntimeNotificationMapping.PostedKind.WORKING,
+            memory.posted[7L],
+        )
+    }
+
+    @Test
+    fun `terminal bell is worded as the agent requesting attention`() {
+        val (memory, action) = AgentRuntimeNotificationMapping.reduce(
+            postedRunning,
+            workingChanged(active = false, attentionRequested = true),
+        )
+        val show = action as AgentRuntimeNotificationMapping.Action.ShowRuntime
+        assertEquals("Claude Code requests attention", show.title)
+        assertTrue(show.text.contains("rang the terminal bell"))
+        assertEquals(
+            AgentRuntimeNotificationMapping.PostedKind.ATTENTION,
+            memory.posted[7L],
+        )
+    }
+
+    @Test
+    fun `quiet running returns the surface to the running wording`() {
+        val (memory, actions) = fold(
+            postedRunning.copy(
+                posted = postedRunning.posted + (7L to AgentRuntimeNotificationMapping.PostedKind.WORKING),
+            ),
+            listOf(workingChanged(active = false)),
+        )
+        val show = shows(actions).single()
+        assertEquals("Claude Code is running", show.title)
+        assertEquals(
+            AgentRuntimeNotificationMapping.PostedKind.RUNNING,
+            memory.posted[7L],
+        )
+    }
+
+    @Test
+    fun `activity never creates a surface and never corrects an unknown one`() {
+        for (start in listOf(empty, postedUnknown)) {
+            val (memory, action) = AgentRuntimeNotificationMapping.reduce(
+                start,
+                workingChanged(active = true, attentionRequested = true),
+            )
+            assertTrue(action is AgentRuntimeNotificationMapping.Action.None)
+            assertEquals(start.posted, memory.posted)
+        }
+    }
 }

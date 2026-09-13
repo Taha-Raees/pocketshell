@@ -249,15 +249,19 @@ class AgentDiscoveryEventTest {
 
     @Test
     fun `the exit FACT never becomes a completion claim (no event vocabulary invents one)`() {
-        // Whatever the detector records, the reducer's vocabulary contains
-        // exactly the five P3c events — no Completed/Failed/Waiting exists.
+        // M7.2 P6: the reducer's vocabulary is the seven evidence-backed
+        // events — AgentExited exists ONLY on the launch channel's own
+        // ExitRecord (record-backed), never as an invented completion
+        // inference from disappearance or silence.
         val allEvents = listOf(
             AgentRuntimeEvent.Launched::class,
             AgentRuntimeEvent.ConfirmedRunning::class,
             AgentRuntimeEvent.NoLongerDetected::class,
             AgentRuntimeEvent.RuntimeUnknown::class,
             AgentRuntimeEvent.SessionEnded::class,
+            AgentRuntimeEvent.AgentExited::class,
+            AgentRuntimeEvent.WorkingChanged::class,
         )
-        assertEquals(5, allEvents.size)
+        assertEquals(7, allEvents.size)
     }
 }

@@ -153,7 +153,7 @@ class AgentRuntimeEventEngineIntegrationTest {
     }
 
     @Test
-    fun `the event vocabulary declares exactly the five mandated kinds`() {
+    fun `the event vocabulary declares exactly the seven mandated kinds`() {
         val raw = source(eventsPath).first
         val start = raw.indexOf("sealed class AgentRuntimeEvent")
         val end = raw.indexOf("\n}", start)
@@ -161,9 +161,14 @@ class AgentRuntimeEventEngineIntegrationTest {
         val body = stripCommentsAndStrings(raw.substring(start, end))
         for (required in listOf(
             "Launched", "ConfirmedRunning", "NoLongerDetected", "RuntimeUnknown", "SessionEnded",
+            // M7.2 P6 — evidence-backed extensions (the launch channel's own
+            // ExitRecord + the PTY activity facts; docs/M7.2-P6-AGENT-ACTIVITY-V2.md)
+            "AgentExited", "WorkingChanged",
         )) {
             assertTrue("the event vocabulary must declare $required", body.contains(required))
         }
+        // Still forbidden: INVENTED certainty identifiers with no evidence
+        // source behind them (the P0 Tier-3 line — screen/silence inference).
         for (forbidden in listOf("Completed", "Succeeded", "FinishedSuccessfully", "WaitingForInput", "Idle")) {
             assertFalse(
                 "the event vocabulary must add no completion/waiting certainty (found '$forbidden')",

@@ -277,9 +277,24 @@ class AgentRuntimeNotificationIntegrationTest {
         // free prose; user-visible content is not). The lifecycle cause
         // identifier SESSION_FINISHED is code, not wording — it cannot leak
         // into a notification through a string literal.
+        //
+        // M7.2 P6 revision (docs/M7.2-P6-AGENT-ACTIVITY-V2.md): the
+        // record-backed AGENT exit surfaces ("finished successfully" /
+        // "failed (exit code N)") are now TRUTHFUL — their exact literals
+        // are exempt from the wording ban, while the ban itself still holds
+        // over every other literal in the P4 files.
+        val recordBackedExemptions = listOf(
+            "finished successfully",
+            "failed (exit code",
+            "was stopped by signal",
+            "exited with code",
+            "exited cleanly",
+            "\$displayname failed",
+        )
         for (pair in listOf(consumerPair, mappingPair)) {
             for (literal in stringLiterals(pair.first)) {
                 val lowered = literal.lowercase()
+                if (recordBackedExemptions.any { lowered.contains(it) }) continue
                 for (banned in listOf("complet", "success", "succeed", "finished", "failed")) {
                     assertFalse(
                         "P4 wording must never claim '$banned' (literal: \"$literal\")",

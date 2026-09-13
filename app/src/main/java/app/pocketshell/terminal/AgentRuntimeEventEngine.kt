@@ -105,19 +105,21 @@ object AgentRuntimeEventEngine {
 
     /**
      * The monitor: ONE sequential collector over the manager's
-     * authoritative session state and the detector's observations. Every
-     * emission of either flow folds BOTH current inputs through the pure
-     * reducer (the reduction is idempotent for unchanged inputs — the
-     * memory makes re-delivery a no-op), so ordering between the two
-     * sources can never fabricate or duplicate a transition.
+     * authoritative session state, the detector's observations, and (P6)
+     * the manager's coalesced activity pulses. Every emission of any flow
+     * folds ALL current inputs through the pure reducer (the reduction is
+     * idempotent for unchanged inputs — the memory makes re-delivery a
+     * no-op), so ordering between the sources can never fabricate or
+     * duplicate a transition.
      */
     private suspend fun monitor() {
         var memory = AgentRuntimeEventMemory()
         combine(
             TerminalSessionManager.sessions,
             RuntimeAgentDetector.observations,
-        ) { entries, observations -> entries to observations }
-            .collect { (entries, observations) ->
+            TerminalSessionManager.activityPulses,
+        ) { entries, observations, pulses -> Triple(entries, observations, pulses) }
+            .collect { (entries, observations, pulses) ->
                 val nowMs = System.currentTimeMillis()
                 val sessionsOutcome = AgentRuntimeTransitions.reduce(
                     memory = memory,
@@ -141,8 +143,14 @@ object AgentRuntimeEventEngine {
                     input = AgentEventInput.ObservationsChanged(observations),
                     nowMs = nowMs,
                 )
-                memory = observationsOutcome.memory
-                (sessionsOutcome.events + observationsOutcome.events).forEach(::emitEvent)
+                val activityOutcome = AgentRuntimeTransitions.reduce(
+                    memory = observationsOutcome.memory,
+                    input = AgentEventInput.ActivityChanged(pulses),
+                    nowMs = nowMs,
+                )
+                memory = activityOutcome.memory
+                (sessionsOutcome.events + observationsOutcome.events + activityOutcome.events)
+                    .forEach(::emitEvent)
             }
     }
 
@@ -211,5 +219,11 @@ object AgentRuntimeEventEngine {
         is AgentRuntimeEvent.SessionEnded ->
             "session ${event.sessionId} SESSION_ENDED agent=${event.agent.displayName} " +
                 "cause=${event.cause} lastState=${event.lastState ?: "(never observed)"}"
+        is AgentRuntimeEvent.AgentExited ->
+            "session ${event.sessionId} AGENT_EXITED agent=${event.agent.displayName} " +
+                "status=${event.exitStatus} from=${event.from ?: "(never observed)"} — the launch record's own exit fact"
+        is AgentRuntimeEvent.WorkingChanged ->
+            "session ${event.sessionId} WORKING_CHANGED agent=${event.agent.displayName} " +
+                "active=${event.active} attention=${event.attentionRequested}"
     }
 }

@@ -30,6 +30,13 @@ class PocketShellSessionClient(
     private val onProcessStarted: () -> Unit = {},
     /** Invoked on the main thread whenever this session's screen changes. */
     private val onScreenUpdate: () -> Unit = {},
+    /**
+     * M7.2 P6 — invoked on the main thread when the running program rings
+     * the terminal bell. The FACT travels out through this lambda; this
+     * class names no detection/notification symbols (the waiting-evidence
+     * boundary stays intact — the client is a PTY callback adapter).
+     */
+    private val onBell: () -> Unit = {},
 ) : TerminalSessionClient {
 
     private val clipboard: ClipboardManager? =
@@ -50,8 +57,11 @@ class PocketShellSessionClient(
     override fun onSessionFinished(finishedSession: TerminalSession) = onSessionFinished()
 
     override fun onBell(session: TerminalSession) {
-        // Restrained M1: log only. Visual/audio bell is M1.3 polish.
+        // M7.2 P6: the bell is a FACT (the program requested attention).
+        // It leaves through the [onBell] seam to the manager's activity
+        // pipeline; visual/audio bell polish remains M1.3.
         Log.d(LOG_TAG, "bell")
+        onBell()
     }
 
     // ---- clipboard -------------------------------------------------------------

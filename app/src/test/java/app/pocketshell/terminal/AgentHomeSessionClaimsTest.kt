@@ -298,9 +298,9 @@ class AgentHomeSessionClaimsTest {
     }
 
     @Test
-    fun `the claim vocabulary is exactly the two proven states`() {
+    fun `the claim vocabulary is exactly the proven states (P6 adds the record-backed agent exits)`() {
         assertEquals(
-            setOf("RUNNING", "UNKNOWN"),
+            setOf("RUNNING", "UNKNOWN", "EXITED_SUCCESS", "EXITED_FAILED", "EXITED_STOPPED"),
             AgentHomeSessionClaims.Claim.entries.map { it.name }.toSet(),
         )
     }

@@ -357,11 +357,16 @@ class AgentHomeSessionIntegrationBoundaryTest {
     // ------------------------------------------- 6. the wording truth boundary
 
     @Test
-    fun `the claim wording names exactly the two proven states - never completion or waiting`() {
+    fun `the claim wording names exactly the proven states - never unproven completion or waiting`() {
         val raw = readSource(*homeScreenPath)
         val literals = stringLiterals(raw)
 
-        // The two claim literals exist and name the states the shade names.
+        // The claim literals exist and name the states the shade names.
+        // M7.2 P6: the three record-backed agent-exit literals join the
+        // original two (docs/M7.2-P6-AGENT-ACTIVITY-V2.md — the launch
+        // channel's own ExitRecord makes Finished/Failed/Stopped claims
+        // TRUTHFUL; the P0-era ban on them is consciously lifted for these
+        // exact literals only).
         assertTrue(
             "the running claim literal must exist (wording, not color-only)",
             literals.any { it.endsWith("— Running") },
@@ -370,27 +375,38 @@ class AgentHomeSessionIntegrationBoundaryTest {
             "the unknown claim literal must exist (wording, not color-only)",
             literals.any { it.endsWith("— Runtime unknown") },
         )
+        for (exitLiteral in listOf("— Finished", "— Failed", "— Stopped")) {
+            assertTrue(
+                "the record-backed exit claim literal must exist: $exitLiteral",
+                literals.any { it.endsWith(exitLiteral) },
+            )
+        }
 
         // The M7.2 honesty ban list, over every literal the Sessions section
-        // can ship: no completion/success/failure/waiting claim may ride the
-        // agent activity display. "(exited)" remains the pre-existing
-        // session-level end state — deliberately absent from the ban list.
+        // can ship — with the P6 exemption for exactly the three
+        // record-backed exit claims above (and "(exited)", the pre-existing
+        // session-level end state). Everything else stays banned: no
+        // unproven completion/success/waiting claim may ride the display.
         val banned = listOf(
             "completed",
             "completion",
             "success",
             "succeed",
-            "finish",
             "failed",
             "failure",
             "waiting for input",
             "needs input",
             "needs attention",
         )
+        val exempt = listOf("— Finished", "— Failed", "— Stopped", "(exited)")
         val sessionsRaw = region(raw, "private fun SessionsSection", emptyList())
         val sessionsLiterals = stringLiterals(sessionsRaw)
         val violations = sessionsLiterals.flatMap { literal ->
-            banned.filter { literal.lowercase().contains(it) }.map { token -> token to literal }
+            if (exempt.any { literal.endsWith(it) }) {
+                emptyList()
+            } else {
+                banned.filter { literal.lowercase().contains(it) }.map { token -> token to literal }
+            }
         }
         assertTrue(
             "honesty sweep over the Sessions section literals; violations: $violations",

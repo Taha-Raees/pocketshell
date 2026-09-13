@@ -314,7 +314,10 @@ class AgentRuntimeDiscoveryTest {
     // --------------------------------------------- lifecycle + exit + sessions
 
     @Test
-    fun `proven absence attaches the exit FACT and keeps the resolved name`() {
+    fun `the exit RECORD yields the terminal state and keeps the resolved name (P6 supersession)`() {
+        // M7.2 P6 supersession: the P9 shape attached the exit FACT to a
+        // NOT_RUNNING observation; P6 derives the record-backed terminal
+        // state instead (the record outranks the disappearance inference).
         val previous = mapOf(
             1L to AgentRuntimeDetection.Observation(
                 sessionId = 1,
@@ -339,10 +342,41 @@ class AgentRuntimeDiscoveryTest {
             records = records,
             discoveryTokens = tokens,
         )
-        val observation = next[1L]!!
-        assertEquals(AgentRuntimeState.NOT_RUNNING, observation.state)
-        assertEquals("Kilo Code", observation.agent?.displayName)
-        assertEquals(0, observation.lastExit?.status)
+        assertEquals(AgentRuntimeState.EXITED_SUCCESS, next[1L]!!.state)
+        assertEquals("kilo", next[1L]!!.agent?.launcherId)
+        assertEquals(0, next[1L]!!.lastExit?.status)
+    }
+
+    @Test
+    fun `proven absence WITHOUT an exit record stays NOT_RUNNING (the old contract, record-less launches)`() {
+        val previous = mapOf(
+            1L to AgentRuntimeDetection.Observation(
+                sessionId = 1,
+                state = AgentRuntimeState.RUNNING,
+                evidence = AgentRuntimeDetection.ProcessEvidence(pids = listOf(102), grade = AgentMatchedBy.PROCFS_EXE, observedAtMs = 900),
+                everObservedRunning = true,
+                updatedAtMs = 900,
+                agent = LaunchIdentity.KnownAgent("kilo", "Kilo Code", "kilo"),
+            ),
+        )
+        // Launch record WITHOUT an exit line: the agent vanished, but no
+        // exit status exists — proven absence stays exactly NOT_RUNNING.
+        val records = mapOf(
+            1L to AgentLaunchRecords.SessionRecords(
+                launch = AgentLaunchRecords.LaunchRecord(102, 100, 500, "kilo"),
+                exits = emptyList(),
+            ),
+        )
+        val next = AgentRuntimeDetection.compute(
+            eligible = listOf(session()),
+            previous = previous,
+            snapshot = ProcfsSnapshot(listOf(proc(pid = 100, ppid = 1, pgrp = 100))), // agent gone
+            nowMs = 2_000L,
+            records = records,
+            discoveryTokens = tokens,
+        )
+        assertEquals(AgentRuntimeState.NOT_RUNNING, next[1L]!!.state)
+        assertEquals("kilo", next[1L]!!.agent?.launcherId)
     }
 
     @Test

@@ -60,6 +60,32 @@ enum class AgentRuntimeState {
     UNKNOWN,
     NOT_RUNNING,
     RUNNING,
+
+    /**
+     * M7.2 P6 — terminal states derived from the launch channel's OWN
+     * ExitRecord (`AgentLaunchRecords.ExitRecord`, the wrapped launch's
+     * `$?`): the agent's waitpid-grade exit status, recorded by the
+     * launch chain the app itself built. The P0 premise ("exit status is
+     * structurally discarded") is voided by the P9 bridge; these states
+     * are exactly as trustworthy as the record file.
+     *
+     * Mapping (documented in M7.2-P6-AGENT-ACTIVITY-V2.md):
+     *   status == 0          -> EXITED_SUCCESS
+     *   128..191 (signal $?) -> EXITED_STOPPED  (130=SIGINT, 143=SIGTERM, ...)
+     *   anything else        -> EXITED_FAILED
+     *
+     * Terminal-sticky: once derived for a session (the record file is the
+     * launch generation), later ticks hold the state — a record-backed
+     * story never flaps back to RUNNING.
+     */
+    EXITED_SUCCESS,
+    EXITED_FAILED,
+    EXITED_STOPPED,
+    ;
+
+    /** True for the three record-derived terminal states. */
+    val isExitedTerminal: Boolean
+        get() = this == EXITED_SUCCESS || this == EXITED_FAILED || this == EXITED_STOPPED
 }
 
 /**
@@ -384,12 +410,16 @@ object AgentRuntimeDetection {
             // the resolved agent, the exit fact) is PRESERVED for
             // explanation, but the published state must not claim a
             // liveness the failed scan cannot support.
+            // M7.2 P6: a record-derived terminal state is held verbatim —
+            // a failed /proc scan can never retroactively un-exit an agent
+            // whose own exit record is on disk.
             return eligible.associate { session ->
                 val prev = previous[session.sessionId]
+                val held = prev?.takeIf { it.state.isExitedTerminal }
                 session.sessionId to Observation(
                     sessionId = session.sessionId,
-                    state = AgentRuntimeState.UNKNOWN,
-                    evidence = prev?.evidence,
+                    state = held?.state ?: AgentRuntimeState.UNKNOWN,
+                    evidence = held?.evidence ?: prev?.evidence,
                     everObservedRunning = prev?.everObservedRunning ?: false,
                     updatedAtMs = nowMs,
                     agent = resolvedAgent(session, prev),
@@ -442,6 +472,32 @@ object AgentRuntimeDetection {
         discoveryTokens: List<String>,
     ): Observation {
         val everObserved = prev?.everObservedRunning ?: false
+        // M7.2 P6 — the launch channel's OWN ExitRecord outranks every
+        // /proc inference: it is the agent's real exit status (captured by
+        // the launch chain the app itself built), not a disappearance
+        // guess. Requires the matching LaunchRecord (an exit line without
+        // the launch is channel drift and is ignored); terminal-sticky
+        // (the record file is the launch generation — once exited, always
+        // exited for this session).
+        val exitRecord = record?.exits?.lastOrNull()
+        if (record?.launch != null && exitRecord != null) {
+            val exitedState = when (val code = exitRecord.status) {
+                0 -> AgentRuntimeState.EXITED_SUCCESS
+                in 128..191 -> AgentRuntimeState.EXITED_STOPPED // 130=SIGINT, 143=SIGTERM
+                else -> AgentRuntimeState.EXITED_FAILED
+            }
+            return Observation(
+                sessionId = session.sessionId,
+                state = exitedState,
+                evidence = null,
+                everObservedRunning = true,
+                updatedAtMs = nowMs,
+                agent = session.predetermined
+                    ?: record.launch.agent.let { AgentDiscoveryTokens.byToken(it) }
+                    ?: prev?.agent,
+                lastExit = exitRecord,
+            )
+        }
         // Not forked yet: no correlation root, nothing provable.
         if (session.rootPid <= 0) {
             return Observation(

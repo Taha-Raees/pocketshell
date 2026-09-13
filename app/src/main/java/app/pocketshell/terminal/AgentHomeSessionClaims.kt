@@ -19,22 +19,28 @@ package app.pocketshell.terminal
  * [RuntimeAgentDetector.observations]); it can never become a second
  * detector, and it adds no polling, no parsing and no new vocabulary.
  *
- * THE CLAIM VOCABULARY (PART D — only states M7.2 already proves):
+ * THE CLAIM VOCABULARY (PART D + M7.2 P6 — only states M7.2 proves):
  *
- *   RUNNING  — the P3b detector currently holds correlated process evidence
- *              for this session's known agent. Same truth as the P4
- *              ConfirmedRunning surface ("<Name> is running").
- *   UNKNOWN  — the detector held evidence for this session before and the
- *              current scan cannot prove a state (honest uncertainty). Same
- *              truth as the P4 RuntimeUnknown surface ("<Name> runtime
- *              unknown").
+ *   RUNNING         — the P3b detector currently holds correlated process
+ *                     evidence for this session's known agent. Same truth as
+ *                     the P4 ConfirmedRunning surface ("<Name> is running").
+ *   UNKNOWN         — the detector held evidence for this session before and
+ *                     the current scan cannot prove a state (honest
+ *                     uncertainty). Same truth as the P4 RuntimeUnknown
+ *                     surface ("<Name> runtime unknown").
+ *   EXITED_SUCCESS  — the launch channel's own ExitRecord says the agent's
+ *                     process exited 0 (P6: the record IS the proof —
+ *                     stronger than the session row's "(exited)" session
+ *                     fact, which stays for record-less sessions).
+ *   EXITED_FAILED   — ExitRecord status != 0 (non-signal).
+ *   EXITED_STOPPED  — ExitRecord status 128+n (killed by signal).
  *
- * NO OTHER CLAIM EXISTS. Notably absent, per the frozen M7.2 truth
- * boundary: no Completed/Success/Failed (process disappearance is at most
- * NOT_RUNNING and the P7 audit proved generic waiting evidence does not
- * exist — so no NeedsInput/Waiting either), and no end-of-story wording
- * beyond what the session layer already shows on the row itself ("(exited)"
- * — the session fact Home has always displayed).
+ * NO OTHER CLAIM EXISTS in this layer. The P6 ACTIVITY grades (working /
+ * needs attention) are notification-surface refinements only for now — Home
+ * shows RUNNING while the shade may say "is working"/"requests attention":
+ * both are truthful views of the same running claim, and the finer grade
+ * needs the activity-pulse flow wired into Home (deferred, documented).
+ * Still absent: silence-based NeedsInput/Waiting (P0 Tier 3).
  *
  * THE PARITY CONTRACT (PART I — the reason for the [Observation]
  * .everObservedRunning gate): the P4 notification layer stays SILENT at a
@@ -55,6 +61,9 @@ package app.pocketshell.terminal
  *   NOT_RUNNING                                     -> no claim   (the shade
  *       cancels — the running claim is WITHDRAWN, absence is the honest
  *       state; the row returns to its normal presentation)
+ *   EXITED_SUCCESS / EXITED_FAILED / EXITED_STOPPED -> the matching exit
+ *       claim (P6: the record-backed fact — the shade states it as a
+ *       one-shot and the row keeps stating it while the session lives)
  *   NOT_APPLICABLE (non-agent tool / custom launcher) -> no claim
  *   plain shell / FINISHED session (not in [live])    -> no claim
  *
@@ -64,10 +73,11 @@ package app.pocketshell.terminal
 object AgentHomeSessionClaims {
 
     /**
-     * The ONLY two activity claims the Home Sessions row may state about an
-     * agent — both already proven surfaces of the P4 notification contract.
+     * The activity claims the Home Sessions row may state about an agent —
+     * every one an already-proven surface of the P4/P6 notification
+     * contract.
      */
-    enum class Claim { RUNNING, UNKNOWN }
+    enum class Claim { RUNNING, UNKNOWN, EXITED_SUCCESS, EXITED_FAILED, EXITED_STOPPED }
 
     /**
      * One session's renderable agent-activity claim: which session it
@@ -107,6 +117,9 @@ object AgentHomeSessionClaims {
             AgentRuntimeState.UNKNOWN ->
                 if (everObservedRunning) Claim.UNKNOWN else null
             AgentRuntimeState.NOT_RUNNING -> null
+            AgentRuntimeState.EXITED_SUCCESS -> Claim.EXITED_SUCCESS
+            AgentRuntimeState.EXITED_FAILED -> Claim.EXITED_FAILED
+            AgentRuntimeState.EXITED_STOPPED -> Claim.EXITED_STOPPED
             AgentRuntimeState.NOT_APPLICABLE -> null
         }
 

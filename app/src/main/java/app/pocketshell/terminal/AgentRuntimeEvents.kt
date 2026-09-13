@@ -36,16 +36,25 @@ package app.pocketshell.terminal
  *   Agent runtime became unknown    RuntimeUnknown    — honest uncertainty (P3b)
  *   Agent session ended             SessionEnded      — session truth (P2)
  *
- * THE ONE FALSE CONVERSION THIS LAYER CAN NEVER MAKE (Part C, the hard
- * line): RUNNING → NOT_RUNNING is runtime DISAPPEARANCE ONLY. It is not
- * success, not failure, not completion, not "work finished" — the agent's
- * own exit status is structurally discarded by the launch chain (P3a truth
- * loss point 3) and no state in this vocabulary re-invents it. Completion
- * detection belongs to a later phase, on evidence that does not exist yet.
+ * M7.2 P6 — AGENT ACTIVITY v2 (the vocabulary grows where NEW evidence
+ * made richer states TRUTHFUL; see docs/M7.2-P6-AGENT-ACTIVITY-V2.md):
  *
- * Deliberately ABSENT: Completed, Success, FinishedSuccessfully,
- * WaitingForInput, Idle — the P0 audit's rejected tiers stand; no event in
- * this file claims anything the underlying evidence cannot prove.
+ *   Agent exited (own exit record)  AgentExited       — the launch channel's
+ *                                     ExitRecord: the agent's real exit
+ *                                     status (P9 bridge evidence — the P0
+ *                                     premise "exit status is structurally
+ *                                     discarded" is voided by the bridge)
+ *   Agent activity surface changed  WorkingChanged    — PTY-derived activity
+ *                                     facts (output recency / terminal
+ *                                     bell) while the agent is announced
+ *                                     RUNNING; edge-only, coalesced
+ *
+ * THE ONE FALSE CONVERSION THIS LAYER CAN STILL NEVER MAKE: RUNNING →
+ * NOT_RUNNING remains runtime DISAPPEARANCE ONLY — for launches WITHOUT a
+ * record channel there is still no exit status, and NoLongerDetected is
+ * not re-labeled. Completion claims exist ONLY on the record-backed
+ * AgentExited event. Screen-text parsing, silence-based "needs input" and
+ * keystroke inference remain rejected (P0 Tier 3).
  */
 
 /**
@@ -126,9 +135,9 @@ sealed class AgentRuntimeEvent {
     ) : AgentRuntimeEvent()
 
     /**
-     * The session that launched this agent reached a terminal lifecycle
-     * state — derived from the manager's authoritative state (the ONE
-     * lifecycle authority), never from a /proc tick. [cause] distinguishes
+     * M7.2 P6 — the session that launched this agent reached a terminal
+     * lifecycle state — derived from the manager's authoritative state (the
+     * ONE lifecycle authority), never from a /proc tick. [cause] distinguishes
      * the two terminal shapes this architecture has:
      *
      *   - [Cause.SESSION_FINISHED]: the waitpid-proven exit of the session's
@@ -160,6 +169,49 @@ sealed class AgentRuntimeEvent {
             SESSION_REMOVED,
         }
     }
+
+    /**
+     * M7.2 P6 — the agent's OWN exit fact, from the launch channel's
+     * ExitRecord (the wrapped launch chain captured `$?`). This is the
+     * event the P0 design said could never exist: the status is the
+     * agent's real shell-encoded exit status — 0 (success), 128+n
+     * (killed by signal n: 130=SIGINT, 143=SIGTERM), or another code
+     * (failure). [from] is the last runtime state announced before the
+     * exit (null when the exit record arrived before any /proc tick saw
+     * the agent — the record still proves it ran). Emitted exactly once
+     * per launch generation.
+     */
+    data class AgentExited(
+        override val sessionId: Long,
+        override val agent: LaunchIdentity.KnownAgent,
+        /** The shell-encoded exit status from the launch record ($?). */
+        val exitStatus: Int,
+        val from: AgentRuntimeState?,
+        override val occurredAtMs: Long,
+    ) : AgentRuntimeEvent()
+
+    /**
+     * M7.2 P6 — the ACTIVITY surface of an announced-RUNNING agent
+     * changed (edge-only, coalesced upstream at 1 Hz — never per output
+     * batch). Two PTY-derived facts, and nothing else:
+     *
+     *   [active]             output arrived within the working window —
+     *                        the agent is demonstrably producing output;
+     *   [attentionRequested] the program rang the terminal bell AFTER its
+     *                        most recent output — the standard CLI
+     *                        attention signal, worded as attention (never
+     *                        as "needs input").
+     *
+     * Both false = running quietly. This event carries no completion and
+     * no input inference — only which PTY facts currently hold.
+     */
+    data class WorkingChanged(
+        override val sessionId: Long,
+        override val agent: LaunchIdentity.KnownAgent,
+        val active: Boolean,
+        val attentionRequested: Boolean,
+        override val occurredAtMs: Long,
+    ) : AgentRuntimeEvent()
 }
 
 /**
@@ -218,7 +270,38 @@ sealed class AgentEventInput {
     data class ObservationsChanged(
         val observations: Map<Long, AgentRuntimeDetection.Observation>,
     ) : AgentEventInput()
+
+    /**
+     * M7.2 P6 — the session ACTIVITY pulses changed (coalesced upstream at
+     * 1 Hz; a bell always emits immediately). Entries exist exactly for
+     * live guest sessions; [ActivityPulse] carries the two PTY facts the
+     * activity surface is derived from. Reducer discipline: pulses for
+     * sessions that are not tracked-and-announced-RUNNING are ignored
+     * (activity surfaces only exist on top of a running claim); changes
+     * are edge-only.
+     */
+    data class ActivityChanged(
+        val pulses: Map<Long, SessionActivityPulse>,
+    ) : AgentEventInput()
 }
+
+/**
+ * M7.2 P6 — the PTY activity facts for one live session, coalesced by the
+ * session manager (wall-clock milliseconds, 0 = never):
+ *
+ *   [lastOutputAtMs] the last time output bytes arrived from the PTY
+ *                    (the exact fact the terminal repaint already runs on);
+ *   [bellAtMs]       the last time the program rang the terminal bell
+ *                    (TerminalSessionClient.onBell); null when never.
+ *
+ * Pure data — no clock, no Android APIs; pulse PRODUCTION lives in the
+ * manager's screen-update/bell seams (1 Hz coalescing there).
+ */
+data class SessionActivityPulse(
+    val sessionId: Long,
+    val lastOutputAtMs: Long = 0L,
+    val bellAtMs: Long? = null,
+)
 
 /**
  * Per-session transition memory — the minimum state that guarantees
@@ -246,6 +329,19 @@ data class AgentRuntimeEventMemory(
         val lastState: AgentRuntimeState?,
         /** The most recent process evidence the detector held (null when none so far). */
         val lastEvidence: AgentRuntimeDetection.ProcessEvidence?,
+        /**
+         * M7.2 P6 — the last ACTIVITY surface announced for this session
+         * while RUNNING (null = nothing announced yet: the first pulse
+         * after ConfirmedRunning emits, then only edges). Cleared on every
+         * state transition out of RUNNING.
+         */
+        val activity: ActivityAnnouncement? = null,
+    )
+
+    /** The announced activity pair ([WorkingChanged.active], [.attentionRequested]). */
+    data class ActivityAnnouncement(
+        val active: Boolean,
+        val attention: Boolean,
     )
 }
 
@@ -307,6 +403,7 @@ object AgentRuntimeTransitions {
     ): Outcome = when (input) {
         is AgentEventInput.SessionsChanged -> reduceSessions(memory, input, nowMs)
         is AgentEventInput.ObservationsChanged -> reduceObservations(memory, input, nowMs)
+        is AgentEventInput.ActivityChanged -> reduceActivity(memory, input, nowMs)
     }
 
     /**
@@ -474,6 +571,29 @@ object AgentRuntimeTransitions {
                 tracked = tracked + (sessionId to session)
             }
 
+            // M7.2 P6: an EXITED_* observation carries its own terminal
+            // edge (the record outranks the /proc inference) — handled in
+            // the when below; it also terminates any announced activity.
+            if (observation.state.isExitedTerminal) {
+                val status = observation.lastExit?.status ?: continue // contract: EXITED_* always carries the record
+                if (observation.state != session.lastState) {
+                    events += AgentRuntimeEvent.AgentExited(
+                        sessionId = sessionId,
+                        agent = session.agent,
+                        exitStatus = status,
+                        from = session.lastState,
+                        occurredAtMs = nowMs,
+                    )
+                    tracked = tracked + (
+                        sessionId to session.copy(
+                            lastState = observation.state,
+                            activity = null,
+                        )
+                        )
+                }
+                continue
+            }
+
             if (observation.state == session.lastState) {
                 // Same state re-observed: no event (Part F). A RUNNING
                 // observation refreshes the evidence silently — the pids may
@@ -488,6 +608,13 @@ object AgentRuntimeTransitions {
             }
 
             when (observation.state) {
+                // M7.2 P6: handled above (terminal edge) — defensive arms
+                // keep the enum when exhaustive.
+                AgentRuntimeState.EXITED_SUCCESS,
+                AgentRuntimeState.EXITED_FAILED,
+                AgentRuntimeState.EXITED_STOPPED,
+                -> continue
+
                 AgentRuntimeState.RUNNING -> {
                     val evidence = observation.evidence
                     if (evidence == null) {
@@ -525,6 +652,7 @@ object AgentRuntimeTransitions {
                         sessionId to session.copy(
                             lastState = AgentRuntimeState.NOT_RUNNING,
                             lastEvidence = null,
+                            activity = null,
                         )
                         )
                 }
@@ -538,7 +666,10 @@ object AgentRuntimeTransitions {
                         occurredAtMs = nowMs,
                     )
                     tracked = tracked + (
-                        sessionId to session.copy(lastState = AgentRuntimeState.UNKNOWN)
+                        sessionId to session.copy(
+                            lastState = AgentRuntimeState.UNKNOWN,
+                            activity = null,
+                        )
                         )
                 }
 
@@ -551,4 +682,54 @@ object AgentRuntimeTransitions {
             events = events,
         )
     }
+
+    /**
+     * M7.2 P6 — the ACTIVITY edges (the only new polling-free input).
+     * Pulses for sessions that are not tracked-and-announced-RUNNING are
+     * ignored (an activity surface exists only on top of a running claim).
+     * The desired surface derives from the two PTY facts alone:
+     *
+     *   attention = bell rang at/after the last output (never superseded)
+     *   active    = !attention ∧ output within [WORKING_WINDOW_MS]
+     *
+     * Edge-only: identical re-announcements derive nothing. Every
+     * transition out of RUNNING clears the announcement (a stale surface
+     * can never outlive the running claim it decorated).
+     */
+    private fun reduceActivity(
+        memory: AgentRuntimeEventMemory,
+        input: AgentEventInput.ActivityChanged,
+        nowMs: Long,
+    ): Outcome {
+        val events = mutableListOf<AgentRuntimeEvent>()
+        var tracked = memory.tracked
+        for ((sessionId, pulse) in input.pulses) {
+            val session = tracked[sessionId] ?: continue
+            if (sessionId in memory.ended) continue
+            if (session.lastState != AgentRuntimeState.RUNNING) continue
+            val attention = pulse.bellAtMs != null && pulse.bellAtMs >= pulse.lastOutputAtMs
+            val active = !attention &&
+                pulse.lastOutputAtMs > 0 &&
+                nowMs - pulse.lastOutputAtMs <= WORKING_WINDOW_MS
+            val announced = session.activity
+            if (announced != null && announced.active == active && announced.attention == attention) continue
+            events += AgentRuntimeEvent.WorkingChanged(
+                sessionId = sessionId,
+                agent = session.agent,
+                active = active,
+                attentionRequested = attention,
+                occurredAtMs = nowMs,
+            )
+            tracked = tracked + (
+                sessionId to session.copy(activity = AgentRuntimeEventMemory.ActivityAnnouncement(active, attention))
+                )
+        }
+        return Outcome(
+            memory = AgentRuntimeEventMemory(tracked = tracked, ended = memory.ended),
+            events = events,
+        )
+    }
+
+    /** Output newer than this keeps the WORKING surface; older is running-quiet. */
+    const val WORKING_WINDOW_MS: Long = 5_000L
 }

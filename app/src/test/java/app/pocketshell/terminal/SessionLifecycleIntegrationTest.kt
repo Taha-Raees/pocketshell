@@ -273,7 +273,7 @@ class SessionLifecycleIntegrationTest {
         val lifecycle = source(*lifecyclePath.toTypedArray()).second
         for (source in listOf(manager, repository, lifecycle)) {
             for (forbidden in listOf(
-                "delay(", "postDelayed(", "Timer(", "Thread.sleep(", "/proc",
+                "delay(", "Timer(", "Thread.sleep(", "/proc",
                 "while (true)", "DataStore", "dataStore",
             )) {
                 assertFalse(
@@ -281,6 +281,26 @@ class SessionLifecycleIntegrationTest {
                     source.contains(forbidden),
                 )
             }
+        }
+        // M7.2 P6: the ONE sanctioned postDelayed is the activity-pulse
+        // emission coalescer in the manager (at most 1 flow emission per
+        // second; docs/M7.2-P6-AGENT-ACTIVITY-V2.md §5) — a bounded
+        // presentation throttle, not a polling loop: it never re-reads
+        // anything, it only publishes already-captured timestamps.
+        val coalescerCount = Regex("postDelayed\\(").findAll(manager).count()
+        assertTrue(
+            "pulse coalescing must be the ONLY manager timer (found $coalescerCount postDelayed sites)",
+            coalescerCount == 1,
+        )
+        assertTrue(
+            "the pulse coalescer must be the documented 1 Hz throttle",
+            manager.contains("PULSE_COALESCE_MS"),
+        )
+        for (source in listOf(repository, lifecycle)) {
+            assertFalse(
+                "the pulse coalescer belongs to the manager alone",
+                source.contains("postDelayed("),
+            )
         }
     }
 

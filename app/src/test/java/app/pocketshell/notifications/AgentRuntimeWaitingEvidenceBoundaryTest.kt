@@ -107,7 +107,7 @@ class AgentRuntimeWaitingEvidenceBoundaryTest {
         }
     }
 
-    // ---------------------------------- 1: the attention seams are decorative
+    // ---------------------------------- 1: the attention seams stay adapter-clean
 
     @Test
     fun `session client attention seams terminate at repaint title and logging - no runtime path`() {
@@ -122,7 +122,12 @@ class AgentRuntimeWaitingEvidenceBoundaryTest {
                 seam in code,
             )
         }
-        // Negative pin: none of them may reach the evidence machinery.
+        // Negative pin: none of them may reach the evidence machinery BY
+        // NAME. M7.2 P6 revision: the bell FACT now leaves through a plain
+        // lambda seam (`onBell -> manager hook`), exactly the M1 pattern
+        // the screen-update seam uses — the client stays a PTY callback
+        // adapter that names no detection/notification symbol, which is
+        // what this boundary has always protected (docs/M7.2-P6-AGENT-ACTIVITY-V2.md §3).
         assertNone(
             code,
             listOf(
