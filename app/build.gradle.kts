@@ -25,8 +25,8 @@ android {
         // M7.2 milestone bump — mirrors the shared milestone bump on the
         // M7.2 workstream; the unsuffixed integration build will carry it
         // from gated main (docs/ARTIFACT_NAMING.md).
-        versionCode = 48
-        versionName = "0.12.0-m7.2"
+        versionCode = 49
+        versionName = "0.13.0-m7.3"
     }
 
     // JVM tests exercise pure logic that touches android.* types only in
