@@ -11,6 +11,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -221,20 +222,32 @@ fun CompanionLayer(
             if (released != null) viewModel.settleHeight(released)
         }
 
+        // M7.2 companion polish — when raised, clip the whole sheet to
+        // rounded top corners and draw the tabStrip background + a 1dp
+        // divider border so it reads as a native bottom sheet. When collapsed
+        // the column is transparent (only the quiet pill handle is visible).
+        val sheetShape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
+        val sheetModifier = if (raised) {
+            Modifier
+                .clip(sheetShape)
+                .background(TerminalTheme.tabStrip)
+                .border(1.dp, TerminalTheme.divider, sheetShape)
+        } else Modifier
+
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .then(sheetModifier)
                 .then(bottomModifier),
         ) {
             CompanionHandle(
                 dragging = dragFraction != null,
                 onTap = {
-                    // Phase 5 §1 — a single tap anywhere on the bar IMMEDIATELY
-                    // minimizes the Companion, at every raised height (25%,
-                    // 50%, 80%, near-full — no drag needed). When minimized the
-                    // tap does nothing: the bar is dragged UP to restore.
-                    if (raised) viewModel.collapse()
+                    // M7.2 companion polish — tap the drag bar to toggle:
+                    // minimize if raised, restore to last remembered position
+                    // if minimized. Both directions handled symmetrically.
+                    viewModel.toggleExpanded()
                 },
                 onDragStart = { startSheetDrag() },
                 onDrag = { delta -> dragSheetBy(delta) },

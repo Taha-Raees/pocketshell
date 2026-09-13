@@ -26,6 +26,7 @@ class CompanionRepository(private val context: Context) {
     private val tabsKey = stringPreferencesKey("tabs")
     private val activeTabKey = stringPreferencesKey("active_tab")
     private val panelHeightKey = floatPreferencesKey("panel_height")
+    private val lastExpandedHeightKey = floatPreferencesKey("last_expanded_height")
 
     val defs: Flow<List<CompanionDef>> = context.companionDataStore.data.map { prefs ->
         prefs[defsKey]?.let { encoded ->
@@ -60,6 +61,17 @@ class CompanionRepository(private val context: Context) {
         CompanionHeights.clamp(prefs[panelHeightKey] ?: 0f)
     }
 
+    /**
+     * The last RAISED panel height the user dragged to; used to restore
+     * the sheet on re-open. Defaults to [CompanionHeights.HALF] (never 0).
+     */
+    val lastExpandedHeight: Flow<Float> = context.companionDataStore.data.map { prefs ->
+        val stored = prefs[lastExpandedHeightKey] ?: CompanionHeights.HALF
+        val clamped = CompanionHeights.clamp(stored)
+        // If stored value is somehow collapsed (shouldn't happen), fall back to HALF.
+        if (!CompanionHeights.isRaised(clamped)) CompanionHeights.HALF else clamped
+    }
+
     suspend fun setDefs(defs: List<CompanionDef>) {
         context.companionDataStore.edit { it[defsKey] = CompanionJson.encodeToString(defs) }
     }
@@ -78,5 +90,13 @@ class CompanionRepository(private val context: Context) {
 
     suspend fun setPanelHeight(fraction: Float) {
         context.companionDataStore.edit { it[panelHeightKey] = CompanionHeights.clamp(fraction) }
+    }
+
+    suspend fun setLastExpandedHeight(fraction: Float) {
+        // Only store raised positions — callers should guard but clamp defensively.
+        val clamped = CompanionHeights.clamp(fraction)
+        if (CompanionHeights.isRaised(clamped)) {
+            context.companionDataStore.edit { it[lastExpandedHeightKey] = clamped }
+        }
     }
 }

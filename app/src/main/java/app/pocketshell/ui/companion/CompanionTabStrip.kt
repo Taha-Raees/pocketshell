@@ -1,8 +1,12 @@
 package app.pocketshell.ui.companion
 
+import android.content.res.AssetManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -11,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,8 +42,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,7 +54,58 @@ import androidx.compose.ui.unit.sp
 import app.pocketshell.companion.CompanionDef
 import app.pocketshell.companion.CompanionTabs
 import app.pocketshell.companion.TabRecord
+import app.pocketshell.launchers.LauncherBundledIcons
 import app.pocketshell.ui.theme.TerminalTheme
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * M7.2 companion polish — in-memory bitmap cache for companion tab logos.
+ *
+ * Resolution strategy (NO network, NO duplicate assets):
+ * 1. If the companion's [CompanionDef.id] is a known builtin-* id, use it
+ *    directly — [LauncherBundledIcons] maps it to the packaged asset.
+ * 2. Otherwise fall back to text-only (returns null).
+ *
+ * Bitmaps are decoded ONCE and stored in a [ConcurrentHashMap]; the cache
+ * lives for the process lifetime (icons are tiny WebP files — negligible
+ * memory). Thread-safe: multiple Compose recompositions can call [get]
+ * concurrently without duplicating decodes.
+ */
+object CompanionTabIcons {
+
+    private val cache = ConcurrentHashMap<String, Bitmap?>()
+
+    /**
+     * Returns a [Bitmap] for the companion logo, or null if no bundled icon
+     * exists. [assets] is the app's AssetManager; [light] mirrors the current
+     * [app.pocketshell.ui.theme.TerminalTheme.isLight] value.
+     */
+    fun get(def: CompanionDef, assets: AssetManager, light: Boolean): Bitmap? {
+        val iconId = resolveIconId(def.id) ?: return null
+        val cacheKey = "$iconId:$light"
+        return cache.getOrPut(cacheKey) {
+            val path = LauncherBundledIcons.assetPathFor(iconId, light) ?: return@getOrPut null
+            try {
+                assets.open(path).use { BitmapFactory.decodeStream(it) }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    /**
+     * Maps a companion def id to a [LauncherBundledIcons] curated id, or
+     * null for fully custom companions. Internal visibility for unit tests.
+     */
+    internal fun resolveIconId(defId: String): String? {
+        // Builtin seeds already carry the exact curated id.
+        if (defId in LauncherBundledIcons.coveredIds) return defId
+        return null
+    }
+
+    /** Clears cached bitmaps (e.g. after a theme change). */
+    fun invalidate() = cache.clear()
+}
 
 /**
  * Phase 4 — Companion tab strip (docs/PHASE-4-COMPANION-DESIGN.md §11).
@@ -60,11 +118,10 @@ import app.pocketshell.ui.theme.TerminalTheme
  * outlines — inactive tabs are transparent with a quiet right separator,
  * exactly like their terminal siblings.
  *
- * m5.0 final correction — the terminal strip's compact IDE language,
- * mirrored: a 34dp strip, active tab 34 / inactive 26, 2dp gaps, 8dp
- * horizontal tab padding, 64–136dp tab width. Long titles truncate with
- * an ellipsis; the strip scrolls horizontally and the ACTIVE tab is always
- * brought back into view.
+ * M7.2 companion polish — tab logos added: builtin companions show their
+ * bundled icon (15dp, from [CompanionTabIcons]); custom companions fall
+ * back to text-only. Tab padding widened to 10dp horizontal for breathing
+ * room: |  [Logo] Label  |. Width range updated to 72–152dp.
  */
 @Composable
 fun CompanionTabStrip(
@@ -113,6 +170,7 @@ fun CompanionTabStrip(
                 items(tabs, key = { it.defId }) { tab ->
                     val def = defsById[tab.defId]
                     CompanionTab(
+                        def = def,
                         label = def?.name ?: "Web",
                         isSelected = tab.defId == activeId,
                         onSelect = { onSelect(tab.defId) },
@@ -139,6 +197,7 @@ fun CompanionTabStrip(
 
 @Composable
 private fun CompanionTab(
+    def: CompanionDef?,
     label: String,
     isSelected: Boolean,
     onSelect: () -> Unit,
@@ -159,17 +218,39 @@ private fun CompanionTab(
         bottomEnd = TerminalTheme.tabTopRadius,
     )
 
+    // M7.2 companion polish — resolve the companion's bundled icon.
+    // Bitmap is decoded once and cached; null = no logo (custom companion).
+    val assets = LocalContext.current.assets
+    val isLight = TerminalTheme.isLight
+    val logoBitmap = remember(def?.id, isLight) {
+        def?.let { CompanionTabIcons.get(it, assets, isLight) }
+    }
+
     Box(
         modifier = Modifier
             .height(height)
-            .widthIn(min = 64.dp, max = 136.dp)
+            // M7.2: wider min/max for logo + breathing room.
+            .widthIn(min = 72.dp, max = 152.dp)
             .clip(shape)
             .background(container)
             .clickable { onSelect() }
-            .padding(horizontal = 8.dp),
+            // M7.2: 10dp horizontal padding for |  [Logo] Label  | spacing.
+            .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 2.dp),
+        ) {
+            // Logo (15dp) — shown when a bundled icon is available.
+            if (logoBitmap != null) {
+                Image(
+                    bitmap = logoBitmap.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
             Text(
                 text = label,
                 fontSize = 13.sp,
