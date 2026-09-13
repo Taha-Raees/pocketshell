@@ -222,23 +222,10 @@ fun CompanionLayer(
             if (released != null) viewModel.settleHeight(released)
         }
 
-        // M7.2 companion polish — when raised, clip the whole sheet to
-        // rounded top corners and draw the tabStrip background + a 1dp
-        // divider border so it reads as a native bottom sheet. When collapsed
-        // the column is transparent (only the quiet pill handle is visible).
-        val sheetShape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
-        val sheetModifier = if (raised) {
-            Modifier
-                .clip(sheetShape)
-                .background(TerminalTheme.tabStrip)
-                .border(1.dp, TerminalTheme.divider, sheetShape)
-        } else Modifier
-
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .then(sheetModifier)
                 .then(bottomModifier),
         ) {
             CompanionHandle(
@@ -678,11 +665,14 @@ private fun CompanionEmptyState(
     onAdd: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
+    val sheetShape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .height(320.dp)
-            .background(TerminalTheme.canvas),
+            .clip(sheetShape)
+            .background(TerminalTheme.canvas)
+            .border(1.dp, TerminalTheme.divider, sheetShape),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
     ) {

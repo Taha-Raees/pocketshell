@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -145,11 +146,14 @@ fun CompanionTabStrip(
             listState.animateScrollToItem(idx)
         }
     }
+    val sheetShape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(34.dp)
-            .background(TerminalTheme.tabStrip),
+            .clip(sheetShape)
+            .background(TerminalTheme.tabStrip)
+            .border(1.dp, TerminalTheme.divider, sheetShape),
     ) {
         // Hairline under the strip; the active tab paints over (cuts) it.
         Box(

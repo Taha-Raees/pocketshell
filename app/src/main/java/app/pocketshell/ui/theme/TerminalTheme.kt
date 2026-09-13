@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pocketshell.R
+import app.pocketshell.terminal.TerminalPalette
 
 /**
  * Phase 3.1 "Midnight Sapphire" design tokens — now Phase 5 theme-aware.
@@ -152,6 +153,12 @@ object TerminalTheme {
             enterGlyph = Color(0xFFF2F5FA)
             onAccentDeep = Color(0xFFEAF0FB)
 
+            // Daylight Sapphire terminal canvas — crisp off-white paper ground
+            // with dark sapphire text.
+            canvas = Color(0xFFF7F9FC)
+            onCanvas = Color(0xFF17233B)
+            onCanvasDim = Color(0xFF5D6E8C)
+
             danger = Color(0xFFB3384E)
             runningGreen = Color(0xFF3E8F52)
         } else {
@@ -178,10 +185,13 @@ object TerminalTheme {
             enterGlyph = Color(0xFF071120)
             onAccentDeep = Color(0xFFA5C0FF)
 
+            canvas = Color(0xFF080F1D)
+            onCanvas = Color(0xFFDCE6F8)
+            onCanvasDim = Color(0xFF7C8DB0)
+
             danger = Color(0xFFE37993)
             runningGreen = Color(0xFF5FB572)
         }
-        // onCanvas / onCanvasDim are PINNED (canvas is pinned dark in every
-        // theme) — deliberately not touched here.
+        TerminalPalette.applyDefaults(light)
     }
 }
