@@ -3,6 +3,43 @@
 All notable changes. Milestone checkpoints are named git commits
 (`M0-…`, `M1-…`, `M1.1-…` etc. — see ROADMAP.md discipline).
 
+## [0.13.0-m7.3] — 2026-09-13 — M7.3 integration: File Explorer triple (breadcrumbs / Open-with / ZIP) + companion & UI polish
+
+First official integration build from merged+gated main (owner-directed;
+see docs/M7.3-INTEGRATION.md and the ARTIFACT_NAMING delivery ledger).
+
+- **Clickable breadcrumbs (Files):** the location row is now one touch
+  target per ancestor — the root crumb carries the area's own label
+  ("Linux", "Downloads", the granted folder's name), the current folder
+  is rendered (never a button), and a crumb tap navigates with the
+  crumb's own validated AreaPath through the core's openDirectory (no
+  string reassembly, no extra I/O beyond the target's listing). The strip
+  auto-scrolls to the current crumb; up-navigation and system-back are
+  unchanged.
+- **Open in Android app (Files):** a per-file action that stages a copy
+  into the existing share cache and hands a FileProvider content:// URI to
+  ACTION_VIEW (explicit chooser, temporary read-only grant) — the real
+  path never leaves the app; handlers are probed BEFORE staging and a
+  missing app is reported honestly. Works for guest Linux, Downloads and
+  SAF areas alike.
+- **ZIP compress/extract (Files):** commons-compress (already shipped; no
+  new dependency), streaming through the StorageArea abstraction so guest
+  Linux, Downloads and SAF behave identically. Compress files, folders and
+  multi-selections with structure preserved; extract into an editable
+  destination folder of the current directory. Safety contract pinned by
+  tests: Zip-Slip entry names refused fail-closed before anything is
+  created, no silent overwrites (skip + report; overwrite only via the
+  explicit Replace choice), symlinks never archived, 2 GiB / 100k-entry
+  archive-bomb caps enforced mid-entry, atomic-write output (a failed or
+  cancelled compress keeps no archive), ZIP-magic pre-check, honest
+  partial results on cancel. Cancellable progress banner; archive work on
+  its own serial worker so navigation never blocks.
+- **Companion & UI polish (Agent B):** drag-bar tap toggle and remembered
+  sheet height, rounded sheet top, tab logos and theme-matched monochrome
+  marks, compact tab header, light-theme terminal background, launcher
+  icon script rework.
+- **Milestone:** versionCode 49, versionName 0.13.0-m7.3.
+
 ## [0.11.2-m7.1.1-m72p9] — 2026-09-09 — M7.2 P9 universal agent activity detection & the Linux ↔ Android signal bridge
 
 The eleventh M7.2 phase (investigation + implementation; verdict P9A+B)

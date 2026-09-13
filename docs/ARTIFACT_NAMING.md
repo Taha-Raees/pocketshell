@@ -76,6 +76,15 @@ is a new ledger row with its own SHA-256.
 - tests:       GuestDevToolsTest 7/7 green ON DEVICE (first in-guest JVM unit tests, 2m42s)
 - device gate: streamed-installed + launched on Galaxy Tab S7 SM_T870 via self-adb; topResumedActivity = app.pocketshell/.MainActivity; screenshot shows launcher UI with Linux card "Alpine · ready"; fresh rootfs provisioned on first spawn
 
+### M7.3.apk (official integration build #1 — owner-directed local build)
+- date:        2026-09-13
+- git:         fa610e6 (main; integration of agent-B/ui-polish 40bd47b + agent-A/m7.2-file-explorer 7c01a21 + milestone bump)
+- agent:       OFFICIAL INTEGRATION BUILD — merged+gated main (owner-directed; §6's CI-only pattern unchanged going forward)
+- workstream:  M7.3 integration — Agent A File Explorer (breadcrumbs / Open-with / ZIP) + Agent B companion & UI polish
+- apk sha256:  6086eb0695337eb4a7ad5eff0cd24071b4234997be9ef8ef5ab454bb1e804a7f
+- tests:       integrated main: 977 unit tests; 4 failures all pre-existing on pristine main @ fc59046 in this environment (root-UID /proc ×3, /proc self-visibility ×1) + 2 device/CI-bound skips; new M7.2-A suites 28/28 green (BreadcrumbsTest 7, ZipArchiveOpsTest 21)
+- device gate: Galaxy Tab S7 SM_T870 via self-adb — `adb install -r` Success (in-place, versionCode 49 / 0.13.0-m7.3 verified via dumpsys), launch verified (topResumedActivity = app.pocketshell); Files/breadcrumb UI exercised live on device on the same workstream's M7.2-A builds during development; owner confirmed the final M7.3 APK working on the adb device. Full record: docs/M7.3-INTEGRATION.md
+
 ## 6. Integration builds
 
 The unsuffixed `M<...>.apk` continues to be produced by the existing
