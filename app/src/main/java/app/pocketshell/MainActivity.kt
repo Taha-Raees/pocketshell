@@ -440,6 +440,9 @@ fun PocketShellRoot(
                         screen = "editor"
                     }
                 },
+                // M7.2-A: a breadcrumb tap — the crumb's own validated
+                // AreaPath navigates through the core's openDirectory.
+                onBreadcrumb = filesViewModel::openBreadcrumb,
                 onOpenTerminal = { selectedEntry ->
                     // Phase 7 "Open Terminal Here" (p7.1): resolve the TAPPED
                     // directory entry through the ops surface (pure area gate

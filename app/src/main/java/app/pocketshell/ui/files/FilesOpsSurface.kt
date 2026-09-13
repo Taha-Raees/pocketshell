@@ -193,6 +193,68 @@ interface FilesOpsSurface {
      * stays where it is).
      */
     fun terminalLaunch(selectedEntry: String): TerminalLaunchResolution
+
+    // ============================ M7.2-A — archives (ZIP) + Open in Android app
+
+    // ------------------------------------------------------------ render state
+
+    /** Live progress of the running compress/extract (null = none running). */
+    val zipProgress: StateFlow<ZipProgress?>
+
+    /** The "Create archive" prompt (errors round-trip on it). */
+    val compressDialog: StateFlow<CompressDialogState?>
+
+    /** The "Extract archive" prompt (errors round-trip on it). */
+    val extractDialog: StateFlow<ExtractDialogState?>
+
+    /** A staged file ready to be opened by an Android app (ACTION_VIEW). */
+    val openWithReady: StateFlow<OpenWithReady?>
+
+    // ---------------------------------------------------------------- intents
+
+    /**
+     * Open the archive-name prompt to compress [names] (listing entries of
+     * the CURRENT directory) into one .zip. A long-running operation is
+     * refused honestly while one is already running.
+     */
+    fun requestCompress(names: List<String>)
+
+    /** Submit the archive name; collisions go through the Replace flow. */
+    fun submitCompress(archiveName: String)
+
+    fun dismissCompressDialog()
+
+    /**
+     * Open the extraction prompt for the CURRENT directory's zip [name]:
+     * the destination is a folder inside the current directory (its name is
+     * editable in the prompt; created when missing).
+     */
+    fun requestExtract(name: String)
+
+    /** Toggle the explicit overwrite choice of the open extraction prompt. */
+    fun setExtractReplace(replace: Boolean)
+
+    /** Submit the destination folder name and start the extraction. */
+    fun submitExtract(folderName: String)
+
+    fun dismissExtractDialog()
+
+    /** Cancel the running compress/extract at the next entry boundary. */
+    fun cancelZip()
+
+    /**
+     * Stage the listing entry [name] (a regular file) for opening by an
+     * installed Android app (ACTION_VIEW over a FileProvider copy). When no
+     * installed app can handle the file type, the honest notice is surfaced
+     * and nothing is launched.
+     */
+    fun requestOpenWith(name: String)
+
+    /** The Android app launch happened (or failed) — drop the staged offer. */
+    fun consumeOpenWithReady()
+
+    /** The UI's startActivity failed — surface the honest reason verbatim. */
+    fun openWithLaunchFailed(reason: String)
 }
 
 /** One operation outcome, rendered verbatim. [seq] re-triggers auto-dismiss. */
@@ -244,6 +306,14 @@ sealed interface OpsCommand {
         val target: AreaPath,
         val name: String,
     ) : OpsCommand
+
+    /** M7.2-A: an archive whose target collided (Replace = delete-then-run). */
+    data class CompressZip(
+        val areaId: AreaId,
+        val targetDir: AreaPath,
+        val sources: List<AreaPath>,
+        val target: AreaPath,
+    ) : OpsCommand
 }
 
 /** The New Folder / New File prompt state; [error] round-trips honest failures. */
@@ -284,10 +354,54 @@ data class ShareReady(
     val mimeType: String,
 )
 
-/** Phase 5: the parameters for the system save dialog (ACTION_CREATE_DOCUMENT).
- * The ViewModel keeps the source file privately; the UI only sees what the
- * dialog needs. */
-data class ExportPrompt(
-    val name: String,
-    val mimeType: String,
-)
+    /** Phase 5: the parameters for the system save dialog (ACTION_CREATE_DOCUMENT).
+     * The ViewModel keeps the source file privately; the UI only sees what the
+     * dialog needs. */
+    data class ExportPrompt(
+        val name: String,
+        val mimeType: String,
+    )
+
+    // ============================ M7.2-A — archives (ZIP) + Open in Android app
+
+    /** Live progress of the running compress/extract (null = none running). */
+    data class ZipProgress(
+        val kind: ZipKind,
+        val currentName: String?,
+        val entriesDone: Int,
+        val bytesDone: Long,
+        /** null = indeterminate (honest: folder sources have no knowable size). */
+        val totalBytes: Long?,
+    ) {
+        enum class ZipKind { COMPRESS, EXTRACT }
+    }
+
+    /** The "Create archive" prompt for the CURRENT directory's selection. */
+    data class CompressDialogState(
+        val targetDir: AreaPath,
+        /** The names selected in the current listing (validated at open time). */
+        val names: List<String>,
+        /** Prefilled archive file name. */
+        val suggestedName: String,
+        val error: String? = null,
+    )
+
+    /** The "Extract archive" prompt (destination folder inside the current dir). */
+    data class ExtractDialogState(
+        /** The archive file's listing name. */
+        val zipName: String,
+        /** Prefilled destination folder name. */
+        val suggestedFolder: String,
+        /** Explicit, opt-in overwrite — never a silent replace. */
+        val replace: Boolean = false,
+        val error: String? = null,
+    )
+
+    /** A staged file ready to hand to an Android app via ACTION_VIEW. The URI
+     * belongs to the share-staged COPY in the app cache (FileProvider
+     * content://) — never to the original location. */
+    data class OpenWithReady(
+        val name: String,
+        val uriString: String,
+        val mimeType: String,
+    )

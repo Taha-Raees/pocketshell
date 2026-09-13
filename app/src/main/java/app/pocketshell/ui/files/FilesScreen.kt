@@ -24,7 +24,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -73,11 +76,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.pocketshell.files.AreaId
 import app.pocketshell.files.AreaKind
+import app.pocketshell.files.AreaPath
+import app.pocketshell.files.Breadcrumbs
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerCore
 import app.pocketshell.files.FileSearch
 import app.pocketshell.files.FilesSearchState
 import app.pocketshell.files.FsEntry
+import app.pocketshell.files.ZipArchiveOps
 import app.pocketshell.files.saf.SafFolderState
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightBanner
@@ -161,6 +167,12 @@ fun FilesScreen(
     /** Phase 6: open the listing FILE [name] in the quick text editor. */
     onOpenFile: (String) -> Unit,
     /**
+     * M7.2-A: navigate to a breadcrumb target (an ancestor folder of the
+     * current location). The payload is the crumb's OWN validated
+     * [AreaPath] — never a string reassembled from rendered labels.
+     */
+    onBreadcrumb: (app.pocketshell.files.AreaPath) -> Unit,
+    /**
      * Phase 7 (p7.1): open a Linux terminal in the TAPPED directory entry
      * [name] (the launch resolves that folder under the browsed location —
      * never the browsed location itself). The caller resolves the launch
@@ -184,6 +196,11 @@ fun FilesScreen(
     val selection by ops.selection.collectAsStateWithLifecycle()
     val multiDeleteConfirm by ops.multiDeleteConfirm.collectAsStateWithLifecycle()
     val pendingCount by ops.pendingCount.collectAsStateWithLifecycle()
+
+    // M7.2-A: archive surfaces + progress.
+    val zipProgress by ops.zipProgress.collectAsStateWithLifecycle()
+    val compressDialog by ops.compressDialog.collectAsStateWithLifecycle()
+    val extractDialog by ops.extractDialog.collectAsStateWithLifecycle()
 
     // Phase 5: the Android-side launchers (folder picker, import picker) and
     // the share/save effects — created HERE so this screen keeps owning all
@@ -297,16 +314,27 @@ fun FilesScreen(
                     onSelectAll = ops::selectAll,
                     onCopy = ops::startCopySelected,
                     onMove = ops::startMoveSelected,
+                    onZip = { ops.requestCompress(selection.toList()) },
                     onDelete = ops::openMultiDeleteConfirm,
                 )
             } else {
                 LocationRow(
                     state = state,
                     onNavigateUp = onNavigateUp,
+                    onBreadcrumb = onBreadcrumb,
                     onNewFolder = { ops.openNewDialog(folder = true) },
                     onNewFile = { ops.openNewDialog(folder = false) },
                     onImportFile = bridge.pickImportFile,
                 )
+            }
+
+            // M7.2-A: live archive progress — a quiet banner, always
+            // cancellable, above the listing.
+            zipProgress?.let { progress ->
+                Spacer(Modifier.height(6.dp))
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    ZipProgressBanner(progress = progress, onCancel = ops::cancelZip)
+                }
             }
 
             pending?.let { marker ->
@@ -487,6 +515,26 @@ fun FilesScreen(
                 } else {
                     null
                 },
+                // M7.2-A: hand a copy to an installed Android app (ACTION_VIEW
+                // over a FileProvider content:// URI) — files only; the VM
+                // surfaces the honest no-handler notice when nothing can open it.
+                onOpenWith = if (entry.kind == EntryKind.FILE) {
+                    { selected = null; ops.requestOpenWith(entry.name) }
+                } else {
+                    null
+                },
+                // M7.2-A: archives — files and folders compress; .zip files
+                // extract. Symlinks/special files are never offered.
+                onCompress = if (entry.kind == EntryKind.FILE || entry.kind == EntryKind.DIRECTORY) {
+                    { selected = null; ops.requestCompress(listOf(entry.name)) }
+                } else {
+                    null
+                },
+                onExtract = if (entry.kind == EntryKind.FILE && ZipArchiveOps.isZipName(entry.name)) {
+                    { selected = null; ops.requestExtract(entry.name) }
+                } else {
+                    null
+                },
                 // Phase 7: a REAL terminal launch for directories inside the
                 // PocketShell Linux area. Android-owned areas keep the
                 // handler null — the sheet then shows the honest boundary
@@ -552,6 +600,34 @@ fun FilesScreen(
             error = dialog.error,
             onConfirm = ops::submitNewName,
             onDismiss = ops::dismissNewDialog,
+        )
+    }
+
+    // ------------------------------------------------- M7.2-A archive dialogs
+
+    compressDialog?.let { dialog ->
+        CompressDialog(
+            title = if (dialog.names.size == 1) {
+                "Compress \"${dialog.names.first()}\""
+            } else {
+                "Compress ${dialog.names.size} items"
+            },
+            initial = dialog.suggestedName,
+            error = dialog.error,
+            onConfirm = ops::submitCompress,
+            onDismiss = ops::dismissCompressDialog,
+        )
+    }
+
+    extractDialog?.let { dialog ->
+        ExtractDialog(
+            zipName = dialog.zipName,
+            suggestedFolder = dialog.suggestedFolder,
+            replace = dialog.replace,
+            error = dialog.error,
+            onReplace = ops::setExtractReplace,
+            onConfirm = ops::submitExtract,
+            onDismiss = ops::dismissExtractDialog,
         )
     }
 }
@@ -740,14 +816,24 @@ private fun FilesHeader(
 // -------------------------------------------------------------- location row
 
 /**
- * The up-to-parent affordance, the current path, and the "+" that makes
- * New Folder / New File / Import file… reachable in the CURRENT directory
- * (the only way creation and import work in an empty directory).
+ * The up-to-parent affordance, the CLICKABLE BREADCRUMB strip (M7.2-A), and
+ * the "+" that makes New Folder / New File / Import file… reachable in the
+ * CURRENT directory.
+ *
+ * Breadcrumb behavior: one crumb per ancestor of the current location — the
+ * area root labeled with its own short label first, then every path
+ * component, the current folder last. Tapping a crumb navigates straight to
+ * that folder through [onBreadcrumb] (the crumb's own validated [AreaPath];
+ * one listing, no extra I/O beyond the target directory). The current crumb
+ * is rendered, not a button — the location itself is visually identifiable
+ * and cannot be "re-navigated" to. The strip auto-scrolls to the current
+ * crumb; deep paths stay touch-first, never a shrunken static line.
  */
 @Composable
 private fun LocationRow(
     state: ExplorerCore.State,
     onNavigateUp: () -> Unit,
+    onBreadcrumb: (AreaPath) -> Unit,
     onNewFolder: () -> Unit,
     onNewFile: () -> Unit,
     onImportFile: () -> Unit,
@@ -778,17 +864,75 @@ private fun LocationRow(
             Spacer(Modifier.width(40.dp))
         }
         Spacer(Modifier.width(4.dp))
-        Text(
-            text = state.path?.value ?: "",
-            fontFamily = TerminalTheme.mono,
-            fontSize = 13.sp,
-            color = HomeTokens.textDim,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 8.dp),
-        )
+
+        val path = state.path
+        if (path != null) {
+            // The crumb list is pure string work over the ALREADY validated
+            // path — remember() keeps recomposition to real path changes
+            // (zero filesystem operations by construction).
+            val rootLabel = state.areas.firstOrNull { it.selected }?.label ?: state.areaName
+            val crumbs = remember(path, rootLabel) { Breadcrumbs.of(path, rootLabel) }
+            val listState = rememberLazyListState()
+            // Follow the user: the current crumb is always brought into view.
+            LaunchedEffect(path) {
+                if (crumbs.isNotEmpty()) {
+                    runCatching { listState.animateScrollToItem(crumbs.lastIndex) }
+                }
+            }
+            LazyRow(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                itemsIndexed(crumbs, key = { _, crumb -> crumb.path.value }) { index, crumb ->
+                    if (index > 0) {
+                        Text(
+                            text = "/",
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 13.sp,
+                            color = HomeTokens.textDim,
+                            modifier = Modifier.padding(horizontal = 2.dp),
+                        )
+                    }
+                    if (crumb.isCurrent) {
+                        Text(
+                            text = crumb.name,
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = HomeTokens.accent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .padding(vertical = 10.dp, horizontal = 6.dp),
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(
+                                    role = Role.Button,
+                                    onClickLabel = "Open ${crumb.name}",
+                                ) { onBreadcrumb(crumb.path) }
+                                .padding(vertical = 10.dp, horizontal = 6.dp),
+                        ) {
+                            Text(
+                                text = crumb.name,
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 13.sp,
+                                color = HomeTokens.textDim,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
         if (state.path != null) {
             Box {
                 Box(
@@ -889,9 +1033,9 @@ private fun LocationRow(
 
 /**
  * The selection-mode action bar: replaces the location row while selecting.
- * Copy/Move/Delete act on the selection (disabled while nothing is picked);
- * Select all grabs the whole listing; the X leaves the mode. It performs
- * ZERO filesystem work — every button dispatches an intent.
+ * Copy/Move/Zip/Delete act on the selection (disabled while nothing is
+ * picked); Select all grabs the whole listing; the X leaves the mode. It
+ * performs ZERO filesystem work — every button dispatches an intent.
  */
 @Composable
 private fun SelectionBar(
@@ -900,6 +1044,7 @@ private fun SelectionBar(
     onSelectAll: () -> Unit,
     onCopy: () -> Unit,
     onMove: () -> Unit,
+    onZip: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -950,6 +1095,15 @@ private fun SelectionBar(
         TextButton(onClick = onMove, enabled = count > 0) {
             Text(
                 "Move",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 13.sp,
+                color = if (count > 0) HomeTokens.accent else HomeTokens.textDim,
+            )
+        }
+        // M7.2-A: compress the whole selection into one archive.
+        TextButton(onClick = onZip, enabled = count > 0) {
+            Text(
+                "Zip",
                 fontFamily = TerminalTheme.mono,
                 fontSize = 13.sp,
                 color = if (count > 0) HomeTokens.accent else HomeTokens.textDim,

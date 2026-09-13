@@ -1,6 +1,7 @@
 package app.pocketshell.ui.files
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.CheckBox
+import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
@@ -20,12 +24,15 @@ import androidx.compose.material.icons.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.FolderZip
 import androidx.compose.material.icons.outlined.NoteAdd
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -52,6 +59,7 @@ import app.pocketshell.files.MultiSelectOps
 import app.pocketshell.files.FsEntry
 import app.pocketshell.files.PendingTransfer
 import app.pocketshell.files.TerminalLaunchSupport
+import app.pocketshell.files.ZipArchiveOps
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightBanner
 import app.pocketshell.ui.system.MidnightFactRow
@@ -161,6 +169,16 @@ data class EntryActionHandlers(
     val onExport: (() -> Unit)? = null,
     /** Phase 6: open this file in the quick text editor (files only). */
     val onEdit: (() -> Unit)? = null,
+    /**
+     * M7.2-A: open this file with an installed Android app via ACTION_VIEW
+     * over a FileProvider copy (files only). The caller resolves the real
+     * handler situation; the sheet only offers what is genuinely possible.
+     */
+    val onOpenWith: (() -> Unit)? = null,
+    /** M7.2-A: compress this entry into a .zip (files and folders). */
+    val onCompress: (() -> Unit)? = null,
+    /** M7.2-A: extract this .zip into a folder of the current directory. */
+    val onExtract: (() -> Unit)? = null,
     val onRename: () -> Unit,
     val onDelete: () -> Unit,
 )
@@ -236,6 +254,10 @@ fun EntryActionSheet(
                 val edit = handlers.onEdit
                 SheetAction("Open", Icons.Outlined.Description, onClick = { edit?.invoke() })
             }
+            if (entry.kind == EntryKind.FILE && handlers.onOpenWith != null) {
+                val openWith = handlers.onOpenWith
+                SheetAction("Open in Android app", Icons.Outlined.OpenInNew, onClick = { openWith?.invoke() })
+            }
             SheetAction("Copy", Icons.Outlined.ContentCopy, onClick = handlers.onCopy)
             SheetAction("Move", Icons.Outlined.DriveFileMove, onClick = handlers.onMove)
             if (entry.kind == EntryKind.FILE && handlers.onShare != null) {
@@ -245,6 +267,14 @@ fun EntryActionSheet(
             if (entry.kind == EntryKind.FILE && handlers.onExport != null) {
                 val export = handlers.onExport
                 SheetAction("Export", Icons.Outlined.FileUpload, onClick = { export?.invoke() })
+            }
+            if (handlers.onCompress != null) {
+                val compress = handlers.onCompress
+                SheetAction("Compress", Icons.Outlined.Archive, onClick = { compress?.invoke() })
+            }
+            if (handlers.onExtract != null) {
+                val extract = handlers.onExtract
+                SheetAction("Extract…", Icons.Outlined.FolderZip, onClick = { extract?.invoke() })
             }
             SheetAction("Rename", Icons.Outlined.Edit, onClick = handlers.onRename)
             SheetAction("Delete", Icons.Outlined.Delete, danger = true, onClick = handlers.onDelete)
@@ -258,8 +288,10 @@ fun EntryActionSheet(
                         // The honest Android-boundary explanation — replaces
                         // the old Phase 4 deferral note. Never a fake launch.
                         TerminalLaunchSupport.ANDROID_BOUNDARY_MESSAGE
-                    entry.kind == EntryKind.FILE && handlers.onEdit != null ->
-                        "The quick editor opens UTF-8 text files up to 1 MB."
+                    entry.kind == EntryKind.FILE && handlers.onExtract != null ->
+                        "The archive is extracted into a folder of this directory; nothing is overwritten without your choice."
+                    entry.kind == EntryKind.FILE && handlers.onOpenWith != null ->
+                        "A copy is handed to the Android app you pick — the original stays here."
                     else ->
                         "Open and Edit arrive in a later update."
                 },
@@ -532,3 +564,235 @@ fun NamePromptDialog(
 
 /** Terminal-flavoured deterministic timestamp for fact rows. */
 internal fun timestampFormat(): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+
+// ------------------------------------------------- M7.2-A — archive dialogs
+
+/**
+ * The "Create archive" prompt — the same round-trip discipline as
+ * [NamePromptDialog]: errors from the ViewModel render inline and the
+ * dialog never closes itself on a failure.
+ */
+@Composable
+fun CompressDialog(
+    title: String,
+    initial: String,
+    error: String?,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = TerminalTheme.chrome,
+        titleContentColor = HomeTokens.textPrimary,
+        textContentColor = HomeTokens.textDim,
+        title = {
+            Text(
+                text = title,
+                fontFamily = TerminalTheme.mono,
+                fontSize = 17.sp,
+            )
+        },
+        text = {
+            Column {
+                MidnightTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = "archive name",
+                )
+                if (error != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.danger,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) {
+                Text("Create", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontFamily = TerminalTheme.mono, color = HomeTokens.textDim)
+            }
+        },
+    )
+}
+
+/**
+ * The "Extract archive" prompt: the destination folder (inside the current
+ * directory; created when missing) plus the EXPLICIT overwrite choice —
+ * existing files are never replaced silently.
+ */
+@Composable
+fun ExtractDialog(
+    zipName: String,
+    suggestedFolder: String,
+    replace: Boolean,
+    error: String?,
+    onReplace: (Boolean) -> Unit,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember(suggestedFolder) { mutableStateOf(suggestedFolder) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = TerminalTheme.chrome,
+        titleContentColor = HomeTokens.textPrimary,
+        textContentColor = HomeTokens.textDim,
+        title = {
+            Text(
+                text = "Extract \"$zipName\"",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 17.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Extract into a folder of the current directory. It is created when missing.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(10.dp))
+                MidnightTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = "folder name",
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(role = Role.Checkbox) { onReplace(!replace) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = if (replace) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
+                        contentDescription = if (replace) "Replace existing files" else "Keep existing files",
+                        tint = if (replace) HomeTokens.accent else HomeTokens.textDim,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "Replace existing files",
+                        fontFamily = TerminalTheme.mono,
+                        fontSize = 13.sp,
+                        color = HomeTokens.textPrimary,
+                    )
+                }
+                if (replace) {
+                    Text(
+                        text = "Existing files with the same name will be overwritten.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.danger,
+                    )
+                }
+                if (error != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.danger,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) {
+                Text("Extract", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontFamily = TerminalTheme.mono, color = HomeTokens.textDim)
+            }
+        },
+    )
+}
+
+/**
+ * The live compress/extract progress banner: what is running, the current
+ * entry, honest bytes (determinate only when a total is really known), and
+ * the one cancel affordance.
+ */
+@Composable
+fun ZipProgressBanner(
+    progress: ZipProgress,
+    onCancel: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(HomeTokens.surfaceEnv)
+            .border(1.dp, HomeTokens.hairline, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = if (progress.kind == ZipProgress.ZipKind.COMPRESS) "Creating archive" else "Extracting archive",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = HomeTokens.textPrimary,
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onCancel) {
+                Text(
+                    "Cancel",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 13.sp,
+                    color = HomeTokens.danger,
+                )
+            }
+        }
+        progress.currentName?.let { name ->
+            Text(
+                text = name,
+                fontFamily = TerminalTheme.mono,
+                fontSize = 12.sp,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        val total = progress.totalBytes
+        if (total != null && total > 0) {
+            LinearProgressIndicator(
+                progress = { (progress.bytesDone.toFloat() / total.toFloat()).coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+                color = HomeTokens.accent,
+                trackColor = HomeTokens.hairline,
+            )
+        } else {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth(),
+                color = HomeTokens.accent,
+                trackColor = HomeTokens.hairline,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = buildString {
+                append("${progress.entriesDone} entr")
+                append(if (progress.entriesDone == 1) "y" else "ies")
+                append(" · ${ZipArchiveOps.humanBytes(progress.bytesDone)}")
+                if (total != null && total > 0) {
+                    append(" of ${ZipArchiveOps.humanBytes(total)}")
+                }
+            },
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.textDim,
+        )
+    }
+}
