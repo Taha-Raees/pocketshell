@@ -344,10 +344,35 @@ gate per docs/TESTING.md.
   lines and need the shell.
 - **J3 — IMPLEMENTED**: DEV_WORKSTATION.md §6 exec-tax row replaced with the
   measured numbers and the phase-4 citation.
-- **J1 — NOT IMPLEMENTED (deliberately)**: session-close kill semantics
-  change app behavior in ways this session cannot device-gate (no adb →
-  no UI acceptance pass). It stays the first Phase 4/5 implementation item
-  with its own diff, tests, and TESTING.md gates.
+- **J1 — IMPLEMENTED** (commit `c6dfb48`, device-gated on SM-T870 — see
+  §M-result J1 battery below). Final semantics:
+
+  | Process class | Fate on normal tab close | Mechanism |
+  |---|---|---|
+  | Terminal-owned foreground work (the shell, or a foreground job) | terminated through normal terminal semantics | `TIOCGPGRP` on the session's own PTY master → `SIGCONT`+`SIGHUP` to exactly the kernel-tracked foreground process group (the pair the kernel itself delivers on master close) |
+  | The direct child (proot) | exits naturally when its tracees are gone; otherwise force-finished once | the existing `finishIfRunning()` SIGKILL, fired by ONE bounded fallback (1000 ms, main handler) only if the same pid is still alive |
+  | Deliberately detached descendants (`setsid`, nohup'd daemons) | NOT signaled by the close path — ever | the policy never enumerates or scans pids; multi-session isolation is structural (one session's own terminal state) |
+  | Stubborn processes that ignore SIGHUP (`trap '' HUP`) | survive the graceful signal; the bounded SIGKILL fallback then force-finishes the direct child; tracer-SIGKILL cannot kill tracees (device-proven) | documented, intentional exception — a process that ignores SIGHUP opts out of graceful teardown and survives to its natural end |
+
+  **Architecture verdict on detached survival (gate D amendment):** on the
+  Flip's nested-proot experiments the app's proot pin IGNORES SIGHUP/SIGINT
+  (`SigIgn 7ffffffc7fc0f053`), so signaling proot directly is impossible;
+  and — verified on SM-T870 independently of any close code — typing plain
+  `exit` in a session reaps ALL remaining tracees including `setsid`'d
+  ones (`--kill-on-exit`, pinned in `RuntimeProcessLauncher` argv, reaps
+  tracees on every orderly proot exit). Detached processes therefore
+  survive only DISORDERLY paths (app process death / external SIGKILL —
+  device-proven pre-J1 on this same device). Making detached processes
+  survive orderly closes would require dropping `--kill-on-exit` from the
+  spawn argv (leaks the whole guest on every crash — strictly worse, out
+  of J1 scope) or the Phase 5b detached-runner architecture (report §K).
+  Gate D records this honestly: the detached process was reaped by the
+  pre-existing kill-on-exit policy, not by J1's signals.
+
+  Source pins updated consciously to the J1 era: the pid-guard/kill(0)
+  pin now pins the graceful-first shape; the "no timers" pins now allow
+  exactly ONE manager timer (the graceful fallback via
+  `mainHandler.postDelayed`), pinned to a single occurrence.
 
 ## K. Phase 5 (Persistent Sessions) — exact requirements
 
@@ -457,6 +482,30 @@ owner's install). APK: `app-debug.apk` built from this branch
 This ledger also retroactively covers the owner's on-phone install
 (2026-09-14): the Flip's live process tree shows the identical new
 `--cwd` spawn shape working end to end.
+
+### M-result J1. Graceful-close battery (2026-09-15, SM-T870, J1 build)
+
+APK: sha256 `7cb737c0bafba26d9c77a79f437a90e1853c0fd5788d556192f1029a1c6db3e4`
+(commit `c6dfb48`); `getForegroundProcessGroup` symbol verified inside the
+packaged `libtermux.so`. In-app process checks read the Tab's real process
+table over adb.
+
+| Gate | Scenario | Result |
+|---|---|---|
+| A | Idle shell open → close tab | PASS — 1 proot → 0; honest "No open sessions" state |
+| B | Foreground `sleep 61` → close tab | PASS — fg sleep terminated through the graceful path (zero orphans); proot gone ≤ ~0.8–1.2 s (grace + fallback); UI clean |
+| C | HUP-immune fg command (`trap "" HUP; sleep 91`) → close | PASS (documented exception) — SIGHUP ignored by the process's own trap; bounded SIGKILL fallback fired (proot → 0); the HUP-immune process and its shell survive to natural expiry, then exit |
+| D | `setsid sleep 95 &` → close | AMENDED VERDICT (see §J1 architecture verdict) — the detached process was reaped by the pre-existing `--kill-on-exit` policy on proot's orderly exit; verified the same reaping occurs with a plain user `exit` (no close involved), proving it is architecture policy, not a J1 regression. Detached survival on disorderly paths was device-proven earlier on this device |
+| E | Multi-session isolation: fg `sleep 120` in session 1, close session 2 | PASS — session 1's proot, fg job and PTY untouched and usable |
+| F | Background 6 s → return → close one of two sessions | PASS — proots stable through backgrounding (no freeze), isolation preserved after return |
+| G | Repeated open/close cycles + final audit | PASS — final state 0 proots, 0 zombies, 0 stray processes across the whole battery (~12 sessions); intermediate single-proot readings were open sessions from tap pacing, each matching a visible tab |
+
+JVM side: 9 GracefulSessionCloseControllerTest contract pins (signals order,
+unresolvable-group fallback, signaler failure, timeout→single SIGKILL,
+cancelled-on-exit, id replacement, cross-session isolation, never-a-tree-
+killer policy pin) + updated source pins; full suite 988 tests with only the
+4 documented environmental `/proc` failures (identical to pristine-main
+baseline; verified via clean worktree run at `fe45250`).
 
 1. `benchmarks/phase4-terminal/run_bench.sh sigtest` — all 7 cases PASS,
    orphan semantics matching the intended design (currently documents the
