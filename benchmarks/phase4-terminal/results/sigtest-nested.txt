@@ -1,1 +1,8 @@
-PASS Ctrl-C (ISIG) kills fg job, shell survives               sleep gone=y shell alive=y (responsive in 2501 ms)
+# PARTIAL — battery aborted after case 1 of 7.
+# Case 1 (Ctrl-C) PASSED against a nested proot guest; the run then wedged
+# (nested interactive login shells stall in profile sourcing at the second
+# proot layer under Alpine proot 5.4; see README.md). The remaining cases are
+# covered at layer 1 in sigtest.txt; the tracer-kill (closeSession) semantics
+# question was answered by the dedicated probe instead:
+# benchmarks/phase4-terminal/tracer_kill_probe.sh — an externally SIGKILLed
+# proot sticks in ptrace-stop with SIGKILL pending and its tracees survive.
