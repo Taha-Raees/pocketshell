@@ -437,6 +437,27 @@ problems without evidence tmux is insufficient.
 
 ## M. Tests / device gates required before any Phase 4 change is "done"
 
+### M-result. Device gates RUN (2026-09-14, cross-device adb loop)
+
+Run by Agent Z from the Flip guest onto the **Galaxy Tab S7 (SM-T870)** over
+wireless debugging (the Flip itself was already device-verified by the
+owner's install). APK: `app-debug.apk` built from this branch
+(`aa15cad`, 30,628,825 B, sha256 `827c8cf36731bac6…`).
+
+| # | Gate | Result |
+|---|---|---|
+| 1 | Streamed install + in-place update, runtime data preserved ("Linux · Alpine · ready" on first launch) | PASS |
+| 2 | Linux Shell: prompt; typed `uname -m` → `aarch64`; arithmetic `$(())` expands — full input→PTY→shell→output→render path | PASS |
+| 3 | **J2 "Open Terminal Here"**: created `/root/ott-test`, Files → actions sheet → Open Terminal Here → prompt `localhost:~/ott-test#`, `pwd` = `/root/ott-test` (the new `--cwd` spawn shape, live-verified on a second device) | PASS |
+| 4 | Multi-session: two Alpine Linux tabs coexist; exactly 2 `libproot.so` processes under the app UID | PASS |
+| 5 | Close session: tab × closes cleanly; honest "No open sessions" empty state | PASS |
+| 6 | **Orphan hazard in the real app**: `setsid sleep 300 &` (PPID 1) **survived** tab close — device-confirmed the report's §G3 finding; expired naturally after its 300 s (no long-term residue) | CONFIRMED (hazard, as predicted) |
+| 7 | Background/foreground: Home → 6 s → return — both sessions intact, 2 proots alive before/during/after (FGS retention; no cached-app freeze) | PASS |
+
+This ledger also retroactively covers the owner's on-phone install
+(2026-09-14): the Flip's live process tree shows the identical new
+`--cwd` spawn shape working end to end.
+
 1. `benchmarks/phase4-terminal/run_bench.sh sigtest` — all 7 cases PASS,
    orphan semantics matching the intended design (currently documents the
    hazard; after J1 it must document the chosen policy).
