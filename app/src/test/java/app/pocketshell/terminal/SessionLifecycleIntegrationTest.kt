@@ -193,14 +193,22 @@ class SessionLifecycleIntegrationTest {
     @Test
     fun `closeSession never issues kill(0) and emits Removed with identity`() {
         val code = source(*managerPath.toTypedArray()).second
-        val killGuard = Regex(
-            "if \\(removed\\.session\\.getPid\\(\\) > 0\\) \\{\\s*removed\\.session\\.finishIfRunning\\(\\)",
+        // Phase 4 J1: the pid guard is now a captured val — closeSession reads
+        // getPid() ONCE, gates ALL kill paths on `pid > 0` (the upstream
+        // isRunning() is true for mShellPid == 0, and kill(0) signals the
+        // caller's whole process group), goes graceful-first, and only the
+        // `!graceful` branch force-finishes immediately.
+        assertTrue(
+            "closeSession must capture the direct-child pid exactly once (val pid = removed.session.getPid())",
+            code.contains("val pid = removed.session.getPid()"),
+        )
+        val gracefulBlock = Regex(
+            "if \\(pid > 0\\) \\{[\\s\\S]*?gracefulCloses\\.requestClose\\([\\s\\S]*?if \\(!graceful\\) \\{[\\s\\S]*?removed\\.session\\.finishIfRunning\\(\\)",
         )
         assertTrue(
-            "finishIfRunning (SIGKILL) must be guarded by pid > 0 — the upstream" +
-                " isRunning() is true for mShellPid == 0, and kill(0) signals the" +
-                " caller's whole process group",
-            killGuard.containsMatchIn(code),
+            "closeSession must go graceful-first (gracefulCloses.requestClose) inside the pid > 0 guard," +
+                " with finishIfRunning (SIGKILL) ONLY on the !graceful fallback branch",
+            gracefulBlock.containsMatchIn(code),
         )
         assertTrue(
             "closeSession must emit SessionLifecycleEvent.Removed with the identity block",
@@ -273,7 +281,7 @@ class SessionLifecycleIntegrationTest {
         val lifecycle = source(*lifecyclePath.toTypedArray()).second
         for (source in listOf(manager, repository, lifecycle)) {
             for (forbidden in listOf(
-                "delay(", "postDelayed(", "Timer(", "Thread.sleep(", "/proc",
+                "delay(", "Timer(", "Thread.sleep(", "/proc",
                 "while (true)", "DataStore", "dataStore",
             )) {
                 assertFalse(
@@ -282,6 +290,20 @@ class SessionLifecycleIntegrationTest {
                 )
             }
         }
+        // Phase 4 J1 carve-out: the STATE engine above stays purely event-
+        // driven, but closeSession owns exactly ONE bounded timer — the
+        // SIGKILL fallback of the graceful close (gracefulCloses). Pin it to
+        // exactly one occurrence so no other timer can ever sneak in.
+        assertEquals(
+            "the manager must contain exactly ONE timer: the J1 graceful-close SIGKILL fallback",
+            1,
+            Regex("mainHandler\\.postDelayed\\(").findAll(manager).count(),
+        )
+        assertTrue(
+            "the single timer must belong to the graceful-close scheduler wiring",
+            manager.contains("GracefulSessionCloseController(") &&
+                manager.contains("GRACEFUL_CLOSE_GRACE_MS"),
+        )
     }
 
     // ------------------------------------------------------------------- 9

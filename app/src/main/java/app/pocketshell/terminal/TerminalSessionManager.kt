@@ -3,6 +3,7 @@ package app.pocketshell.terminal
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.system.Os
 import android.util.Log
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.runtime.RuntimeManager
@@ -363,8 +364,37 @@ object TerminalSessionManager {
             // i.e. undefined blast radius far beyond this session. Only a real,
             // forked, still-running child (pid > 0) is killed; a not-yet-started
             // (STARTING) or already-finished (pid == -1) session is just removed.
-            if (removed.session.getPid() > 0) {
-                removed.session.finishIfRunning()
+            val pid = removed.session.getPid()
+            if (pid > 0) {
+                // Phase 4 J1: graceful FIRST — SIGCONT+SIGHUP to the terminal's
+                // kernel-tracked foreground process group (TIOCGPGRP on THIS
+                // session's own PTY master), then ONE bounded SIGKILL fallback
+                // for the direct child if it outlives the grace window.
+                // Deliberately detached descendants (own session, e.g. setsid)
+                // are never enumerated or signaled. If the foreground group
+                // cannot be resolved/signaled, fall back to today's immediate
+                // finishIfRunning().
+                val graceful = gracefulCloses.requestClose(
+                    id,
+                    object : GracefulSessionCloseController.Target {
+                        override fun foregroundProcessGroup(): Int =
+                            removed.session.foregroundProcessGroup
+
+                        override fun isDirectChildAlive(): Boolean =
+                            removed.session.isRunning && removed.session.getPid() == pid
+
+                        override fun forceFinishDirectChild() {
+                            removed.session.finishIfRunning()
+                        }
+                    },
+                )
+                if (!graceful) {
+                    Log.i(
+                        LOG_TAG,
+                        "closeSession($id): foreground group unavailable — forcing immediate finish of pid $pid",
+                    )
+                    removed.session.finishIfRunning()
+                }
             }
             // M7.2 P9: the launch-record channel dies with its session (the
             // per-launch file IS the runtime generation — no stale anchor
@@ -451,6 +481,10 @@ object TerminalSessionManager {
      * waitpid value, never a guess.
      */
     private fun markFinished(id: Long) {
+        // Phase 4 J1: the direct child exited — cancel any pending SIGKILL
+        // fallback for this session (must also cover the removed-entry path
+        // below, where the exit arrives after an in-flight graceful close).
+        gracefulCloses.onProcessExited(id)
         // The close race (closeSession vs the waiter's exit delivery) removes
         // the entry first — the exit status of a removed session is honestly
         // gone (nothing to record it on); the delivery is logged, never silent.
@@ -507,5 +541,35 @@ object TerminalSessionManager {
         TerminalService.syncWithSessionState(context)
     }
 
+    /**
+     * Phase 4 J1 — the graceful-close policy (docs/PHASE-4-TERMINAL-AUDIT.md
+     * §J1): SIGCONT+SIGHUP to the terminal's kernel-tracked foreground process
+     * group, ONE bounded SIGKILL fallback for the direct child, detached
+     * descendants untouched. All signals go through [android.system.Os.kill];
+     * scheduling rides the same main handler as every lifecycle transition.
+     */
+    private val gracefulCloses = GracefulSessionCloseController(
+        graceMs = GRACEFUL_CLOSE_GRACE_MS,
+        signaler = { pid, signal ->
+            Os.kill(pid, signal)
+        },
+        scheduler = object : GracefulSessionCloseController.Scheduler {
+            override fun postDelayed(runnable: Runnable, delayMs: Long): GracefulSessionCloseController.Cancellation {
+                mainHandler.postDelayed(runnable, delayMs)
+                return GracefulSessionCloseController.Cancellation {
+                    mainHandler.removeCallbacks(runnable)
+                }
+            }
+        },
+    )
+
     private const val LOG_TAG = "TerminalSessionManager"
+
+    /**
+     * Phase 4 J1: how long a graceful close waits for the direct child
+     * (proot) after the terminal's foreground group was signaled before the
+     * existing SIGKILL fallback fires. Generous against a loaded device;
+     * the UI never blocks on it either way (the tab is removed immediately).
+     */
+    private const val GRACEFUL_CLOSE_GRACE_MS = 1000L
 }

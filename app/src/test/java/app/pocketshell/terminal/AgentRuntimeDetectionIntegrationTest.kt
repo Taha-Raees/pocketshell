@@ -284,7 +284,15 @@ class AgentRuntimeDetectionIntegrationTest {
         assertFalse(code.contains("CliAppCatalog"))
         assertFalse(code.contains("LaunchIdentity"))
         assertFalse(code.contains("/proc"))
-        assertFalse(Regex("\\bdelay\\(|\\bpostDelayed\\(|\\bTimer\\(").containsMatchIn(code))
+        // Phase 4 J1 carve-out: the manager owns exactly ONE timer — the
+        // graceful-close SIGKILL fallback (SessionLifecycleIntegrationTest
+        // pins it to one occurrence). No detection-related timer may exist.
+        val timerMatches = Regex("\\bdelay\\(|\\bmainHandler\\.postDelayed\\(|\\bTimer\\(").findAll(code).count()
+        org.junit.Assert.assertEquals(
+            "the manager's ONLY timer is the J1 graceful-close fallback",
+            1,
+            timerMatches,
+        )
     }
 
     // ---------------------------------------- 7. the detector owns nothing
