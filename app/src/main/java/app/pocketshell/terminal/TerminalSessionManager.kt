@@ -233,6 +233,7 @@ object TerminalSessionManager {
         origin: SpawnOrigin,
         agent: AgentHint? = null,
         launchRecordPath: String? = null,
+        guestCwd: String? = null,
     ): SessionEntry {
         val appContext = context.applicationContext
         val state = RuntimeManager.state.value
@@ -250,6 +251,7 @@ object TerminalSessionManager {
             guestCommand = guestCommand,
             apkCacheDir = PackageGateway.apkCacheDir(storage),
             sysDataBinds = sysDataBinds,
+            guestCwd = guestCwd,
         )
         return spawn(
             context = appContext,

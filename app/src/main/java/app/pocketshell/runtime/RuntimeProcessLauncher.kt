@@ -230,6 +230,7 @@ object RuntimeProcessLauncher {
         guestCommand: List<String>,
         apkCacheDir: File,
         sysDataBinds: List<String> = emptyList(),
+        guestCwd: String? = null,
     ): LaunchSpec {
         val spec = buildLaunchSpec(
             nativeLibraryDir = nativeLibraryDir,
@@ -240,6 +241,7 @@ object RuntimeProcessLauncher {
             apkCacheDir = apkCacheDir,
             profile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
             sysDataBinds = sysDataBinds,
+            guestCwd = guestCwd,
         )
         // Fail-loud environment validation (m3.6): the /proc contract is the
         // builder's job by construction; this makes any future regression a
@@ -291,6 +293,7 @@ object RuntimeProcessLauncher {
         apkCacheDir: File? = null,
         profile: GuestExecutionProfile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
         sysDataBinds: List<String> = emptyList(),
+        guestCwd: String? = null,
     ): LaunchSpec {
         // The /proc policy is DERIVED, never caller-chosen (m3.6): interactive
         // sessions always bind it, package operations never do. There is no
@@ -342,7 +345,13 @@ object RuntimeProcessLauncher {
             "--link2symlink",
             "--rootfs=${rootfsDir.absolutePath}",
             "--root-id",
-            "--cwd=/root",
+            // Phase 4 (Agent Z audit): a guest working directory rides proot's
+            // own --cwd — ONE argv element, never parsed by any shell. This
+            // replaces the old `sh -l -c "cd -- '<dir>' && exec sh -l"` chain
+            // for plain directory launches (one login/profile startup instead
+            // of two, and no quoting/escaping surface at all). Default keeps
+            // the pinned /root contract for every other launch shape.
+            "--cwd=${guestCwd?.takeIf { it.isNotBlank() } ?: "/root"}",
             "--bind=/dev",
         )
         // /proc policy (m3.6 — see class KDoc + docs/PROCFS-CONTRACT.md):

@@ -83,7 +83,7 @@ workflow at a time; per-project overrides allowed after measurement.
 | nested debugging (strace of child processes) | work | — |
 | `mount`/`chroot`/`unshare` from guest | session death | [PROOT] |
 | musl OpenJDK startup | EACCES at one mprotect | [ROOTFS/LIBC]+[UNKNOWN] |
-| exec tax ~25 ms/process | measured | [ARCHITECTURAL DEBT] (native-path candidate, H) |
+| exec tax: trivial exec ~1–5 ms/process; busybox ~5 ms; external command in an interactive shell ~10 ms end-to-end | re-measured 2026-09-14 (Phase 4 audit, PHASE-4-TERMINAL-AUDIT.md §E; the earlier ~25 ms figure did not reproduce for any target) | [PROOT, evidenced: ptrace syscall interception; per-layer cost superlinear with nesting depth] |
 
 ## 7. Android development + self-device loop status (Tracks D/E)
 

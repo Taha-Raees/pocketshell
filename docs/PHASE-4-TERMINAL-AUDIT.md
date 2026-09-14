@@ -325,6 +325,26 @@ Nothing below has been implemented — this is the evidence-justified queue:
 Each step: small diff, before/after with the committed harness, real-device
 gate per docs/TESTING.md.
 
+**Implementation status (same branch, same session):**
+- **J2 — IMPLEMENTED** (commit following this report): the guest directory of
+  "Open Terminal Here" now rides proot's `--cwd` (`guestCwd` param through
+  `RuntimeProcessLauncher.buildLaunchSpec`/`buildSessionSpec` →
+  `TerminalSessionManager.spawnLinuxSession` → `TerminalViewModel.openLinuxShellAt`),
+  and the launch is a bare `/bin/sh -l`. Measured on device before/after
+  (layer 1, n=7 medians): double login chain **157.7 ms** → single login +
+  `--cwd` **81.7 ms** (−76 ms, −48%). `RuntimeProcessLauncherTest` pins the
+  new contract (`guestCwd rides the cwd flag verbatim`, blank → `/root`
+  fallback) — the whole suite plus every pre-existing argv pin passes.
+  `assembleDebug` builds green (app-debug.apk, 2026-09-14). Command-app and
+  custom-tool launches keep the `sh -l -c` chains — they run real command
+  lines and need the shell.
+- **J3 — IMPLEMENTED**: DEV_WORKSTATION.md §6 exec-tax row replaced with the
+  measured numbers and the phase-4 citation.
+- **J1 — NOT IMPLEMENTED (deliberately)**: session-close kill semantics
+  change app behavior in ways this session cannot device-gate (no adb →
+  no UI acceptance pass). It stays the first Phase 4/5 implementation item
+  with its own diff, tests, and TESTING.md gates.
+
 ## K. Phase 5 (Persistent Sessions) — exact requirements
 
 R1 **Session identity** must survive process death: stable UUIDs persisted
