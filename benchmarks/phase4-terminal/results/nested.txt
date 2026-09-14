@@ -1,0 +1,13 @@
+== battery layer1 ==
+/tmp/ph4-build/hello_static          n=200 mean=4.080 median=3.227 p95=9.098 min=2.675 max=15.920 (ms)  subtree-cpu/exec=0.795ms
+/tmp/ph4-build/hello_dyn             n=200 mean=4.788 median=3.998 p95=9.335 min=3.638 max=21.119 (ms)  subtree-cpu/exec=1.202ms
+/bin/true                            n=200 mean=12.033 median=10.189 p95=21.827 min=9.597 max=42.209 (ms)  subtree-cpu/exec=4.669ms
+/bin/sh                              n=20000 mean=0.175 median=0.152 p95=0.213 min=0.106 max=15.539 (ms)
+login-shell (/bin/sh) fork→first-output: 115.413 ms (45 bytes)
+pty raw byte RTT (cat)               n=200 mean=0.290 median=0.152 p95=0.576 min=0.120 max=5.045 (ms)
+login-shell echo RTT                 n=200 mean=0.478 median=0.449 p95=0.668 min=0.356 max=3.109 (ms)
+login-shell ext-cmd RTT (/bin/true)  n=200 mean=15.335 median=10.852 p95=31.505 min=8.280 max=56.015 (ms)
+output (guest→tty→master): 32.00 MiB moved in 640.0 ms = 50.00 MiB/s
+input  (master→tty→guest): 32.00 MiB moved in 3488.3 ms = 9.17 MiB/s
+spawn fork→first-output            n=7 mean=118.798 median=117.845 p95=147.930 min=101.841 max=147.930 (ms)
+spawn fork→exit                    n=7 mean=119.226 median=118.350 p95=148.400 min=102.408 max=148.400 (ms)

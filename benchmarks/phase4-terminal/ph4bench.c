@@ -327,12 +327,16 @@ static int ptytp(int mib, int rev) {
     char cnt[32];
     snprintf(cnt, sizeof cnt, "%d", mib);
     setenv("PH4_MIB", cnt, 1);
+    { char bytes[32]; snprintf(bytes, sizeof bytes, "%lld", (long long)mib * 1048576);
+      setenv("PH4_BYTES", bytes, 1); }
     pid_t p;
     if (!rev) {
         char *sh[] = { "sh", "-c", "dd if=/dev/zero bs=1048576 count=$PH4_MIB 2>/dev/null", NULL };
         p = pty_spawn(m, sh[0], sh);
     } else {
-        char *sh[] = { "sh", "-c", "dd of=/dev/null bs=1048576 count=$PH4_MIB 2>/dev/null", NULL };
+        /* head -c: reads until N bytes (dd would count each short tty read
+         * as one full block and exit after a few KiB) */
+        char *sh[] = { "sh", "-c", "head -c $PH4_BYTES > /dev/null", NULL };
         p = pty_spawn(m, sh[0], sh);
     }
     if (p < 0) { perror("pty_spawn"); return 1; }

@@ -1,0 +1,1 @@
+PASS Ctrl-C (ISIG) kills fg job, shell survives               sleep gone=y shell alive=y (responsive in 2501 ms)

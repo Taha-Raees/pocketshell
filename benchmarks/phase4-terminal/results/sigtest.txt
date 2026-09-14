@@ -1,0 +1,8 @@
+PASS Ctrl-C (ISIG) kills fg job, shell survives               sleep gone=y shell alive=y (responsive in 2501 ms)
+PASS Ctrl-Z (SIGTSTP) stops foreground job                    jobs(1) shows Stopped
+PASS TIOCSWINSZ reaches guest (stty size)                     60 80 observed
+PASS UTF-8 (é ü) survives shell round trip                  bytes intact
+PASS 8-bit clean incl NUL/0xFF (raw cat echo)                 6/6 bytes intact
+PASS shell exits cleanly on exit+EOT (EOF)                    exit status 0
+PASS orphan hazard: setsid'd grandchild survives close        grandchild 21894 alive=y state=S
+sigtest: 0 failure(s)
