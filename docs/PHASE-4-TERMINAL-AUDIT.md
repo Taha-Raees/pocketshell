@@ -335,7 +335,11 @@ gate per docs/TESTING.md.
   `--cwd` **81.7 ms** (−76 ms, −48%). `RuntimeProcessLauncherTest` pins the
   new contract (`guestCwd rides the cwd flag verbatim`, blank → `/root`
   fallback) — the whole suite plus every pre-existing argv pin passes.
-  `assembleDebug` builds green (app-debug.apk, 2026-09-14). Command-app and
+  `assembleDebug` builds green (app-debug.apk, 2026-09-14). **Device-verified
+  2026-09-14**: the owner installed this build; the live process tree under
+  the new APK shows the exact new spawn shape (`proot … --cwd=<dir> …
+  /bin/sh -l`) for a Files "Open Terminal Here" session, functional end to
+  end (the Phase 4 agent session itself ran inside it). Command-app and
   custom-tool launches keep the `sh -l -c` chains — they run real command
   lines and need the shell.
 - **J3 — IMPLEMENTED**: DEV_WORKSTATION.md §6 exec-tax row replaced with the
