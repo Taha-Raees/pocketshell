@@ -99,7 +99,7 @@ fun MidnightPageScaffold(
         modifier = modifier
             .fillMaxSize()
             .background(TerminalTheme.screenBg)
-            .auroraBackdrop(TerminalTheme.isAurora, auroraPhase),
+            .auroraBackdrop(auroraPhase),
     ) {
         Column(
             modifier = Modifier
@@ -254,11 +254,7 @@ fun MidnightFilledButton(
                 .background(if (enabled) HomeTokens.accentDeep else HomeTokens.surfaceApp)
                 // Aurora identity: the primary action carries the circulating
                 // glow edge (hairline, restrained). Other themes: no-op.
-                .auroraEdge(
-                    enabled = TerminalTheme.isAurora && enabled,
-                    phase = auroraPhase,
-                    cornerRadius = 12.dp,
-                ),
+                .auroraEdge(phase = auroraPhase, cornerRadius = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(

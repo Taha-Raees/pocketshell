@@ -191,7 +191,7 @@ fun HomeScreen(
         modifier = modifier
             .fillMaxSize()
             .background(TerminalTheme.screenBg)
-            .auroraBackdrop(TerminalTheme.isAurora, auroraPhase),
+            .auroraBackdrop(auroraPhase),
     ) {
         // M7.1 P2.2 + Control Center II: requested columns → available width
         // → minimum comfortable cell → actual columns. The user's choice is
@@ -506,7 +506,7 @@ private fun TerminalTile(
                 .background(HomeTokens.surfaceHero)
                 // Aurora identity: the hero tiles are the page's important
                 // cards — they carry the circulating glow edge.
-                .auroraEdge(TerminalTheme.isAurora, auroraPhase, HomeTokens.heroRadius)
+                .auroraEdge(auroraPhase, HomeTokens.heroRadius)
                 .padding(16.dp),
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -573,7 +573,7 @@ private fun LinuxTile(
                 .height(heightDp)
                 .clip(RoundedCornerShape(HomeTokens.heroRadius))
                 .background(HomeTokens.surfaceEnv)
-                .auroraEdge(TerminalTheme.isAurora, auroraPhase, HomeTokens.heroRadius)
+                .auroraEdge(auroraPhase, HomeTokens.heroRadius)
                 .padding(16.dp),
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {

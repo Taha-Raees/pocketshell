@@ -336,9 +336,9 @@ private fun ThemePreviewCard(
                 },
             )
             .auroraEdge(
-                enabled = selected && theme.aurora,
                 phase = auroraPhase,
                 cornerRadius = 14.dp,
+                preview = selected && theme.aurora,
             )
             .clickable(role = Role.Button, onClickLabel = "Theme ${theme.label}") { onClick() }
             .padding(10.dp),

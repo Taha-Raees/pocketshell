@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -421,32 +423,43 @@ private fun CompanionHandle(
         animationSpec = tween(120, easing = FastOutSlowInEasing),
         label = "companionHandle",
     )
+    // Owner fix — the touch target is THE BAR'S WIDTH (72dp), not the whole
+    // horizontal screen: a full-width grab zone stole vertical drags (and
+    // taps) from the content underneath on both edges. The outer Box stays a
+    // passive full-width container; only the bar-width plate listens.
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(HANDLE_ZONE)
-            // Tap and drag coexist on separate detectors: a gesture without
-            // movement is a tap (minimize), a gesture past the touch slop is
-            // a drag (resize). One clear behavior per gesture, no ambiguity.
-            .pointerInput(Unit) { detectTapGestures(onTap = { onTap() }) }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragStart = { onDragStart() },
-                    onVerticalDrag = { change, dragAmount ->
-                        change.consume()
-                        onDrag(dragAmount)
-                    },
-                    onDragEnd = { onDragEnd() },
-                    onDragCancel = { onDragEnd() },
-                )
-            },
+            .height(HANDLE_ZONE),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .size(width = 72.dp, height = 4.dp)
-                .background(barColor, RoundedCornerShape(2.dp)),
-        )
+                .width(72.dp)
+                .fillMaxHeight()
+                // Tap and drag coexist on separate detectors: a gesture without
+                // movement is a tap (minimize), a gesture past the touch slop is
+                // a drag (resize). One clear behavior per gesture, no ambiguity.
+                .pointerInput(Unit) { detectTapGestures(onTap = { onTap() }) }
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragStart = { onDragStart() },
+                        onVerticalDrag = { change, dragAmount ->
+                            change.consume()
+                            onDrag(dragAmount)
+                        },
+                        onDragEnd = { onDragEnd() },
+                        onDragCancel = { onDragEnd() },
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(width = 72.dp, height = 4.dp)
+                    .background(barColor, RoundedCornerShape(2.dp)),
+            )
+        }
     }
 }
 

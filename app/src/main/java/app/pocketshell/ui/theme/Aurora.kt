@@ -116,8 +116,14 @@ fun rememberAuroraPhase(motionPolicy: AuroraMotionPolicy): State<Float> {
         val start = withFrameNanos { it }
         while (true) {
             withFrameNanos { now ->
-                val elapsedSeconds = (now - start) / 1_000_000_000f
-                phase.floatValue = (elapsedSeconds / AURORA_PERIOD_SECONDS) % 1f
+                if (TerminalTheme.isAurora) {
+                    val elapsedSeconds = (now - start) / 1_000_000_000f
+                    phase.floatValue = (elapsedSeconds / AURORA_PERIOD_SECONDS) % 1f
+                } else {
+                    // not the aurora identity: pin the static phase and stop
+                    // invalidating — no aurora surface redraws on other themes
+                    phase.floatValue = STATIC_AURORA_PHASE
+                }
             }
         }
     }
@@ -133,13 +139,19 @@ fun rememberAuroraPhase(motionPolicy: AuroraMotionPolicy): State<Float> {
  * uses the DEEPENED stop set (auroraStopsLight) so the sweep stays visible
  * on pale paper instead of washing out.
  */
-fun Modifier.auroraBackdrop(enabled: Boolean, phase: State<Float>): Modifier = composed {
-    val stops = remember {
+fun Modifier.auroraBackdrop(phase: State<Float>): Modifier = composed {
+    // keyed on the light/dark flip so the stop set is never stale
+    val stops = remember(TerminalTheme.isLight) {
         (if (TerminalTheme.isLight) ThemeCatalog.auroraStopsLight else ThemeCatalog.auroraStops)
             .map { Color(it) }
     }
     drawBehind {
-        if (!enabled) return@drawBehind
+        // DRAW-TIME gate: the snapshot read happens at draw, so the state
+        // flip to a non-aurora theme invalidates and repaints this surface
+        // directly — immune to modifier-rebuild staleness (the owner device
+        // reported aurora leaking on non-aurora themes; this closes that
+        // entire class).
+        if (!TerminalTheme.isAurora) return@drawBehind
         val p = phase.value
         val maxDim = maxOf(size.width, size.height)
         val alpha = if (TerminalTheme.isLight) 0.17f else 0.16f
@@ -182,14 +194,17 @@ fun terminalScrimColor(isAurora: Boolean): Color =
  * it reads as premium, not gaming-RGB. Applies only when [enabled].
  */
 fun Modifier.auroraEdge(
-    enabled: Boolean,
     phase: State<Float>,
     cornerRadius: Dp,
     strokeWidth: Dp = 1.5.dp,
     baseAlpha: Float = 0.6f,
+    preview: Boolean = false,
 ): Modifier = composed {
     drawBehind {
-        if (!enabled) return@drawBehind
+        // DRAW-TIME gate (see auroraBackdrop). [preview] is the Appearance
+        // page's explicit override: the Aurora theme card shows its edge
+        // even while another identity is active.
+        if (!TerminalTheme.isAurora && !preview) return@drawBehind
         val p = phase.value
         val accent = TerminalTheme.accent
         val bright = TerminalTheme.accentBright

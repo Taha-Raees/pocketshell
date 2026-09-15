@@ -183,7 +183,7 @@ fun TerminalScreen(
         modifier = modifier
             .fillMaxSize()
             .background(TerminalTheme.screenBg)
-            .auroraBackdrop(TerminalTheme.isAurora, auroraPhase)
+            .auroraBackdrop(auroraPhase)
             // m4.0.12: the shared deck lives at the app ROOT now (one keyboard
             // over every screen). While it is up it overlays this screen, so
             // the canvas ends above the deck's measured height (navigation-bar
