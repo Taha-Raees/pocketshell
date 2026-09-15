@@ -2499,3 +2499,82 @@ Stage Summary:
   hooks / Codex notify / OpenCode plugins + surfacing the exit fact) stays
   gated on the CI green run + the §58 device evidence pass, per the handoff
   plan.
+
+## Task 51 — Settings / Control Center overhaul: THEME × MODE, 10 identities, Aurora, density (agent-Z/settings-control-center)
+
+Agent Z (ZCode), 2026-09-14 → 09-15, branch `agent-Z/settings-control-center`
+based on main fe45250 (M7.3). Scope held to the Settings page; Home widgets
+explicitly NOT started.
+
+- ARCHITECTURE: theme and mode are now SEPARATE settings — THEME = visual
+  identity (a full Light + Dark palette pair per identity, ui/theme/
+  ThemeCatalog.kt, pure JVM Long values), MODE = System/Light/Dark
+  (AMOLED removed from the selector; a persisted "AMOLED" degrades to DARK
+  in parseThemeMode). The mode→dark decision is ONE shared pure function
+  (themeModeIsDark) used by both the theme layer and the status bar (the
+  old duplicate mapping in MainActivity is gone).
+- IDENTITIES: PocketShell (historical Midnight/Daylight Sapphire,
+  byte-for-byte), Nord, Dracula, Gruvbox, Solarized, One Dark, Monokai,
+  Rosé Pine, Cyber, Aurora — every one with both variants; official light
+  siblings used where they exist (Solarized Light, Rosé Pine Dawn, One
+  Light, Gruvbox Light), the rest derived and marked. Licensing: palettes
+  referenced as public hex values with attribution comments; no paid or
+  non-OFS assets copied.
+- TERMINAL SYNC: TerminalTheme.applyTheme(theme, light) is catalog-driven;
+  TerminalPalette.applyDefaults gained fg/bg/cursor overrides so the
+  terminal session scheme stays byte-identical to the canvas token in
+  every identity; the 16 ANSI hues stay the shared set. PocketShellApp's
+  process-start dark default is untouched.
+- AURORA (task §4): one shared phase clock at the app root
+  (rememberAuroraPhase, 26 s loop, draw-phase-only invalidation), a
+  backdrop wash on MidnightPageScaffold + Home, and a circulating hairline
+  glow (auroraEdge) on filled buttons, selected theme cards and the Home
+  hero tiles. Reduced motion (animator duration scale 0) or low-RAM →
+  STATIC aurora via the JVM-pinned AuroraMotion policy; other themes
+  compose zero aurora. This is the deliberate exception to the §12
+  "nothing loops" motion rule, documented in Aurora.kt.
+- CONTROL CENTER UI: Settings is now four ranked regions (Appearance /
+  Companions / CLI tools / System) with honest count summaries; new
+  AppearanceScreen: 3-mode selector, 10 theme preview cards (live palette
+  swatches in the current mode), text/icon/card chip presets with live
+  previews, icons-per-row (AUTO + 2..6, width-capped), dynamic color.
+  New shared kit widgets: MidnightChipRow; MidnightPageScaffold + filled
+  buttons are aurora-aware.
+- DENSITY MATH: HomeGridDensity (pure, JVM-pinned) — effectiveColumns =
+  user pref capped by the historical 3/4/6 width ladder; HomeScreen
+  consumes it (entry width unchanged), icon tiles 44/52/62/72 dp, hero
+  tiles 160 dp × card scale. The source-pin contract survived unedited:
+  chunked(2), LauncherScroller, ScrollDots, LauncherSettingRow shape.
+- PERSISTENCE: five new keys (app_theme/text_scale/icon_size/card_size/
+  icon_columns) in the SAME settings DataStore; parsers are pure and
+  pinned; AppearanceSettingsContractTest keeps the house source-pin style.
+  Text scale rides LocalDensity (fontScale multiplier) inside
+  PocketShellTheme — app UI text only, terminal font size untouched.
+- TESTS: +24 new (ThemeCatalogContrastTest = WCAG-style ratio matrix over
+  all 20 palettes — it caught and I fixed 7 palette values, incl. Nord
+  deep-fill and Rosé Pine Dawn ink; ThemeModeTest; AppearanceDensityTest;
+  AuroraMotionTest; AppearanceSettingsContractTest). Full suite: 1012
+  tests, exactly the 4 known aarch64 environment failures on pristine
+  main — zero regressions. assembleDebug green (PS_LOCAL_NDK hatch).
+- DELIVERY: M7.3-Z.apk, sha256 5bf81c4c…fee34d, ledger row + Z registry
+  entry in docs/ARTIFACT_NAMING.md. adb install -r Success on Tab SM_T870
+  (2026-09-14); the interactive gate (new docs/TESTING.md §59, 18 steps)
+  is OWNER-RUNNABLE — the Tab dropped off the hotspot mid-gate (doze) and
+  was left to the owner per instruction. Also fixed in passing: the
+  HomeMarks TerminalMark hard-coded Sapphire pair now reads the theme
+  accent pair (it sits on the per-theme canvas).
+- KNOWN LIMITS: dynamic color still overrides only the M3 layer (chrome
+  tokens always follow the identity — pre-existing relationship, now more
+  visible on non-PocketShell identities); AMOLED pure-black has no
+  replacement mode (Cyber/Aurora dark are the closest); the aurora layer
+  is Canvas-gradient based (no AGSL/blur) by performance design.
+
+Stage Summary:
+- Settings is a Control Center: identity × mode fully decoupled, every
+  theme ships Light + Dark, Aurora is animated with an honest reduced-
+  motion fallback, density is user-configurable with live previews, and
+  all of it persists through the one settings DataStore.
+- Owner follow-ups: run §59 on-device; merge decision vs the unmerged
+  agent-B/m7.2-notifications and agent-Z/phase4-terminal-audit branches
+  (verified ZERO file overlap between this branch and phase4; clean
+  merges expected).

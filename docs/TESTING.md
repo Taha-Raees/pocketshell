@@ -3728,3 +3728,73 @@ The exit FACT (status N) is factual only: no surface may word it as
 completed/failed/success. If a future phase ships richer states, they ride
 §58 F's record channel with agent-provided evidence only (P7's standard);
 this gate tests NO such state because P9 ships none.
+
+## §59 — Control Center gate: Settings / Appearance (THEME × MODE, Aurora, density)
+
+Prerequisites: the agent-Z Settings Control Center build (branch
+`agent-Z/settings-control-center`, ledger row in docs/ARTIFACT_NAMING.md)
+installed on a real device (verified install target: Galaxy Tab S7
+SM_T870). No terminal state needed; the Companion and launcher sections
+use whatever the install already has configured.
+
+### A — Architecture gate (the core separation)
+
+1. Home → Settings. EXPECT four ranked regions: Appearance, Companions,
+   CLI tools, System (terminal font size + on-screen keyboard inline).
+2. Settings → Appearance. EXPECT the top of the page to be MODE with
+   exactly THREE options: System (follow device) / Light / Dark. EXPECT
+   **no AMOLED row** — AMOLED is no longer a mode.
+3. EXPECT a THEME grid of ten identities: PocketShell, Nord, Dracula,
+   Gruvbox, Solarized, One Dark, Monokai, Rosé Pine, Cyber, Aurora.
+4. Select each identity; for each, switch Light and Dark. EXPECT every
+   identity to render a visibly correct paper variant AND dark variant
+   (cards, text, hairlines, accent all follow; the terminal canvas tone
+   follows the identity and stays readable).
+
+### B — Aurora gate
+
+5. Select Aurora (Dark first). EXPECT a soft animated aurora wash behind
+   the page content — slow (≈26 s drift), low alpha, never text-hostile.
+6. EXPECT the aurora treatment on SURFACES too: the primary (filled)
+   buttons, the selected theme card, and the Home hero tiles carry a
+   slowly circulating hairline glow. NOT a gaming-RGB strobe.
+7. Enable system "Remove animations"/reduce motion (Developer options:
+   animator duration scale off, or accessibility remove-animations).
+   EXPECT the aurora to become a STATIC wash (same palette, no motion);
+   no crash, layout stable. Restore the animator scale afterwards.
+8. Aurora + Light mode: the wash must stay subtle on paper surfaces.
+
+### C — Density gate (live previews, immediate effect)
+
+9. Text: cycle Small → Extra large. EXPECT the sample lines and then ALL
+   app UI text to scale immediately (terminal font size is a separate
+   System setting and must NOT move).
+10. Icons: cycle Small → Extra large. EXPECT the four live icon tiles and
+    then the Home launcher tiles to change size immediately.
+11. Cards: cycle Compact → Large. EXPECT the preview cards and the Home
+    Terminal/Linux hero tiles to change height (160 dp default).
+12. Icons per row: choose 5 or 6 on the tablet, then 2 on a narrow width.
+    EXPECT a wide screen to honor the choice and a narrow screen to cap
+    it (never squeeze past what fits). AUTO restores the historical
+    responsive density (3/4/6 by width).
+13. Confirm Home remains usable at every extreme (labels ellipsize, rows
+    scroll, nothing overlaps).
+
+### D — Persistence + regression gate
+
+14. Set a NON-default combination (e.g. Nord + Dark + Large text +
+    Compact icons + 5 per row). Kill the app (recents swipe-away or
+    `am force-stop app.pocketshell`) and reopen. EXPECT everything
+    restored. Repeat once after an activity rotation.
+15. A pre-Control-Center install with theme_mode=AMOLED must open in DARK
+    (honest degradation), not crash.
+16. Settings → Companions: add/edit/delete a companion, set a default —
+    the M7.1 management behavior must be unchanged.
+17. Settings → CLI tools (Home launchers): hide/show a tool, add a custom
+    tool, import an icon — unchanged.
+18. Home launchers still launch: tap a tool and a companion; the existing
+    verify-then-launch / companion sheet paths must behave exactly as
+    before (no launcher regression from the density refactor).
+
+Verdict: PASS = all eighteen hold on the device with screenshots at
+steps 1, 2, 5, 6, 7, 10, 13, 14.

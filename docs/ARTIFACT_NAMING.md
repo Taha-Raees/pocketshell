@@ -34,7 +34,9 @@ The milestone is the app milestone the build targets — taken from the
 | Letter | Agent / workstream |
 |---|---|
 | `A` | Kilo Code — primary phone development agent (workstation program) |
-| `B`–`Z` | unassigned — reserved; assign on first use and record here |
+| `B` | Agent B — notifications / companion & UI polish (live worktree) |
+| `Z` | Agent Z (ZCode) — terminal audit (Phase 4) + Settings Control Center |
+| `C`–`Y` | unassigned — reserved; assign on first use and record here |
 
 One letter per agent/workstream. Two agents on the same milestone never
 share or overwrite each other's artifacts — the suffix guarantees it.
@@ -84,6 +86,15 @@ is a new ledger row with its own SHA-256.
 - apk sha256:  6086eb0695337eb4a7ad5eff0cd24071b4234997be9ef8ef5ab454bb1e804a7f
 - tests:       integrated main: 977 unit tests; 4 failures all pre-existing on pristine main @ fc59046 in this environment (root-UID /proc ×3, /proc self-visibility ×1) + 2 device/CI-bound skips; new M7.2-A suites 28/28 green (BreadcrumbsTest 7, ZipArchiveOpsTest 21)
 - device gate: Galaxy Tab S7 SM_T870 via self-adb — `adb install -r` Success (in-place, versionCode 49 / 0.13.0-m7.3 verified via dumpsys), launch verified (topResumedActivity = app.pocketshell); Files/breadcrumb UI exercised live on device on the same workstream's M7.2-A builds during development; owner confirmed the final M7.3 APK working on the adb device. Full record: docs/M7.3-INTEGRATION.md
+
+### M7.3-Z.apk (agent Z — Settings Control Center)
+- date:        2026-09-14
+- git:         1228a06 (agent-Z/settings-control-center; first Z-registry use)
+- agent:       Z — Agent Z (ZCode)
+- workstream:  Settings / Control Center overhaul — THEME × MODE architecture, 10 identities (incl. animated Aurora), density controls, AMOLED-mode removal
+- apk sha256:  5bf81c4c974750b012bd2eac25c958e0a2da089ada1c7782a219492e91fee34d
+- tests:       full :app:testDebugUnitTest 1012 tests — 4 failures, ALL the pre-existing environment baseline on this aarch64 box (root-UID /proc denial ×3, /proc self-visibility ×1; identical set on pristine main fe45250); +24 new Control Center suites green (ThemeCatalogContrastTest 20-palette readability matrix, ThemeModeTest, AppearanceDensityTest, AuroraMotionTest, AppearanceSettingsContractTest); existing source-pin suites (HomeLauncherRowsTest, LauncherRowLayoutTest, ExternalKeyboardIntegrationTest) green
+- device gate: PARTIAL — `adb install -r` Success on Galaxy Tab S7 SM_T870 (2026-09-14, network adb); interactive §59 gate NOT yet run (device dropped off adb mid-gate — hotspot doze); owner to run docs/TESTING.md §59 (18 steps). APK staged at /tmp/M7.3-Z.apk on the workstation
 
 ## 6. Integration builds
 
