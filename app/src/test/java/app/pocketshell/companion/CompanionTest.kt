@@ -186,6 +186,23 @@ class CompanionTest {
     }
 
     @Test
+    fun `canvas target during movement is the settled height when raised`() {
+        // Perf pass: while the panel moves, the canvas measures ONCE at this
+        // target and is only clipped in between (no reflow under the finger).
+        assertEquals(0.42f, CompanionHeights.canvasTarget(0.42f, CompanionHeights.HALF))
+        assertEquals(CompanionHeights.FULL, CompanionHeights.canvasTarget(1.5f, 0.3f))
+    }
+
+    @Test
+    fun `canvas target from collapsed is the last remembered raised height`() {
+        // A drag up from the bar reveals the page at its expected size.
+        assertEquals(0.7f, CompanionHeights.canvasTarget(0f, 0.7f))
+        // Defensive: a collapsed lastExpanded falls back to HALF, never 0.
+        assertEquals(CompanionHeights.HALF, CompanionHeights.canvasTarget(0f, 0f))
+        assertEquals(CompanionHeights.HALF, CompanionHeights.canvasTarget(0f, 0.01f))
+    }
+
+    @Test
     fun `raised means at or above the minimum`() {
         assertFalse(CompanionHeights.isRaised(0f))
         assertFalse(CompanionHeights.isRaised(0.01f))

@@ -192,4 +192,18 @@ object CompanionHeights {
      * drags the sheet).
      */
     fun tabBarDragSurface(fraction: Float): Boolean = fraction >= TAB_BAR_DRAG_THRESHOLD
+
+    /**
+     * Perf pass (2026-09-15) — the fraction the WEB CANVAS is sized to while
+     * the panel is moving (drag or open/close animation). The canvas measures
+     * ONCE per transition at this target and is only ever CLIPPED by the
+     * panel box in between — the page never reflows under the finger (§9).
+     * Raised settled height → the settled height itself; collapsed (a drag
+     * up from the bar) → the user's last remembered raised height so the
+     * page is revealed at its expected size, with one resize at release.
+     */
+    fun canvasTarget(settled: Float, lastExpanded: Float): Float {
+        if (isRaised(settled)) return clamp(settled)
+        return lastExpanded.takeIf { isRaised(it) }?.let { clamp(it) } ?: HALF
+    }
 }
