@@ -2677,3 +2677,49 @@ Stage Summary:
   All three changes ride existing architecture: the shared launcher row
   language, the p7.1 terminal-launch gate, and the one settings
   DataStore.
+
+SMALL-ITERATION RECORD (Task 51 continuation 3, Agent Z, 2026-09-15 —
+iteration 4: one-click install for every Home tool; commit 7b38836):
+
+- RESEARCHED INSTALLERS (web + first-party docs, 2026-09-15): npm for
+  claude (@anthropic-ai/claude-code — support.claude.com), opencode
+  (opencode-ai — opencode.ai/download), codex (@openai/codex — musl
+  arm64 assets ship in the npm package), qwen (@qwen-code/qwen-code —
+  QwenLM/qwen-code), kilo (@kilocode/cli — kilo.ai docs), cline
+  (cline — cline.bot/cli). Hermes via the official NousResearch
+  install.sh WITH export UV_LINK_MODE=copy — the guest-required
+  workaround our own M2.6 research device-validated (§8.5: uv's l2s
+  EPERM dies without it). npm specs self-install node prerequisites
+  (apk add nodejs npm) since the guest does not guarantee node.
+- HONEST NON-INSTALLERS (both owner-flagged): zcode — NONE (no official
+  command-line installer exists); agy/Antigravity — UNSUPPORTED (our
+  ANTIGRAVITY-PLATFORM.md executed the whole ladder: the install.sh's
+  linux_arm64_musl manifest 404s and the glibc binary aborts under musl
+  even with a shimmed gcompat — a curl run can only fail, so the app
+  refuses up front with that reason).
+- BEHAVIOR: tapping a Home tool probes with the real guest shell as
+  always. Installed -> launches unchanged. Absent + installer -> a
+  NORMAL guest terminal session runs the exact install line VISIBLY
+  (an echo shows the line first — curl|sh is a trust decision the user
+  watches, never a hidden network call), then a tap-again hint; the
+  session is a plain shell session (no agent identity — installing a
+  tool is not the tool running). Absent + no installer -> honest
+  refusal carrying the reason above.
+- ARCHITECTURE: no new shell path, no background execution — the same
+  spawn machinery, the same `sh -l -c "<line>; exec sh -l"` delivery
+  (guestInstallChain, pure + pinned), hygiene via a strict charset
+  allowlist (no quotes/$/backticks/newlines; 512-char cap).
+- PINS: ToolInstallCatalogTest (every registry id covered; installable
+  specs carry commands and no notes and vice versa; hermes UV contract;
+  verbatim chain transport). SessionLifecycleIntegrationTest spawn-site
+  count updated 6 -> 7 WITH the rationale in the assertion message (the
+  install session deliberately rides the CommandApp origin). Terminal +
+  launchers + files + apps suites green; the only failure in the
+  targeted runs was the known AgentObservationTopology aarch64
+  environment baseline. NOT run this round: full suite, APK, device.
+
+Stage Summary:
+- Every Home tool now has a one-click story: seven verified installers,
+  two honest refusals with reasons, and zero hidden execution. The next
+  device pass should include: tap an uninstalled tool (e.g. Cline),
+  watch the install session run, tap again to launch.
