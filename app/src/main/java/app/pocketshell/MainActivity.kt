@@ -486,6 +486,21 @@ fun PocketShellRoot(
                         }
                     }
                 },
+                // Owner iteration — the Files TOOLBAR terminal action: the
+                // BROWSED folder itself (the per-row action above resolves a
+                // TAPPED child; p7.1's distinction, preserved).
+                onOpenTerminalHere = {
+                    when (val resolution = filesViewModel.terminalLaunchHere()) {
+                        is app.pocketshell.files.TerminalLaunchResolution.Ready ->
+                            terminalViewModel.openLinuxShellAt(
+                                resolution.launch.directory.value,
+                            ) { screen = "terminal" }
+                        is app.pocketshell.files.TerminalLaunchResolution.NotSupported -> {
+                            // The toolbar hides itself in unsupported areas —
+                            // this is defensive only.
+                        }
+                    }
+                },
                 onOpenDiagnostics = { screen = "diagnostics" },
                 // P9: the deck-clearance inset (the Terminal/Editor pattern) —
                 // the Files screen (listing AND search results) ends above the

@@ -1055,6 +1055,29 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
         )
     }
 
+    /**
+     * The TOOLBAR "open the folder I am browsing" launch (owner iteration):
+     * unlike [terminalLaunch] — which resolves a TAPPED child (p7.1) — this
+     * IS the browsed location, so no listing lookup is needed; the directory
+     * is the explorer's current validated [AreaPath] verbatim. Same pure
+     * area-kind gate, same honest NotSupported (the toolbar hides itself in
+     * Android areas, so the refusal here is defensive only — no notice).
+     */
+    fun terminalLaunchHere(): TerminalLaunchResolution {
+        val state = _state.value
+        val areaId = state.areaId ?: return TerminalLaunchResolution.NotSupported(
+            "Open a folder first — Terminal opens in the folder you choose.",
+        )
+        val dir = state.path ?: return TerminalLaunchResolution.NotSupported(
+            "Open a folder first — Terminal opens in the folder you choose.",
+        )
+        val problem = openTerminalHereProblem(areaId.kind)
+        if (problem != null) return TerminalLaunchResolution.NotSupported(problem)
+        return TerminalLaunchResolution.Ready(
+            TerminalLaunch(areaId = areaId, kind = areaId.kind, directory = dir),
+        )
+    }
+
     // ================================================== Phase 5 — SAF folders
 
     /**
