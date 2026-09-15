@@ -31,6 +31,13 @@ class SettingsRepository(private val context: Context) {
     private val cardSizeKey = stringPreferencesKey("card_size")
     private val iconColumnsKey = stringPreferencesKey("icon_columns")
 
+    // The recently-browsed folder (Home "Recent" row). Raw strings on
+    // purpose: the typed model + revalidation live in the files domain
+    // (files/RecentFolder.kt) — this store never interprets a path.
+    private val recentFolderKindKey = stringPreferencesKey("recent_folder_area_kind")
+    private val recentFolderAreaKeyKey = stringPreferencesKey("recent_folder_area_key")
+    private val recentFolderPathKey = stringPreferencesKey("recent_folder_path")
+
     // M7.1.1 — the persistent "On-screen keyboard" On/Off preference: the
     // user's baseline for the shared deck. External-keyboard detection is a
     // temporary runtime override and NEVER writes this key (spec: the
@@ -82,6 +89,31 @@ class SettingsRepository(private val context: Context) {
     /** Icons-per-row preference (AUTO follows the screen width). */
     val iconColumns: Flow<IconColumns> = context.settingsDataStore.data.map { prefs ->
         parseIconColumns(prefs[iconColumnsKey])
+    }
+
+    /** The recently-browsed folder's raw record, or all-null when absent. */
+    val recentFolderRecord: Flow<Triple<String?, String?, String?>> =
+        context.settingsDataStore.data.map { prefs ->
+            Triple(
+                prefs[recentFolderKindKey],
+                prefs[recentFolderAreaKeyKey],
+                prefs[recentFolderPathKey],
+            )
+        }
+
+    /** Writes (or, with nulls, clears) the recent-folder record. */
+    suspend fun setRecentFolderRecord(kind: String?, areaKey: String?, path: String?) {
+        context.settingsDataStore.edit { prefs ->
+            if (kind == null || path == null) {
+                prefs.remove(recentFolderKindKey)
+                prefs.remove(recentFolderAreaKeyKey)
+                prefs.remove(recentFolderPathKey)
+            } else {
+                prefs[recentFolderKindKey] = kind
+                prefs[recentFolderAreaKeyKey] = areaKey ?: "default"
+                prefs[recentFolderPathKey] = path
+            }
+        }
     }
 
     suspend fun setTheme(theme: AppTheme) {

@@ -309,6 +309,7 @@ fun PocketShellRoot(
     val filesViewModel: app.pocketshell.FilesViewModel = viewModel()
     val filesState by filesViewModel.state.collectAsStateWithLifecycle()
     val filesSearch by filesViewModel.search.collectAsStateWithLifecycle()
+    val recentFolder by filesViewModel.recentFolder.collectAsStateWithLifecycle()
 
     // M7 Phase 6: the quick text editor is process-scoped as well — its
     // loaded document and dirty buffer survive Home↔Editor navigation and
@@ -605,6 +606,21 @@ fun PocketShellRoot(
                 iconSize = iconSize,
                 cardSize = cardSize,
                 iconColumns = iconColumns,
+                recentFolder = recentFolder,
+                onOpenRecentFolder = {
+                    val recent = recentFolder ?: return@HomeScreen
+                    filesViewModel.openRecentFolder(recent)
+                    screen = "files"
+                },
+                onOpenRecentInTerminal = {
+                    val recent = recentFolder ?: return@HomeScreen
+                    // The same honest area-kind gate the Recent row's menu
+                    // applies: only guest-Linux folders can host a session.
+                    if (recent.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX) {
+                        terminalViewModel.openLinuxShellAt(recent.path.value) { screen = "terminal" }
+                    }
+                },
+                onRemoveRecentFolder = { filesViewModel.clearRecentFolder() },
                 onOpenCompanion = companionViewModel::openCompanion,
                 onRemoveFromHome = launcherViewModel::hideFromHome,
                 onOpenLauncherSettings = { screen = "launcherSettings" },
