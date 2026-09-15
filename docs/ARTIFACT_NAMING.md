@@ -105,6 +105,15 @@ is a new ledger row with its own SHA-256.
 - tests:       full :app:testDebugUnitTest 1022 tests — the SAME 4 pre-existing aarch64 environment failures only; +10 updated/new suites for CC-II (fresh-default + saved-pref preservation, responsive columns, icon×column fit, aurora scrim + light palette)
 - device gate: NOT RUN — Tab SM_T870 unreachable (off hotspot) at delivery; owner to run docs/TESTING.md §60 (14 steps incl. the saved-preference migration check). APK staged at /tmp/M7.3-Z-cc2.apk
 
+### M7.3-Z.apk (agent Z — Control Center + small iterations 1–4b, self-build #2)
+- date:        2026-09-15
+- git:         9f27e9f (agent-Z/settings-control-center; iteration series b143678→9f27e9f)
+- agent:       Z — Agent Z (ZCode)
+- workstream:  Control Center I+II plus small iterations — recent-folder row, Files toolbar terminal, keyboard-button removal, ONE-CLICK INSTALL for all nine Home tools (incl. agy direct-manifest glibc install + unofficial zcode client)
+- apk sha256:  58e967269ea3556a57002ce0f79220b95345acd19f54cbeda741f1579b6f4fe9
+- tests:       full :app:testDebugUnitTest 1036 tests at 9f27e9f — the SAME 4 pre-existing aarch64 environment failures only (root-UID /proc denial ×3, /proc self-visibility ×1); all new suites green (ToolInstallCatalog, RecentFolderStore, CC-I/CC-II appearance/density/scrim/contrast suites)
+- device gate: NOT RUN on this build — owner to verify on device: §59/§60 pending gates PLUS the iteration-4 gates: tap an uninstalled tool (one-click install session, e.g. Cline), then the two new installers end-to-end (agy via the glibc manifest; zcode via the unofficial client)
+
 ## 6. Integration builds
 
 The unsuffixed `M<...>.apk` continues to be produced by the existing
