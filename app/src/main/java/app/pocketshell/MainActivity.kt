@@ -600,9 +600,12 @@ fun PocketShellRoot(
                     screen = "terminal"
                 },
                 onOpenCommandApp = { app ->
-                    // Verify-then-launch inside the ViewModel; navigate only
-                    // when a real session was created (refusal = honest banner).
-                    terminalViewModel.openCommandApp(app) { screen = "terminal" }
+                    // Owner iteration 4 — one-click install: installed tools
+                    // launch (verify-then-launch, unchanged); absent tools
+                    // with a verified installer open a terminal RUNNING the
+                    // install line; the rest refuse honestly. Navigate only
+                    // when a real session was created.
+                    terminalViewModel.openOrInstallCommandApp(app) { screen = "terminal" }
                 },
                 onOpenCustomTool = { tool ->
                     // M7.1 P1: custom tools launch through the SAME

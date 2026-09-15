@@ -300,3 +300,145 @@ fun availableCommandApps(paths: Map<String, String>): List<CommandApp> =
     CommandAppCatalog.registry.filter { app ->
         paths.containsKey(app.launchCommand.first())
     }
+
+// ================================================================ one-click install
+//
+// Owner iteration 4: every Home tool installs with ONE tap. When the
+// tap-time guest probe answers "absent" and a spec below carries a real
+// installer, PocketShell opens a NORMAL guest terminal session running that
+// exact line — the user watches everything that happens in their
+// environment (curl|sh is a trust decision; hiding it would be the
+// dishonest kind of convenience). Every command was verified against the
+// project's own first-party documentation and the vendors' official
+// installers (2026-09-15):
+//
+//   claude   npm @anthropic-ai/claude-code   (support.claude.com)
+//   opencode npm opencode-ai                 (opencode.ai/download)
+//   codex    npm @openai/codex               (musl arm64 assets ship in the
+//                                             package — GitHub releases)
+//   qwen     npm @qwen-code/qwen-code        (github.com/QwenLM/qwen-code)
+//   kilo     npm @kilocode/cli               (kilo.ai/docs CLI page)
+//   cline    npm cline                       (cline.bot/cli)
+//   hermes   official curl installer         (NousResearch/hermes-agent
+//            install.sh; UV_LINK_MODE=copy is REQUIRED in the PocketShell
+//            guest — device-validated, docs/M2.6-RESEARCH.md §8.5)
+//   zcode    NONE — no official command-line installer exists (owner).
+//   agy      UNSUPPORTED — upstream ships no musl build for ARM64 and the
+//            glibc binary cannot run under musl; both executed and
+//            documented in docs/ANTIGRAVITY-PLATFORM.md (§2/§3). The
+//            install.sh's own musl manifest 404s — a curl run would fail
+//            at the release server, so we refuse honestly up front.
+//
+// The npm specs self-install their prerequisites (`apk add nodejs npm`)
+// because the guest does not guarantee node; the guest runs as root, so
+// no sudo appears anywhere.
+
+/** How a registry tool's one-click install runs in the guest. */
+enum class InstallMethod { NPM, SCRIPT, NONE, UNSUPPORTED }
+
+/**
+ * The honest install story for one registry tool. Exactly one of [command]
+ * (a full guest shell line) or [note] (why there is no installer) — pinned
+ * by [CommandAppsTest].
+ */
+data class ToolInstallSpec(
+    val method: InstallMethod,
+    val command: String? = null,
+    val note: String? = null,
+)
+
+object ToolInstallCatalog {
+
+    /**
+     * Hygiene for a one-click install line — the same shape as
+     * CustomToolValidation (one line, bounded, no NUL), plus a STRICT
+     * allowlist: letters, digits, space and `._/@%+|<>=&:-` only. The
+     * catalog's own commands all pass; anything a future spec adds that
+     * needs quotes/backticks/`$` must not silently reach the guest — it
+     * fails the pin test instead.
+     */
+    private val commandCharset = Regex("[A-Za-z0-9 ._/@%+|<>=&;:-]+")
+
+    fun validateCommand(raw: String?): String? {
+        val trimmed = raw?.trim() ?: return null
+        if (trimmed.isEmpty() || trimmed.length > 512) return null
+        if (trimmed.any { it == '\n' || it == '\r' || it == '\u0000' }) return null
+        if (!commandCharset.matches(trimmed)) return null
+        return trimmed
+    }
+
+    private fun npmLine(vararg packages: String): String =
+        "command -v npm >/dev/null 2>&1 || apk add --no-cache nodejs npm; " +
+            "npm install -g " + packages.joinToString(" ")
+
+    private val specs: Map<String, ToolInstallSpec> = mapOf(
+        "claude" to ToolInstallSpec(
+            method = InstallMethod.NPM,
+            command = validateCommand(npmLine("@anthropic-ai/claude-code")),
+        ),
+        "opencode" to ToolInstallSpec(
+            method = InstallMethod.NPM,
+            command = validateCommand(npmLine("opencode-ai")),
+        ),
+        "codex" to ToolInstallSpec(
+            method = InstallMethod.NPM,
+            command = validateCommand(npmLine("@openai/codex")),
+        ),
+        "qwen" to ToolInstallSpec(
+            method = InstallMethod.NPM,
+            command = validateCommand(npmLine("@qwen-code/qwen-code@latest")),
+        ),
+        "kilo" to ToolInstallSpec(
+            method = InstallMethod.NPM,
+            command = validateCommand(npmLine("@kilocode/cli")),
+        ),
+        "cline" to ToolInstallSpec(
+            method = InstallMethod.NPM,
+            command = validateCommand(npmLine("cline")),
+        ),
+        "hermes" to ToolInstallSpec(
+            method = InstallMethod.SCRIPT,
+            command = validateCommand(
+                "command -v curl >/dev/null 2>&1 || apk add --no-cache curl xz git; " +
+                    "export UV_LINK_MODE=copy; " +
+                    "curl -fsSL " +
+                    "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh" +
+                    " | bash",
+            ),
+        ),
+        "zcode" to ToolInstallSpec(
+            method = InstallMethod.NONE,
+            note = "ZCode has no official command-line installer — " +
+                "install it through your Z.ai account setup.",
+        ),
+        "agy" to ToolInstallSpec(
+            method = InstallMethod.UNSUPPORTED,
+            note = "Antigravity cannot be installed here: upstream publishes no " +
+                "musl build for ARM64 and its glibc binary cannot run in this " +
+                "environment (docs/ANTIGRAVITY-PLATFORM.md).",
+        ),
+    )
+
+    fun specFor(id: String): ToolInstallSpec? = specs[id]
+
+    /** The covered ids — visible for the completeness pin test. */
+    fun specsKeys(): Set<String> = specs.keys
+}
+
+/**
+ * The one-click install chain: the same `sh -l -c "<line>; exec <shell>"`
+ * delivery every launch uses, wrapped in an honest echo of the exact line
+ * (the user must be able to read what ran in their guest) and a closing
+ * instruction. Pure and test-pinned: single line, verbatim command
+ * transport, trailing exec.
+ */
+fun guestInstallChain(
+    displayName: String,
+    installCommand: String,
+    guestShell: String,
+): String =
+    "echo \"PocketShell · installing $displayName\"; " +
+        "echo \"\$ $installCommand\"; " +
+        "$installCommand; " +
+        "echo; echo \"Install step finished — if it succeeded, tap the $displayName tile again to launch.\"; " +
+        "exec $guestShell -l"

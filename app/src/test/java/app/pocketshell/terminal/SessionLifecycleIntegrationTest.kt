@@ -297,8 +297,11 @@ class SessionLifecycleIntegrationTest {
         assertTrue(code.contains("SpawnOrigin.CustomTool(tool.id)"))
         assertTrue(code.contains("SpawnOrigin.CatalogApp(entry.id)"))
         assertEquals(
-            "every origin is set at the spawn sites (no default mislabeling)",
-            6,
+            "every origin is set at the spawn sites (no default mislabeling) — 7 = the six " +
+                "launch sites + the one-click INSTALL session, which deliberately rides the " +
+                "CommandApp origin (installing a command app is not the agent running; the " +
+                "install session carries no AgentHint)",
+            7,
             Regex("SpawnOrigin\\.(Shell|LinuxShell|FilesTerminal|CommandApp|CustomTool|CatalogApp)").findAll(code).count(),
         )
         // The three named-launcher paths attach agent hints:
