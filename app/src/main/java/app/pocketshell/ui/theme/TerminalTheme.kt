@@ -51,6 +51,17 @@ object TerminalTheme {
      */
     var isAurora by mutableStateOf(false); private set
 
+    /**
+     * Perf pass (2026-09-15) — bumped by every [applyTheme]; the ONE exact
+     * "the palette changed" token for plain-view hosts (the terminal's
+     * AndroidView update block keys its background + mColors reset on this
+     * instead of re-running them on every unrelated recomposition).
+     * NOT compose state on purpose: reading it must never subscribe a
+     * composition to theme changes.
+     */
+    var generation: Int = 0
+        private set
+
     // ---- surface stack (outer → inner) --------------------------------------
     var screenBg by mutableStateOf(Color(0xFF0B1424)); private set
     var chrome by mutableStateOf(Color(0xFF101B30)); private set
@@ -136,6 +147,7 @@ object TerminalTheme {
      * background can never drift apart.
      */
     fun applyTheme(theme: AppTheme, light: Boolean) {
+        generation++
         isLight = light
         val v = ThemeCatalog.variant(theme, light)
         screenBg = Color(v.screenBg)

@@ -497,6 +497,14 @@ private fun TerminalViewHost(
     }
     // Track the size we already applied (renderer fields are package-private upstream).
     val appliedSize = remember { mutableStateOf(Int.MIN_VALUE) }
+    // Perf pass (2026-09-15): the color identity already applied to the view
+    // — the theme generation it was painted at, and WHICH emulator instance
+    // it was applied to (a session switch or a late-created emulator needs a
+    // fresh reset even at the same generation). Reading TerminalTheme.generation
+    // (plain field, deliberately not compose state) keeps unrelated
+    // recompositions of this host from repainting the terminal.
+    val appliedColorGeneration = remember { mutableStateOf(-1) }
+    val appliedColorEmulator = remember { mutableStateOf<Any?>(null) }
     AndroidView(
         factory = { context ->
             val view = TerminalView(context, null)
@@ -539,9 +547,20 @@ private fun TerminalViewHost(
                 view.setTextSize(textSize)
                 appliedSize.value = textSize
             }
-            view.setBackgroundColor(TerminalTheme.canvas.toArgb())
-            view.mEmulator?.mColors?.reset()
-            view.invalidate()
+            // Theme/session/emulator identity changed? repaint identity. Same
+            // identity? this update is a no-op — an unrelated recomposition
+            // (aurora tick, inset change, tab bar) must NOT force a full
+            // terminal repaint on the UI thread (perf pass 2026-09-15).
+            val emulator = view.mEmulator
+            if (appliedColorGeneration.value != TerminalTheme.generation ||
+                appliedColorEmulator.value !== emulator
+            ) {
+                view.setBackgroundColor(TerminalTheme.canvas.toArgb())
+                emulator?.mColors?.reset()
+                view.invalidate()
+                appliedColorGeneration.value = TerminalTheme.generation
+                appliedColorEmulator.value = emulator
+            }
         },
         modifier = modifier,
     )
