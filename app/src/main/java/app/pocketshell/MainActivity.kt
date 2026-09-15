@@ -627,13 +627,14 @@ fun PocketShellRoot(
         )
 
         // m4.0.12 §12 (device feedback carried from m4.0.4) — the deck's
-        // rebirth affordance, now on EVERY screen: with the keyboard toggled
-        // off the [⌨] key parks as the SAME rectangular key box it wears in
-        // the deck row (no round bubble). Phase 5 §4 — it is ANCHORED to the
-        // bottom-right corner: 12dp from the right edge, 8dp above the
+        // rebirth affordance, now on EVERY screen EXCEPT Home (iteration:
+        // owner request — Home has no typeable surface, so the parked [⌨]
+        // was visual noise there; Terminal reopens via canvas tap, and the
+        // other typeable screens keep the parked button). It is ANCHORED to
+        // the bottom-right corner: 12dp from the right edge, 8dp above the
         // gesture-bar inset, still a 44×36dp touch target, never clipped,
         // never over the system navigation.
-        if (!keyboardExpanded) {
+        if (!keyboardExpanded && screen != "home") {
             Box(modifier = Modifier.fillMaxSize()) {
                 val haptics = LocalHapticFeedback.current
                 Box(
