@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pocketshell.R
+import app.pocketshell.settings.AppTheme
 import app.pocketshell.terminal.TerminalPalette
 
 /**
@@ -42,6 +43,13 @@ object TerminalTheme {
      * read this to pick the matching bundled asset variant.
      */
     var isLight by mutableStateOf(false); private set
+
+    /**
+     * Control Center — true while the active identity is the Aurora theme,
+     * i.e. the shared animated layer may compose. Static flag: consumers
+     * never animate when this is false, so other themes pay nothing.
+     */
+    var isAurora by mutableStateOf(false); private set
 
     // ---- surface stack (outer → inner) --------------------------------------
     var screenBg by mutableStateOf(Color(0xFF0B1424)); private set
@@ -117,81 +125,54 @@ object TerminalTheme {
     )
 
     /**
-     * Phase 5 — swap the whole chrome vocabulary. [light] = Daylight
-     * Sapphire; otherwise Midnight Sapphire (the historical values, dark and
-     * AMOLED alike — AMOLED's pure-black surfaces live in the M3 scheme,
-     * which already supports it).
+     * Control Center — swap the whole chrome vocabulary to the palette
+     * [theme] × [light] from [ThemeCatalog]. PocketShell × false/false are
+     * byte-for-byte the historical Midnight/Daylight Sapphire values.
      *
      * Called synchronously during PocketShellTheme composition — BEFORE any
-     * child reads a token — so a theme switch or a cold start in Light never
-     * flashes the wrong palette.
+     * child reads a token — so a theme or mode switch, or a cold start in
+     * Light, never flashes the wrong palette. The terminal session scheme is
+     * re-based in the same call so the canvas token and the TerminalView
+     * background can never drift apart.
      */
-    fun applyTheme(light: Boolean) {
+    fun applyTheme(theme: AppTheme, light: Boolean) {
         isLight = light
-        if (light) {
-            // Daylight Sapphire — the same structure, paper surfaces, deepened
-            // sapphire accents for contrast on light grounds.
-            screenBg = Color(0xFFEEF2F8)
-            chrome = Color(0xFFF7F9FC)
-            chromeGradientTop = Color(0xFFFBFCFE)
-            chromeGradientBottom = Color(0xFFF1F4F9)
-            tabStrip = Color(0xFFE6EBF3)
-            deck = Color(0xFFF2F5FA)
+        val v = ThemeCatalog.variant(theme, light)
+        screenBg = Color(v.screenBg)
+        chrome = Color(v.chrome)
+        chromeGradientTop = Color(v.chromeGradientTop)
+        chromeGradientBottom = Color(v.chromeGradientBottom)
+        tabStrip = Color(v.tabStrip)
+        deck = Color(v.deck)
 
-            key = Color(0xFFFFFFFF)
-            keyAlt = Color(0xFFEDF1F7)
-            keyPressed = Color(0xFFDCE4F0)
-            keyActive = Color(0xFFD6E2F8)
+        key = Color(v.key)
+        keyAlt = Color(v.keyAlt)
+        keyPressed = Color(v.keyPressed)
+        keyActive = Color(v.keyActive)
 
-            divider = Color(0xFFD3DCE9)
-            textPrimary = Color(0xFF17233B)
-            textDim = Color(0xFF5D6E8C)
+        divider = Color(v.divider)
+        textPrimary = Color(v.textPrimary)
+        textDim = Color(v.textDim)
 
-            accent = Color(0xFF3D5A96)
-            accentBright = Color(0xFF24406E)
-            accentDeep = Color(0xFF2C4478)
-            enterGlyph = Color(0xFFF2F5FA)
-            onAccentDeep = Color(0xFFEAF0FB)
+        accent = Color(v.accent)
+        accentBright = Color(v.accentBright)
+        accentDeep = Color(v.accentDeep)
+        enterGlyph = Color(v.enterGlyph)
+        onAccentDeep = Color(v.onAccentDeep)
 
-            // Daylight Sapphire terminal canvas — crisp off-white paper ground
-            // with dark sapphire text.
-            canvas = Color(0xFFF7F9FC)
-            onCanvas = Color(0xFF17233B)
-            onCanvasDim = Color(0xFF5D6E8C)
+        canvas = Color(v.canvas)
+        onCanvas = Color(v.onCanvas)
+        onCanvasDim = Color(v.onCanvasDim)
 
-            danger = Color(0xFFB3384E)
-            runningGreen = Color(0xFF3E8F52)
-        } else {
-            // Midnight Sapphire — the historical values, unchanged.
-            screenBg = Color(0xFF0B1424)
-            chrome = Color(0xFF101B30)
-            chromeGradientTop = Color(0xFF111C33)
-            chromeGradientBottom = Color(0xFF0E1730)
-            tabStrip = Color(0xFF0D1730)
-            deck = Color(0xFF131F38)
+        danger = Color(v.danger)
+        runningGreen = Color(v.runningGreen)
 
-            key = Color(0xFF1B2947)
-            keyAlt = Color(0xFF16233F)
-            keyPressed = Color(0xFF26365B)
-            keyActive = Color(0xFF24406E)
-
-            divider = Color(0xFF1D2C4A)
-            textPrimary = Color(0xFFDCE6F8)
-            textDim = Color(0xFF7C8DB0)
-
-            accent = Color(0xFF7FA3EF)
-            accentBright = Color(0xFFA5C0FF)
-            accentDeep = Color(0xFF3D5A96)
-            enterGlyph = Color(0xFF071120)
-            onAccentDeep = Color(0xFFA5C0FF)
-
-            canvas = Color(0xFF080F1D)
-            onCanvas = Color(0xFFDCE6F8)
-            onCanvasDim = Color(0xFF7C8DB0)
-
-            danger = Color(0xFFE37993)
-            runningGreen = Color(0xFF5FB572)
-        }
-        TerminalPalette.applyDefaults(light)
+        isAurora = theme.aurora
+        TerminalPalette.applyDefaults(
+            light,
+            backgroundOverride = v.canvas.toInt(),
+            foregroundOverride = v.onCanvas.toInt(),
+            cursorOverride = v.accent.toInt(),
+        )
     }
 }

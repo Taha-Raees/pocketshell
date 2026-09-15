@@ -10,15 +10,26 @@ import kotlinx.coroutines.flow.map
 
 private val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
-/** Restrained theme options (brief §25): light / dark / AMOLED / dynamic / system. */
-enum class ThemeMode { SYSTEM, LIGHT, DARK, AMOLED }
-
-/** Persisted user settings. Defaults are honest and minimal. */
+/**
+ * Persisted user settings. Defaults are honest and minimal.
+ *
+ * Control Center appearance model (Settings/Control Center task §2/§10):
+ * THEME ([AppTheme], key `app_theme`) and MODE ([ThemeMode], the historical
+ * `theme_mode` key) are SEPARATE settings — every theme ships Light + Dark;
+ * a persisted "AMOLED" degrades to DARK via [parseThemeMode]. Text/icon/card
+ * scale and the icons-per-row preference are the appearance density knobs,
+ * all in THIS one DataStore — no duplicate sources of truth.
+ */
 class SettingsRepository(private val context: Context) {
 
     private val themeKey = stringPreferencesKey("theme_mode")
+    private val themeIdentityKey = stringPreferencesKey("app_theme")
     private val dynamicKey = stringPreferencesKey("dynamic_color")
     private val fontSizeKey = intPreferencesKey("default_font_size")
+    private val textScaleKey = stringPreferencesKey("text_scale")
+    private val iconSizeKey = stringPreferencesKey("icon_size")
+    private val cardSizeKey = stringPreferencesKey("card_size")
+    private val iconColumnsKey = stringPreferencesKey("icon_columns")
 
     // M7.1.1 — the persistent "On-screen keyboard" On/Off preference: the
     // user's baseline for the shared deck. External-keyboard detection is a
@@ -29,13 +40,14 @@ class SettingsRepository(private val context: Context) {
     // preference is On, and this Off is honored on every disconnect).
     private val onscreenKeyboardKey = stringPreferencesKey("onscreen_keyboard_enabled")
 
+    /** The visual identity (PocketShell, Nord, Aurora, …). */
+    val theme: Flow<AppTheme> = context.settingsDataStore.data.map { prefs ->
+        parseAppTheme(prefs[themeIdentityKey])
+    }
+
+    /** Light / Dark / System — the VARIANT selector; "AMOLED" reads as DARK. */
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
-        when (prefs[themeKey]) {
-            "LIGHT" -> ThemeMode.LIGHT
-            "DARK" -> ThemeMode.DARK
-            "AMOLED" -> ThemeMode.AMOLED
-            else -> ThemeMode.SYSTEM
-        }
+        parseThemeMode(prefs[themeKey])
     }
 
     val dynamicColor: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
@@ -52,6 +64,30 @@ class SettingsRepository(private val context: Context) {
         prefs[fontSizeKey] ?: DEFAULT_FONT_SIZE
     }
 
+    /** App UI text scale (multiplier on the system font scale). */
+    val textScale: Flow<TextScale> = context.settingsDataStore.data.map { prefs ->
+        parseTextScale(prefs[textScaleKey])
+    }
+
+    /** Launcher icon tile size. */
+    val iconSize: Flow<IconSize> = context.settingsDataStore.data.map { prefs ->
+        parseIconSize(prefs[iconSizeKey])
+    }
+
+    /** Card weight (environment/hero surfaces). */
+    val cardSize: Flow<CardSize> = context.settingsDataStore.data.map { prefs ->
+        parseCardSize(prefs[cardSizeKey])
+    }
+
+    /** Icons-per-row preference (AUTO follows the screen width). */
+    val iconColumns: Flow<IconColumns> = context.settingsDataStore.data.map { prefs ->
+        parseIconColumns(prefs[iconColumnsKey])
+    }
+
+    suspend fun setTheme(theme: AppTheme) {
+        context.settingsDataStore.edit { it[themeIdentityKey] = theme.name }
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.settingsDataStore.edit { it[themeKey] = mode.name }
     }
@@ -66,6 +102,22 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setDefaultFontSize(size: Int) {
         context.settingsDataStore.edit { it[fontSizeKey] = size }
+    }
+
+    suspend fun setTextScale(scale: TextScale) {
+        context.settingsDataStore.edit { it[textScaleKey] = scale.name }
+    }
+
+    suspend fun setIconSize(size: IconSize) {
+        context.settingsDataStore.edit { it[iconSizeKey] = size.name }
+    }
+
+    suspend fun setCardSize(size: CardSize) {
+        context.settingsDataStore.edit { it[cardSizeKey] = size.name }
+    }
+
+    suspend fun setIconColumns(columns: IconColumns) {
+        context.settingsDataStore.edit { it[iconColumnsKey] = columns.name }
     }
 
     companion object {

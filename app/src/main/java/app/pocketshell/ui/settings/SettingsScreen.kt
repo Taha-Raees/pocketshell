@@ -1,6 +1,9 @@
 package app.pocketshell.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -21,43 +26,53 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.pocketshell.settings.AppTheme
 import app.pocketshell.settings.SettingsRepository
 import app.pocketshell.settings.ThemeMode
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.system.MidnightPageScaffold
-import app.pocketshell.ui.system.MidnightRadioRow
 import app.pocketshell.ui.system.MidnightSectionDivider
 import app.pocketshell.ui.system.MidnightSectionLabel
 import app.pocketshell.ui.system.MidnightSwitch
 import app.pocketshell.ui.theme.TerminalTheme
+import app.pocketshell.ui.theme.ThemeCatalog
 
 /**
- * Settings (brief §25/§M1.3) — Phase 5 §10 polish: the page is a compact,
- * clearly grouped, fully theme-aware control panel. Groups:
+ * Settings — the Control Center hub (Settings/Control Center task §1).
  *
- *   APPEARANCE  theme (System / Light / Dark / AMOLED) + dynamic color
- *   TERMINAL    default font size (pinch adjusts per session)
- *   COMPANION   the Companion websites management entry
+ * The page is four clearly-ranked REGIONS, not a flat preference list:
  *
- * Everything persists via DataStore; theme changes apply immediately (the
- * token swap runs before the next frame — no restart, no flash). No invented
- * settings: every control here is real and wired.
+ *   APPEARANCE  → the Appearance page (mode, identity, density, previews)
+ *   COMPANIONS  → the companion websites management area
+ *   CLI TOOLS   → the Home launcher management area
+ *   SYSTEM      → the existing device-side settings (terminal font size,
+ *                 on-screen keyboard), preserved inline
+ *
+ * Everything persists via DataStore; nothing here is invented — every
+ * control is real and wired. Count summaries make the management rows read
+ * like a control center, not an entry list.
  */
 @Composable
 fun SettingsScreen(
+    theme: AppTheme,
     themeMode: ThemeMode,
-    dynamicColor: Boolean,
+    textScale: app.pocketshell.settings.TextScale,
     defaultFontSize: Int,
     onscreenKeyboardEnabled: Boolean,
-    onThemeMode: (ThemeMode) -> Unit,
-    onDynamicColor: (Boolean) -> Unit,
-    onFontSize: (Int) -> Unit,
-    onOnscreenKeyboardEnabled: (Boolean) -> Unit,
+    companionCount: Int,
+    toolCount: Int,
+    hiddenLauncherCount: Int,
+    onOpenAppearance: () -> Unit,
     onOpenCompanions: () -> Unit,
     onOpenLaunchers: () -> Unit,
+    onFontSize: (Int) -> Unit,
+    onOnscreenKeyboardEnabled: (Boolean) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -72,50 +87,49 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(6.dp))
 
-            // ---- Appearance -------------------------------------------------
+            // ---- Appearance ---------------------------------------------------
             MidnightSectionLabel("Appearance")
-            Spacer(Modifier.height(2.dp))
-            listOf(
-                ThemeMode.SYSTEM to "System (follow device)",
-                ThemeMode.LIGHT to "Light",
-                ThemeMode.DARK to "Dark",
-                ThemeMode.AMOLED to "AMOLED (pure black)",
-            ).forEach { (mode, label) ->
-                MidnightRadioRow(
-                    selected = themeMode == mode,
-                    label = label,
-                    onClick = { onThemeMode(mode) },
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "Dynamic color",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = HomeTokens.textPrimary,
-                    )
-                    Text(
-                        "Wallpaper-based colors, Android 12+ — falls back to the " +
-                            "PocketShell scheme elsewhere",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = HomeTokens.textDim,
-                    )
-                }
-                Spacer(Modifier.padding(4.dp))
-                MidnightSwitch(checked = dynamicColor, onCheckedChange = onDynamicColor)
-            }
+            Spacer(Modifier.height(4.dp))
+            ControlCenterRow(
+                title = "Appearance",
+                subtitle = "${theme.label} · ${modeLabel(themeMode)} · ${textScale.label} text",
+                onClick = onOpenAppearance,
+                onClickLabel = "Open Appearance",
+                leading = { PaletteStrip(theme, themeModeIsLight(themeMode)) },
+            )
 
             MidnightSectionDivider()
             Spacer(Modifier.height(10.dp))
 
-            // ---- Terminal ---------------------------------------------------
-            MidnightSectionLabel("Terminal")
+            // ---- Companions ---------------------------------------------------
+            MidnightSectionLabel("Companions")
+            Spacer(Modifier.height(4.dp))
+            ControlCenterRow(
+                title = "Companion websites",
+                subtitle = "$companionCount configured — add, edit, set default",
+                onClick = onOpenCompanions,
+                onClickLabel = "Manage Companions",
+            )
+
+            MidnightSectionDivider()
+            Spacer(Modifier.height(10.dp))
+
+            // ---- CLI tools ----------------------------------------------------
+            MidnightSectionLabel("CLI tools")
+            Spacer(Modifier.height(4.dp))
+            ControlCenterRow(
+                title = "Home launchers",
+                subtitle = "$toolCount tools" +
+                    if (hiddenLauncherCount > 0) " · $hiddenLauncherCount hidden" else "",
+                onClick = onOpenLaunchers,
+                onClickLabel = "Manage Home launchers",
+            )
+
+            MidnightSectionDivider()
+            Spacer(Modifier.height(10.dp))
+
+            // ---- System (existing settings, preserved) -------------------------
+            MidnightSectionLabel("System")
             Spacer(Modifier.height(2.dp))
             Row(
                 modifier = Modifier
@@ -131,7 +145,7 @@ fun SettingsScreen(
                         color = HomeTokens.accent,
                     )
                     Text(
-                        text = "Pinch the terminal to adjust per session",
+                        text = "Terminal text — pinch the terminal to adjust per session",
                         style = MaterialTheme.typography.bodySmall,
                         color = HomeTokens.textDim,
                     )
@@ -150,13 +164,6 @@ fun SettingsScreen(
                 ),
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
-
-            MidnightSectionDivider()
-            Spacer(Modifier.height(10.dp))
-
-            // ---- Keyboard (M7.1.1 — the persistent user preference) --------
-            MidnightSectionLabel("Keyboard")
-            Spacer(Modifier.height(2.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -185,77 +192,79 @@ fun SettingsScreen(
                 )
             }
 
-            MidnightSectionDivider()
-            Spacer(Modifier.height(10.dp))
-
-            // ---- Launchers (M7.1 P1) ----------------------------------------
-            MidnightSectionLabel("Launchers")
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .clickable(role = Role.Button, onClickLabel = "Manage Home launchers") {
-                        onOpenLaunchers()
-                    }
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "Home launchers",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = HomeTokens.textPrimary,
-                    )
-                    Text(
-                        "Companion websites + CLI tools — show, hide, add",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = HomeTokens.textDim,
-                    )
-                }
-                Text(
-                    text = "›",
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 18.sp,
-                    color = HomeTokens.textDim,
-                )
-            }
-
-            MidnightSectionDivider()
-            Spacer(Modifier.height(10.dp))
-
-            // ---- Companion ---------------------------------------------------
-            MidnightSectionLabel("Companion")
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .clickable(role = Role.Button, onClickLabel = "Manage Companions") {
-                        onOpenCompanions()
-                    }
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "Companion websites",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = HomeTokens.textPrimary,
-                    )
-                    Text(
-                        "Your web workspaces — ChatGPT, GitHub, anything",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = HomeTokens.textDim,
-                    )
-                }
-                Text(
-                    text = "›",
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 18.sp,
-                    color = HomeTokens.textDim,
-                )
-            }
-
             Spacer(Modifier.height(16.dp))
         }
+    }
+}
+
+private fun modeLabel(mode: ThemeMode): String = when (mode) {
+    ThemeMode.SYSTEM -> "System"
+    ThemeMode.LIGHT -> "Light"
+    ThemeMode.DARK -> "Dark"
+}
+
+private fun themeModeIsLight(mode: ThemeMode): Boolean = mode == ThemeMode.LIGHT
+
+/** A live three-swatch strip of the active identity (chrome / key / accent). */
+@Composable
+private fun PaletteStrip(theme: AppTheme, light: Boolean) {
+    val v = ThemeCatalog.variant(theme, light)
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        listOf(v.chrome, v.key, v.accent).forEach { argb ->
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(Color(argb)),
+            )
+        }
+    }
+}
+
+/**
+ * The Control Center entry row: title + honest subtitle, whole-row touch
+ * target, mono chevron, optional leading live widget. A row is NOT a card
+ * at rest (the 3.3 §4 rule) — the banner tone appears only while pressed
+ * would, but we keep rest flat and let the chevron + subtitle carry it.
+ */
+@Composable
+private fun ControlCenterRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    onClickLabel: String,
+    leading: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(role = Role.Button, onClickLabel = onClickLabel) { onClick() }
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leading != null) {
+            leading()
+            Spacer(Modifier.size(14.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = HomeTokens.textPrimary,
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+            )
+        }
+        Text(
+            text = "›",
+            fontFamily = TerminalTheme.mono,
+            fontSize = 18.sp,
+            color = HomeTokens.textDim,
+        )
     }
 }

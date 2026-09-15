@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,20 +57,25 @@ import app.pocketshell.keyboard.KeyboardInputRouter
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
 import app.pocketshell.keyboard.TerminalKeyboardDeck
+import app.pocketshell.apps.CommandAppCatalog
 import app.pocketshell.launchers.LauncherViewModel
 import app.pocketshell.notifications.AgentRuntimeNotificationRouting
 import app.pocketshell.notifications.NotificationPermissionGate
 import app.pocketshell.notifications.NotificationRoute
-import app.pocketshell.settings.ThemeMode
+import app.pocketshell.settings.themeModeIsDark
 import app.pocketshell.ui.apps.ExploreAppsScreen
 import app.pocketshell.ui.diagnostics.DiagnosticsScreen
 import app.pocketshell.ui.home.HomeScreen
+import app.pocketshell.ui.settings.AppearanceScreen
 import app.pocketshell.ui.settings.SettingsScreen
 import app.pocketshell.ui.system.ExternalKeyboardNoticeBar
 import app.pocketshell.ui.system.EXTERNAL_KEYBOARD_NOTICE_AUTO_DISMISS_MS
 import app.pocketshell.ui.terminal.TerminalScreen
+import app.pocketshell.ui.theme.LocalAuroraPhase
 import app.pocketshell.ui.theme.PocketShellTheme
 import app.pocketshell.ui.theme.TerminalTheme
+import app.pocketshell.ui.theme.rememberAuroraMotionPolicy
+import app.pocketshell.ui.theme.rememberAuroraPhase
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -113,11 +119,18 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
+            val theme by settingsViewModel.theme.collectAsStateWithLifecycle()
             val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+            val textScale by settingsViewModel.textScale.collectAsStateWithLifecycle()
             val defaultFontSize by settingsViewModel.defaultFontSize.collectAsStateWithLifecycle()
 
-            PocketShellTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
+            PocketShellTheme(
+                theme = theme,
+                mode = themeMode,
+                dynamicColor = dynamicColor,
+                textScale = textScale.factor,
+            ) {
                 PocketShellRoot(
                     terminalViewModel = viewModel(),
                     settingsViewModel = settingsViewModel,
@@ -340,19 +353,21 @@ fun PocketShellRoot(
     // touches terminal functionality.
     NotificationPermissionGate(hasSessions = sessions.isNotEmpty())
 
+    val theme by settingsViewModel.theme.collectAsStateWithLifecycle()
     val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+    val textScale by settingsViewModel.textScale.collectAsStateWithLifecycle()
+    val iconSize by settingsViewModel.iconSize.collectAsStateWithLifecycle()
+    val cardSize by settingsViewModel.cardSize.collectAsStateWithLifecycle()
+    val iconColumns by settingsViewModel.iconColumns.collectAsStateWithLifecycle()
 
     // Phase 3.2 / Phase 5 §8 — status-bar icon appearance follows the THEME:
     // light icons on the dark palettes, dark icons on Daylight. The Midnight
     // chrome no longer owns every screen — the chrome follows the selected
-    // theme now, and the status bar follows the chrome.
+    // theme now, and the status bar follows the chrome. Control Center: the
+    // mode→dark decision is the ONE shared pure function (identity × mode).
     val view = LocalView.current
-    val themeDark = when (themeMode) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK, ThemeMode.AMOLED -> true
-    }
+    val themeDark = themeModeIsDark(themeMode, isSystemInDarkTheme())
     DisposableEffect(screen, themeDark) {
         val window = (view.context as? Activity)?.window
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
@@ -361,6 +376,13 @@ fun PocketShellRoot(
         }
         onDispose { }
     }
+
+    // Control Center — the Aurora layer's ONE clock, mounted at the root only
+    // while the Aurora identity is active AND the device allows motion
+    // (reduced-motion / low-RAM get the static aurora). Every aurora surface
+    // in the app reads this single phase; nothing else animates.
+    val auroraMotion = rememberAuroraMotionPolicy()
+    val auroraPhase = rememberAuroraPhase(auroraMotion)
 
     // m4.0.12 — one-keyboard policy, unconditional: the deck is present on
     // EVERY screen now, so the system IME block is permanent (set once in
@@ -378,6 +400,7 @@ fun PocketShellRoot(
 
     BackHandler(enabled = screen != "home") { screen = "home" }
 
+    CompositionLocalProvider(LocalAuroraPhase provides auroraPhase) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         when (screen) {
@@ -481,17 +504,39 @@ fun PocketShellRoot(
             )
 
             "settings" -> SettingsScreen(
+                theme = theme,
                 themeMode = themeMode,
-                dynamicColor = dynamicColor,
+                textScale = textScale,
                 defaultFontSize = defaultFontSize,
                 onscreenKeyboardEnabled = onscreenKeyboardUserEnabled,
-                onThemeMode = settingsViewModel::setThemeMode,
-                onDynamicColor = settingsViewModel::setDynamicColor,
-                onFontSize = settingsViewModel::setDefaultFontSize,
-                onOnscreenKeyboardEnabled = settingsViewModel::setOnscreenKeyboardEnabled,
+                companionCount = companionDefs.size,
+                toolCount = CommandAppCatalog.registry.size + customTools.size,
+                hiddenLauncherCount = hiddenLauncherIds.size,
+                onOpenAppearance = { screen = "appearance" },
                 onOpenCompanions = { screen = "companionSettings" },
                 onOpenLaunchers = { screen = "launcherSettings" },
+                onFontSize = settingsViewModel::setDefaultFontSize,
+                onOnscreenKeyboardEnabled = settingsViewModel::setOnscreenKeyboardEnabled,
                 onBack = { screen = "home" },
+                modifier = Modifier.padding(padding),
+            )
+
+            "appearance" -> AppearanceScreen(
+                theme = theme,
+                themeMode = themeMode,
+                dynamicColor = dynamicColor,
+                textScale = textScale,
+                iconSize = iconSize,
+                cardSize = cardSize,
+                iconColumns = iconColumns,
+                onTheme = settingsViewModel::setTheme,
+                onThemeMode = settingsViewModel::setThemeMode,
+                onDynamicColor = settingsViewModel::setDynamicColor,
+                onTextScale = settingsViewModel::setTextScale,
+                onIconSize = settingsViewModel::setIconSize,
+                onCardSize = settingsViewModel::setCardSize,
+                onIconColumns = settingsViewModel::setIconColumns,
+                onBack = { screen = "settings" },
                 modifier = Modifier.padding(padding),
             )
 
@@ -557,6 +602,9 @@ fun PocketShellRoot(
                 customTools = customTools,
                 toolIcons = toolIcons,
                 hiddenLauncherIds = hiddenLauncherIds,
+                iconSize = iconSize,
+                cardSize = cardSize,
+                iconColumns = iconColumns,
                 onOpenCompanion = companionViewModel::openCompanion,
                 onRemoveFromHome = launcherViewModel::hideFromHome,
                 onOpenLauncherSettings = { screen = "launcherSettings" },
@@ -655,6 +703,7 @@ fun PocketShellRoot(
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
+    }
     }
     }
 }

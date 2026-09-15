@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,9 +75,16 @@ import app.pocketshell.launchers.ToolLauncher
 import app.pocketshell.launchers.visibleCompanions
 import app.pocketshell.launchers.visibleTools
 import app.pocketshell.runtime.RuntimeState
+import app.pocketshell.settings.CardSize
+import app.pocketshell.settings.HomeGridDensity
+import app.pocketshell.settings.IconColumns
+import app.pocketshell.settings.IconSize
 import app.pocketshell.terminal.AgentHomeSessionClaims
 import app.pocketshell.terminal.TerminalSessionManager
+import app.pocketshell.ui.theme.LocalAuroraPhase
 import app.pocketshell.ui.theme.TerminalTheme
+import app.pocketshell.ui.theme.auroraBackdrop
+import app.pocketshell.ui.theme.auroraEdge
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -129,6 +137,12 @@ fun HomeScreen(
     customTools: List<CustomTool>,
     toolIcons: Map<String, String>,
     hiddenLauncherIds: Set<String>,
+    // Control Center density (Settings → Appearance): the user's icon tile
+    // size, card weight and icons-per-row preference. Width still caps the
+    // column count — see HomeGridDensity.
+    iconSize: IconSize = IconSize.DEFAULT,
+    cardSize: CardSize = CardSize.DEFAULT,
+    iconColumns: IconColumns = IconColumns.AUTO,
     onOpenCompanion: (String) -> Unit,
     onRemoveFromHome: (String) -> Unit,
     onOpenLauncherSettings: () -> Unit,
@@ -159,16 +173,19 @@ fun HomeScreen(
     // empty state. The two environment tiles below remain the single, clear
     // way INTO each environment; no floating button replaces the FAB.
 
+    // Control Center — the shared aurora backdrop wash (one clock, draw-only).
+    val auroraPhase = LocalAuroraPhase.current
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(TerminalTheme.screenBg),
+            .background(TerminalTheme.screenBg)
+            .auroraBackdrop(TerminalTheme.isAurora, auroraPhase),
     ) {
-        val columns = when {
-            maxWidth >= 840.dp -> 6
-            maxWidth >= 600.dp -> 4
-            else -> 3
-        }
+        // M7.1 P2.2 + Control Center: the user's icons-per-row preference,
+        // capped by what the width sensibly allows (AUTO = the historical
+        // width-derived density). The pure math lives in HomeGridDensity
+        // (JVM-test-pinned); this is only its Dp application.
+        val columns = HomeGridDensity.effectiveColumns(iconColumns, maxWidth.value)
         // M7.1 P2.2 — the fixed launcher-entry width for the x-scroll rows:
         // one page of `columns` entries exactly fills the content width
         // (entries carry their own inner gutters), the same density the old
@@ -204,6 +221,7 @@ fun HomeScreen(
                 EnvironmentLaunchers(
                     runtimeState = runtimeState,
                     runningSessions = activeSessions.count { !it.isFinished },
+                    cardSize = cardSize,
                     onOpenTerminal = onOpenTerminal,
                     onOpenLinuxShell = onOpenLinuxShell,
                     onOpenDiagnostics = onOpenDiagnostics,
@@ -229,6 +247,7 @@ fun HomeScreen(
                         iconFiles = companionIcons,
                         columns = columns,
                         entryWidth = entryWidth,
+                        iconDp = iconSize.tileDp.dp,
                         onOpen = onOpenCompanion,
                         onLongPress = { id, label -> removeTarget = id to label },
                         onManage = onOpenLauncherSettings,
@@ -254,6 +273,7 @@ fun HomeScreen(
                     iconFiles = toolIcons,
                     columns = columns,
                     entryWidth = entryWidth,
+                    iconDp = iconSize.tileDp.dp,
                     verifyingApp = verifyingApp,
                     onOpenCommandApp = onOpenCommandApp,
                     onOpenCustomTool = onOpenCustomTool,
@@ -416,10 +436,15 @@ private fun SectionDivider() {
 private fun EnvironmentLaunchers(
     runtimeState: RuntimeState,
     runningSessions: Int,
+    cardSize: CardSize,
     onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
     onOpenDiagnostics: () -> Unit,
 ) {
+    // Control Center "Card size": the card weight scales the hero tiles'
+    // height around the historical 160dp default.
+    val heroHeight = (160 * cardSize.scale).dp
+    val auroraPhase = LocalAuroraPhase.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -428,11 +453,15 @@ private fun EnvironmentLaunchers(
     ) {
         TerminalTile(
             runningSessions = runningSessions,
+            heightDp = heroHeight,
+            auroraPhase = auroraPhase,
             onClick = onOpenTerminal,
             modifier = Modifier.weight(1.25f),
         )
         LinuxTile(
             runtimeState = runtimeState,
+            heightDp = heroHeight,
+            auroraPhase = auroraPhase,
             onClick = { if (runtimeState == RuntimeState.READY) onOpenLinuxShell() else onOpenDiagnostics() },
             modifier = Modifier.weight(1f),
         )
@@ -440,14 +469,23 @@ private fun EnvironmentLaunchers(
 }
 
 @Composable
-private fun TerminalTile(runningSessions: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun TerminalTile(
+    runningSessions: Int,
+    heightDp: Dp,
+    auroraPhase: State<Float>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     PressableScale(onClick = onClick, onClickLabel = "Open the Terminal", modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(heightDp)
                 .clip(RoundedCornerShape(HomeTokens.heroRadius))
                 .background(HomeTokens.surfaceHero)
+                // Aurora identity: the hero tiles are the page's important
+                // cards — they carry the circulating glow edge.
+                .auroraEdge(TerminalTheme.isAurora, auroraPhase, HomeTokens.heroRadius)
                 .padding(16.dp),
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -482,7 +520,13 @@ private fun TerminalTile(runningSessions: Int, onClick: () -> Unit, modifier: Mo
 }
 
 @Composable
-private fun LinuxTile(runtimeState: RuntimeState, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun LinuxTile(
+    runtimeState: RuntimeState,
+    heightDp: Dp,
+    auroraPhase: State<Float>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     // Honest gate (M2 architecture): READY enters the guest, everything else
     // routes to Diagnostics where install/retry/repair actually live.
     val stateLine = when (runtimeState) {
@@ -505,9 +549,10 @@ private fun LinuxTile(runtimeState: RuntimeState, onClick: () -> Unit, modifier:
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(heightDp)
                 .clip(RoundedCornerShape(HomeTokens.heroRadius))
                 .background(HomeTokens.surfaceEnv)
+                .auroraEdge(TerminalTheme.isAurora, auroraPhase, HomeTokens.heroRadius)
                 .padding(16.dp),
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -685,6 +730,7 @@ private fun ToolsSection(
     iconFiles: Map<String, String>,
     columns: Int,
     entryWidth: Dp,
+    iconDp: Dp,
     verifyingApp: String?,
     onOpenCommandApp: (CommandApp) -> Unit,
     onOpenCustomTool: (CustomTool) -> Unit,
@@ -718,6 +764,7 @@ private fun ToolsSection(
                             label = tool.label,
                             badge = badges[colIndex * 2 + rowInColumn],
                             iconFile = iconFiles[tool.id],
+                            iconDp = iconDp,
                             verifying = verifyingApp == tool.label,
                             onClick = {
                                 when (tool) {
@@ -749,6 +796,7 @@ private fun CompanionsSection(
     iconFiles: Map<String, String>,
     columns: Int,
     entryWidth: Dp,
+    iconDp: Dp,
     onOpen: (String) -> Unit,
     onLongPress: (id: String, label: String) -> Unit,
     onManage: () -> Unit,
@@ -765,6 +813,7 @@ private fun CompanionsSection(
                     label = def.name,
                     badge = badges[index],
                     iconFile = iconFiles[def.id],
+                    iconDp = iconDp,
                     onClick = { onOpen(def.id) },
                     onLongClick = { onLongPress(def.id, def.name) },
                     modifier = Modifier.width(entryWidth),
@@ -812,6 +861,7 @@ private fun LauncherGridEntry(
     label: String,
     badge: String,
     iconFile: String?,
+    iconDp: Dp = 52.dp,
     verifying: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -832,7 +882,7 @@ private fun LauncherGridEntry(
         ) {
             if (verifying) {
                 Box(
-                    modifier = Modifier.size(52.dp),
+                    modifier = Modifier.size(iconDp),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(
@@ -842,7 +892,7 @@ private fun LauncherGridEntry(
                     )
                 }
             } else {
-                LauncherTileIcon(launcherId = launcherId, iconFile = iconFile, badge = badge, size = 52.dp)
+                LauncherTileIcon(launcherId = launcherId, iconFile = iconFile, badge = badge, size = iconDp)
             }
             Spacer(Modifier.height(8.dp))
             Text(
