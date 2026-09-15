@@ -2499,3 +2499,272 @@ Stage Summary:
   hooks / Codex notify / OpenCode plugins + surfacing the exit fact) stays
   gated on the CI green run + the §58 device evidence pass, per the handoff
   plan.
+
+## Task 51 — Settings / Control Center overhaul: THEME × MODE, 10 identities, Aurora, density (agent-Z/settings-control-center)
+
+Agent Z (ZCode), 2026-09-14 → 09-15, branch `agent-Z/settings-control-center`
+based on main fe45250 (M7.3). Scope held to the Settings page; Home widgets
+explicitly NOT started.
+
+- ARCHITECTURE: theme and mode are now SEPARATE settings — THEME = visual
+  identity (a full Light + Dark palette pair per identity, ui/theme/
+  ThemeCatalog.kt, pure JVM Long values), MODE = System/Light/Dark
+  (AMOLED removed from the selector; a persisted "AMOLED" degrades to DARK
+  in parseThemeMode). The mode→dark decision is ONE shared pure function
+  (themeModeIsDark) used by both the theme layer and the status bar (the
+  old duplicate mapping in MainActivity is gone).
+- IDENTITIES: PocketShell (historical Midnight/Daylight Sapphire,
+  byte-for-byte), Nord, Dracula, Gruvbox, Solarized, One Dark, Monokai,
+  Rosé Pine, Cyber, Aurora — every one with both variants; official light
+  siblings used where they exist (Solarized Light, Rosé Pine Dawn, One
+  Light, Gruvbox Light), the rest derived and marked. Licensing: palettes
+  referenced as public hex values with attribution comments; no paid or
+  non-OFS assets copied.
+- TERMINAL SYNC: TerminalTheme.applyTheme(theme, light) is catalog-driven;
+  TerminalPalette.applyDefaults gained fg/bg/cursor overrides so the
+  terminal session scheme stays byte-identical to the canvas token in
+  every identity; the 16 ANSI hues stay the shared set. PocketShellApp's
+  process-start dark default is untouched.
+- AURORA (task §4): one shared phase clock at the app root
+  (rememberAuroraPhase, 26 s loop, draw-phase-only invalidation), a
+  backdrop wash on MidnightPageScaffold + Home, and a circulating hairline
+  glow (auroraEdge) on filled buttons, selected theme cards and the Home
+  hero tiles. Reduced motion (animator duration scale 0) or low-RAM →
+  STATIC aurora via the JVM-pinned AuroraMotion policy; other themes
+  compose zero aurora. This is the deliberate exception to the §12
+  "nothing loops" motion rule, documented in Aurora.kt.
+- CONTROL CENTER UI: Settings is now four ranked regions (Appearance /
+  Companions / CLI tools / System) with honest count summaries; new
+  AppearanceScreen: 3-mode selector, 10 theme preview cards (live palette
+  swatches in the current mode), text/icon/card chip presets with live
+  previews, icons-per-row (AUTO + 2..6, width-capped), dynamic color.
+  New shared kit widgets: MidnightChipRow; MidnightPageScaffold + filled
+  buttons are aurora-aware.
+- DENSITY MATH: HomeGridDensity (pure, JVM-pinned) — effectiveColumns =
+  user pref capped by the historical 3/4/6 width ladder; HomeScreen
+  consumes it (entry width unchanged), icon tiles 44/52/62/72 dp, hero
+  tiles 160 dp × card scale. The source-pin contract survived unedited:
+  chunked(2), LauncherScroller, ScrollDots, LauncherSettingRow shape.
+- PERSISTENCE: five new keys (app_theme/text_scale/icon_size/card_size/
+  icon_columns) in the SAME settings DataStore; parsers are pure and
+  pinned; AppearanceSettingsContractTest keeps the house source-pin style.
+  Text scale rides LocalDensity (fontScale multiplier) inside
+  PocketShellTheme — app UI text only, terminal font size untouched.
+- TESTS: +24 new (ThemeCatalogContrastTest = WCAG-style ratio matrix over
+  all 20 palettes — it caught and I fixed 7 palette values, incl. Nord
+  deep-fill and Rosé Pine Dawn ink; ThemeModeTest; AppearanceDensityTest;
+  AuroraMotionTest; AppearanceSettingsContractTest). Full suite: 1012
+  tests, exactly the 4 known aarch64 environment failures on pristine
+  main — zero regressions. assembleDebug green (PS_LOCAL_NDK hatch).
+- DELIVERY: M7.3-Z.apk, sha256 5bf81c4c…fee34d, ledger row + Z registry
+  entry in docs/ARTIFACT_NAMING.md. adb install -r Success on Tab SM_T870
+  (2026-09-14); the interactive gate (new docs/TESTING.md §59, 18 steps)
+  is OWNER-RUNNABLE — the Tab dropped off the hotspot mid-gate (doze) and
+  was left to the owner per instruction. Also fixed in passing: the
+  HomeMarks TerminalMark hard-coded Sapphire pair now reads the theme
+  accent pair (it sits on the per-theme canvas).
+- KNOWN LIMITS: dynamic color still overrides only the M3 layer (chrome
+  tokens always follow the identity — pre-existing relationship, now more
+  visible on non-PocketShell identities); AMOLED pure-black has no
+  replacement mode (Cyber/Aurora dark are the closest); the aurora layer
+  is Canvas-gradient based (no AGSL/blur) by performance design.
+
+Stage Summary:
+- Settings is a Control Center: identity × mode fully decoupled, every
+  theme ships Light + Dark, Aurora is animated with an honest reduced-
+  motion fallback, density is user-configurable with live previews, and
+  all of it persists through the one settings DataStore.
+- Owner follow-ups: run §59 on-device; merge decision vs the unmerged
+  agent-B/m7.2-notifications and agent-Z/phase4-terminal-audit branches
+  (verified ZERO file overlap between this branch and phase4; clean
+  merges expected).
+
+CONTROL CENTER II RECORD (Task 51 continuation, Agent Z, 2026-09-15,
+same branch agent-Z/settings-control-center, owner directive: "Aurora
+default + responsive Home grid + terminal Aurora"):
+
+- AURORA DEFAULT: fresh installs open on Aurora × Dark from the first
+  frame — the absent-key parser fallbacks (parseAppTheme/parseThemeMode),
+  the ViewModel initial StateFlow values and the process-start terminal
+  palette (PocketShellApp → TerminalTheme.applyTheme(AURORA, dark)) all
+  agree. An explicitly saved preference — INCLUDING the literal "SYSTEM"
+  mode and the historical POCKETSHELL identity — parses verbatim and is
+  never overwritten (pinned by ThemeModeTest).
+- LIGHT AURORA: dedicated "Polar Dawn" palette (pale mint surfaces, deep
+  teal ink/accent) replacing the derived inversion, plus a DEEPENED light
+  stop set (ThemeCatalog.auroraStopsLight) with its own backdrop alpha so
+  the sweep stays visible on paper. Contrast-tested like every palette.
+- TERMINAL AURORA: TerminalRenderer only paints NON-default cell fills —
+  the terminal's visible ground is the Compose container behind the view.
+  So the integration is a scrim, not a renderer change: TerminalScreen's
+  root now carries the shared aurora backdrop and the terminal surface
+  composites over it at 84% opacity (terminalScrimColor, Aurora only).
+  Zero PTY/ANSI/selection/scroll changes; non-Aurora themes keep the
+  opaque canvas (pinned by AuroraTerminalIntegrationTest).
+- RESPONSIVE GRID: the "stuck at 3" cause was the Control Center I cap —
+  effectiveColumns coerced every explicit request into the old
+  3/4/6-by-width ladder (<600dp meant 3, hard floor). Replaced with the
+  brief's model: requested → available width → minimum comfortable cell
+  (icon-size-aware) → actual columns. Explicit 4 on a phone that fits 4
+  now renders 4; AUTO re-derives from the icon size (~110dp cells) and
+  fills tablets (phones keep 3; foldables 5; tablet-width 6). Pagination,
+  x-scroll, chunked(2) source pins, hidden/custom launcher behavior and
+  touch targets are untouched.
+- VERIFICATION: full suite 1022 tests — the same 4 pre-existing aarch64
+  environment failures only (zero regressions); assembleDebug green;
+  M7.3-Z.apk (CC-II) sha256 94786ddd…9e9a3 at /tmp/M7.3-Z-cc2.apk; ledger
+  row updated. Tab SM_T870 UNREACHABLE at delivery (off hotspot, doze) —
+  docs/TESTING.md §60 (14 steps, incl. the saved-preference migration
+  check) is the owner-runnable gate. Known limits: the aurora-through-
+  terminal effect is a constant scrim (not a live blur), and screen-wide
+  reverse-video (rare) still paints opaque per the vendored renderer.
+
+Stage Summary:
+- A fresh install now opens as a cohesive Aurora workstation — aurora
+  backdrop, aurora edges, aurora-tinted terminal — while every saved
+  preference, all nine other themes, and the whole launcher/terminal
+  behavior surface are preserved. The Home launcher finally uses its
+  real width: the column count is a genuine function of the request,
+  the width and the icon size.
+
+SMALL-ITERATION RECORD (Task 51 continuation 2, Agent Z, 2026-09-15,
+same branch agent-Z/settings-control-center; owner confirmed CC-I/CC-II
+"working, themes look great" and commissioned three focused iterations —
+each its own commit, each pushed, per the agreed small-iteration cadence):
+
+- ITER 1 (b143678) — remove the parked [⌨] keyboard button from Home:
+  Home has NO typeable surface (zero text fields), so the reopen button
+  was pure noise there. Kept on every other screen (Terminal reopens via
+  canvas tap; Files/Editor/Companion keep the parked button) — no reopen
+  affordance lost. One-line condition change in MainActivity.
+- ITER 2 (2f6c3c9) — recent-opened folder on Home, ABOVE the Files row,
+  with the Files rows' own 3-dot affordance:
+  * Recording: FilesViewModel collects state.areaId+path (path moves ONLY
+    on a successful listing — ExplorerCore.listInto's Ok branch); drop(1)
+    skips the process-start landing area so a restart never overwrites the
+    record with /root before the user opens anything.
+  * Persistence: three raw-string keys in the SAME settings DataStore
+    (recent_folder_area_kind/area_key/path). files/RecentFolder.kt owns
+    the typed model; deserialization ALWAYS revalidates the path through
+    PathSafety — a corrupt record degrades to "no recent folder", never
+    to an unvalidated path.
+  * UI: RecentFolderRow (Files-launcher-row language: icon plate, name,
+    storageLabel · path) + DropdownMenu: Open (switches area when it
+    still exists, then openDirectory), Open in Terminal (guest-Linux only
+    — the SAME openTerminalHereProblem gate as the Files sheet; routes
+    through openLinuxShellAt), Remove from Home (clears the record —
+    hide-only, never deletes anything).
+- ITER 3 (f5101a2) — Terminal button in the Files toolbar, beside search:
+  FilesViewModel.terminalLaunchHere() resolves the BROWSED location
+  itself (the row sheet's action resolves a TAPPED child — p7.1's
+  "never the browsed parent" distinction preserved on both paths now).
+  Header button in the exact Box+Icon header language, between select
+  and search; hidden during search mode and hidden honestly outside
+  guest-Linux areas. MainActivity resolves Ready → openLinuxShellAt and
+  navigates only when the session really exists.
+- VERIFICATION (per owner: no APK build / no full gate this round):
+  compileDebugKotlin green on each iteration; RecentFolderStoreTest +
+  files/* suites + the source-pin suites (HomeLauncherRows,
+  ExternalKeyboardIntegration, TerminalLaunch) green. NOT verified on
+  device yet — the three iterations fold into the owner's next device
+  pass (§59/§60 still pending there too). No APK staged; no ledger row
+  (no artifact delivered).
+
+Stage Summary:
+- Home loses its only dead control, gains the user's working context
+  (recent folder, one tap back into it, one tap into a terminal in it),
+  and Files gains the same one-tap terminal entry point in its toolbar.
+  All three changes ride existing architecture: the shared launcher row
+  language, the p7.1 terminal-launch gate, and the one settings
+  DataStore.
+
+SMALL-ITERATION RECORD (Task 51 continuation 3, Agent Z, 2026-09-15 —
+iteration 4: one-click install for every Home tool; commit 7b38836):
+
+- RESEARCHED INSTALLERS (web + first-party docs, 2026-09-15): npm for
+  claude (@anthropic-ai/claude-code — support.claude.com), opencode
+  (opencode-ai — opencode.ai/download), codex (@openai/codex — musl
+  arm64 assets ship in the npm package), qwen (@qwen-code/qwen-code —
+  QwenLM/qwen-code), kilo (@kilocode/cli — kilo.ai docs), cline
+  (cline — cline.bot/cli). Hermes via the official NousResearch
+  install.sh WITH export UV_LINK_MODE=copy — the guest-required
+  workaround our own M2.6 research device-validated (§8.5: uv's l2s
+  EPERM dies without it). npm specs self-install node prerequisites
+  (apk add nodejs npm) since the guest does not guarantee node.
+- HONEST NON-INSTALLERS (both owner-flagged): zcode — NONE (no official
+  command-line installer exists); agy/Antigravity — UNSUPPORTED (our
+  ANTIGRAVITY-PLATFORM.md executed the whole ladder: the install.sh's
+  linux_arm64_musl manifest 404s and the glibc binary aborts under musl
+  even with a shimmed gcompat — a curl run can only fail, so the app
+  refuses up front with that reason).
+- BEHAVIOR: tapping a Home tool probes with the real guest shell as
+  always. Installed -> launches unchanged. Absent + installer -> a
+  NORMAL guest terminal session runs the exact install line VISIBLY
+  (an echo shows the line first — curl|sh is a trust decision the user
+  watches, never a hidden network call), then a tap-again hint; the
+  session is a plain shell session (no agent identity — installing a
+  tool is not the tool running). Absent + no installer -> honest
+  refusal carrying the reason above.
+- ARCHITECTURE: no new shell path, no background execution — the same
+  spawn machinery, the same `sh -l -c "<line>; exec sh -l"` delivery
+  (guestInstallChain, pure + pinned), hygiene via a strict charset
+  allowlist (no quotes/$/backticks/newlines; 512-char cap).
+- PINS: ToolInstallCatalogTest (every registry id covered; installable
+  specs carry commands and no notes and vice versa; hermes UV contract;
+  verbatim chain transport). SessionLifecycleIntegrationTest spawn-site
+  count updated 6 -> 7 WITH the rationale in the assertion message (the
+  install session deliberately rides the CommandApp origin). Terminal +
+  launchers + files + apps suites green; the only failure in the
+  targeted runs was the known AgentObservationTopology aarch64
+  environment baseline. NOT run this round: full suite, APK, device.
+
+Stage Summary:
+- Every Home tool now has a one-click story: seven verified installers,
+  two honest refusals with reasons, and zero hidden execution. The next
+  device pass should include: tap an uninstalled tool (e.g. Cline),
+  watch the install session run, tap again to launch.
+
+SMALL-ITERATION RECORD (Task 51 continuation 4, Agent Z, 2026-09-15 —
+iteration 4b: Antigravity + ZCode get real installers; commit b38e645):
+
+- OWNER EVIDENCE OVERTURNS THE OLD VERDICT: the owner runs `agy` on this
+  very phone. ANTIGRAVITY-PLATFORM.md's "UNSUPPORTED" conclusion
+  (2026-09-04) predates the M6.0 dual-libc layer — the rootfs now carries
+  the REAL Debian glibc loader at canonical paths
+  (docs/runtime/DUAL_LIBC.md §2), and the audit's own qemu ladder had
+  already proven the glibc arm64 binary valid under real glibc. The 404
+  was only ever on the MUSL manifest; the GLIBC manifest is live
+  (re-verified 2026-09-15: Antigravity CLI 1.2.3, url + sha512 fields).
+- AGY INSTALLER (SCRIPT spec): direct-from-official-manifest pipeline —
+  fetch manifests/linux_arm64.json, parse url+sha512, download,
+  sha512sum -c verify, extract, install -m 0755 as /usr/local/bin/agy,
+  prove with `agy --version`. The two things the platform audit forbade
+  (musl platform spoofing, checksum skipping) are ABSENT and now pinned
+  absent by test.
+- ZCODE INSTALLER (NPM spec): the UNOFFICIAL community client
+  `zcode-app-cli` (kingsword09/zcode-cli; npm registry verified:
+  binary name `zcode` — matching the existing registry launch probe —
+  node >=22.19, which Alpine's apk nodejs satisfies). It wraps the
+  OFFICIAL ZCode Desktop agent runtime; the install session echoes the
+  honest attribution line ("Unofficial client — wraps the official
+  ZCode runtime — not affiliated with Z.ai") BEFORE anything runs.
+- MECHANICS: ToolInstallSpec gained `script` (multi-line first-party
+  POSIX script) and `attribution` (provenance echo); scripts transport
+  BASE64-encoded — the delivered chain itself stays inside the strict
+  transport charset — decode in-guest and execute with `sh -x` so every
+  script line is traced visibly (round-trip pinned byte-for-byte).
+  InstallMethod narrowed to NPM|SCRIPT: every one of the 9 registry
+  tools now has a one-click installer.
+- PINS: spec completeness, command-XOR-script, attribution validation,
+  the agy no-spoof/no-skip assertions, the zcode unofficial attribution,
+  hermes UV contract (unchanged), chain round-trip. apps/ + terminal/
+  suites green (only the known AgentObservationTopology aarch64 env
+  baseline failed). NOT run: full suite / APK / device — the owner's
+  next device pass should try BOTH new installers end-to-end.
+
+Stage Summary:
+- The two "impossible" tiles are gone: Antigravity installs through its
+  own official release manifest thanks to the glibc layer that landed
+  after the old audit, and ZCode installs through the unofficial
+  community client with its status stated on-screen. All nine Home
+  tools now genuinely install with one tap, visibly and honestly.

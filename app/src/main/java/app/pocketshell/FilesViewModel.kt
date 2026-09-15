@@ -16,6 +16,8 @@ import app.pocketshell.files.FileSearch
 import app.pocketshell.files.MultiSelectOps
 import app.pocketshell.files.FilesSearchState
 import app.pocketshell.files.PathSafety
+import app.pocketshell.files.RecentFolder
+import app.pocketshell.files.RecentFolderStore
 import app.pocketshell.files.PendingTransfer
 import app.pocketshell.files.StorageArea
 import app.pocketshell.files.StorageAreas
@@ -52,6 +54,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 
 /**
@@ -102,6 +109,16 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
 
     private val _state = MutableStateFlow(ExplorerCore.State.initialLoading())
     val state: StateFlow<ExplorerCore.State> = _state.asStateFlow()
+
+    // The recently-browsed folder (Home "Recent" row): recorded from the
+    // explorer's SUCCESSFUL listing state, persisted through the settings
+    // DataStore (files/RecentFolder.kt owns the typed model + revalidation).
+    private val settingsRepository = app.pocketshell.settings.SettingsRepository(application)
+
+    /** The last folder the user navigated INTO (survives process death), or null. */
+    val recentFolder: StateFlow<RecentFolder?> = settingsRepository.recentFolderRecord
+        .map { (kind, areaKey, path) -> RecentFolderStore.deserialize(kind, areaKey, path) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     // ------------------------------------------------- Phase 4 op-state flows
 
@@ -215,6 +232,48 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
         viewModelScope.launch {
             _state.value = withContext(explorerIo) { core.initial() }
         }
+        // Record every USER navigation into a folder: state.path only moves
+        // on a successful listing, and drop(1) skips the initial landing
+        // area — a restart must never overwrite the stored recent with the
+        // default start path before the user has opened anything.
+        viewModelScope.launch {
+            state
+                .map { it.areaId to it.path }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { (area, path) ->
+                    if (area != null && path != null) {
+                        settingsRepository.setRecentFolderRecord(
+                            kind = area.kind.name,
+                            areaKey = area.key,
+                            path = path.value,
+                        )
+                    }
+                }
+        }
+    }
+
+    /**
+     * Open the Home "Recent" row's folder: switch to its area (no-op when it
+     * is already current) and list the stored, revalidated path. An area
+     * that no longer exists (a revoked SAF grant) fails honestly through the
+     * core's normal error state — never a fake navigation.
+     */
+    fun openRecentFolder(folder: RecentFolder) {
+        exitSearch()
+        exitSelection()
+        val area = AreaId(folder.areaKind, folder.areaKey)
+        dispatch {
+            if (areaById[area] != null && _state.value.areaId != area) {
+                core.switchArea(area)
+            }
+            core.openDirectory(folder.path)
+        }
+    }
+
+    /** The Recent row's "Remove from Home": clears the persisted record. */
+    fun clearRecentFolder() {
+        viewModelScope.launch { settingsRepository.setRecentFolderRecord(null, null, null) }
     }
 
     /** The persisted tree-grant URIs the OS still holds for us (read grants). */
@@ -993,6 +1052,29 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
                 kind = areaId.kind,
                 directory = directory,
             ),
+        )
+    }
+
+    /**
+     * The TOOLBAR "open the folder I am browsing" launch (owner iteration):
+     * unlike [terminalLaunch] — which resolves a TAPPED child (p7.1) — this
+     * IS the browsed location, so no listing lookup is needed; the directory
+     * is the explorer's current validated [AreaPath] verbatim. Same pure
+     * area-kind gate, same honest NotSupported (the toolbar hides itself in
+     * Android areas, so the refusal here is defensive only — no notice).
+     */
+    fun terminalLaunchHere(): TerminalLaunchResolution {
+        val state = _state.value
+        val areaId = state.areaId ?: return TerminalLaunchResolution.NotSupported(
+            "Open a folder first — Terminal opens in the folder you choose.",
+        )
+        val dir = state.path ?: return TerminalLaunchResolution.NotSupported(
+            "Open a folder first — Terminal opens in the folder you choose.",
+        )
+        val problem = openTerminalHereProblem(areaId.kind)
+        if (problem != null) return TerminalLaunchResolution.NotSupported(problem)
+        return TerminalLaunchResolution.Ready(
+            TerminalLaunch(areaId = areaId, kind = areaId.kind, directory = dir),
         )
     }
 

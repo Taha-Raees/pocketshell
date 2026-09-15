@@ -28,16 +28,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,6 +73,7 @@ import app.pocketshell.TerminalViewModel
 import app.pocketshell.apps.CommandApp
 import app.pocketshell.apps.CommandAppCatalog
 import app.pocketshell.companion.CompanionDef
+import app.pocketshell.files.RecentFolder
 import app.pocketshell.launchers.CustomTool
 import app.pocketshell.launchers.LauncherBadges
 import app.pocketshell.launchers.LauncherTileIcon
@@ -74,9 +81,16 @@ import app.pocketshell.launchers.ToolLauncher
 import app.pocketshell.launchers.visibleCompanions
 import app.pocketshell.launchers.visibleTools
 import app.pocketshell.runtime.RuntimeState
+import app.pocketshell.settings.CardSize
+import app.pocketshell.settings.HomeGridDensity
+import app.pocketshell.settings.IconColumns
+import app.pocketshell.settings.IconSize
 import app.pocketshell.terminal.AgentHomeSessionClaims
 import app.pocketshell.terminal.TerminalSessionManager
+import app.pocketshell.ui.theme.LocalAuroraPhase
 import app.pocketshell.ui.theme.TerminalTheme
+import app.pocketshell.ui.theme.auroraBackdrop
+import app.pocketshell.ui.theme.auroraEdge
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -129,6 +143,18 @@ fun HomeScreen(
     customTools: List<CustomTool>,
     toolIcons: Map<String, String>,
     hiddenLauncherIds: Set<String>,
+    // Control Center density (Settings → Appearance): the user's icon tile
+    // size, card weight and icons-per-row preference. Width still caps the
+    // column count — see HomeGridDensity.
+    iconSize: IconSize = IconSize.DEFAULT,
+    cardSize: CardSize = CardSize.DEFAULT,
+    iconColumns: IconColumns = IconColumns.AUTO,
+    // The recently-browsed folder (files/RecentFolder.kt) — shown ABOVE the
+    // Files row; its 3-dot menu mirrors the Files entry actions honestly.
+    recentFolder: RecentFolder? = null,
+    onOpenRecentFolder: () -> Unit = {},
+    onOpenRecentInTerminal: () -> Unit = {},
+    onRemoveRecentFolder: () -> Unit = {},
     onOpenCompanion: (String) -> Unit,
     onRemoveFromHome: (String) -> Unit,
     onOpenLauncherSettings: () -> Unit,
@@ -159,16 +185,19 @@ fun HomeScreen(
     // empty state. The two environment tiles below remain the single, clear
     // way INTO each environment; no floating button replaces the FAB.
 
+    // Control Center — the shared aurora backdrop wash (one clock, draw-only).
+    val auroraPhase = LocalAuroraPhase.current
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(TerminalTheme.screenBg),
+            .background(TerminalTheme.screenBg)
+            .auroraBackdrop(auroraPhase),
     ) {
-        val columns = when {
-            maxWidth >= 840.dp -> 6
-            maxWidth >= 600.dp -> 4
-            else -> 3
-        }
+        // M7.1 P2.2 + Control Center II: requested columns → available width
+        // → minimum comfortable cell → actual columns. The user's choice is
+        // honored whenever the width can carry it (icon-size-aware); only
+        // denser-than-fits requests clamp (HomeGridDensity, JVM-pinned).
+        val columns = HomeGridDensity.effectiveColumns(iconColumns, maxWidth.value, iconSize.tileDp)
         // M7.1 P2.2 — the fixed launcher-entry width for the x-scroll rows:
         // one page of `columns` entries exactly fills the content width
         // (entries carry their own inner gutters), the same density the old
@@ -204,6 +233,7 @@ fun HomeScreen(
                 EnvironmentLaunchers(
                     runtimeState = runtimeState,
                     runningSessions = activeSessions.count { !it.isFinished },
+                    cardSize = cardSize,
                     onOpenTerminal = onOpenTerminal,
                     onOpenLinuxShell = onOpenLinuxShell,
                     onOpenDiagnostics = onOpenDiagnostics,
@@ -212,6 +242,15 @@ fun HomeScreen(
                 // M7 Phase 3 — the ONE Files entry point: a quiet launcher
                 // surface under the environments, before the tools grid.
                 // Home stays uncluttered (one row, no badges, no counters).
+                recentFolder?.let { recent ->
+                    Spacer(Modifier.height(12.dp))
+                    RecentFolderRow(
+                        recent = recent,
+                        onOpen = onOpenRecentFolder,
+                        onOpenInTerminal = onOpenRecentInTerminal,
+                        onRemove = onRemoveRecentFolder,
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 FilesLauncherRow(onOpenFiles = onOpenFiles)
 
@@ -229,6 +268,7 @@ fun HomeScreen(
                         iconFiles = companionIcons,
                         columns = columns,
                         entryWidth = entryWidth,
+                        iconDp = iconSize.tileDp.dp,
                         onOpen = onOpenCompanion,
                         onLongPress = { id, label -> removeTarget = id to label },
                         onManage = onOpenLauncherSettings,
@@ -254,6 +294,7 @@ fun HomeScreen(
                     iconFiles = toolIcons,
                     columns = columns,
                     entryWidth = entryWidth,
+                    iconDp = iconSize.tileDp.dp,
                     verifyingApp = verifyingApp,
                     onOpenCommandApp = onOpenCommandApp,
                     onOpenCustomTool = onOpenCustomTool,
@@ -416,10 +457,15 @@ private fun SectionDivider() {
 private fun EnvironmentLaunchers(
     runtimeState: RuntimeState,
     runningSessions: Int,
+    cardSize: CardSize,
     onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
     onOpenDiagnostics: () -> Unit,
 ) {
+    // Control Center "Card size": the card weight scales the hero tiles'
+    // height around the historical 160dp default.
+    val heroHeight = (160 * cardSize.scale).dp
+    val auroraPhase = LocalAuroraPhase.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -428,11 +474,15 @@ private fun EnvironmentLaunchers(
     ) {
         TerminalTile(
             runningSessions = runningSessions,
+            heightDp = heroHeight,
+            auroraPhase = auroraPhase,
             onClick = onOpenTerminal,
             modifier = Modifier.weight(1.25f),
         )
         LinuxTile(
             runtimeState = runtimeState,
+            heightDp = heroHeight,
+            auroraPhase = auroraPhase,
             onClick = { if (runtimeState == RuntimeState.READY) onOpenLinuxShell() else onOpenDiagnostics() },
             modifier = Modifier.weight(1f),
         )
@@ -440,14 +490,23 @@ private fun EnvironmentLaunchers(
 }
 
 @Composable
-private fun TerminalTile(runningSessions: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun TerminalTile(
+    runningSessions: Int,
+    heightDp: Dp,
+    auroraPhase: State<Float>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     PressableScale(onClick = onClick, onClickLabel = "Open the Terminal", modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(heightDp)
                 .clip(RoundedCornerShape(HomeTokens.heroRadius))
                 .background(HomeTokens.surfaceHero)
+                // Aurora identity: the hero tiles are the page's important
+                // cards — they carry the circulating glow edge.
+                .auroraEdge(auroraPhase, HomeTokens.heroRadius)
                 .padding(16.dp),
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -482,7 +541,13 @@ private fun TerminalTile(runningSessions: Int, onClick: () -> Unit, modifier: Mo
 }
 
 @Composable
-private fun LinuxTile(runtimeState: RuntimeState, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun LinuxTile(
+    runtimeState: RuntimeState,
+    heightDp: Dp,
+    auroraPhase: State<Float>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     // Honest gate (M2 architecture): READY enters the guest, everything else
     // routes to Diagnostics where install/retry/repair actually live.
     val stateLine = when (runtimeState) {
@@ -505,9 +570,10 @@ private fun LinuxTile(runtimeState: RuntimeState, onClick: () -> Unit, modifier:
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(heightDp)
                 .clip(RoundedCornerShape(HomeTokens.heroRadius))
                 .background(HomeTokens.surfaceEnv)
+                .auroraEdge(auroraPhase, HomeTokens.heroRadius)
                 .padding(16.dp),
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -551,6 +617,125 @@ private fun ReadyDot() {
             .size(6.dp)
             .background(HomeTokens.accent, CircleShape),
     )
+}
+
+/**
+ * The recently-browsed folder (owner iteration): the SAME launcher-row
+ * language as the Files row beneath it — icon plate, name, honest storage
+ * label — plus the Files rows' own 3-dot affordance. Tap opens Files at the
+ * folder; the 3-dot menu carries the folder's honest actions: Open, Open in
+ * Terminal (guest-Linux folders only — the same area-kind gate as the Files
+ * sheet), Remove from Home (clears the record; hide-only, never deletes).
+ */
+@Composable
+private fun RecentFolderRow(
+    recent: RecentFolder,
+    onOpen: () -> Unit,
+    onOpenInTerminal: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    PressableScale(onClick = onOpen, onClickLabel = "Open recent folder ${recent.name}", modifier = Modifier.padding(horizontal = 20.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clip(RoundedCornerShape(HomeTokens.heroRadius))
+                .background(HomeTokens.surfaceEnv)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(HomeTokens.surfaceApp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Folder,
+                    contentDescription = null,
+                    tint = HomeTokens.textPrimary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = recent.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HomeTokens.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = recent.storageLabel + " · " + recent.path.value,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(role = Role.Button, onClickLabel = "Recent folder actions") {
+                            menuOpen = true
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "Recent folder actions",
+                        tint = HomeTokens.textDim,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                RecentFolderMenu(
+                    expanded = menuOpen,
+                    onDismiss = { menuOpen = false },
+                    showTerminal = recent.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX,
+                    onOpen = { menuOpen = false; onOpen() },
+                    onOpenInTerminal = { menuOpen = false; onOpenInTerminal() },
+                    onRemove = { menuOpen = false; onRemove() },
+                )
+            }
+        }
+    }
+}
+
+/** The Recent row's 3-dot actions — the folder's honest sheet, docked. */
+@Composable
+private fun RecentFolderMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    showTerminal: Boolean,
+    onOpen: () -> Unit,
+    onOpenInTerminal: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text("Open") },
+            leadingIcon = { Icon(Icons.Outlined.Folder, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            onClick = onOpen,
+        )
+        if (showTerminal) {
+            DropdownMenuItem(
+                text = { Text("Open in Terminal") },
+                leadingIcon = { Icon(Icons.Outlined.Terminal, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                onClick = onOpenInTerminal,
+            )
+        }
+        DropdownMenuItem(
+            text = { Text("Remove from Home") },
+            leadingIcon = { Icon(Icons.Outlined.Close, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            onClick = onRemove,
+        )
+    }
 }
 
 /**
@@ -685,6 +870,7 @@ private fun ToolsSection(
     iconFiles: Map<String, String>,
     columns: Int,
     entryWidth: Dp,
+    iconDp: Dp,
     verifyingApp: String?,
     onOpenCommandApp: (CommandApp) -> Unit,
     onOpenCustomTool: (CustomTool) -> Unit,
@@ -718,6 +904,7 @@ private fun ToolsSection(
                             label = tool.label,
                             badge = badges[colIndex * 2 + rowInColumn],
                             iconFile = iconFiles[tool.id],
+                            iconDp = iconDp,
                             verifying = verifyingApp == tool.label,
                             onClick = {
                                 when (tool) {
@@ -749,6 +936,7 @@ private fun CompanionsSection(
     iconFiles: Map<String, String>,
     columns: Int,
     entryWidth: Dp,
+    iconDp: Dp,
     onOpen: (String) -> Unit,
     onLongPress: (id: String, label: String) -> Unit,
     onManage: () -> Unit,
@@ -765,6 +953,7 @@ private fun CompanionsSection(
                     label = def.name,
                     badge = badges[index],
                     iconFile = iconFiles[def.id],
+                    iconDp = iconDp,
                     onClick = { onOpen(def.id) },
                     onLongClick = { onLongPress(def.id, def.name) },
                     modifier = Modifier.width(entryWidth),
@@ -812,6 +1001,7 @@ private fun LauncherGridEntry(
     label: String,
     badge: String,
     iconFile: String?,
+    iconDp: Dp = 52.dp,
     verifying: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -832,7 +1022,7 @@ private fun LauncherGridEntry(
         ) {
             if (verifying) {
                 Box(
-                    modifier = Modifier.size(52.dp),
+                    modifier = Modifier.size(iconDp),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(
@@ -842,7 +1032,7 @@ private fun LauncherGridEntry(
                     )
                 }
             } else {
-                LauncherTileIcon(launcherId = launcherId, iconFile = iconFile, badge = badge, size = 52.dp)
+                LauncherTileIcon(launcherId = launcherId, iconFile = iconFile, badge = badge, size = iconDp)
             }
             Spacer(Modifier.height(8.dp))
             Text(

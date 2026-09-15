@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.DoneAll
@@ -180,6 +181,8 @@ fun FilesScreen(
      * exists — this screen never talks to the TerminalViewModel itself.
      */
     onOpenTerminal: (String) -> Unit,
+    /** Toolbar terminal action: open the BROWSED folder itself (owner iteration). */
+    onOpenTerminalHere: () -> Unit = {},
     onOpenDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -294,6 +297,7 @@ fun FilesScreen(
                 onBack = onBack,
                 onSwitchArea = onSwitchArea,
                 onAddSafFolder = bridge.pickFolder,
+                onOpenTerminalHere = onOpenTerminalHere,
             )
 
             if (searchMode) {
@@ -651,6 +655,7 @@ private fun FilesHeader(
     onBack: () -> Unit,
     onSwitchArea: (AreaId) -> Unit,
     onAddSafFolder: () -> Unit,
+    onOpenTerminalHere: () -> Unit = {},
 ) {
     var switcherOpen by remember { mutableStateOf(false) }
     Row(
@@ -701,6 +706,31 @@ private fun FilesHeader(
                     imageVector = Icons.Outlined.DoneAll,
                     contentDescription = if (selectionMode) "Exit selection" else "Select items",
                     tint = if (selectionMode) HomeTokens.accent else HomeTokens.textDim,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+
+        // Owner iteration: the toolbar terminal action — opens THE BROWSED
+        // folder in a Linux session (the row sheet's action opens a TAPPED
+        // child; this one is the location itself, resolved by the view
+        // model's terminalLaunchHere through the same area-kind gate).
+        // Hidden honestly: only guest-Linux folders can host a session,
+        // and never during search mode (the two modes never mix).
+        if (!searchMode && state.areaId?.kind == AreaKind.GUEST_LINUX && state.path != null) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button, onClickLabel = "Open terminal in this folder") {
+                        onOpenTerminalHere()
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Terminal,
+                    contentDescription = "Open terminal in this folder",
+                    tint = HomeTokens.textDim,
                     modifier = Modifier.size(22.dp),
                 )
             }

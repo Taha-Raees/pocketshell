@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,20 +57,25 @@ import app.pocketshell.keyboard.KeyboardInputRouter
 import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.keyboard.TerminalKeyDispatcher
 import app.pocketshell.keyboard.TerminalKeyboardDeck
+import app.pocketshell.apps.CommandAppCatalog
 import app.pocketshell.launchers.LauncherViewModel
 import app.pocketshell.notifications.AgentRuntimeNotificationRouting
 import app.pocketshell.notifications.NotificationPermissionGate
 import app.pocketshell.notifications.NotificationRoute
-import app.pocketshell.settings.ThemeMode
+import app.pocketshell.settings.themeModeIsDark
 import app.pocketshell.ui.apps.ExploreAppsScreen
 import app.pocketshell.ui.diagnostics.DiagnosticsScreen
 import app.pocketshell.ui.home.HomeScreen
+import app.pocketshell.ui.settings.AppearanceScreen
 import app.pocketshell.ui.settings.SettingsScreen
 import app.pocketshell.ui.system.ExternalKeyboardNoticeBar
 import app.pocketshell.ui.system.EXTERNAL_KEYBOARD_NOTICE_AUTO_DISMISS_MS
 import app.pocketshell.ui.terminal.TerminalScreen
+import app.pocketshell.ui.theme.LocalAuroraPhase
 import app.pocketshell.ui.theme.PocketShellTheme
 import app.pocketshell.ui.theme.TerminalTheme
+import app.pocketshell.ui.theme.rememberAuroraMotionPolicy
+import app.pocketshell.ui.theme.rememberAuroraPhase
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -113,11 +119,18 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
+            val theme by settingsViewModel.theme.collectAsStateWithLifecycle()
             val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
             val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+            val textScale by settingsViewModel.textScale.collectAsStateWithLifecycle()
             val defaultFontSize by settingsViewModel.defaultFontSize.collectAsStateWithLifecycle()
 
-            PocketShellTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
+            PocketShellTheme(
+                theme = theme,
+                mode = themeMode,
+                dynamicColor = dynamicColor,
+                textScale = textScale.factor,
+            ) {
                 PocketShellRoot(
                     terminalViewModel = viewModel(),
                     settingsViewModel = settingsViewModel,
@@ -296,6 +309,7 @@ fun PocketShellRoot(
     val filesViewModel: app.pocketshell.FilesViewModel = viewModel()
     val filesState by filesViewModel.state.collectAsStateWithLifecycle()
     val filesSearch by filesViewModel.search.collectAsStateWithLifecycle()
+    val recentFolder by filesViewModel.recentFolder.collectAsStateWithLifecycle()
 
     // M7 Phase 6: the quick text editor is process-scoped as well — its
     // loaded document and dirty buffer survive Home↔Editor navigation and
@@ -340,19 +354,21 @@ fun PocketShellRoot(
     // touches terminal functionality.
     NotificationPermissionGate(hasSessions = sessions.isNotEmpty())
 
+    val theme by settingsViewModel.theme.collectAsStateWithLifecycle()
     val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+    val textScale by settingsViewModel.textScale.collectAsStateWithLifecycle()
+    val iconSize by settingsViewModel.iconSize.collectAsStateWithLifecycle()
+    val cardSize by settingsViewModel.cardSize.collectAsStateWithLifecycle()
+    val iconColumns by settingsViewModel.iconColumns.collectAsStateWithLifecycle()
 
     // Phase 3.2 / Phase 5 §8 — status-bar icon appearance follows the THEME:
     // light icons on the dark palettes, dark icons on Daylight. The Midnight
     // chrome no longer owns every screen — the chrome follows the selected
-    // theme now, and the status bar follows the chrome.
+    // theme now, and the status bar follows the chrome. Control Center: the
+    // mode→dark decision is the ONE shared pure function (identity × mode).
     val view = LocalView.current
-    val themeDark = when (themeMode) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK, ThemeMode.AMOLED -> true
-    }
+    val themeDark = themeModeIsDark(themeMode, isSystemInDarkTheme())
     DisposableEffect(screen, themeDark) {
         val window = (view.context as? Activity)?.window
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
@@ -361,6 +377,13 @@ fun PocketShellRoot(
         }
         onDispose { }
     }
+
+    // Control Center — the Aurora layer's ONE clock, mounted at the root only
+    // while the Aurora identity is active AND the device allows motion
+    // (reduced-motion / low-RAM get the static aurora). Every aurora surface
+    // in the app reads this single phase; nothing else animates.
+    val auroraMotion = rememberAuroraMotionPolicy()
+    val auroraPhase = rememberAuroraPhase(auroraMotion)
 
     // m4.0.12 — one-keyboard policy, unconditional: the deck is present on
     // EVERY screen now, so the system IME block is permanent (set once in
@@ -378,6 +401,7 @@ fun PocketShellRoot(
 
     BackHandler(enabled = screen != "home") { screen = "home" }
 
+    CompositionLocalProvider(LocalAuroraPhase provides auroraPhase) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         when (screen) {
@@ -462,6 +486,21 @@ fun PocketShellRoot(
                         }
                     }
                 },
+                // Owner iteration — the Files TOOLBAR terminal action: the
+                // BROWSED folder itself (the per-row action above resolves a
+                // TAPPED child; p7.1's distinction, preserved).
+                onOpenTerminalHere = {
+                    when (val resolution = filesViewModel.terminalLaunchHere()) {
+                        is app.pocketshell.files.TerminalLaunchResolution.Ready ->
+                            terminalViewModel.openLinuxShellAt(
+                                resolution.launch.directory.value,
+                            ) { screen = "terminal" }
+                        is app.pocketshell.files.TerminalLaunchResolution.NotSupported -> {
+                            // The toolbar hides itself in unsupported areas —
+                            // this is defensive only.
+                        }
+                    }
+                },
                 onOpenDiagnostics = { screen = "diagnostics" },
                 // P9: the deck-clearance inset (the Terminal/Editor pattern) —
                 // the Files screen (listing AND search results) ends above the
@@ -481,17 +520,39 @@ fun PocketShellRoot(
             )
 
             "settings" -> SettingsScreen(
+                theme = theme,
                 themeMode = themeMode,
-                dynamicColor = dynamicColor,
+                textScale = textScale,
                 defaultFontSize = defaultFontSize,
                 onscreenKeyboardEnabled = onscreenKeyboardUserEnabled,
-                onThemeMode = settingsViewModel::setThemeMode,
-                onDynamicColor = settingsViewModel::setDynamicColor,
-                onFontSize = settingsViewModel::setDefaultFontSize,
-                onOnscreenKeyboardEnabled = settingsViewModel::setOnscreenKeyboardEnabled,
+                companionCount = companionDefs.size,
+                toolCount = CommandAppCatalog.registry.size + customTools.size,
+                hiddenLauncherCount = hiddenLauncherIds.size,
+                onOpenAppearance = { screen = "appearance" },
                 onOpenCompanions = { screen = "companionSettings" },
                 onOpenLaunchers = { screen = "launcherSettings" },
+                onFontSize = settingsViewModel::setDefaultFontSize,
+                onOnscreenKeyboardEnabled = settingsViewModel::setOnscreenKeyboardEnabled,
                 onBack = { screen = "home" },
+                modifier = Modifier.padding(padding),
+            )
+
+            "appearance" -> AppearanceScreen(
+                theme = theme,
+                themeMode = themeMode,
+                dynamicColor = dynamicColor,
+                textScale = textScale,
+                iconSize = iconSize,
+                cardSize = cardSize,
+                iconColumns = iconColumns,
+                onTheme = settingsViewModel::setTheme,
+                onThemeMode = settingsViewModel::setThemeMode,
+                onDynamicColor = settingsViewModel::setDynamicColor,
+                onTextScale = settingsViewModel::setTextScale,
+                onIconSize = settingsViewModel::setIconSize,
+                onCardSize = settingsViewModel::setCardSize,
+                onIconColumns = settingsViewModel::setIconColumns,
+                onBack = { screen = "settings" },
                 modifier = Modifier.padding(padding),
             )
 
@@ -539,9 +600,12 @@ fun PocketShellRoot(
                     screen = "terminal"
                 },
                 onOpenCommandApp = { app ->
-                    // Verify-then-launch inside the ViewModel; navigate only
-                    // when a real session was created (refusal = honest banner).
-                    terminalViewModel.openCommandApp(app) { screen = "terminal" }
+                    // Owner iteration 4 — one-click install: installed tools
+                    // launch (verify-then-launch, unchanged); absent tools
+                    // with a verified installer open a terminal RUNNING the
+                    // install line; the rest refuse honestly. Navigate only
+                    // when a real session was created.
+                    terminalViewModel.openOrInstallCommandApp(app) { screen = "terminal" }
                 },
                 onOpenCustomTool = { tool ->
                     // M7.1 P1: custom tools launch through the SAME
@@ -557,6 +621,24 @@ fun PocketShellRoot(
                 customTools = customTools,
                 toolIcons = toolIcons,
                 hiddenLauncherIds = hiddenLauncherIds,
+                iconSize = iconSize,
+                cardSize = cardSize,
+                iconColumns = iconColumns,
+                recentFolder = recentFolder,
+                onOpenRecentFolder = {
+                    val recent = recentFolder ?: return@HomeScreen
+                    filesViewModel.openRecentFolder(recent)
+                    screen = "files"
+                },
+                onOpenRecentInTerminal = {
+                    val recent = recentFolder ?: return@HomeScreen
+                    // The same honest area-kind gate the Recent row's menu
+                    // applies: only guest-Linux folders can host a session.
+                    if (recent.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX) {
+                        terminalViewModel.openLinuxShellAt(recent.path.value) { screen = "terminal" }
+                    }
+                },
+                onRemoveRecentFolder = { filesViewModel.clearRecentFolder() },
                 onOpenCompanion = companionViewModel::openCompanion,
                 onRemoveFromHome = launcherViewModel::hideFromHome,
                 onOpenLauncherSettings = { screen = "launcherSettings" },
@@ -579,13 +661,14 @@ fun PocketShellRoot(
         )
 
         // m4.0.12 §12 (device feedback carried from m4.0.4) — the deck's
-        // rebirth affordance, now on EVERY screen: with the keyboard toggled
-        // off the [⌨] key parks as the SAME rectangular key box it wears in
-        // the deck row (no round bubble). Phase 5 §4 — it is ANCHORED to the
-        // bottom-right corner: 12dp from the right edge, 8dp above the
+        // rebirth affordance, now on EVERY screen EXCEPT Home (iteration:
+        // owner request — Home has no typeable surface, so the parked [⌨]
+        // was visual noise there; Terminal reopens via canvas tap, and the
+        // other typeable screens keep the parked button). It is ANCHORED to
+        // the bottom-right corner: 12dp from the right edge, 8dp above the
         // gesture-bar inset, still a 44×36dp touch target, never clipped,
         // never over the system navigation.
-        if (!keyboardExpanded) {
+        if (!keyboardExpanded && screen != "home") {
             Box(modifier = Modifier.fillMaxSize()) {
                 val haptics = LocalHapticFeedback.current
                 Box(
@@ -655,6 +738,7 @@ fun PocketShellRoot(
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
+    }
     }
     }
 }

@@ -69,11 +69,12 @@ fun BrandMark(size: Dp, modifier: Modifier = Modifier) {
 /** The Terminal environment mark: a large prompt chevron + block cursor (no container). */
 @Composable
 fun TerminalMark(size: Dp, modifier: Modifier = Modifier) {
-    // This mark lives ON the canvas tone (the pinned-dark Terminal hero
-    // tile), so it is drawn in the canvas-pinned Sapphire pair — identical
-    // in every app theme, exactly like the tile it sits on.
-    val canvasAccent = Color(0xFF7FA3EF)
-    val canvasAccentBright = Color(0xFFA5C0FF)
+    // This mark lives ON the canvas tone (the Terminal hero tile). Control
+    // Center: the canvas follows the selected identity now, so the mark
+    // reads the theme's OWN accent pair — the same tokens the tile system
+    // uses — guaranteed to match its surface in EVERY theme × mode.
+    val canvasAccent = HomeTokens.accent
+    val canvasAccentBright = HomeTokens.accentBright
     Canvas(modifier = modifier.size(size)) {
         val w = this.size.width
         val h = this.size.height

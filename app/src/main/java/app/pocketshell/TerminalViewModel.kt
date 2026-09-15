@@ -9,6 +9,9 @@ import app.pocketshell.apps.guestCustomCommandChain
 import app.pocketshell.apps.guestLaunchChain
 import app.pocketshell.apps.guestLaunchChainWithRecords
 import app.pocketshell.apps.guestTerminalChain
+import app.pocketshell.apps.ToolInstallCatalog
+import app.pocketshell.apps.guestInstallChain
+import app.pocketshell.apps.guestInstallScriptChain
 import app.pocketshell.apps.probeName
 import app.pocketshell.launchers.CustomTool
 import app.pocketshell.launchers.commandHead
@@ -392,6 +395,117 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
      * the custom tools launch through EXACTLY this proven path — the
      * behavior is byte-identical.
      */
+    /**
+     * Owner iteration 4 — ONE-CLICK INSTALL: the Home tile entry point.
+     * Same fresh login-shell probe the launch path uses; on a REAL hit it
+     * launches exactly as before. When the probe answers "absent" and the
+     * catalog carries an installer for the tool, a NORMAL guest terminal
+     * session runs the verified install line visibly (curl|sh is a trust
+     * decision the user watches, never a hidden network call), then taps
+     * the tile again to launch. Tools with no installer (or an upstream
+     * gap) get the same honest refusal as always, now with the reason.
+     */
+    fun openOrInstallCommandApp(app: CommandApp, onReady: () -> Unit) {
+        val spec = ToolInstallCatalog.specFor(app.id)
+        viewModelScope.launch {
+            _verifyingApp.value = app.displayName
+            val execPath = try {
+                withContext(Dispatchers.IO) { PackageGateway.commandPath(app.probeName()) }
+            } catch (_: Throwable) {
+                null
+            } finally {
+                _verifyingApp.value = null
+            }
+            when {
+                execPath != null -> openCommandApp(app, onReady)
+                spec?.command != null -> installCommandApp(app, spec.command!!, spec.attribution, null, onReady)
+                spec?.script != null -> installCommandApp(app, null, spec.attribution, spec.script!!, onReady)
+                else -> safeFailure(
+                    app.displayName + " is not installed (verified with the real guest shell) " +
+                        "and cannot be installed from here. " +
+                        (spec?.note ?: ""),
+                )
+            }
+        }
+    }
+
+    /**
+     * The install half of one-click install: the catalog's verified line
+     * runs in a FRESH normal guest session through the SAME spawn machinery
+     * as every launch — no new shell path, no background execution, no
+     * silent anything. The session is a plain shell session (no agent
+     * identity): an install is not the agent running.
+     */
+    private fun installCommandApp(
+        app: CommandApp,
+        installLine: String?,
+        attribution: String?,
+        installScript: String?,
+        onReady: () -> Unit,
+    ) {
+        val application = getApplication<Application>()
+        if (!PackageGateway.isRuntimeReady()) {
+            safeFailure(
+                "Installing ${app.displayName} needs the Linux runtime — install or repair it from Diagnostics",
+            )
+            return
+        }
+        _launchError.value = null
+        viewModelScope.launch {
+            try {
+                val sysDataBinds = withContext(Dispatchers.IO) {
+                    TerminalSessionManager.prepareLinuxSession(application)
+                }
+                val chain = when {
+                    installLine != null -> guestInstallChain(
+                        displayName = app.displayName,
+                        installCommand = installLine,
+                        guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                        attribution = attribution,
+                    )
+                    installScript != null -> guestInstallScriptChain(
+                        displayName = app.displayName,
+                        installScript = installScript,
+                        guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                        attribution = attribution,
+                    )
+                    else -> error("installCommandApp: exactly one of line/script is required")
+                }
+                var newId: Long? = null
+                val ok = withContext(Dispatchers.Main) {
+                    try {
+                        newId = TerminalSessionManager.spawnLinuxSession(
+                            application,
+                            listOf(
+                                ShellEnvironment.SHELL_PATH_GUEST,
+                                "-l",
+                                "-c",
+                                chain,
+                            ),
+                            "Install ${app.displayName}",
+                            sysDataBinds,
+                            origin = SpawnOrigin.CommandApp(app.id),
+                            agent = null,
+                            launchRecordPath = null,
+                        ).id
+                        guestSessionIds.add(newId)
+                        _selectedId.value = newId
+                        true
+                    } catch (t: Throwable) {
+                        _launchError.value =
+                            "Installing ${app.displayName} could not start: ${t.message ?: t.javaClass.simpleName}"
+                        false
+                    }
+                }
+                if (ok && newId != null) {
+                    onReady()
+                }
+            } catch (t: Throwable) {
+                safeFailure("Installing ${app.displayName} could not start: ${t.message ?: t.javaClass.simpleName}")
+            }
+        }
+    }
+
     fun openCommandApp(app: CommandApp, onReady: () -> Unit) {
         launchGuestCommand(
             displayName = app.displayName,

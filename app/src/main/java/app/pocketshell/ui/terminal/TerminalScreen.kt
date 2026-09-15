@@ -62,7 +62,10 @@ import app.pocketshell.keyboard.KeyboardState
 import app.pocketshell.terminal.PocketShellTerminalViewClient
 import app.pocketshell.terminal.TerminalPalette
 import app.pocketshell.terminal.TerminalSessionManager
+import app.pocketshell.ui.theme.LocalAuroraPhase
 import app.pocketshell.ui.theme.TerminalTheme
+import app.pocketshell.ui.theme.auroraBackdrop
+import app.pocketshell.ui.theme.terminalScrimColor
 import com.termux.view.TerminalView
 
 private const val DEFAULT_FONT_SIZE = 28
@@ -170,10 +173,17 @@ fun TerminalScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Control Center II — the terminal lives INSIDE the Aurora environment:
+    // the page canvas carries the shared backdrop wash and the terminal
+    // surface composites over it through a translucent scrim (Aurora only —
+    // see terminalScrimColor; the vendored TerminalView paints no default
+    // background itself, so this scrim is the visible terminal ground).
+    val auroraPhase = LocalAuroraPhase.current
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(TerminalTheme.screenBg)
+            .auroraBackdrop(auroraPhase)
             // m4.0.12: the shared deck lives at the app ROOT now (one keyboard
             // over every screen). While it is up it overlays this screen, so
             // the canvas ends above the deck's measured height (navigation-bar
@@ -205,7 +215,7 @@ fun TerminalScreen(
                         bottomEnd = TerminalTheme.canvasBottomRadius,
                     ),
                 )
-                .background(TerminalTheme.canvas),
+                .background(terminalScrimColor(TerminalTheme.isAurora)),
         ) {
             if (selected != null) {
                 TerminalViewHost(

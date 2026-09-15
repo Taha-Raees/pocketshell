@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -57,7 +59,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pocketshell.ui.home.HomeTokens
+import app.pocketshell.ui.theme.LocalAuroraPhase
 import app.pocketshell.ui.theme.TerminalTheme
+import app.pocketshell.ui.theme.auroraBackdrop
+import app.pocketshell.ui.theme.auroraEdge
 
 /**
  * Phase 3.5 — the Midnight Sapphire page kit for the system pages
@@ -87,10 +92,14 @@ fun MidnightPageScaffold(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    // Aurora identity: the page canvas carries the shared backdrop wash
+    // (draw-only, one clock — see ui/theme/Aurora.kt). Other themes: no-op.
+    val auroraPhase = LocalAuroraPhase.current
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(TerminalTheme.screenBg),
+            .background(TerminalTheme.screenBg)
+            .auroraBackdrop(auroraPhase),
     ) {
         Column(
             modifier = Modifier
@@ -235,13 +244,17 @@ fun MidnightFilledButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
+    val auroraPhase = LocalAuroraPhase.current
     PressFeedback(modifier = modifier, enabled = enabled, onClick = onClick) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 44.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (enabled) HomeTokens.accentDeep else HomeTokens.surfaceApp),
+                .background(if (enabled) HomeTokens.accentDeep else HomeTokens.surfaceApp)
+                // Aurora identity: the primary action carries the circulating
+                // glow edge (hairline, restrained). Other themes: no-op.
+                .auroraEdge(phase = auroraPhase, cornerRadius = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -456,6 +469,50 @@ fun MidnightTextField(
 }
 
 // ------------------------------------------------------------------ controls
+
+/**
+ * The Control Center chip selector: one row of discrete presets (brief §6:
+ * chips, not sliders). Resting chips are the keyAlt tone step — no border,
+ * the 3.3 §3 rule that tone steps replace borders — and the selected chip
+ * is the accentDeep fill with its dedicated on-fill text pair. 40dp touch
+ * height; scrolls horizontally when a preset set outgrows the width.
+ */
+@Composable
+fun <T> MidnightChipRow(
+    options: List<T>,
+    label: (T) -> String,
+    selected: T,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selected
+            val chipLabel = label(option)
+            Box(
+                modifier = Modifier
+                    .heightIn(min = 40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) HomeTokens.accentDeep else HomeTokens.surfaceApp)
+                    .clickable(role = Role.Button, onClickLabel = chipLabel) { onSelect(option) }
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = chipLabel,
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 13.sp,
+                    color = if (isSelected) HomeTokens.onAccentDeep else HomeTokens.textPrimary,
+                )
+            }
+        }
+    }
+}
 
 /** The Midnight switch: Sapphire track at rest, dark thumb (the Enter-key weight). */
 @Composable

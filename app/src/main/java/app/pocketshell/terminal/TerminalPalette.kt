@@ -20,7 +20,20 @@ import com.termux.terminal.TextStyle
  */
 object TerminalPalette {
 
-    fun applyDefaults(light: Boolean = false) {
+    /**
+     * The base three (foreground/background/cursor) may be overridden per
+     * theme identity: every theme's [canvas] tone differs, and the terminal
+     * session scheme MUST stay byte-identical to the Compose backdrop token
+     * behind the TerminalView. The 16 ANSI hues stay the shared
+     * Sapphire-tuned set — default-text contrast is what per-theme tuning
+     * guarantees.
+     */
+    fun applyDefaults(
+        light: Boolean = false,
+        backgroundOverride: Int? = null,
+        foregroundOverride: Int? = null,
+        cursorOverride: Int? = null,
+    ) {
         val c = TerminalColors.COLOR_SCHEME.mDefaultColors
         if (light) {
             c[TextStyle.COLOR_INDEX_FOREGROUND] = 0xFF17233B.toInt()
@@ -67,6 +80,9 @@ object TerminalPalette {
             c[14] = 0xFF74CFDE.toInt() // bright cyan
             c[15] = 0xFFE6EEFA.toInt() // bright white
         }
+        backgroundOverride?.let { c[TextStyle.COLOR_INDEX_BACKGROUND] = it }
+        foregroundOverride?.let { c[TextStyle.COLOR_INDEX_FOREGROUND] = it }
+        cursorOverride?.let { c[TextStyle.COLOR_INDEX_CURSOR] = it }
     }
 
     /**
