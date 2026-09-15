@@ -10,44 +10,62 @@ import org.junit.Test
  */
 class AppearanceDensityTest {
 
-    // ---- icons per row -----------------------------------------------------
+    // ---- responsive columns (Control Center II model) ----------------------
 
     @Test
-    fun `the width ladder is the historical responsive density`() {
-        assertEquals(3, HomeGridDensity.columnsForWidth(360f))
-        assertEquals(3, HomeGridDensity.columnsForWidth(411f))
-        assertEquals(3, HomeGridDensity.columnsForWidth(599f))
-        assertEquals(4, HomeGridDensity.columnsForWidth(600f))
-        assertEquals(4, HomeGridDensity.columnsForWidth(720f))
-        assertEquals(6, HomeGridDensity.columnsForWidth(840f))
-        assertEquals(6, HomeGridDensity.columnsForWidth(1280f))
+    fun `AUTO gives phones the historical 3 and fills tablets instead of idling`() {
+        // phone (411dp window → 371dp usable): ~110dp cells → 3, unchanged
+        assertEquals(3, HomeGridDensity.autoColumns(411f, 52))
+        // large phone / small foldable (500dp → 460 usable): 4 comfortable cells
+        assertEquals(4, HomeGridDensity.autoColumns(500f, 52))
+        // foldable inner / small tablet (600dp): 5 — no more dead space
+        assertEquals(5, HomeGridDensity.autoColumns(600f, 52))
+        // tablet content width (720dp cap → 680 usable): 6
+        assertEquals(6, HomeGridDensity.autoColumns(840f, 52))
     }
 
     @Test
-    fun `AUTO follows the width exactly`() {
-        assertEquals(3, HomeGridDensity.effectiveColumns(IconColumns.AUTO, 411f))
-        assertEquals(4, HomeGridDensity.effectiveColumns(IconColumns.AUTO, 600f))
-        assertEquals(6, HomeGridDensity.effectiveColumns(IconColumns.AUTO, 840f))
+    fun `AUTO re-derives for the chosen icon size`() {
+        // extra-large icons need room: a phone drops to 2 comfortable columns
+        assertEquals(2, HomeGridDensity.autoColumns(411f, 72))
+        // small icons on the same phone stay comfortable at 3+
+        assertTrue(HomeGridDensity.autoColumns(411f, 44) >= 3)
     }
 
     @Test
-    fun `an explicit preference is capped by the width`() {
-        // a phone (≤600dp) never gets squeezed past 3; tablets get what fits
-        assertEquals(3, HomeGridDensity.effectiveColumns(IconColumns.FIVE, 411f))
-        assertEquals(4, HomeGridDensity.effectiveColumns(IconColumns.SIX, 600f))
-        assertEquals(6, HomeGridDensity.effectiveColumns(IconColumns.SIX, 840f))
-        assertEquals(5, HomeGridDensity.effectiveColumns(IconColumns.FIVE, 840f))
+    fun `an explicit request that fits MUST be honored (no hidden max 3)`() {
+        // THE regression the task names: 4 columns on a phone that can carry
+        // 4 must actually render 4
+        assertEquals(4, HomeGridDensity.effectiveColumns(IconColumns.FOUR, 411f, 52))
+        assertEquals(5, HomeGridDensity.effectiveColumns(IconColumns.FIVE, 500f, 52))
+        assertEquals(4, HomeGridDensity.effectiveColumns(IconColumns.FOUR, 411f, 44))
     }
 
     @Test
-    fun `an explicit preference below the width cap is honored`() {
-        assertEquals(2, HomeGridDensity.effectiveColumns(IconColumns.TWO, 1280f))
-        assertEquals(3, HomeGridDensity.effectiveColumns(IconColumns.THREE, 840f))
+    fun `a request denser than fits clamps at the fit, never below 2`() {
+        // 6 on a phone: cells would drop under the minimum → clamp to fit
+        assertEquals(4, HomeGridDensity.effectiveColumns(IconColumns.SIX, 411f, 52))
+        // 2 always fits something
+        assertEquals(2, HomeGridDensity.effectiveColumns(IconColumns.TWO, 240f, 72))
     }
 
     @Test
-    fun `columns never drop below two`() {
-        assertEquals(2, HomeGridDensity.effectiveColumns(IconColumns.TWO, 240f))
+    fun `icon size and columns interact - larger icons cap the fit`() {
+        val smallFit = HomeGridDensity.fitByWidth(411f, 44)
+        val largeFit = HomeGridDensity.fitByWidth(411f, 72)
+        assertTrue(largeFit < smallFit)
+        // 4 columns + Large icons on a tablet: no overlap, both fit
+        assertEquals(4, HomeGridDensity.effectiveColumns(IconColumns.FOUR, 840f, 62))
+    }
+
+    @Test
+    fun `tablet width carries every explicit request up to six`() {
+        for (pref in listOf(IconColumns.TWO, IconColumns.THREE, IconColumns.FOUR, IconColumns.FIVE, IconColumns.SIX)) {
+            assertEquals(
+                pref.requested,
+                HomeGridDensity.effectiveColumns(pref, 840f, 52),
+            )
+        }
     }
 
     @Test

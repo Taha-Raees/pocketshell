@@ -60,21 +60,71 @@ enum class IconColumns(val label: String, val requested: Int) {
 
 object HomeGridDensity {
 
-    /** Width-derived column maximums — the historical responsive ladder. */
-    fun columnsForWidth(maxWidthDp: Float): Int = when {
-        maxWidthDp >= 840f -> 6
-        maxWidthDp >= 600f -> 4
-        else -> 3
-    }
+    /** Home sections' side paddings (2 × 20dp) — the historical constant. */
+    const val PAGE_GUTTER_DP = 40f
+
+    /** Home launcher content max width (HomeTokens.contentMaxWidth, mirrored for the pure module). */
+    const val CONTENT_MAX_WIDTH_DP = 720f
 
     /**
-     * Effective icons per row: the user's preference, capped by what the
-     * width sensibly allows, floored at 2. AUTO = pure width-derived value.
+     * Per-cell gutter reserved around the icon+label INSIDE an entry
+     * (entry paddings + breathing room). Explicit column requests may pack
+     * down to this; AUTO wants more comfort.
      */
-    fun effectiveColumns(preference: IconColumns, maxWidthDp: Float): Int {
-        val byWidth = columnsForWidth(maxWidthDp)
-        if (preference == IconColumns.AUTO) return byWidth
-        return preference.requested.coerceIn(2, byWidth)
+    const val CELL_PADDING_DP = 24f
+
+    /** AUTO's comfort target on top of the icon (≈110dp cells at default 52dp icons). */
+    const val AUTO_CELL_COMFORT_DP = 58f
+
+    /** Column bounds — brief §5: 2..6, whatever the width genuinely fits. */
+    const val MIN_COLUMNS = 2
+    const val MAX_COLUMNS = 6
+
+    /** Cell width a column of [iconTileDp] icons needs at minimum. */
+    fun minCellWidthDp(iconTileDp: Int): Float = iconTileDp + CELL_PADDING_DP
+
+    /** The grid's usable width: content-capped, gutters removed. */
+    fun usableWidthDp(availableWidthDp: Float): Float =
+        availableWidthDp.coerceAtMost(CONTENT_MAX_WIDTH_DP) - PAGE_GUTTER_DP
+
+    /**
+     * requestedColumns → availableWidth → minimum comfortable cell width →
+     * actual columns (brief §5). The HARD fit: how many columns of
+     * [iconTileDp] icons can share the width without any cell dropping
+     * below its minimum.
+     */
+    fun fitByWidth(availableWidthDp: Float, iconTileDp: Int): Int =
+        (usableWidthDp(availableWidthDp) / minCellWidthDp(iconTileDp))
+            .toInt()
+            .coerceIn(MIN_COLUMNS, MAX_COLUMNS)
+
+    /**
+     * The AUTO baseline: comfortable ~110dp cells at default icon size,
+     * re-derived for the chosen icon size and clamped to the fit. Phones
+     * land at 3 (the historical density); tablets/foldables/DeX fill the
+     * width instead of idling at 3-of-6 columns of dead space.
+     */
+    fun autoColumns(availableWidthDp: Float, iconTileDp: Int): Int =
+        (usableWidthDp(availableWidthDp) / (iconTileDp + AUTO_CELL_COMFORT_DP))
+            .toInt()
+            .coerceIn(MIN_COLUMNS, MAX_COLUMNS)
+
+    /**
+     * The ONE column decision for the Home launcher grids.
+     *
+     * AUTO → the comfortable density for this width × icon size.
+     * Explicit 2..6 → honored WHENEVER the width can carry it (a request of
+     * 4 on a phone that fits 4 MUST show 4 — the retired behavior capped
+     * everything under 600dp to 3); denser-than-fits requests clamp
+     * gracefully at the fit instead of breaking the grid.
+     */
+    fun effectiveColumns(
+        preference: IconColumns,
+        availableWidthDp: Float,
+        iconTileDp: Int = 52,
+    ): Int = when (preference) {
+        IconColumns.AUTO -> autoColumns(availableWidthDp, iconTileDp)
+        else -> preference.requested.coerceIn(MIN_COLUMNS, fitByWidth(availableWidthDp, iconTileDp))
     }
 
     /**
@@ -83,7 +133,7 @@ object HomeGridDensity {
      * inner gutters) — the M7.1 P2.2 contract, now parameterized.
      */
     fun entryWidthDp(contentWidthDp: Float, columns: Int): Float =
-        (contentWidthDp - 40f) / columns
+        (contentWidthDp - PAGE_GUTTER_DP) / columns
 }
 
 // ---------------------------------------------------------- theme vocabulary
@@ -115,14 +165,18 @@ enum class ThemeMode(val label: String) {
 
 /** Pure JVM parser for the persisted mode string. "AMOLED" → DARK (honest degradation). */
 fun parseThemeMode(raw: String?): ThemeMode = when (raw) {
+    "SYSTEM" -> ThemeMode.SYSTEM
     "LIGHT" -> ThemeMode.LIGHT
     "DARK", "AMOLED" -> ThemeMode.DARK
-    else -> ThemeMode.SYSTEM
+    // Control Center II — the fresh-install identity is Aurora × DARK: the
+    // ABSENT-key (or unknown-value) fallback is DARK. An explicitly stored
+    // mode — System included — is returned verbatim, never overwritten.
+    else -> ThemeMode.DARK
 }
 
-/** Pure JVM parser for the persisted theme string. Unknown → the PocketShell identity. */
+/** Pure JVM parser for the persisted theme string. Unknown → the Aurora identity. */
 fun parseAppTheme(raw: String?): AppTheme =
-    AppTheme.entries.firstOrNull { it.name == raw } ?: AppTheme.POCKETSHELL
+    AppTheme.entries.firstOrNull { it.name == raw } ?: AppTheme.AURORA
 
 /** The single ThemeMode→dark decision, shared by the theme layer AND the status bar. */
 fun themeModeIsDark(mode: ThemeMode, systemInDark: Boolean): Boolean = when (mode) {

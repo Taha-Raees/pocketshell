@@ -338,10 +338,19 @@ private val CyberLight = ThemeVariant(
 )
 
 // ---------------------------------------------------------------------------
-// AURORA — original identity (task §4): deep polar night with the aurora's
-// green-teal/indigo sweep as the accent family. The ONLY theme with
-// [AppTheme.aurora] = true; its stops drive the shared animated layer.
-// Light ("Polar Dawn") is DERIVED: cold paper with deepened boreal accents.
+// AURORA — the DEFAULT PocketShell identity (fresh installs open on
+// Aurora × Dark) and the ONLY theme with [AppTheme.aurora] = true; its stops
+// drive the shared animated layer.
+//
+// Dark (the owner-approved device look, preserved): deep polar night with
+// the boreal green-teal / indigo / violet sweep as the accent family.
+//
+// Light ("Polar Dawn", redesigned in the Control Center II task): a
+// DEDICATED light palette, not an inversion — pale mint-sage surfaces,
+// deep aurora-teal ink and accent, with the sky/indigo/lilac half of the
+// aurora carried by the (deeper) light stop set so the sweep stays visible
+// on paper without harsh neon. Both variants share one visual language:
+// background wash → soft chrome → teal accent → aurora edges.
 // ---------------------------------------------------------------------------
 private val AuroraDark = ThemeVariant(
     screenBg = 0xFF0A1017, chrome = 0xFF0F1721,
@@ -355,15 +364,15 @@ private val AuroraDark = ThemeVariant(
     danger = 0xFFE96D87, runningGreen = 0xFF57C99B,
 )
 private val AuroraLight = ThemeVariant(
-    screenBg = 0xFFE5EDEA, chrome = 0xFFF3F8F6,
-    chromeGradientTop = 0xFFFAFDFC, chromeGradientBottom = 0xFFE9F0ED,
-    tabStrip = 0xFFDFE9E5, deck = 0xFFEEF4F1, canvas = 0xFFF6FAF8,
-    key = 0xFFFFFFFF, keyAlt = 0xFFF0F6F3, keyPressed = 0xFFDFE9E4, keyActive = 0xFFD5EBE4,
-    divider = 0xFFD3DFDA, textPrimary = 0xFF152A2E, textDim = 0xFF567379,
-    accent = 0xFF147A64, accentBright = 0xFF0E5F4F, accentDeep = 0xFF116B58,
-    enterGlyph = 0xFFF3F8F6, onAccentDeep = 0xFFE2F6F0,
-    onCanvas = 0xFF152A2E, onCanvasDim = 0xFF567379,
-    danger = 0xFFB3384E, runningGreen = 0xFF237B57,
+    screenBg = 0xFFE7F0EE, chrome = 0xFFF3F8F6,
+    chromeGradientTop = 0xFFFAFDFB, chromeGradientBottom = 0xFFEAF2EF,
+    tabStrip = 0xFFDFEAE6, deck = 0xFFF0F5F2, canvas = 0xFFF5FAF8,
+    key = 0xFFFFFFFF, keyAlt = 0xFFEFF5F2, keyPressed = 0xFFDEEAE5, keyActive = 0xFFD5EBE7,
+    divider = 0xFFCFDEDA, textPrimary = 0xFF14292E, textDim = 0xFF4F6E75,
+    accent = 0xFF0C7268, accentBright = 0xFF0A5A54, accentDeep = 0xFF0A5F58,
+    enterGlyph = 0xFFF3F8F6, onAccentDeep = 0xFFEAF7F4,
+    onCanvas = 0xFF14292E, onCanvasDim = 0xFF4F6E75,
+    danger = 0xFFBC3A55, runningGreen = 0xFF1D7A55,
 )
 
 /** The catalog: every identity MUST carry both variants (pinned by test). */
@@ -393,5 +402,16 @@ object ThemeCatalog {
         0xFF6C8CFF, // polar indigo
         0xFF9D6BFF, // dusk violet
         0xFF35E0C8, // ice teal
+    )
+
+    /**
+     * Light-variant stops: the same four hues DEEPENED so the sweep stays
+     * visible on pale mint paper — never a washed-out white-on-white effect.
+     */
+    val auroraStopsLight: List<Long> = listOf(
+        0xFF2EAF96, // boreal teal, deepened
+        0xFF6E86F2, // sky indigo
+        0xFF9F7BE0, // lilac
+        0xFF27C4AD, // mint cyan
     )
 }

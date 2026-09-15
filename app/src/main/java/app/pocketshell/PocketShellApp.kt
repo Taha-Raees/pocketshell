@@ -3,16 +3,21 @@ package app.pocketshell
 import android.app.Application
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.runtime.RuntimeManager
+import app.pocketshell.settings.AppTheme
 import app.pocketshell.terminal.ShellEnvironment
-import app.pocketshell.terminal.TerminalPalette
+import app.pocketshell.ui.theme.TerminalTheme
 
 class PocketShellApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Phase 3.1: Midnight Sapphire terminal palette must be in place
-        // BEFORE any TerminalEmulator is constructed (each emulator copies
-        // the static scheme defaults at creation — docs/PHASE-3.1-DESIGN.md).
-        TerminalPalette.applyDefaults()
+        // The terminal palette must be in place BEFORE any TerminalEmulator
+        // is constructed (each emulator copies the static scheme defaults at
+        // creation — docs/PHASE-3.1-DESIGN.md). Control Center II: the
+        // fresh-install identity is Aurora × Dark, so the process-start
+        // terminal scheme (and the chrome token snapshot) is Aurora-dark;
+        // the first PocketShellTheme composition re-syncs from the user's
+        // saved preference before any child composes (the no-flash contract).
+        TerminalTheme.applyTheme(AppTheme.AURORA, light = false)
         // Create the real per-app shell directories (HOME, TMPDIR) once.
         ShellEnvironment.ensureDirs(this)
         // Reconcile Linux runtime state from disk (M2.2) — derives the honest

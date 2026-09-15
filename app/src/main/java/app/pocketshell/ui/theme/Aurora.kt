@@ -128,16 +128,21 @@ fun rememberAuroraPhase(motionPolicy: AuroraMotionPolicy): State<Float> {
 
 /**
  * The aurora backdrop: four slow-orbiting radial washes drawn behind the
- * page content. Alpha is deliberately low (0.16 dark / 0.13 light) — the
- * effect must read as ambient polar light behind the chrome, never compete
- * with text. Applies only when [enabled].
+ * page content. Alpha is deliberately low — the effect must read as ambient
+ * polar light behind the chrome, never compete with text. The light variant
+ * uses the DEEPENED stop set (auroraStopsLight) so the sweep stays visible
+ * on pale paper instead of washing out.
  */
 fun Modifier.auroraBackdrop(enabled: Boolean, phase: State<Float>): Modifier = composed {
-    val stops = remember { ThemeCatalog.auroraStops.map { Color(it) } }
+    val stops = remember {
+        (if (TerminalTheme.isLight) ThemeCatalog.auroraStopsLight else ThemeCatalog.auroraStops)
+            .map { Color(it) }
+    }
     drawBehind {
         if (!enabled) return@drawBehind
         val p = phase.value
         val maxDim = maxOf(size.width, size.height)
+        val alpha = if (TerminalTheme.isLight) 0.17f else 0.16f
         stops.forEachIndexed { i, color ->
             val t = 2.0 * Math.PI * (p + i / stops.size.toDouble())
             val cx = size.width * (0.5 + 0.42 * sin(t)).toFloat()
@@ -145,10 +150,7 @@ fun Modifier.auroraBackdrop(enabled: Boolean, phase: State<Float>): Modifier = c
             val radius = maxDim * (0.42f + 0.1f * sin(t * 1.3).toFloat())
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(
-                        color.copy(alpha = if (TerminalTheme.isLight) 0.13f else 0.16f),
-                        Color.Transparent,
-                    ),
+                    colors = listOf(color.copy(alpha = alpha), Color.Transparent),
                     center = Offset(cx, cy),
                     radius = radius,
                 ),
@@ -158,6 +160,20 @@ fun Modifier.auroraBackdrop(enabled: Boolean, phase: State<Float>): Modifier = c
         }
     }
 }
+
+/**
+ * The terminal's Aurora scrim alpha (Control Center II §4): the terminal
+ * surface composites over the aurora backdrop through a translucent canvas
+ * tone so the environment stays visible behind/around the content. Aurora
+ * only — every other theme keeps the fully opaque canvas. Pure value, pinned
+ * by test; the vendored TerminalView paints NO default background itself
+ * (TerminalRenderer draws only non-default cell fills), so this Compose
+ * scrim IS the visible terminal background — no renderer change needed.
+ */
+const val AURORA_TERMINAL_SCRIM_ALPHA = 0.84f
+
+fun terminalScrimColor(isAurora: Boolean): Color =
+    TerminalTheme.canvas.copy(alpha = if (isAurora) AURORA_TERMINAL_SCRIM_ALPHA else 1f)
 
 /**
  * The aurora edge: a slowly circulating multi-stop stroke for IMPORTANT

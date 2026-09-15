@@ -40,8 +40,8 @@ import app.pocketshell.settings.themeModeIsDark
  */
 @Composable
 fun PocketShellTheme(
-    theme: AppTheme = AppTheme.POCKETSHELL,
-    mode: ThemeMode = ThemeMode.SYSTEM,
+    theme: AppTheme = AppTheme.AURORA,
+    mode: ThemeMode = ThemeMode.DARK,
     dynamicColor: Boolean = false,
     textScale: Float = TextScaleDefault,
     content: @Composable () -> Unit,

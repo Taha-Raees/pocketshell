@@ -32,10 +32,40 @@ class ThemeModeTest {
     }
 
     @Test
-    fun `mode parser falls back to SYSTEM on junk`() {
-        assertEquals(ThemeMode.SYSTEM, parseThemeMode(null))
-        assertEquals(ThemeMode.SYSTEM, parseThemeMode(""))
-        assertEquals(ThemeMode.SYSTEM, parseThemeMode("NEON"))
+    fun `mode parser falls back to DARK on absence or junk (fresh-install default)`() {
+        // Control Center II: Aurora × Dark is the fresh-install identity —
+        // the absent-key fallback is DARK, never a crash and never SYSTEM.
+        assertEquals(ThemeMode.DARK, parseThemeMode(null))
+        assertEquals(ThemeMode.DARK, parseThemeMode(""))
+        assertEquals(ThemeMode.DARK, parseThemeMode("NEON"))
+    }
+
+    @Test
+    fun `an explicitly saved mode is NEVER overwritten by the default`() {
+        // every current value round-trips verbatim — the fallback only
+        // applies to keys that are absent/unknown
+        assertEquals(ThemeMode.SYSTEM, parseThemeMode("SYSTEM"))
+        assertEquals(ThemeMode.LIGHT, parseThemeMode("LIGHT"))
+        assertEquals(ThemeMode.DARK, parseThemeMode("DARK"))
+    }
+
+    @Test
+    fun `fresh-install theme default is AURORA and saved identities are preserved`() {
+        assertEquals(AppTheme.AURORA, parseAppTheme(null))
+        assertEquals(AppTheme.AURORA, parseAppTheme(""))
+        // saved preferences — including the historical default — win
+        assertEquals(AppTheme.NORD, parseAppTheme("NORD"))
+        assertEquals(AppTheme.POCKETSHELL, parseAppTheme("POCKETSHELL"))
+        assertEquals(AppTheme.AURORA, parseAppTheme("AURORA"))
+        // unknown junk falls back to the fresh-install identity
+        assertEquals(AppTheme.AURORA, parseAppTheme("NEON"))
+    }
+
+    @Test
+    fun `Aurora x Dark composes - the default pair resolves to a dark aurora`() {
+        // the exact fresh-install pair: aurora identity, mode DARK
+        assertTrue(AppTheme.AURORA.aurora)
+        assertTrue(themeModeIsDark(parseThemeMode(null), systemInDark = false))
     }
 
     @Test
@@ -60,13 +90,10 @@ class ThemeModeTest {
     }
 
     @Test
-    fun `identity parser round-trips and falls back to PocketShell`() {
+    fun `identity parser round-trips every identity`() {
         AppTheme.entries.forEach { theme ->
             assertEquals(theme, parseAppTheme(theme.name))
         }
-        assertEquals(AppTheme.POCKETSHELL, parseAppTheme(null))
-        assertEquals(AppTheme.POCKETSHELL, parseAppTheme("AMOLED"))
-        assertEquals(AppTheme.POCKETSHELL, parseAppTheme("nord"))
     }
 
     @Test

@@ -20,11 +20,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val repo = SettingsRepository(application)
 
+    // Control Center II — the FRESH-INSTALL identity is Aurora × Dark: the
+    // initial StateFlow values below (shown until DataStore's first emit)
+    // and the repository parsers' absent-key fallbacks agree, so a new
+    // install opens on Aurora from the first frame and a saved preference
+    // (any theme/mode) simply overrides it.
     val theme: StateFlow<AppTheme> = repo.theme.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), AppTheme.POCKETSHELL,
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), AppTheme.AURORA,
     )
     val themeMode: StateFlow<ThemeMode> = repo.themeMode.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM,
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.DARK,
     )
     val dynamicColor: StateFlow<Boolean> = repo.dynamicColor.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), false,

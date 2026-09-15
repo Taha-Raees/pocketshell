@@ -3798,3 +3798,80 @@ use whatever the install already has configured.
 
 Verdict: PASS = all eighteen hold on the device with screenshots at
 steps 1, 2, 5, 6, 7, 10, 13, 14.
+
+## §60 — Control Center II gate: Aurora default, Light Aurora, translucent terminal, responsive grid
+
+Prerequisites: the M7.3-Z Control Center II build (ledger: docs/
+ARTIFACT_NAMING.md) installed on the ARM64 device (install target: Galaxy
+Tab S7 SM_T870). For the FRESH-STATE checks either wipe app data or use a
+profile without a saved PocketShell appearance preference.
+
+### A — Fresh/default state
+
+1. Fresh install (or cleared data) → launch. EXPECT Aurora (dark) from the
+   FIRST frame — aurora wash on Home, teal accent, no PocketShell-blue
+   flash before it.
+2. Settings → Appearance. EXPECT Theme = Aurora, Mode = Dark.
+
+### B — Home under Aurora
+
+3. Home shows the animated aurora backdrop (slow ≈26 s drift), aurora
+   edges on the Terminal/Linux hero tiles, and NO dead horizontal space:
+   launcher rows fill the width (AUTO density, ~110dp cells).
+
+### C — Columns genuinely apply
+
+4. Appearance → Layout: pick 4. Back on Home (this device width): EXPECT
+   exactly 4 icons per row in BOTH Companions and Your tools. Pick 5, 6,
+   then 2 — the visible count MUST match the pick while cells stay ≥
+   their minimum (a too-dense pick clamps at the fit, never breaks).
+5. Scroll the tools rows: pagination dots + x-scroll behave exactly as
+   before, just with the chosen page width.
+
+### D — Icon size × columns
+
+6. Icons: Small / Default / Large / Extra large at 4 columns. EXPECT no
+   overlap or clipping; labels ellipsize; combinations that cannot fit
+   clamp columns gracefully (check 6 + Extra large on the narrow axis).
+
+### E — Light Aurora
+
+7. Mode → Light with Aurora selected. EXPECT the dedicated Polar Dawn
+   palette: pale mint surfaces, deep teal ink/accent, the aurora sweep
+   still VISIBLE (deeper light stops) but text fully readable. NOT an
+   inversion, NOT washed out.
+
+### F — Terminal belongs to the environment
+
+8. Open a terminal under Dark Aurora. EXPECT the aurora subtly visible
+   through/around the terminal surface (≈84%-opaque scrim) and around its
+   edges; text/cursor/ANSI output fully readable; scrolling, selection,
+   keyboard deck unchanged.
+9. Switch to Light Aurora: the terminal sits on the light paper surface,
+   still integrated (scrimmed), still readable.
+10. Switch to a non-Aurora theme (e.g. Nord): terminal canvas is OPAQUE
+    again (pre-Control-Center-II behavior for other themes).
+
+### G — Other themes intact
+
+11. Cycle several identities (PocketShell, Nord, Dracula, Solarized) ×
+    Light/Dark — all render both variants as in Control Center I.
+
+### H — Persistence
+
+12. Set theme/mode/columns/icon size/card size to non-defaults; kill and
+    reopen PocketShell (and rotate once). EXPECT every value restored.
+13. CRITICAL migration check: with an EXPLICITLY saved non-Aurora theme
+    (e.g. NORD) and mode SYSTEM, kill + reopen. EXPECT Nord × System
+    preserved — the Aurora default must never overwrite saved prefs.
+
+### I — Regression
+
+14. Companion launch, CLI tool launch, custom tool, terminal spawn,
+    Files, session switching — all behave exactly as before the grid
+    refactor (hide/show from Settings still filters Home; custom tools
+    still verify-then-launch).
+
+Verdict: PASS = all fourteen hold; screenshot 1 (fresh Aurora first
+frame), 3 (Home full-width), 4 (4 columns), 7 (Light Aurora), 8 (terminal
+under Dark Aurora) and 13 (Nord preserved).

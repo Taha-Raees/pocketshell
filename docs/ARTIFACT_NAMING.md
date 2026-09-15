@@ -96,6 +96,15 @@ is a new ledger row with its own SHA-256.
 - tests:       full :app:testDebugUnitTest 1012 tests — 4 failures, ALL the pre-existing environment baseline on this aarch64 box (root-UID /proc denial ×3, /proc self-visibility ×1; identical set on pristine main fe45250); +24 new Control Center suites green (ThemeCatalogContrastTest 20-palette readability matrix, ThemeModeTest, AppearanceDensityTest, AuroraMotionTest, AppearanceSettingsContractTest); existing source-pin suites (HomeLauncherRowsTest, LauncherRowLayoutTest, ExternalKeyboardIntegrationTest) green
 - device gate: PARTIAL — `adb install -r` Success on Galaxy Tab S7 SM_T870 (2026-09-14, network adb); interactive §59 gate NOT yet run (device dropped off adb mid-gate — hotspot doze); owner to run docs/TESTING.md §59 (18 steps). APK staged at /tmp/M7.3-Z.apk on the workstation
 
+### M7.3-Z.apk (agent Z — Control Center II: Aurora default + responsive grid + terminal Aurora)
+- date:        2026-09-15
+- git:         Control Center II implementation commit on agent-Z/settings-control-center (see worklog Task 51 continuation for the exact sha)
+- agent:       Z — Agent Z (ZCode)
+- workstream:  Control Center II — Aurora × Dark fresh-install default, dedicated Light Aurora palette (+ light aurora stops), terminal Aurora scrim (translucent surface, no renderer change), responsive Home grid (requested→width→min-cell→actual columns)
+- apk sha256:  94786ddd828ec17f8571ca5d727080b179fb8e971b8ea419a4c642d494b9e9a3
+- tests:       full :app:testDebugUnitTest 1022 tests — the SAME 4 pre-existing aarch64 environment failures only; +10 updated/new suites for CC-II (fresh-default + saved-pref preservation, responsive columns, icon×column fit, aurora scrim + light palette)
+- device gate: NOT RUN — Tab SM_T870 unreachable (off hotspot) at delivery; owner to run docs/TESTING.md §60 (14 steps incl. the saved-preference migration check). APK staged at /tmp/M7.3-Z-cc2.apk
+
 ## 6. Integration builds
 
 The unsuffixed `M<...>.apk` continues to be produced by the existing

@@ -181,11 +181,11 @@ fun HomeScreen(
             .background(TerminalTheme.screenBg)
             .auroraBackdrop(TerminalTheme.isAurora, auroraPhase),
     ) {
-        // M7.1 P2.2 + Control Center: the user's icons-per-row preference,
-        // capped by what the width sensibly allows (AUTO = the historical
-        // width-derived density). The pure math lives in HomeGridDensity
-        // (JVM-test-pinned); this is only its Dp application.
-        val columns = HomeGridDensity.effectiveColumns(iconColumns, maxWidth.value)
+        // M7.1 P2.2 + Control Center II: requested columns → available width
+        // → minimum comfortable cell → actual columns. The user's choice is
+        // honored whenever the width can carry it (icon-size-aware); only
+        // denser-than-fits requests clamp (HomeGridDensity, JVM-pinned).
+        val columns = HomeGridDensity.effectiveColumns(iconColumns, maxWidth.value, iconSize.tileDp)
         // M7.1 P2.2 — the fixed launcher-entry width for the x-scroll rows:
         // one page of `columns` entries exactly fills the content width
         // (entries carry their own inner gutters), the same density the old

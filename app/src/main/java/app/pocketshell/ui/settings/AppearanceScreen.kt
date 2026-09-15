@@ -250,8 +250,9 @@ fun AppearanceScreen(
                     .padding(horizontal = 20.dp, vertical = 6.dp),
             ) {
                 Text(
-                    text = "Icons per row — Auto follows your screen width; " +
-                        "a chosen count is capped to what fits.",
+                    text = "Icons per row — Auto fills your screen comfortably; " +
+                        "a chosen 2–6 is used whenever it fits and clamped when " +
+                        "it can't.",
                     style = MaterialTheme.typography.bodySmall,
                     color = HomeTokens.textDim,
                 )
@@ -387,7 +388,7 @@ private fun SwatchDot(color: Color) {
 /** The icons-per-row preview: the effective count, drawn as launcher tiles. */
 @Composable
 private fun GridPreview(preference: IconColumns) {
-    val columns = HomeGridDensity.effectiveColumns(preference, maxWidthDp = 380f)
+    val columns = HomeGridDensity.effectiveColumns(preference, availableWidthDp = 380f, iconTileDp = 34)
     Row(
         modifier = Modifier
             .fillMaxWidth()
