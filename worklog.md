@@ -2626,3 +2626,54 @@ Stage Summary:
   behavior surface are preserved. The Home launcher finally uses its
   real width: the column count is a genuine function of the request,
   the width and the icon size.
+
+SMALL-ITERATION RECORD (Task 51 continuation 2, Agent Z, 2026-09-15,
+same branch agent-Z/settings-control-center; owner confirmed CC-I/CC-II
+"working, themes look great" and commissioned three focused iterations —
+each its own commit, each pushed, per the agreed small-iteration cadence):
+
+- ITER 1 (b143678) — remove the parked [⌨] keyboard button from Home:
+  Home has NO typeable surface (zero text fields), so the reopen button
+  was pure noise there. Kept on every other screen (Terminal reopens via
+  canvas tap; Files/Editor/Companion keep the parked button) — no reopen
+  affordance lost. One-line condition change in MainActivity.
+- ITER 2 (2f6c3c9) — recent-opened folder on Home, ABOVE the Files row,
+  with the Files rows' own 3-dot affordance:
+  * Recording: FilesViewModel collects state.areaId+path (path moves ONLY
+    on a successful listing — ExplorerCore.listInto's Ok branch); drop(1)
+    skips the process-start landing area so a restart never overwrites the
+    record with /root before the user opens anything.
+  * Persistence: three raw-string keys in the SAME settings DataStore
+    (recent_folder_area_kind/area_key/path). files/RecentFolder.kt owns
+    the typed model; deserialization ALWAYS revalidates the path through
+    PathSafety — a corrupt record degrades to "no recent folder", never
+    to an unvalidated path.
+  * UI: RecentFolderRow (Files-launcher-row language: icon plate, name,
+    storageLabel · path) + DropdownMenu: Open (switches area when it
+    still exists, then openDirectory), Open in Terminal (guest-Linux only
+    — the SAME openTerminalHereProblem gate as the Files sheet; routes
+    through openLinuxShellAt), Remove from Home (clears the record —
+    hide-only, never deletes anything).
+- ITER 3 (f5101a2) — Terminal button in the Files toolbar, beside search:
+  FilesViewModel.terminalLaunchHere() resolves the BROWSED location
+  itself (the row sheet's action resolves a TAPPED child — p7.1's
+  "never the browsed parent" distinction preserved on both paths now).
+  Header button in the exact Box+Icon header language, between select
+  and search; hidden during search mode and hidden honestly outside
+  guest-Linux areas. MainActivity resolves Ready → openLinuxShellAt and
+  navigates only when the session really exists.
+- VERIFICATION (per owner: no APK build / no full gate this round):
+  compileDebugKotlin green on each iteration; RecentFolderStoreTest +
+  files/* suites + the source-pin suites (HomeLauncherRows,
+  ExternalKeyboardIntegration, TerminalLaunch) green. NOT verified on
+  device yet — the three iterations fold into the owner's next device
+  pass (§59/§60 still pending there too). No APK staged; no ledger row
+  (no artifact delivered).
+
+Stage Summary:
+- Home loses its only dead control, gains the user's working context
+  (recent folder, one tap back into it, one tap into a terminal in it),
+  and Files gains the same one-tap terminal entry point in its toolbar.
+  All three changes ride existing architecture: the shared launcher row
+  language, the p7.1 terminal-launch gate, and the one settings
+  DataStore.
