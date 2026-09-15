@@ -114,6 +114,15 @@ is a new ledger row with its own SHA-256.
 - tests:       full :app:testDebugUnitTest 1036 tests at 9f27e9f — the SAME 4 pre-existing aarch64 environment failures only (root-UID /proc denial ×3, /proc self-visibility ×1); all new suites green (ToolInstallCatalog, RecentFolderStore, CC-I/CC-II appearance/density/scrim/contrast suites)
 - device gate: NOT RUN on this build — owner to verify on device: §59/§60 pending gates PLUS the iteration-4 gates: tap an uninstalled tool (one-click install session, e.g. Cline), then the two new installers end-to-end (agy via the glibc manifest; zcode via the unofficial client)
 
+### M7.3-Z.apk (agent Z — self-build #3: aurora-leak + drag-handle fixes)
+- date:        2026-09-15
+- git:         64f7264 (agent-Z/settings-control-center)
+- agent:       Z — Agent Z (ZCode)
+- workstream:  owner device-report fixes — (1) aurora visible on non-aurora themes (Terminal/Files top+bottom): aurora gating moved to DRAW-TIME snapshot reads (isAurora read inside drawBehind; frame loop advances only while aurora active — also a battery win), (2) Companion drag-bar touch target narrowed from full screen width to the 72dp bar
+- apk sha256:  bd89f6331e40287c0ec0f4fe8e7045707f82c85ae13e72edc95ab5b14d8e27d8
+- tests:       compileDebugKotlin + ui.theme suites + HomeLauncherRows source pins green; compile-level only otherwise (small-fix cadence)
+- device gate: OWNER — verify: Solarized/Nord/Dracula show ZERO aurora wash anywhere (esp. Terminal + Files edges), Aurora animates as before, Appearance's Aurora card preview still glows under other themes; Companion drag bar resizes only when grabbed on the bar itself (72dp) — content on both edges receives its own touches again
+
 ## 6. Integration builds
 
 The unsuffixed `M<...>.apk` continues to be produced by the existing
