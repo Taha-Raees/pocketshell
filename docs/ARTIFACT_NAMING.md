@@ -98,7 +98,7 @@ is a new ledger row with its own SHA-256.
 
 ### M7.3-Z.apk (agent Z — Control Center II: Aurora default + responsive grid + terminal Aurora)
 - date:        2026-09-15
-- git:         Control Center II implementation commit on agent-Z/settings-control-center (see worklog Task 51 continuation for the exact sha)
+- git:         c14ea22 (agent-Z/settings-control-center)
 - agent:       Z — Agent Z (ZCode)
 - workstream:  Control Center II — Aurora × Dark fresh-install default, dedicated Light Aurora palette (+ light aurora stops), terminal Aurora scrim (translucent surface, no renderer change), responsive Home grid (requested→width→min-cell→actual columns)
 - apk sha256:  94786ddd828ec17f8571ca5d727080b179fb8e971b8ea419a4c642d494b9e9a3

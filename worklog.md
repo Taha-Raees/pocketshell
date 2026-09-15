@@ -2578,3 +2578,51 @@ Stage Summary:
   agent-B/m7.2-notifications and agent-Z/phase4-terminal-audit branches
   (verified ZERO file overlap between this branch and phase4; clean
   merges expected).
+
+CONTROL CENTER II RECORD (Task 51 continuation, Agent Z, 2026-09-15,
+same branch agent-Z/settings-control-center, owner directive: "Aurora
+default + responsive Home grid + terminal Aurora"):
+
+- AURORA DEFAULT: fresh installs open on Aurora × Dark from the first
+  frame — the absent-key parser fallbacks (parseAppTheme/parseThemeMode),
+  the ViewModel initial StateFlow values and the process-start terminal
+  palette (PocketShellApp → TerminalTheme.applyTheme(AURORA, dark)) all
+  agree. An explicitly saved preference — INCLUDING the literal "SYSTEM"
+  mode and the historical POCKETSHELL identity — parses verbatim and is
+  never overwritten (pinned by ThemeModeTest).
+- LIGHT AURORA: dedicated "Polar Dawn" palette (pale mint surfaces, deep
+  teal ink/accent) replacing the derived inversion, plus a DEEPENED light
+  stop set (ThemeCatalog.auroraStopsLight) with its own backdrop alpha so
+  the sweep stays visible on paper. Contrast-tested like every palette.
+- TERMINAL AURORA: TerminalRenderer only paints NON-default cell fills —
+  the terminal's visible ground is the Compose container behind the view.
+  So the integration is a scrim, not a renderer change: TerminalScreen's
+  root now carries the shared aurora backdrop and the terminal surface
+  composites over it at 84% opacity (terminalScrimColor, Aurora only).
+  Zero PTY/ANSI/selection/scroll changes; non-Aurora themes keep the
+  opaque canvas (pinned by AuroraTerminalIntegrationTest).
+- RESPONSIVE GRID: the "stuck at 3" cause was the Control Center I cap —
+  effectiveColumns coerced every explicit request into the old
+  3/4/6-by-width ladder (<600dp meant 3, hard floor). Replaced with the
+  brief's model: requested → available width → minimum comfortable cell
+  (icon-size-aware) → actual columns. Explicit 4 on a phone that fits 4
+  now renders 4; AUTO re-derives from the icon size (~110dp cells) and
+  fills tablets (phones keep 3; foldables 5; tablet-width 6). Pagination,
+  x-scroll, chunked(2) source pins, hidden/custom launcher behavior and
+  touch targets are untouched.
+- VERIFICATION: full suite 1022 tests — the same 4 pre-existing aarch64
+  environment failures only (zero regressions); assembleDebug green;
+  M7.3-Z.apk (CC-II) sha256 94786ddd…9e9a3 at /tmp/M7.3-Z-cc2.apk; ledger
+  row updated. Tab SM_T870 UNREACHABLE at delivery (off hotspot, doze) —
+  docs/TESTING.md §60 (14 steps, incl. the saved-preference migration
+  check) is the owner-runnable gate. Known limits: the aurora-through-
+  terminal effect is a constant scrim (not a live blur), and screen-wide
+  reverse-video (rare) still paints opaque per the vendored renderer.
+
+Stage Summary:
+- A fresh install now opens as a cohesive Aurora workstation — aurora
+  backdrop, aurora edges, aurora-tinted terminal — while every saved
+  preference, all nine other themes, and the whole launcher/terminal
+  behavior surface are preserved. The Home launcher finally uses its
+  real width: the column count is a genuine function of the request,
+  the width and the icon size.
