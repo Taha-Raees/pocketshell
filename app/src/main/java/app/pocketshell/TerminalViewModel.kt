@@ -11,6 +11,7 @@ import app.pocketshell.apps.guestLaunchChainWithRecords
 import app.pocketshell.apps.guestTerminalChain
 import app.pocketshell.apps.ToolInstallCatalog
 import app.pocketshell.apps.guestInstallChain
+import app.pocketshell.apps.guestInstallScriptChain
 import app.pocketshell.apps.probeName
 import app.pocketshell.launchers.CustomTool
 import app.pocketshell.launchers.commandHead
@@ -419,7 +420,8 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
             }
             when {
                 execPath != null -> openCommandApp(app, onReady)
-                spec?.command != null -> installCommandApp(app, spec.command!!, onReady)
+                spec?.command != null -> installCommandApp(app, spec.command!!, spec.attribution, null, onReady)
+                spec?.script != null -> installCommandApp(app, null, spec.attribution, spec.script!!, onReady)
                 else -> safeFailure(
                     app.displayName + " is not installed (verified with the real guest shell) " +
                         "and cannot be installed from here. " +
@@ -436,7 +438,13 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
      * silent anything. The session is a plain shell session (no agent
      * identity): an install is not the agent running.
      */
-    private fun installCommandApp(app: CommandApp, installLine: String, onReady: () -> Unit) {
+    private fun installCommandApp(
+        app: CommandApp,
+        installLine: String?,
+        attribution: String?,
+        installScript: String?,
+        onReady: () -> Unit,
+    ) {
         val application = getApplication<Application>()
         if (!PackageGateway.isRuntimeReady()) {
             safeFailure(
@@ -450,11 +458,21 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 val sysDataBinds = withContext(Dispatchers.IO) {
                     TerminalSessionManager.prepareLinuxSession(application)
                 }
-                val chain = guestInstallChain(
-                    displayName = app.displayName,
-                    installCommand = installLine,
-                    guestShell = ShellEnvironment.SHELL_PATH_GUEST,
-                )
+                val chain = when {
+                    installLine != null -> guestInstallChain(
+                        displayName = app.displayName,
+                        installCommand = installLine,
+                        guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                        attribution = attribution,
+                    )
+                    installScript != null -> guestInstallScriptChain(
+                        displayName = app.displayName,
+                        installScript = installScript,
+                        guestShell = ShellEnvironment.SHELL_PATH_GUEST,
+                        attribution = attribution,
+                    )
+                    else -> error("installCommandApp: exactly one of line/script is required")
+                }
                 var newId: Long? = null
                 val ok = withContext(Dispatchers.Main) {
                     try {

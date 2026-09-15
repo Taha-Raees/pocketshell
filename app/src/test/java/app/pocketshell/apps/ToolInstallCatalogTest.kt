@@ -21,17 +21,64 @@ class ToolInstallCatalogTest {
     }
 
     @Test
-    fun `installable specs carry a command and no note - honest specs the reverse`() {
+    fun `every installable spec carries EXACTLY ONE of command or script, never a failure note`() {
         ToolInstallCatalog.specsKeys().forEach { id ->
             val spec = ToolInstallCatalog.specFor(id)!!
-            if (spec.method == InstallMethod.NPM || spec.method == InstallMethod.SCRIPT) {
-                assertNotNull("$id: installable spec must carry a command", spec.command)
-                assertNull("$id: installable spec must not carry a failure note", spec.note)
-            } else {
-                assertNull("$id: $spec.method must NOT carry an executable command", spec.command)
-                assertTrue("$id: $spec.method must explain why", !spec.note.isNullOrBlank())
+            val hasCommand = spec.command != null
+            val hasScript = spec.script != null
+            assertTrue(
+                "$id: exactly one of command/script (command=${'$'}hasCommand script=${'$'}hasScript)",
+                hasCommand xor hasScript,
+            )
+            assertNull("$id: installable spec must not carry a failure note", spec.note)
+            // NPM specs always ride a command line; SCRIPT specs may carry
+            // either a one-line pipeline (hermes) or a full script (agy)
+            if (spec.method == InstallMethod.NPM) {
+                assertTrue("$id: NPM spec must carry a command", hasCommand)
+            }
+            spec.attribution?.let {
+                assertTrue("$id: attribution must be the validated form", it == ToolInstallCatalog.validateAttribution(it))
             }
         }
+    }
+
+    @Test
+    fun `zcode rides the UNOFFICIAL community client with the honest attribution`() {
+        val spec = ToolInstallCatalog.specFor("zcode")!!
+        assertEquals(InstallMethod.NPM, spec.method)
+        assertTrue(spec.command!!.contains("npm install -g zcode-app-cli"))
+        assertTrue(spec.attribution!!.contains("Unofficial"))
+        assertTrue(spec.attribution.contains("not affiliated with Z.ai"))
+    }
+
+    @Test
+    fun `agy installs from the OFFICIAL release manifest with sha512 verification`() {
+        val spec = ToolInstallCatalog.specFor("agy")!!
+        assertEquals(InstallMethod.SCRIPT, spec.method)
+        val script = spec.script!!
+        // the honest path: official manifest -> sha512 verify -> install -> prove
+        assertTrue(script.contains("manifests/linux_arm64.json"))
+        assertTrue(script.contains("sha512sum -c -"))
+        assertTrue(script.contains("install -m 0755"))
+        assertTrue(script.contains("agy --version"))
+        // no musl spoofing, no checksum skipping — the two things the
+        // ANTIGRAVITY-PLATFORM audit forbade
+        assertTrue(!script.contains("linux_arm64_musl"))
+        assertTrue(!script.lowercase().contains("--no-check"))
+    }
+
+    @Test
+    fun `the script transport chain round-trips the payload byte-for-byte`() {
+        val script = "set -e\necho one\nagy --version\n"
+        val chain = guestInstallScriptChain(
+            displayName = "Antigravity",
+            installScript = script,
+            guestShell = "/bin/sh",
+            attribution = "test note",
+        )
+        assertTrue("single line only", !chain.contains('\n'))
+        assertTrue(chain.contains("sh -x")) // every script line traced visibly
+        assertEquals(script, decodeInstallScriptPayload(chain))
     }
 
     @Test

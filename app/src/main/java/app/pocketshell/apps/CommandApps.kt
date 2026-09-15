@@ -334,16 +334,22 @@ fun availableCommandApps(paths: Map<String, String>): List<CommandApp> =
 // no sudo appears anywhere.
 
 /** How a registry tool's one-click install runs in the guest. */
-enum class InstallMethod { NPM, SCRIPT, NONE, UNSUPPORTED }
+enum class InstallMethod { NPM, SCRIPT }
 
 /**
  * The honest install story for one registry tool. Exactly one of [command]
- * (a full guest shell line) or [note] (why there is no installer) — pinned
- * by [CommandAppsTest].
+ * (a full guest shell line, strict charset) or [script] (a multi-line
+ * first-party POSIX script, transported base64-encoded and executed with
+ * `sh -x` so every line is traced visibly) — pinned by
+ * [ToolInstallCatalogTest]. [attribution] is the honest provenance line the
+ * install session echoes BEFORE anything runs (unofficial/forked installers
+ * must say so). [note] is reserved for tools with no installer at all.
  */
 data class ToolInstallSpec(
     val method: InstallMethod,
     val command: String? = null,
+    val script: String? = null,
+    val attribution: String? = null,
     val note: String? = null,
 )
 
@@ -364,6 +370,27 @@ object ToolInstallCatalog {
         if (trimmed.isEmpty() || trimmed.length > 512) return null
         if (trimmed.any { it == '\n' || it == '\r' || it == '\u0000' }) return null
         if (!commandCharset.matches(trimmed)) return null
+        return trimmed
+    }
+
+    /**
+     * Hygiene for a first-party install SCRIPT: content trust comes from it
+     * being a reviewed repo constant executed VISIBLY (sh -x traces every
+     * line); this check guards transport — bounded, single NUL/CR-free
+     * block, no backticks (command substitution goes through $( ) which is
+     * at least greppable in review).
+     */
+    fun validateScript(raw: String?): String? {
+        val trimmed = raw?.trim() ?: return null
+        if (trimmed.isEmpty() || trimmed.length > 8192) return null
+        if (trimmed.any { it == '\r' || it == '\u0000' || it == '`' }) return null
+        return trimmed
+    }
+
+    fun validateAttribution(raw: String?): String? {
+        val trimmed = raw?.trim() ?: return null
+        if (trimmed.isEmpty() || trimmed.length > 200) return null
+        if (trimmed.any { it == '"' || it == '`' || it == '\n' }) return null
         return trimmed
     }
 
@@ -406,16 +433,57 @@ object ToolInstallCatalog {
                     " | bash",
             ),
         ),
+        // Owner iteration 4b: the UNOFFICIAL community client — a Node
+        // launcher (bin `zcode`) wrapping the OFFICIAL ZCode Desktop agent
+        // runtime (kingsword09/zcode-cli; npm registry verified 2026-09-15:
+        // bin zcode, engines node >=22.19). Not affiliated with Z.ai — the
+        // attribution line says so in the install session.
         "zcode" to ToolInstallSpec(
-            method = InstallMethod.NONE,
-            note = "ZCode has no official command-line installer — " +
-                "install it through your Z.ai account setup.",
+            method = InstallMethod.NPM,
+            command = validateCommand(npmLine("zcode-app-cli")),
+            attribution = validateAttribution(
+                "Unofficial client - wraps the official ZCode runtime - " +
+                    "not affiliated with Z.ai",
+            ),
         ),
+        // Owner iteration 4b — ANTIGRAVITY INSTALLS AFTER ALL: the owner
+        // runs `agy` on this very phone. ANTIGRAVITY-PLATFORM.md's "cannot
+        // run" verdict (2026-09-04) predates the M6.0 dual-libc layer — the
+        // rootfs now carries the REAL Debian loader at canonical paths
+        // (docs/runtime/DUAL_LIBC.md), and the glibc arm64 binary is
+        // exactly what that layer serves (the same doc's qemu ladder
+        // proved the binary itself is valid under real glibc). The official
+        // install.sh still 404s on its musl manifest, so this spec installs
+        // DIRECTLY from the official release manifest: fetch, sha512-
+        // verify, extract, install as `agy`, prove with --version.
         "agy" to ToolInstallSpec(
-            method = InstallMethod.UNSUPPORTED,
-            note = "Antigravity cannot be installed here: upstream publishes no " +
-                "musl build for ARM64 and its glibc binary cannot run in this " +
-                "environment (docs/ANTIGRAVITY-PLATFORM.md).",
+            method = InstallMethod.SCRIPT,
+            script = validateScript(
+                """set -e
+                |command -v curl >/dev/null 2>&1 || apk add --no-cache curl tar
+                |M=https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_arm64.json
+                |curl -fsSL "${'$'}M" -o /tmp/agy-manifest.json
+                |U=${'$'}(sed -n 's/.*"url" *: *"\([^"]*\)".*/\1/p' /tmp/agy-manifest.json | head -n 1)
+                |S=${'$'}(sed -n 's/.*"sha512" *: *"\([^"]*\)".*/\1/p' /tmp/agy-manifest.json | head -n 1)
+                |[ -n "${'$'}U" ] || { echo "manifest: no url field"; exit 1; }
+                |[ -n "${'$'}S" ] || { echo "manifest: no sha512 field"; exit 1; }
+                |curl -fsSL "${'$'}U" -o /tmp/agy.tar.gz
+                |echo "${'$'}S  /tmp/agy.tar.gz" | sha512sum -c -
+                |R=/tmp/agy-install
+                |rm -rf "${'$'}R"
+                |mkdir -p "${'$'}R" /usr/local/bin
+                |tar -xzf /tmp/agy.tar.gz -C "${'$'}R"
+                |B=${'$'}(find "${'$'}R" -type f \( -name antigravity -o -name agy \) | head -n 1)
+                |[ -n "${'$'}B" ] || { echo "archive: antigravity binary not found"; exit 1; }
+                |install -m 0755 "${'$'}B" /usr/local/bin/agy
+                |rm -rf "${'$'}R" /tmp/agy.tar.gz /tmp/agy-manifest.json
+                |agy --version
+                """.trimMargin(),
+            ),
+            attribution = validateAttribution(
+                "Official Google CLI binary - direct manifest install - " +
+                    "runs via the PocketShell glibc layer",
+            ),
         ),
     )
 
@@ -436,9 +504,48 @@ fun guestInstallChain(
     displayName: String,
     installCommand: String,
     guestShell: String,
-): String =
-    "echo \"PocketShell · installing $displayName\"; " +
+    attribution: String? = null,
+): String {
+    val attributionEcho = attribution?.let { "echo \"note: $it\"; " } ?: ""
+    return "echo \"PocketShell · installing $displayName\"; " +
+        attributionEcho +
         "echo \"\$ $installCommand\"; " +
         "$installCommand; " +
         "echo; echo \"Install step finished — if it succeeded, tap the $displayName tile again to launch.\"; " +
         "exec $guestShell -l"
+}
+
+/**
+ * The SCRIPT install chain (multi-line first-party scripts): the script is
+ * transported BASE64-ENCODED — keeping the delivered chain itself inside the
+ * strict transport charset — decoded in the guest, and executed with
+ * `sh -x`, which TRACES EVERY LINE the script runs. Visible execution is the
+ * honesty contract: the user watches the whole script. [attribution] (when
+ * present) is echoed BEFORE anything runs. Pure and test-pinned: the
+ * decoded payload round-trips byte-for-byte.
+ */
+fun guestInstallScriptChain(
+    displayName: String,
+    installScript: String,
+    guestShell: String,
+    attribution: String? = null,
+): String {
+    val payload = java.util.Base64.getEncoder().withoutPadding().encodeToString(
+        installScript.toByteArray(Charsets.UTF_8),
+    )
+    val attributionEcho = attribution?.let { "echo \"note: $it\"; " } ?: ""
+    return "echo \"PocketShell · installing $displayName\"; " +
+        attributionEcho +
+        "printf %s $payload | base64 -d | sh -x; " +
+        "echo; echo \"Install step finished — if it succeeded, tap the $displayName tile again to launch.\"; " +
+        "exec $guestShell -l"
+}
+
+/** Decode side of [guestInstallScriptChain] — used by the round-trip pin test. */
+fun decodeInstallScriptPayload(chain: String): String? {
+    val marker = "printf %s "
+    val start = chain.indexOf(marker) + marker.length
+    val end = chain.indexOf(" | base64 -d", start)
+    if (start < marker.length || end <= start) return null
+    return String(java.util.Base64.getDecoder().decode(chain.substring(start, end)), Charsets.UTF_8)
+}
