@@ -605,4 +605,38 @@ class RuntimeProcessLauncherTest {
             )
         }
     }
+
+    /**
+     * Phase 4 (Agent Z audit, docs/PHASE-4-TERMINAL-AUDIT.md §J2): a guest
+     * working directory rides proot's own --cwd — ONE argv element, never
+     * parsed by any shell. This replaces the old `sh -l -c "cd -- '<dir>'
+     * && exec sh -l"` chain for plain directory launches ("Open Terminal
+     * Here"), which sourced the login profiles twice and carried the
+     * directory through shell quoting. Default (null/blank) keeps the
+     * pinned /root contract above.
+     */
+    @Test
+    fun `guestCwd rides the cwd flag verbatim`() {
+        val s = RuntimeProcessLauncher.buildLaunchSpec(
+            nativeLibraryDir = makeNativeDir().absolutePath,
+            rootfsDir = tmp.newFolder("rootfs"),
+            hostCwd = tmp.newFolder("cwd"),
+            prootTmpDir = tmp.newFolder("proot-tmp"),
+            guestCwd = "/root/Projects/pocketshell-agentZ",
+        )
+        assertTrue(s.arguments.contains("--cwd=/root/Projects/pocketshell-agentZ"))
+        assertFalse(s.arguments.contains("--cwd=/root"))
+    }
+
+    @Test
+    fun `blank guestCwd falls back to the pinned root cwd`() {
+        val s = RuntimeProcessLauncher.buildLaunchSpec(
+            nativeLibraryDir = makeNativeDir().absolutePath,
+            rootfsDir = tmp.newFolder("rootfs"),
+            hostCwd = tmp.newFolder("cwd"),
+            prootTmpDir = tmp.newFolder("proot-tmp"),
+            guestCwd = "   ",
+        )
+        assertTrue(s.arguments.contains("--cwd=/root"))
+    }
 }

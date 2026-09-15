@@ -242,6 +242,18 @@ public final class TerminalSession extends TerminalOutput {
         }
     }
 
+    /**
+     * Phase 4 J1 (docs/PHASE-4-TERMINAL-AUDIT.md §J1): the kernel-tracked foreground process group of this session's
+     * controlling terminal (TIOCGPGRP on the PTY master), or -1 when it cannot be resolved. A graceful close signals
+     * exactly this group — the terminal's foreground work — with SIGCONT+SIGHUP, mirroring what the kernel itself does
+     * when a PTY master closes. Deliberately detached descendants (own session/process group, e.g. {@code setsid})
+     * are NOT in this group and are not touched by it.
+     */
+    public synchronized int getForegroundProcessGroup() {
+        if (mShellPid <= 0) return -1;
+        return JNI.getForegroundProcessGroup(mTerminalFileDescriptor);
+    }
+
     /** Cleanup resources when the process exits. */
     void cleanupResources(int exitStatus) {
         synchronized (this) {

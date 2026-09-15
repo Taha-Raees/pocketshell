@@ -29,6 +29,13 @@ final class JNI {
     public static native void setPtyWindowSize(int fd, int rows, int cols, int cellWidth, int cellHeight);
 
     /**
+     * Phase 4 J1 (docs/PHASE-4-TERMINAL-AUDIT.md): the kernel-tracked foreground process group of the session's
+     * controlling terminal, resolved with TIOCGPGRP on the PTY master. Returns the process group id, or -1 when the
+     * ioctl fails. Lets a host request a graceful close that signals exactly the terminal's foreground work.
+     */
+    public static native int getForegroundProcessGroup(int fd);
+
+    /**
      * Causes the calling thread to wait for the process associated with the receiver to finish executing.
      *
      * @return if >= 0, the exit status of the process. If < 0, the signal causing the process to stop negated.

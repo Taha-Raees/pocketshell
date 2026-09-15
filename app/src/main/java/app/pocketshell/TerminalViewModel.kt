@@ -184,14 +184,17 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
      * This MIRRORS the proven [openLinuxShell] path exactly — same runtime
      * preflight, same `prepareLinuxSession` on IO, same `spawnLinuxSession`
      * on Main, same honest [launchError] refusals, `onReady` fires only when
-     * a real session was created and selected — with ONE difference: the PTY
-     * argv carries the directory through the guest shell chain
-     * ([guestTerminalChain]) instead of a bare login shell. That is the
-     * EXISTING command-app launch shape (`sh -l -c "<chain>"`, argv-based,
-     * never a PTY write — the m3.5 lesson) applied to `cd -- '<dir>' &&
-     * exec <shell> -l`, so the user lands at a real interactive prompt in
-     * the directory; no new PTY path, no session reuse, no writes into a
-     * running session. Existing sessions are untouched: a NEW session joins
+     * a real session was created and selected — with ONE difference: the
+     * guest directory rides proot's own `--cwd` (Phase 4 audit, Agent Z:
+     * one argv element, never shell-parsed — replacing the old
+     * `sh -l -c "cd -- '<dir>' && exec sh -l"` chain, which sourced the
+     * login profiles twice). The spawn is therefore a BARE login shell —
+     * the same shape as [openLinuxShell], one profile startup, and the
+     * directory travels as data to proot's chdir, not through any shell
+     * grammar. Command-app/custom-tool launches keep the
+     * [guestTerminalChain]/[guestCustomCommandChain] shapes — they genuinely
+     * need a shell line to run. Existing sessions are untouched: a NEW
+     * session joins
      * the list and is selected by the same spawn-and-select behavior as
      * every other launch.
      *
@@ -220,20 +223,15 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                     try {
                         val newId = TerminalSessionManager.spawnLinuxSession(
                             application,
-                            listOf(
-                                ShellEnvironment.SHELL_PATH_GUEST,
-                                "-l",
-                                "-c",
-                                guestTerminalChain(
-                                    directory = directory,
-                                    guestShell = ShellEnvironment.SHELL_PATH_GUEST,
-                                ),
-                            ),
+                            // Phase 4: bare login shell — the directory rides
+                            // proot's --cwd (guestCwd) instead of a cd chain.
+                            listOf(ShellEnvironment.SHELL_PATH_GUEST, "-l"),
                             GUEST_SESSION_LABEL,
                             sysDataBinds,
                             // M7.2 P2: Files' "Open Terminal Here" — its own origin,
                             // distinguishable from a plain Linux shell at spawn.
                             origin = SpawnOrigin.FilesTerminal,
+                            guestCwd = directory,
                         ).id
                         guestSessionIds.add(newId)
                         _selectedId.value = newId

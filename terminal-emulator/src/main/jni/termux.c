@@ -188,6 +188,20 @@ JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_setPtyWindowSize(JNIEnv* TER
     ioctl(fd, TIOCSWINSZ, &sz);
 }
 
+// Phase 4 J1 (docs/PHASE-4-TERMINAL-AUDIT.md): the kernel-tracked foreground
+// process group of the session's controlling terminal, resolved with
+// TIOCGPGRP on the PTY master. A graceful close signals exactly this group
+// (SIGCONT + SIGHUP, mirroring the kernel's own master-close semantics) —
+// never the whole guest process tree. Returns the pgrp, or -1 if the ioctl
+// fails or the group is not a real process group.
+JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_getForegroundProcessGroup(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint fd)
+{
+    int pgrp = -1;
+    if (fd < 0) return -1;
+    if (ioctl(fd, TIOCGPGRP, &pgrp) != 0) return -1;
+    return pgrp;
+}
+
 JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_setPtyUTF8Mode(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint fd)
 {
     struct termios tios;

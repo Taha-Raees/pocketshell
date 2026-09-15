@@ -1,0 +1,8 @@
+# NOT COLLECTED — run aborted.
+# The nested interactive login chain (proot + sh -l -c "exec /bin/sh -l")
+# stalled in guest profile sourcing at the second proot layer, and the
+# kill/waitpid path wedged under the outer tracer; the harness was stopped.
+# The app-shaped spawn number in the report (§E, ~118ms median) is the
+# nested.txt `session` line instead: proot + sh -l -c 'echo READY' at one
+# extra proot layer. See docs/PHASE-4-TERMINAL-AUDIT.md §D-§E and the
+# nested-environment caveats in README.md.
