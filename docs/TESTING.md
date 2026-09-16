@@ -3875,3 +3875,73 @@ profile without a saved PocketShell appearance preference.
 Verdict: PASS = all fourteen hold; screenshot 1 (fresh Aurora first
 frame), 3 (Home full-width), 4 (4 columns), 7 (Light Aurora), 8 (terminal
 under Dark Aurora) and 13 (Nord preserved).
+
+## §61 — Perf pass gate: Companion sheet drag + keyboard deck (A/B frame measurement)
+
+Prerequisites: the perf-pass build (branch
+`agent-Z/perf-companion-keyboard`, ledger row "M7.3-Z.apk (perf pass)",
+staged /tmp/M7.3-Z-perf.apk, sha256 5ec8c1f7…) AND the baseline build it
+must be compared against (main @ 82cd3f5, staged
+/tmp/M7.3-Z-perf-base.apk, sha256 de268150… — verified free of the
+perf-pass symbols; the GIT identity is authoritative, zip-level shas
+differ per build). Both APKs install over each other (`adb install -r`,
+same applicationId).
+Device: the same ARM64 phone or the Galaxy Tab S7 SM_T870. Helper:
+`scripts/runtime/devtools/companion-perf-gate` (install / launch / stop /
+measure — the script resets and parses `dumpsys gfxinfo`; the gestures
+are owner-driven, like every interactive gate).
+
+### A — Sheet drag A/B (the core gate)
+
+1. Install the BASELINE apk, launch, open a Companion (any real site),
+   raise the sheet to roughly half height via the handle.
+2. Run `companion-perf-gate measure 20`; during the wait perform ~10 slow
+   and ~10 fast handle drags (up AND down), several full collapse-and-back
+   cycles (crossing the threshold repeatedly), and one drag while the
+   page is actively scrolling. Note janky-frame share + 90th/95th/99th
+   percentiles.
+3. `stop`, install the PERF apk, repeat 1–2 with the SAME gesture mix.
+   EXPECT: visibly fewer janky frames during drag; the page must NEVER
+   reflow, blink, or detach from the sheet mid-drag (§9: the canvas is
+   only clipped while moving); dragging below the collapse threshold and
+   back up mid-gesture must NOT blank or pause the page (the old build
+   detached the WebView there).
+4. Release-below-threshold must now GLIDE closed (~220 ms), not vanish;
+   release elsewhere stays exactly where released (no snap points).
+5. Tap the bar: minimize / restore still work; restore animates open.
+6. Long-press a link / scroll / pinch-zoom inside the page during a
+   raised sheet: the WebView owns its gestures; the sheet must not fight
+   them (unchanged from baseline).
+
+### B — Keyboard deck A/B
+
+7. On the terminal screen with the deck open, run `measure 20` and type
+   rapidly: letter bursts, held-key auto-repeat, digits (hold layer),
+   ESC/TAB/arrows, CTRL+C / CTRL+L / CTRL+R, SHIFT combos — then repeat
+   while `yes` streams in a second session or a compile prints output.
+   EXPECT: no perceptible added latency vs baseline; under output load
+   the PERF build should hold up better (the terminal no longer
+   force-repaints on every unrelated recomposition).
+8. Modifier taps: tap CTRL once (one-shot), then type — EXPECT only the
+   CTRL button visibly animates; ALT/SHIFT stay static (no flicker).
+9. Visual regression: pressed-key feedback (darkening + scale) looks and
+   feels the same as baseline — the color tween moved to the draw phase,
+   the LOOK is unchanged.
+
+### C — Companion + deck interaction
+
+10. Focus a text field inside the Companion page: the shared deck opens;
+    the sheet rides ABOVE the deck; the page resizes once (reflow on the
+    inset change is expected and acceptable — it is a real resize, not
+    part of a gesture). Dismiss the deck; the sheet returns.
+11. Type into the page via the deck: characters must land in the WEBVIEW
+    input (KeyboardInputRouter routing unchanged).
+12. Physical keyboard regression (from the M7.1 contract): with a
+    Bluetooth keyboard connected the deck auto-hides and reconnect/
+    disconnect flapping does NOT thrash it (audit verdict: well
+    protected — verify nothing moved).
+
+Verdict: PASS = §A/3–5 hold, §B/7 shows no regression (or improvement)
+with correct visual feedback, §C holds. Record both builds' janky % and
+percentiles in the worklog. Automated frame numbers are a COMPARISON
+tool here; the hard PASS/FAIL criteria are the behavioral EXPECT lines.

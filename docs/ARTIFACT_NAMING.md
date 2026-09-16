@@ -123,6 +123,16 @@ is a new ledger row with its own SHA-256.
 - tests:       compileDebugKotlin + ui.theme suites + HomeLauncherRows source pins green; compile-level only otherwise (small-fix cadence)
 - device gate: OWNER — verify: Solarized/Nord/Dracula show ZERO aurora wash anywhere (esp. Terminal + Files edges), Aurora animates as before, Appearance's Aurora card preview still glows under other themes; Companion drag bar resizes only when grabbed on the bar itself (72dp) — content on both edges receives its own touches again
 
+### M7.3-Z.apk (agent Z — perf pass: Companion sheet drag + keyboard/terminal repaint)
+
+- date:        2026-09-16
+- git:         agent-Z/perf-companion-keyboard — perf commits d6fbaab (sheet) + 21763b4 (keyboard/terminal) + docs
+- agent:       Z — Agent Z (ZCode)
+- workstream:  Play-Store-blocker performance pass — (1) Companion sheet drag rebuilt on a deferred layout read (mutableFloatStateOf consumed ONLY in the canvas box's layout block): pointer moves invalidate layout alone — zero recomposition, zero WebView work per frame; canvas measures once per transition (CompanionHeights.canvasTarget, unit-pinned) and is only clipped while the sheet moves; raised/composition decisions key on SETTLED state — no more mid-gesture WebView detach + pauseAll when crossing the threshold; open/toggle/collapse animate ~220ms through the same layout-only path; release-below-threshold glides closed. (2) TerminalViewHost update no longer repaints the terminal on every recomposition (theme-generation + emulator-identity keyed; TerminalTheme.generation). (3) Deck key pressed-colors animate in draw phase (PSKey/EnterKey/ModifierButton drawBehind). (4) ModifierButtons subscribe per-slot. (5) clearOneShots early-out. NOT changed (deliberate): hold-keys dispatch on lift (m4.0.3 fix), external-keyboard visibility model, WebView settings (frozen render contract).
+- apk sha256:  5ec8c1f7c4e3e0dfbde0aaa4d6067cf19be3785541bab41a01842bc13917a7c1 (staged /tmp/M7.3-Z-perf.apk); A/B baseline main@82cd3f5 staged /tmp/M7.3-Z-perf-base.apk sha256 de2681507460e385000ec7e6f05b2bb8525309db313d599c20211f6920480312
+- tests:       full :app:testDebugUnitTest 1049 tests — only the SAME 4 pre-existing aarch64 environment failures (root-UID /proc denial x3, /proc self-visibility x1); new: CompanionHeights.canvasTarget pins (2) green; companion suite 42 green; keyboard suite 75 green
+- device gate: OWNER — docs/TESTING.md §61 (A/B frame measurement with scripts/runtime/devtools/companion-perf-gate): sheet drag jank% + percentiles baseline vs perf, no reflow/detach mid-drag, glide-close on collapse release, deck typing under load, one-shot modifier isolation, physical-keyboard regression
+
 ## 6. Integration builds
 
 The unsuffixed `M<...>.apk` continues to be produced by the existing

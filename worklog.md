@@ -2768,3 +2768,70 @@ Stage Summary:
   after the old audit, and ZCode installs through the unofficial
   community client with its status stated on-screen. All nine Home
   tools now genuinely install with one tap, visibly and honestly.
+
+## Task 52 — Perf pass: Companion sheet drag + keyboard/terminal repaint (agent-Z/perf-companion-keyboard)
+
+Agent Z (ZCode), 2026-09-15 → 09-16, branch `agent-Z/perf-companion-keyboard`
+based on main 82cd3f5. ONE focused performance iteration before the Play
+Store milestone: the internal Companion browser, the sheet drag, and the
+custom terminal keyboard. AUDIT FIRST → MEASURE → IMPLEMENT → MEASURE.
+
+- BASELINE: main 82cd3f5, version 0.13.0-m7.3 (code 49); full suite 1047
+  tests = the 4 known aarch64 env failures only. Static audit of the whole
+  Companion/sheet/keyboard path (CompanionLayer 841 lines, CompanionWebHost
+  546, TerminalKeyboard 617, KeyboardState, router, dispatcher,
+  TerminalScreen host, ExternalKeyboard model) plus a delegated read-only
+  keyboard audit whose every applied claim was re-verified in source.
+- SHEET (d6fbaab): the drag wrote a compose state per pointer move — the
+  whole layer recomposed every frame (AndroidView.update → present() with
+  it), and crossing the raised threshold MID-GESTURE detached the WebView
+  and fired pauseAll while the finger was down. The live fraction is now a
+  mutableFloatStateOf read ONLY inside the canvas box's layout block
+  (deferred read): a pointer move invalidates LAYOUT alone — no
+  recomposition, no diffing, no WebView work per frame; the sheet and the
+  page are one physical surface (the canvas is measured once per
+  transition at CompanionHeights.canvasTarget — unit-pinned — and only
+  clipped while moving; §9 semantics kept: 1:1 drag, stay-where-released,
+  no snap points, one settled write per release). Composition flips once
+  per gesture (dragActive / collapseAnimating); open/toggle/collapse
+  animate ~220 ms through the same layout-only path; a release below the
+  threshold GLIDES closed instead of vanishing; the first persisted
+  height snaps on process recreation (no entrance animation).
+- KEYBOARD/TERMINAL (21763b4): (1) TerminalViewHost's AndroidView.update
+  re-ran setBackgroundColor + mColors.reset() + invalidate() on EVERY
+  recomposition — an aurora tick, an inset change or a tab-bar change
+  behind the Companion forced a FULL terminal repaint on the UI thread;
+  now keyed on TerminalTheme.generation (bumped once per applyTheme, the
+  single palette mutation path) + the emulator instance applied (session
+  switch / late emulator creation still repaint). (2) PSKey/EnterKey/
+  ModifierButton pressed-color tweens animated in composition (~5
+  recompositions per tap at 60 Hz) — now read inside drawBehind (draw
+  phase only; look unchanged). (3) All three ModifierButtons collected
+  the whole modifier map — a one-shot clear after EVERY keypress
+  recomposed all three; each now subscribes to its own slot
+  (map + distinctUntilChanged, remembered per key). (4) clearOneShots
+  early-outs instead of allocating a throwaway map per keypress.
+- DELIBERATELY NOT CHANGED: hold-capable keys dispatching on lift (the
+  m4.0.3 "- key did nothing" product fix), the external-keyboard
+  visibility/debounce model (audit verdict: well protected — event-driven,
+  400 ms stability window + hard confirm + edge guards), WebView settings
+  (the m4.0.11 frozen render contract — JS + DOM storage only), and the
+  structural main-thread emulation contract (input and PTY output share
+  the main thread by upstream design; noted as debt, not fixable here).
+- TESTS: full suite at the tip = 1049 tests, ONLY the same 4 known aarch64
+  env failures (root-UID /proc denial ×3, /proc self-visibility ×1);
+  new CompanionHeights.canvasTarget pins green; companion suite 42 green;
+  keyboard suite 75 green.
+- ARTIFACTS: /tmp/M7.3-Z-perf.apk (sha256 5ec8c1f7…) vs A/B baseline
+  /tmp/M7.3-Z-perf-base.apk (main 82cd3f5, sha256 de268150…, verified
+  free of perf-pass symbols). Ledger row "M7.3-Z.apk (perf pass)".
+- DEVICE: NOT RUN by the agent — wireless debugging was OFF on the phone
+  and the Tab SM_T870 unreachable (5555 refused, mDNS silent) for the
+  whole session; self-adb needs the rotating port from Developer options.
+  The interactive gate is OWNER-RUN: docs/TESTING.md §61 with
+  scripts/runtime/devtools/companion-perf-gate (install/launch/stop/
+  measure around owner-driven gestures; gfxinfo janky-% + percentiles
+  A/B). Build-level verification only on this box; no frame numbers are
+  claimed without the device — that is what §61 exists to produce.
+- Stopping here per the brief: no Play Billing, no backup/sync, no new
+  features. Next milestone is the Play Store release work.
