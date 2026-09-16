@@ -155,6 +155,39 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    /**
+     * Terminal-link entry (owner iteration: tap an http(s) URL in terminal
+     * output → the Companion sheet opens and navigates). One atomic
+     * read-modify-write re-anchors the focused tab's cold-restore URL,
+     * opens/focuses it and raises the sheet; a live WebView then navigates
+     * in place ([CompanionWebHost.navigate]). No second browser, no WebView
+     * recreation, no reload when the page is already showing this address.
+     * The URL passed terminal-side validation (scheme + host) and the
+     * WebView client enforces its own http(s) allowlist at load time — so
+     * localhost/LAN links pass here even though definition-time
+     * [CompanionValidation.normalizeUrl] demands a dotted host.
+     */
+    fun openWithUrl(url: String) {
+        viewModelScope.launch {
+            val defs = repo.defs.first()
+            if (defs.isEmpty()) return@launch
+            val active = repo.activeTabId.first()
+            val target = active?.takeIf { id -> defs.any { it.id == id } }
+                ?: repo.defaultId.first()?.takeIf { id -> defs.any { it.id == id } }
+                ?: defs.first().id
+            val opened = CompanionTabs.opened(repo.tabs.first(), target)
+            repo.setTabs(opened.map { tab ->
+                if (tab.defId == target) tab.copy(lastUrl = url) else tab
+            })
+            repo.setActiveTabId(target)
+            if (!CompanionHeights.isRaised(repo.panelHeight.first())) {
+                repo.setPanelHeight(repo.lastExpandedHeight.first())
+            }
+            pageFailures.value = pageFailures.value - target
+            CompanionWebHost.navigate(target, url)
+        }
+    }
+
     fun selectTab(defId: String) {
         viewModelScope.launch { repo.setActiveTabId(defId) }
     }

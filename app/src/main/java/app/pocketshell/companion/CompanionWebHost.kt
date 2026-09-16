@@ -259,6 +259,20 @@ object CompanionWebHost {
     }
 
     /**
+     * Terminal-link entry: navigate a LIVE tab to [url] in place — same
+     * WebView, same session, no recreation, and a deliberate no-op when the
+     * page is already at [url] (repeated taps must not reload). No live
+     * WebView (tab never composed yet) → no-op too: the tab's lastUrl
+     * anchor drives the standard prepare→present path with this URL.
+     * Main thread only.
+     */
+    fun navigate(defId: String, url: String) {
+        val webView = tabs[defId] ?: return
+        if (webView.url == url) return
+        runCatching { webView.loadUrl(url) }
+    }
+
+    /**
      * m4.0.12 §3 — Refresh: a plain reload of ONE tab. The caller passes
      * the ACTIVE tab id; no other tab, no reset, no navigation — the page
      * reloads in place at its current URL.

@@ -424,6 +424,10 @@ fun PocketShellRoot(
                 // label); the screen stays intent-only.
                 onNewSession = { terminalViewModel.newSessionMatchingCurrent() },
                 onBack = { screen = "home" },
+                // Terminal links → Companion (owner iteration): the sheet
+                // opens on the root-scoped VM and the existing browser tab
+                // navigates — never an external browser.
+                onTerminalLinkTap = { url -> companionViewModel.openWithUrl(url) },
                 // Phase 3.1: the Terminal screen consumes the system-bar insets
                 // itself so its Midnight chrome extends edge-to-edge (the deck
                 // pads for the gesture bar). Every other screen keeps the

@@ -108,6 +108,8 @@ fun TerminalScreen(
     keyboardExpanded: Boolean,
     onKeyboardExpandedChange: (Boolean) -> Unit,
     keyboardBottomInset: Dp,
+    /** Terminal-link entry: a confirmed tap landed on an http(s) URL. */
+    onTerminalLinkTap: (String) -> Unit = {},
     onSelect: (Long) -> Unit,
     onClose: (Long) -> Unit,
     onNewSession: () -> Unit,
@@ -224,6 +226,7 @@ fun TerminalScreen(
                     textSize = textSize,
                     onTextSizeChange = { textSize = it },
                     onSingleTap = { if (!keyboardExpanded) onKeyboardExpandedChange(true) },
+                    onTerminalLinkTap = onTerminalLinkTap,
                     onViewCreated = { terminalViewRef.value = it },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -475,9 +478,15 @@ private fun TerminalViewHost(
     textSize: Int,
     onTextSizeChange: (Int) -> Unit,
     onSingleTap: () -> Unit,
+    onTerminalLinkTap: (String) -> Unit,
     onViewCreated: (TerminalView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The client holds the callbacks from its ONE factory run — keep them
+    // fresh through updated state so the deck fallback reads the CURRENT
+    // keyboard state and link taps reach the current handler.
+    val currentOnSingleTap by rememberUpdatedState(onSingleTap)
+    val currentOnTerminalLinkTap by rememberUpdatedState(onTerminalLinkTap)
     // Pinch font size: accumulate scale until a step threshold is crossed, then
     // change one size step and reset the recognizer.
     val scaleAccum = remember { floatArrayOf(1f) }
@@ -511,7 +520,15 @@ private fun TerminalViewHost(
             view.setTerminalViewClient(
                 PocketShellTerminalViewClient(
                     keyboardState = keyboardState,
-                    onSingleTap = onSingleTap,
+                    onSingleTap = { currentOnSingleTap() },
+                    // Terminal link first refusal: a hit opens the Companion
+                    // and consumes the tap; a miss keeps the deck fallback.
+                    onSingleTapAt = { e ->
+                        TerminalLinkTap.urlAt(view, e)?.let { url ->
+                            currentOnTerminalLinkTap(url)
+                            true
+                        } ?: false
+                    },
                     onScaleGesture = onScale,
                     // Upstream-documented first-session blinker start: called
                     // once updateSize() has actually created the emulator.

@@ -38,6 +38,11 @@ class SettingsRepository(private val context: Context) {
     private val recentFolderAreaKeyKey = stringPreferencesKey("recent_folder_area_key")
     private val recentFolderPathKey = stringPreferencesKey("recent_folder_path")
 
+    // User folder bookmarks (owner iteration) — ONE JSON document; the typed
+    // model + revalidation live in the files domain (files/BookmarkStore.kt),
+    // so this store never interprets a path.
+    private val folderBookmarksKey = stringPreferencesKey(app.pocketshell.files.BookmarkStore.KEY)
+
     // M7.1.1 — the persistent "On-screen keyboard" On/Off preference: the
     // user's baseline for the shared deck. External-keyboard detection is a
     // temporary runtime override and NEVER writes this key (spec: the
@@ -118,6 +123,17 @@ class SettingsRepository(private val context: Context) {
                 prefs[recentFolderAreaKeyKey] = areaKey ?: "default"
                 prefs[recentFolderPathKey] = path
             }
+        }
+    }
+
+    /** The raw bookmarks JSON document, or null when never set. */
+    val folderBookmarksRecord: Flow<String?> =
+        context.settingsDataStore.data.map { prefs -> prefs[folderBookmarksKey] }
+
+    /** Writes (or, with null, clears) the bookmarks document. */
+    suspend fun setFolderBookmarks(json: String?) {
+        context.settingsDataStore.edit { prefs ->
+            if (json == null) prefs.remove(folderBookmarksKey) else prefs[folderBookmarksKey] = json
         }
     }
 
