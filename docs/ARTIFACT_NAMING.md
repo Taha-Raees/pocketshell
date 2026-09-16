@@ -133,6 +133,16 @@ is a new ledger row with its own SHA-256.
 - tests:       full :app:testDebugUnitTest 1049 tests — only the SAME 4 pre-existing aarch64 environment failures (root-UID /proc denial x3, /proc self-visibility x1); new: CompanionHeights.canvasTarget pins (2) green; companion suite 42 green; keyboard suite 75 green
 - device gate: OWNER — docs/TESTING.md §61 (A/B frame measurement with scripts/runtime/devtools/companion-perf-gate): sheet drag jank% + percentiles baseline vs perf, no reflow/detach mid-drag, glide-close on collapse release, deck typing under load, one-shot modifier isolation, physical-keyboard regression
 
+### M7.3-Z.apk (agent Z — perf pass #2: owner device-feedback round)
+
+- date:        2026-09-16
+- git:         agent-Z/perf-companion-keyboard — follow-up to d6fbaab/21763b4 (Task 53 in worklog)
+- agent:       Z — Agent Z (ZCode)
+- workstream:  owner screenshot + report fixes — (1) deck ALWAYS pushes the Companion above it: panel height + drag cap clamp to the space above the deck (was: panel ignored the inset and overflowed under the keyboard at taller fractions — page input bars unreachable); (2) drag-up fix from the owner screenshot: while the panel moves the canvas TOP is glued under the tab strip (page rides the finger 1:1; was: frozen page left at the old height with a blank band above it); at rest the page bottom-anchors so bottom-edge input bars stay visible; (3) deck entrance inset consumed in LAYOUT only (expandVertically frames no longer recompose the root); (4) parked keyboard button back on Home (owner override — Companion makes Home typeable); vestigial imePadding dropped
+- apk sha256:  84e44772493054939fc769a1889db49cb239250ac2d356125a08a5e57903b2ff (staged /tmp/M7.3-Z.apk)
+- tests:       companion 42 + keyboard 75 green; full suite at the tip = 1049 tests, the SAME 4 known aarch64 env failures only
+- device gate: OWNER — docs/TESTING.md §61 gates 19-22 (added this round) plus §A/§B/§C
+
 ## 6. Integration builds
 
 The unsuffixed `M<...>.apk` continues to be produced by the existing

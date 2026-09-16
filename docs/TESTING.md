@@ -3945,3 +3945,28 @@ Verdict: PASS = §A/3–5 hold, §B/7 shows no regression (or improvement)
 with correct visual feedback, §C holds. Record both builds' janky % and
 percentiles in the worklog. Automated frame numbers are a COMPARISON
 tool here; the hard PASS/FAIL criteria are the behavioral EXPECT lines.
+
+### §61 amendment — owner-feedback round (2026-09-16, build perf pass #2)
+
+19. DECK CLAMP: raise the sheet near full height, then open the deck
+    (tap a page input or the ⌨). EXPECT the sheet to sit ENTIRELY above
+    the deck — the page's bottom edge ends at the deck's top edge; at
+    taller fractions the panel is clamped (never extends under the
+    keyboard), and dragging up while the deck is open stops at the deck.
+    The page's bottom-anchored input bar (e.g. ChatGPT "Ask anything")
+    must remain visible above the deck.
+20. DRAG-UP RIDES THE FINGER: drag the handle upward. EXPECT the page's
+    TOP edge to ride directly under the tab strip while moving (the page
+    follows the finger — the old build left the page at the old height
+    with a blank band above it, see owner screenshot). While moving, any
+    overflow clips at the panel's bottom edge; on release the page
+    resizes once to fill the panel.
+21. OPEN/CLOSE ANIMATION RIDE: tap-to-minimize and tap-to-restore animate
+    (~220 ms) with the page riding under the strip — no blank band above
+    the page mid-animation, no detach.
+22. HOME ⌨: the parked keyboard button is back on Home (bottom-right).
+    Tap it → the deck opens on Home; raise a Companion, focus a page
+    input, type — characters land in the page. The sheet rides above the
+    deck on Home exactly like on Terminal.
+
+These four join §A/1–6, §B/7–9, §C/10–12 as the §61 PASS bar.

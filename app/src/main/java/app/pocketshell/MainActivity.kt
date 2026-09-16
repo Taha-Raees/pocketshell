@@ -655,20 +655,20 @@ fun PocketShellRoot(
         app.pocketshell.ui.companion.CompanionLayer(
             viewModel = companionViewModel,
             onOpenCompanionSettings = { screen = "companionSettings" },
-            // m4.0.3: the deck's measured height — the Companion panel and
-            // its picker sheet push themselves ABOVE the keyboard.
-            keyboardBottomInset = keyboardInset,
+            // m4.0.3 + owner feedback 2026-09-16: the sheet rides ABOVE the
+            // deck on EVERY screen — the inset is passed as a px provider so
+            // the deck's entrance animation never recomposes the layer.
+            keyboardVisible = keyboardExpanded,
+            keyboardBottomInsetPx = { keyboardInsetPx },
         )
 
-        // m4.0.12 §12 (device feedback carried from m4.0.4) — the deck's
-        // rebirth affordance, now on EVERY screen EXCEPT Home (iteration:
-        // owner request — Home has no typeable surface, so the parked [⌨]
-        // was visual noise there; Terminal reopens via canvas tap, and the
-        // other typeable screens keep the parked button). It is ANCHORED to
-        // the bottom-right corner: 12dp from the right edge, 8dp above the
-        // gesture-bar inset, still a 44×36dp touch target, never clipped,
-        // never over the system navigation.
-        if (!keyboardExpanded && screen != "home") {
+        // m4.0.12 §12 (device feedback carried from m4.0.4), amended by the
+        // owner 2026-09-16: the parked [⌨] is BACK ON HOME too — with the
+        // Companion raised over Home, Home IS a typeable surface now (the
+        // original "Home has no typeable surface" rationale is gone). Same
+        // anchor as everywhere: bottom-right, 44×36dp touch target, never
+        // over the system navigation.
+        if (!keyboardExpanded) {
             Box(modifier = Modifier.fillMaxSize()) {
                 val haptics = LocalHapticFeedback.current
                 Box(

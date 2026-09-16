@@ -2835,3 +2835,44 @@ custom terminal keyboard. AUDIT FIRST → MEASURE → IMPLEMENT → MEASURE.
   claimed without the device — that is what §61 exists to produce.
 - Stopping here per the brief: no Play Billing, no backup/sync, no new
   features. Next milestone is the Play Store release work.
+
+## Task 53 — Owner device-feedback round: deck clamp, drag-up page ride, Home ⌨ (perf branch)
+
+Agent Z (ZCode), 2026-09-16, branch `agent-Z/perf-companion-keyboard`
+(off Task 52). Owner report + screenshot ("dragging upwards leave
+webpage") triaged into three fixes:
+
+- DECK ALWAYS PUSHES THE SHEET (the "input under keyboard" report): the
+  panel math mapped fractions against the FULL screen height and ignored
+  the deck inset, so at taller fractions the canvas overflowed down into
+  the deck's area (the deck then covered the page's bottom — exactly
+  where ChatGPT-style input bars live). The canvas box now clamps its
+  height to the space ABOVE the deck (container − inset − handle −
+  strip), and dragSheetBy caps the fraction at the same bound — the
+  finger stops deterministically at the deck instead of the panel
+  overflowing. At rest the page stays BOTTOM-anchored in a clamped
+  panel, so bottom-edge input bars stay visible for typing.
+- DRAG-UP PAGE RIDE (the screenshot bug): the frozen-canvas contract
+  kept the page at its pre-drag height bottom-anchored — dragging UP
+  grew a blank band between the strip and the page (page visibly "left
+  behind"). Placement is now stateful: while the panel MOVES (drag or
+  animation) the canvas TOP is glued under the tab strip — the page
+  follows the finger 1:1, overflow clips at the panel's bottom edge; at
+  rest it bottom-anchors again. collapseAnimating generalized to
+  panelAnimating (set for every settle animation, not just closes) and
+  shared by the placement rule and the raised/composition gate.
+- DECK ANIMATION COST: the deck enters via expandVertically(180 ms) and
+  the inset was consumed as a Dp PARAMETER — every animation frame
+  recomposed the whole root (TerminalScreen + CompanionLayer + …).
+  CompanionLayer now takes keyboardVisible (flips once per open/close)
+  + keyboardBottomInsetPx (() -> Int) and consumes the inset INSIDE its
+  layout blocks: deck open/close invalidates layout alone.
+- HOME ⌨ RESTORED (owner override of the b143678 removal): the parked
+  keyboard button shows on Home again — with the Companion raised over
+  Home, Home is a typeable surface (tap ⌨ → deck → focus a page input →
+  type). Removed the vestigial imePadding calls (system IME permanently
+  disabled — one-keyboard policy).
+- §61 amended with gates 19–22 (deck clamp, drag-up ride, animation
+  ride, Home ⌨). Compile + companion(42)/keyboard(75) suites green;
+  full suite + APK build at the tip recorded in the ledger row
+  "M7.3-Z.apk (perf pass #2)".

@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -56,7 +55,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -107,7 +105,14 @@ import kotlinx.coroutines.launch
 fun CompanionLayer(
     viewModel: CompanionViewModel,
     onOpenCompanionSettings: () -> Unit,
-    keyboardBottomInset: Dp = 0.dp,
+    // Owner feedback (2026-09-16): the deck must ALWAYS push the sheet
+    // above itself — an input under the keyboard is unreachable. The inset
+    // is consumed as a px PROVIDER read inside layout blocks only, so the
+    // deck's 180 ms entrance animation invalidates layout alone (never
+    // recomposition). [keyboardVisible] flips once per open/close and only
+    // chooses the modifier shape.
+    keyboardVisible: Boolean = false,
+    keyboardBottomInsetPx: () -> Int = { 0 },
     modifier: Modifier = Modifier,
 ) {
     val defs by viewModel.defs.collectAsStateWithLifecycle()
@@ -135,16 +140,23 @@ fun CompanionLayer(
     // every composable scope stay untouched per frame. Composition flips
     // once per gesture on the two booleans instead.
     var dragActive by remember { mutableStateOf(false) }
-    var collapseAnimating by remember { mutableStateOf(false) }
+    var panelAnimating by remember { mutableStateOf(false) }
     val displayFraction = remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     var settleAnimJob by remember { mutableStateOf<Job?>(null) }
 
-    // Raised is a SETTLED-state decision: while a drag or a collapse
-    // animation is in flight the panel stays composed even when the live
-    // fraction dips below the threshold — no mid-gesture WebView detach,
-    // no mid-drag pauseAll (the old live-fraction behavior).
-    val raised = CompanionHeights.isRaised(settledFraction) || dragActive || collapseAnimating
+    // The canvas TOP is glued under the tab strip whenever the panel is
+    // MOVING (drag or animation) — the page rides the finger 1:1 (owner
+    // feedback 2026-09-16: dragging up must never leave the page behind at
+    // the old height). At rest it bottom-anchors, so a page's bottom-edge
+    // input bar stays on screen. One boolean flip per gesture/transition.
+    val panelMoving = dragActive || panelAnimating
+
+    // Raised is a SETTLED-state decision: while a drag or a panel animation
+    // is in flight the panel stays composed even when the live fraction
+    // dips below the threshold — no mid-gesture WebView detach, no
+    // mid-drag pauseAll (the old live-fraction behavior).
+    val raised = CompanionHeights.isRaised(settledFraction) || dragActive || panelAnimating
 
     val activeTab = tabs.firstOrNull { it.defId == activeTabId }
     val activeDef = defs.firstOrNull { it.id == activeTabId }
@@ -213,6 +225,7 @@ fun CompanionLayer(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val containerHeightPx = constraints.maxHeight.toFloat()
         val density = LocalDensity.current
+        val handleZonePx = with(density) { HANDLE_ZONE.toPx() }
         val stripPx = with(density) { STRIP_HEIGHT.toPx() }
 
         // The canvas measures ONCE per transition at its settled target and
@@ -240,7 +253,7 @@ fun CompanionLayer(
             }
             val from = displayFraction.floatValue
             if (from == settledFraction) return@LaunchedEffect
-            if (!CompanionHeights.isRaised(settledFraction)) collapseAnimating = true
+            panelAnimating = true
             settleAnimJob = scope.launch {
                 try {
                     animate(
@@ -249,7 +262,7 @@ fun CompanionLayer(
                         animationSpec = tween(220, easing = FastOutSlowInEasing),
                     ) { value, _ -> displayFraction.floatValue = value }
                 } finally {
-                    collapseAnimating = false
+                    panelAnimating = false
                 }
             }
         }
@@ -261,14 +274,22 @@ fun CompanionLayer(
         // minimizes, now by ANIMATING closed (no jump, §6). No snap points.
         fun startSheetDrag() {
             settleAnimJob?.cancel()
-            collapseAnimating = false
+            panelAnimating = false
             dragActive = true
         }
         fun dragSheetBy(deltaPx: Float) {
             if (!dragActive) return
+            // Owner feedback (2026-09-16): with the deck open the panel can
+            // never grow past the space ABOVE the deck — the finger stops
+            // there deterministically instead of the panel overflowing into
+            // the keyboard.
+            val maxFraction = CompanionHeights.FULL.coerceAtMost(
+                (containerHeightPx - keyboardBottomInsetPx().coerceAtLeast(0)) /
+                    containerHeightPx,
+            )
             displayFraction.floatValue = (
                 displayFraction.floatValue - deltaPx / containerHeightPx
-                ).coerceIn(0f, CompanionHeights.FULL)
+                ).coerceIn(0f, maxFraction)
         }
         fun endSheetDrag() {
             if (!dragActive) return
@@ -279,15 +300,30 @@ fun CompanionLayer(
             viewModel.settleHeight(displayFraction.floatValue)
         }
 
-        // m4.0.3 (device feedback): the keyboard is the bottom-most surface —
-        // while the shared deck is visible on the terminal screen its measured
-        // height arrives as [keyboardBottomInset] and the panel rides ABOVE
-        // it, so the keyboard never opens on top of anything. Without the
-        // deck the panel keeps its normal system-inset behavior.
-        val bottomModifier = if (keyboardBottomInset > 0.dp) {
-            Modifier.imePadding().padding(bottom = keyboardBottomInset)
+        // Owner feedback (2026-09-16): the keyboard is the bottom-most
+        // surface — the sheet and the picker ride ABOVE it, ALWAYS. The
+        // deck's measured height is consumed INSIDE layout (per-frame
+        // during its entrance animation, zero recomposition); without the
+        // deck the panel keeps its normal system-inset behavior. (The
+        // system IME is permanently disabled — one-keyboard policy — so
+        // imePadding carried no behavior and is gone.)
+        val bottomModifier = if (keyboardVisible) {
+            Modifier.layout { measurable, constraints ->
+                val inset = keyboardBottomInsetPx().coerceAtLeast(0)
+                val placeable = measurable.measure(
+                    Constraints(
+                        constraints.minWidth,
+                        constraints.maxWidth,
+                        0,
+                        (constraints.maxHeight - inset).coerceAtLeast(0),
+                    ),
+                )
+                layout(placeable.width, placeable.height + inset) {
+                    placeable.placeRelative(0, 0)
+                }
+            }
         } else {
-            Modifier.navigationBarsPadding().imePadding()
+            Modifier.navigationBarsPadding()
         }
 
         // m5.0 final correction — the sheet's drag math, shared VERBATIM by
@@ -392,8 +428,17 @@ fun CompanionLayer(
                             // bottom-aligned; the box merely clips it while
                             // the sheet moves (§9 — one physical surface).
                             .layout { measurable, constraints ->
+                                // Deck-open clamp: the panel never occupies
+                                // the deck's space (owner feedback). The
+                                // inset is read HERE — layout phase only.
+                                val deckInset = keyboardBottomInsetPx().coerceAtLeast(0)
+                                val availableForCanvas = (
+                                    containerHeightPx - deckInset - handleZonePx - stripPx
+                                    ).coerceAtLeast(0f)
                                 val panel = displayFraction.floatValue * containerHeightPx
-                                val h = (panel - stripPx).coerceAtLeast(0f).roundToInt()
+                                val h = (panel - stripPx).coerceAtLeast(0f)
+                                    .coerceAtMost(availableForCanvas)
+                                    .roundToInt()
                                 val placeable = measurable.measure(
                                     Constraints(
                                         constraints.minWidth,
@@ -403,7 +448,18 @@ fun CompanionLayer(
                                     ),
                                 )
                                 layout(placeable.width, h) {
-                                    placeable.placeRelative(0, h - placeable.height)
+                                    if (panelMoving) {
+                                        // Moving: the page TOP rides under the
+                                        // strip 1:1 — one physical surface; the
+                                        // frozen page's overflow clips at the
+                                        // panel's bottom edge.
+                                        placeable.placeRelative(0, 0)
+                                    } else {
+                                        // At rest: bottom-anchored — a page's
+                                        // bottom-edge input bar stays on screen
+                                        // (also under a clamped deck-open panel).
+                                        placeable.placeRelative(0, h - placeable.height)
+                                    }
                                 }
                             },
                     ) {
