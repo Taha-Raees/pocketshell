@@ -3970,3 +3970,111 @@ tool here; the hard PASS/FAIL criteria are the behavioral EXPECT lines.
     deck on Home exactly like on Terminal.
 
 These four join §A/1–6, §B/7–9, §C/10–12 as the §61 PASS bar.
+
+## §62 — Files + Companion UX gate: terminal links, folder bookmarks, slim list (owner-run)
+
+Build under gate: `agent-Z/perf-companion-keyboard` @ d5365a8 ("terminal
+links → Companion" + "user folder bookmarks" + Files/Home slim-list
+iteration). Unit ceiling already verified on the box: 1071 tests, the 4
+known env failures only. This gate is the REAL-DEVICE round (phone +
+tablet where available). Install: `PS_LOCAL_NDK=29.0.14206865
+./gradlew :app:assembleDebug` from the branch tip, install
+`app/build/outputs/apk/debug/app-debug.apk`.
+
+### A — Terminal URL → Companion (§62/1–8)
+
+1. Serve a page from the guest: `python3 -m http.server 8080` (or
+   `npm run dev` / Vite / Next dev server) inside a Linux session.
+   EXPECT the "Serving HTTP on ..." line(s) rendered normally (ANSI
+   intact, no styling glitches, no links drawn inside vim/htop).
+2. Tap `http://localhost:8080` (or the exact dev-server URL) in the
+   output. EXPECT: the Companion sheet RAISES (~220 ms) and the page
+   loads INSIDE PocketShell. Chrome/external browser must NOT open.
+3. Tap a `http://127.0.0.1:PORT` and a LAN-IP URL (`http://192.168.x.x:
+   PORT` from another device serving on the same Wi-Fi). EXPECT both to
+   open in the Companion with NO internet required.
+4. Tap an HTTPS URL (`https://github.com/...`). EXPECT Companion load.
+   A URL with query + fragment (`.../path?a=1#s`) must carry them.
+5. Punctuation: tap a URL followed by a period or `)` in prose output.
+   EXPECT the trailing punctuation is NOT part of the loaded URL.
+6. REUSE: with a Companion already open on some page, tap a terminal
+   URL. EXPECT the SAME tab navigates (no second browser, tab strip
+   count unchanged, no reload of the previous page on the way out).
+   Tap the SAME URL twice in a row: the second tap must NOT reload the
+   page (no flicker/scroll reset).
+7. REPEATED taps while collapsed: collapse the sheet, tap the URL
+   again. EXPECT raise + navigate, still one WebView (tab count
+   unchanged across all of A).
+8. FALSE-POSITIVE guards: tap plain text (`www.example.com` without
+   scheme, `http://single-label`, versions like `1.2.3`). EXPECT the old
+   behavior only (keyboard deck opens; no Companion, no browser).
+9. SELECTION/SCROLL regression: long-press → select text still works;
+   scroll/fling still works; a URL tap inside a mouse-reporting app
+   (vim with `:set mouse=a`, htop) must NOT navigate (app owns taps).
+10. SCROLLBACK: scroll up so the URL line is in scrollback, tap the
+    URL. EXPECT same behavior as on the live screen.
+
+### B — Folder bookmarks (§62/11–17)
+
+11. Files → enter a folder → tap the row's ⋮ (or long-press). EXPECT
+    the sheet shows **Bookmark** for folders and NO bookmark action for
+    files/symlinks. Tap Bookmark: sheet closes.
+12. Restart the app (swipe away + relaunch). Home shows the folder in
+    the FOLDERS section with a ★ and its path; Files → the same folder's
+    sheet now shows **Remove Bookmark**.
+13. Bookmark folders from DIFFERENT areas: Linux `/root/...`, Android
+    Downloads shelf, and an Android document-tree (SAF) folder. Restart.
+    EXPECT all three listed (order = newest last).
+14. INVALID: bookmark a folder, then `rm -rf` it (Linux area), then tap
+    the bookmark. EXPECT an honest listing error — no crash, no silent
+    fake folder. The bookmark row may remain; it opens honestly.
+15. REMOVE: Home → row ⋮ → Remove Bookmark. EXPECT the row disappears;
+    restart confirms persistence of the removal.
+16. MANY: bookmark 6+ folders. EXPECT Home shows 4 + the recent row,
+    header gains "See all", footer reads "+N more in Files"; Files shows
+    all with no cap. Home must NOT grow an endless list.
+17. Long names / deep paths: bookmark a folder with a very long name and
+    a deep path. EXPECT single-line name + path, ellipsized, no wrapping
+    into giant rows.
+
+### C — Home Folders section (§62/18–21)
+
+18. ZERO state: no bookmarks + no recent folder (fresh profile or after
+    removing everything). EXPECT NO folders section at all — the page
+    goes straight from environments to the Files row.
+19. MIXED: 2 bookmarks + 1 recent. EXPECT bookmarks (★, accent) first,
+    then the recent folder (📁, dim), thin dividers between, SLIM rows —
+    never 64dp cards. Rows are two lines max (name + path).
+20. RECENT menu still works: Open / Open in Terminal (guest-Linux only)
+    / Remove from Home. Bookmarked rows: Open / Open in Terminal (guest
+    only) / Remove Bookmark.
+21. RESPONSIVE: rotate (landscape), try tablet/foldable/DeX widths. The
+    folders list stays a LIST (single column, capped width) even while
+    other sections reflow into grids — no 3-column folder grid, no
+    horizontal cards.
+
+### D — Files list visual (§62/22–26)
+
+22. Listing style: every row FLAT (no rounded card borders), thin
+    dividers BETWEEN rows aligned with the text column (not crossing the
+    icons), none after the last row. Compact rhythm; touch still easy
+    (48dp rows). Dividers must remain readable in Aurora Dark, Aurora
+    Light, Nord, Dracula, Gruvbox, Solarized, Light, Dark.
+23. MULTI-SELECT: enter selection mode. EXPECT checkbox replaces the
+    icon, selected rows fill (no card shapes), dividers stay coherent.
+    Select one / many; Copy, Move, Zip, Delete, cancel — all must work
+    as before. Long-press in normal mode still opens the action sheet.
+24. BREADCRUMBS: unchanged behavior — compact bar, horizontal scroll to
+    the current crumb, long paths ellipsize per crumb, ancestors remain
+    tappable. No giant path card.
+25. TEXT SCALING: Settings → Appearance → largest text scale. Rows grow
+    in HEIGHT with the text (names never truncate mid-glyph), stay slim,
+    and never turn into cards. At least 48dp touch height preserved.
+26. METADATA: file rows keep the size label; folders/symlinks stay
+    clean; symlink target line intact.
+
+Verdict: PASS = every EXPECT above holds on phone (and tablet where
+available), no external browser ever opens for A taps, no Companion
+regression per §61 behaviors 7–12 (deck interplay unchanged), and the
+full unit suite at the gate SHA shows only the 4 known env failures.
+Record results in the worklog.

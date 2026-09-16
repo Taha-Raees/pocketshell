@@ -2912,3 +2912,79 @@ Three owner reports, three root causes:
   updated from "chunked(2)" to the new row-major contract.
 - Verification: launchers+keyboard+settings+companion suites 183 tests
   green; full suite + APK at the tip in the ledger row "perf pass #3".
+
+## Task 55 — Files + Companion UX: terminal links → Companion, folder bookmarks, slim list (agent-Z/perf-companion-keyboard)
+
+Owner iteration, five work areas on one branch stacked on the perf pass
+(main @ 82cd3f5 + Tasks 52–54). Baseline rule honored: the Companion
+perf architecture (zero-recomposition drag, canvas layout-only reads,
+prepare/present pooling) untouched.
+
+- TERMINAL LINKS: a confirmed single tap now hit-tests the tapped cell
+  (`PocketShellTerminalViewClient.onSingleTapAt`, first refusal before
+  the keyboard-deck fallback; `TerminalViewHost` keeps the callbacks
+  fresh via `rememberUpdatedState` — also fixing the stale
+  `keyboardExpanded` capture in the same statement). Text extraction
+  lives in the vendored VIEW module (`TerminalLinkProbe.java`,
+  selection's sanctioned buffer access, user-tap-triggered only,
+  read-only, mouse-tracking gated so vim/htop keep their taps); the app
+  layer stays behind the P7 no-screen-scraping boundary and supplies
+  only the URL policy (`TerminalUrlDetector`: explicit http(s) +
+  localhost/IPv4/dotted-domain hosts, sentence punctuation trimmed,
+  wrap-boundary URLs matched whole across row segments in WcWidth
+  column space, 15 unit pins). Vendored emulator/renderer/PTY: zero
+  lines changed.
+- COMPANION NAVIGATION: `CompanionViewModel.openWithUrl(url)` — active
+  tab, else default def, else first; ONE atomic tabs write re-anchors
+  `lastUrl`, opens/focuses the tab, raises the sheet, clears any
+  failure card; `CompanionWebHost.navigate(defId, url)` loads a LIVE
+  WebView in place with a same-URL no-op (repeated taps never reload);
+  a cold tab composes at the URL through its lastUrl anchor (prepare
+  only pends on the creation path — verified in source). No second
+  browser, no WebView recreation, no external browser; CompanionLayer.kt
+  untouched (perf invariants preserved). Note:
+  `CompanionValidation.normalizeUrl` (definition-time) rejects dotless
+  hosts — the terminal path deliberately bypasses it so localhost/LAN
+  links work; the WebView client's own http(s) allowlist still gates the
+  final load.
+- BOOKMARKS: `BookmarkStore` — ONE JSON document in the settings
+  DataStore (`folder_bookmarks`), typed + `PathSafety.validatePath`
+  revalidated on EVERY read (same discipline as RecentFolderStore);
+  corrupt doc → fewer bookmarks, never an unvalidated path; no cap.
+  `FilesViewModel.bookmarks` StateFlow + `toggleBookmark(entry)` (sheet
+  action, resolved against the CURRENT listing) + `removeBookmark`
+  (Home row, identity-based) + `bookmarked()` for the sheet label,
+  exposed through `FilesOpsSurface`. 6 unit pins (round-trip, corrupt
+  JSON, unknown kind, traversal path, membership).
+- FILES SHEET: folder ⋯ sheet gains Bookmark / Remove Bookmark
+  (state-flipped label + icon, directories only) wired via
+  `EntryActionHandlers.onToggleBookmark` + `EntryActionSheet.bookmarked`.
+- FILES LIST: EntryRow drops the rounded-card clip for FLAT rows (48dp
+  min, full-width pressed/selected fills in the token system — no
+  hard-coded colors), Listing renders inset hairline dividers BETWEEN
+  rows (start 56dp, outside the touch target, none after the last row).
+  Multi-select visuals, checkboxes, ⋮ affordance, symlink target and
+  size metadata preserved; breadcrumbs untouched (already compact +
+  auto-scrolling; BreadcrumbsTest green).
+- HOME: the 64dp RecentFolderRow card is REPLACED by FoldersSection —
+  bookmarked folders (★ accent) then the recent folder (📁 dim) as slim
+  two-line rows in the Sessions-section idiom (flat, transparent at
+  rest, pressed fill only, hairline inset dividers), window = 4
+  bookmarks + recent, "See all" header action + "+N more in Files"
+  overflow, section NOT composed at zero content. Per-folder callbacks
+  (open / open-in-terminal with the guest gate / remove) wired from
+  MainActivity.
+- VERIFICATION: full suite at d5365a8 = 1071 tests, 4 failed — exactly
+  the known env baseline set (GuestApkCompat, DoctorScript,
+  RuntimeCrashGuard, AgentObservationTopology; all /proc-root-UID).
+  One REAL regression caught and fixed mid-iteration: the first
+  TerminalLinkTap read buffer text in the app layer and tripped
+  AgentRuntimeWaitingEvidenceBoundaryTest (no screen scraping) —
+  restructured into terminal-view; boundary green again. APK built:
+  app-debug.apk sha256 85d02a0d… (assembleDebug at the tip). DEVICE
+  gate: not runnable from inside this session (no adb transport, no
+  host pm/am/screencap reachable from the proot guest) — §62 added to
+  docs/TESTING.md as the owner-run gate (26 EXPECT steps: localhost/
+  LAN/HTTPS taps, reuse/no-reload, scrollback, vim mouse guard,
+  bookmark lifecycle incl. rm -rf + restart, 6+ overflow, zero state,
+  multi-select regression, themes, text scale).
