@@ -20,16 +20,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val repo = SettingsRepository(application)
 
-    // Control Center II — the FRESH-INSTALL identity is Aurora × Dark: the
-    // initial StateFlow values below (shown until DataStore's first emit)
-    // and the repository parsers' absent-key fallbacks agree, so a new
-    // install opens on Aurora from the first frame and a saved preference
-    // (any theme/mode) simply overrides it.
+    // Control Center II — the FRESH-INSTALL identity is Aurora × Dark.
+    // Owner no-glimpse fix (2026-09-16): the first-frame seeds come from
+    // PocketShellApp's synchronous startup read of the SAVED preference —
+    // a saved theme renders from the first frame (no Aurora flash while
+    // DataStore warms up); a fresh install reads the Aurora × Dark
+    // defaults, so that contract is unchanged.
     val theme: StateFlow<AppTheme> = repo.theme.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), AppTheme.AURORA,
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), PocketShellApp.startupTheme,
     )
     val themeMode: StateFlow<ThemeMode> = repo.themeMode.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.DARK,
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), PocketShellApp.startupThemeMode,
     )
     val dynamicColor: StateFlow<Boolean> = repo.dynamicColor.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), false,
@@ -50,9 +51,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope, SharingStarted.WhileSubscribed(5_000), IconColumns.AUTO,
     )
 
-    // M7.1.1 — the persistent "On-screen keyboard" On/Off preference; default ON.
+    // M7.1.1 — the persistent "On-screen keyboard" preference. Default OFF
+    // (owner 2026-09-16: the app opens with the deck hidden; canvas tap,
+    // the ⌨ affordance and input focus open it on demand).
     val onscreenKeyboardEnabled: StateFlow<Boolean> = repo.onscreenKeyboardEnabled.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), true,
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), false,
     )
 
     fun setTheme(theme: AppTheme) = viewModelScope.launch { repo.setTheme(theme) }

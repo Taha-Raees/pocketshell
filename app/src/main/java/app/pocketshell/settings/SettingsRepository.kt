@@ -61,9 +61,14 @@ class SettingsRepository(private val context: Context) {
         prefs[dynamicKey] == "true"
     }
 
-    /** The persistent On-screen keyboard preference; default ON. */
+    /**
+     * The persistent On-screen keyboard preference. Default OFF (owner
+     * 2026-09-16: the app opens with the deck hidden — every typeable
+     * surface opens it on demand via canvas tap, the \u2b30 affordance, or
+     * input focus). An explicit "true" keeps the always-on baseline.
+     */
     val onscreenKeyboardEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[onscreenKeyboardKey] != "false"
+        prefs[onscreenKeyboardKey] == "true"
     }
 
     /** Default terminal font size; the terminal itself may change it via pinch. */

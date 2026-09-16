@@ -857,12 +857,15 @@ private fun ScrollDots(count: Int, state: ScrollState, modifier: Modifier = Modi
 
 /**
  * "Your tools" (M7.1 P1/P2.2) — the built-in CLI launchers + the user's
- * custom tools as launcher entries on the canvas, TWO rows with x-scroll
- * and page dots. A launcher is NOT an install claim: every tile is visible
- * by default and honesty lives at tap time (the existing verify-then-launch
- * path). No container is drawn around any of this. The header's Manage
- * action opens the PACKAGES page — the single packages affordance (§9),
- * aligned with the section it installs into (M7.1 P2.2).
+ * custom tools as launcher entries on the canvas. Owner layout contract
+ * (2026-09-16): entries fill ONE row across the page width; a second row
+ * appears only when the first is full; anything beyond two rows moves to
+ * the NEXT PAGE (scroll dots) — never a third row. A launcher is NOT an
+ * install claim: every tile is visible by default and honesty lives at
+ * tap time (the existing verify-then-launch path). No container is drawn
+ * around any of this. The header's Manage action opens the PACKAGES page —
+ * the single packages affordance (§9), aligned with the section it
+ * installs into (M7.1 P2.2).
  */
 @Composable
 private fun ToolsSection(
@@ -892,29 +895,37 @@ private fun ToolsSection(
         // Deterministic text badges over the VISIBLE launchers (collision
         // rule: shortest meaningful prefix, greedy in display order).
         val badges = remember(tools) { LauncherBadges.assign(tools.map { it.label }) }
-        // TWO rows, x-scroll: entries are consumed in column pairs so the
-        // reading order continues the old wrapping grid's row-major flow.
-        val toolColumns = remember(tools) { tools.chunked(2) }
-        LauncherScroller(pages = ceil(toolColumns.size / columns.toFloat()).toInt()) {
-            toolColumns.forEachIndexed { colIndex, columnTools ->
-                Column(modifier = Modifier.width(entryWidth)) {
-                    columnTools.forEachIndexed { rowInColumn, tool ->
-                        LauncherGridEntry(
-                            launcherId = tool.id,
-                            label = tool.label,
-                            badge = badges[colIndex * 2 + rowInColumn],
-                            iconFile = iconFiles[tool.id],
-                            iconDp = iconDp,
-                            verifying = verifyingApp == tool.label,
-                            onClick = {
-                                when (tool) {
-                                    is ToolLauncher.Builtin -> onOpenCommandApp(tool.app)
-                                    is ToolLauncher.Custom -> onOpenCustomTool(tool.tool)
-                                }
-                            },
-                            onLongClick = { onLongPress(tool.id, tool.label) },
-                            modifier = Modifier.width(entryWidth),
-                        )
+        val badgeByTool = remember(tools) {
+            tools.withIndex().associate { (index, tool) -> tool.id to badges[index] }
+        }
+        // Row-major pages (owner contract): a page is up to two full rows;
+        // a short list renders as a single row on page one.
+        val perPage = (columns * 2).coerceAtLeast(1)
+        val toolPages = remember(tools, columns) { tools.chunked(perPage) }
+        LauncherScroller(pages = toolPages.size) {
+            toolPages.forEach { pageTools ->
+                Column(modifier = Modifier.width(entryWidth * columns)) {
+                    pageTools.chunked(columns).forEach { rowTools ->
+                        Row {
+                            rowTools.forEach { tool ->
+                                LauncherGridEntry(
+                                    launcherId = tool.id,
+                                    label = tool.label,
+                                    badge = badgeByTool[tool.id] ?: "",
+                                    iconFile = iconFiles[tool.id],
+                                    iconDp = iconDp,
+                                    verifying = verifyingApp == tool.label,
+                                    onClick = {
+                                        when (tool) {
+                                            is ToolLauncher.Builtin -> onOpenCommandApp(tool.app)
+                                            is ToolLauncher.Custom -> onOpenCustomTool(tool.tool)
+                                        }
+                                    },
+                                    onLongClick = { onLongPress(tool.id, tool.label) },
+                                    modifier = Modifier.width(entryWidth),
+                                )
+                            }
+                        }
                     }
                 }
             }

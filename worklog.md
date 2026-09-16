@@ -2876,3 +2876,39 @@ webpage") triaged into three fixes:
   ride, Home ⌨). Compile + companion(42)/keyboard(75) suites green;
   full suite + APK build at the tip recorded in the ledger row
   "M7.3-Z.apk (perf pass #2)".
+
+## Task 54 — Owner round 3: no theme glimpse, deck off at open, tools row-major on tablet
+
+Agent Z (ZCode), 2026-09-16, branch `agent-Z/perf-companion-keyboard`.
+Three owner reports, three root causes:
+
+- NO THEME GLIMPSE AT OPEN: PocketShellApp.onCreate hardcoded
+  `applyTheme(AURORA, dark)` as the process-start palette, and the
+  "no-flash contract" comment was wrong in practice — the saved theme
+  only landed when DataStore's first emit reached the StateFlows, so
+  every open flashed Aurora before the saved identity. onCreate now
+  reads the persisted theme+mode SYNCHRONOUSLY once (runBlocking +
+  500 ms timeout guard falling back to the defaults) and applies THAT;
+  SettingsViewModel seeds its first-frame StateFlow values from the
+  same result (`PocketShellApp.startupTheme/startupThemeMode`), so the
+  first composition re-applies identical values — no flash. Fresh
+  installs still open Aurora × Dark (the CC-II default is untouched).
+- DECK OFF AT OPEN: the On-screen keyboard preference defaulted ON
+  (`!= "false"`), so every open showed the deck until it was explicitly
+  turned off in Settings. Default flipped to explicit-ON
+  (`== "true"`, SettingsViewModel initial false) — owner override of
+  the M7.1.1 contract, with the source pin in
+  ExternalKeyboardIntegrationTest updated to the new wording. Nothing
+  is lost: canvas tap, the ⌨ affordance and web-input focus all open
+  the deck on demand; an explicit Settings ON keeps the always-on
+  baseline.
+- TOOLS ROW-MAJOR (tablet): ToolsSection hard-wired TWO rows via
+  `chunked(2)` column pairs. Owner contract: entries fill ONE row
+  across the page width; a second row appears only when the first is
+  full; anything beyond two rows moves to the NEXT PAGE (scroll dots)
+  — never a third row. Implemented as row-major pages
+  (`chunked(columns * 2)` per page, `chunked(columns)` per row inside
+  it), badges keyed by tool id; HomeLauncherRowsTest's structural pin
+  updated from "chunked(2)" to the new row-major contract.
+- Verification: launchers+keyboard+settings+companion suites 183 tests
+  green; full suite + APK at the tip in the ledger row "perf pass #3".

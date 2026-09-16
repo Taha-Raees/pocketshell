@@ -285,8 +285,8 @@ class ExternalKeyboardIntegrationTest {
             settingsRaw.contains("onscreen_keyboard_enabled"),
         )
         assertTrue(
-            "default ON: only an explicit false disables",
-            settingsRaw.contains("prefs[onscreenKeyboardKey] != \"false\""),
+            "default OFF (owner 2026-09-16): only an explicit true enables",
+            settingsRaw.contains("prefs[onscreenKeyboardKey] == \"true\""),
         )
         assertTrue(settingsCode.contains("setOnscreenKeyboardEnabled"))
         assertTrue(

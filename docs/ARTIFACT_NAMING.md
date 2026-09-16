@@ -143,6 +143,16 @@ is a new ledger row with its own SHA-256.
 - tests:       companion 42 + keyboard 75 green; full suite at the tip = 1049 tests, the SAME 4 known aarch64 env failures only
 - device gate: OWNER — docs/TESTING.md §61 gates 19-22 (added this round) plus §A/§B/§C
 
+### M7.3-Z.apk (agent Z — perf pass #3: no theme glimpse, deck off at open, tools row-major)
+
+- date:        2026-09-16
+- git:         agent-Z/perf-companion-keyboard — owner round 3 (worklog Task 54)
+- agent:       Z — Agent Z (ZCode)
+- workstream:  three owner reports — (1) NO THEME GLIMPSE: startup palette is the SAVED theme (synchronous onCreate read + ViewModel first-frame seeds; fresh installs still open Aurora x Dark); (2) DECK OFF AT OPEN: On-screen keyboard preference defaults to explicit-ON (owner override of the M7.1.1 default-ON contract; canvas tap / keyboard button / input focus still open the deck on demand); (3) TOOLS ROW-MAJOR on Home: one row while it fits, second row only when full, beyond that the next page (scroll dots) — replaces the fixed chunked(2) two-row layout; pins updated in HomeLauncherRowsTest + ExternalKeyboardIntegrationTest
+- apk sha256:  89c30d72f45261911cc1de83d20a89ea92bba6d545a0a1230f062019819fa407 (staged /tmp/M7.3-Z.apk)
+- tests:       launchers+keyboard+settings+companion 183 green; full suite at the tip = 1049 with the SAME 4 known aarch64 env failures
+- device gate: OWNER — app open shows the saved theme with no Aurora flash and NO keyboard deck; Settings > On-screen keyboard ON restores always-on; tool list single row -> second row -> next page on the tablet
+
 ## 6. Integration builds
 
 The unsuffixed `M<...>.apk` continues to be produced by the existing
