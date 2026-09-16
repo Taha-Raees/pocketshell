@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
@@ -149,12 +151,17 @@ fun HomeScreen(
     iconSize: IconSize = IconSize.DEFAULT,
     cardSize: CardSize = CardSize.DEFAULT,
     iconColumns: IconColumns = IconColumns.AUTO,
-    // The recently-browsed folder (files/RecentFolder.kt) — shown ABOVE the
-    // Files row; its 3-dot menu mirrors the Files entry actions honestly.
+    // Owner iteration — the compact "Folders" list: bookmarked folders (★)
+    // first, then the last-browsed folder (📁), as slim dashboard rows —
+    // never giant cards. Zero bookmarks AND no recent → the section is not
+    // composed at all; Home stays a dashboard, not a file manager.
+    bookmarks: List<RecentFolder> = emptyList(),
     recentFolder: RecentFolder? = null,
-    onOpenRecentFolder: () -> Unit = {},
-    onOpenRecentInTerminal: () -> Unit = {},
+    onOpenFolder: (RecentFolder) -> Unit = {},
+    onOpenFolderInTerminal: (RecentFolder) -> Unit = {},
+    onRemoveBookmark: (RecentFolder) -> Unit = {},
     onRemoveRecentFolder: () -> Unit = {},
+    onSeeAllFolders: () -> Unit = {},
     onOpenCompanion: (String) -> Unit,
     onRemoveFromHome: (String) -> Unit,
     onOpenLauncherSettings: () -> Unit,
@@ -239,18 +246,18 @@ fun HomeScreen(
                     onOpenDiagnostics = onOpenDiagnostics,
                 )
 
-                // M7 Phase 3 — the ONE Files entry point: a quiet launcher
-                // surface under the environments, before the tools grid.
-                // Home stays uncluttered (one row, no badges, no counters).
-                recentFolder?.let { recent ->
-                    Spacer(Modifier.height(12.dp))
-                    RecentFolderRow(
-                        recent = recent,
-                        onOpen = onOpenRecentFolder,
-                        onOpenInTerminal = onOpenRecentInTerminal,
-                        onRemove = onRemoveRecentFolder,
-                    )
-                }
+                // Owner iteration — the ONE folders surface: bookmarks +
+                // recent as a compact divider-separated list above the Files
+                // row. Hidden entirely when there is nothing to show.
+                FoldersSection(
+                    bookmarks = bookmarks,
+                    recent = recentFolder,
+                    onOpen = onOpenFolder,
+                    onOpenInTerminal = onOpenFolderInTerminal,
+                    onRemoveBookmark = onRemoveBookmark,
+                    onRemoveRecent = onRemoveRecentFolder,
+                    onSeeAll = onSeeAllFolders,
+                )
                 Spacer(Modifier.height(12.dp))
                 FilesLauncherRow(onOpenFiles = onOpenFiles)
 
@@ -620,99 +627,158 @@ private fun ReadyDot() {
 }
 
 /**
- * The recently-browsed folder (owner iteration): the SAME launcher-row
- * language as the Files row beneath it — icon plate, name, honest storage
- * label — plus the Files rows' own 3-dot affordance. Tap opens Files at the
- * folder; the 3-dot menu carries the folder's honest actions: Open, Open in
- * Terminal (guest-Linux folders only — the same area-kind gate as the Files
- * sheet), Remove from Home (clears the record; hide-only, never deletes).
+ * The compact "Folders" dashboard section (owner iteration): bookmarked
+ * folders first (★), then the last-browsed folder (📁), as SLIM rows in the
+ * Sessions-section language — flat, transparent at rest, a pressed fill as
+ * the only surface, thin hairlines between. NOT cards: five folders must
+ * never become five giant buttons. Display window: 4 bookmarks + the
+ * recent row; the overflow stays in Files ("See all" in the header).
+ * Zero content → the section is not composed at all.
  */
 @Composable
-private fun RecentFolderRow(
-    recent: RecentFolder,
+private fun FoldersSection(
+    bookmarks: List<RecentFolder>,
+    recent: RecentFolder?,
+    onOpen: (RecentFolder) -> Unit,
+    onOpenInTerminal: (RecentFolder) -> Unit,
+    onRemoveBookmark: (RecentFolder) -> Unit,
+    onRemoveRecent: () -> Unit,
+    onSeeAll: () -> Unit,
+) {
+    val visibleBookmarks = bookmarks.take(4)
+    if (visibleBookmarks.isEmpty() && recent == null) return
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        if (bookmarks.size > 4) {
+            SectionHeaderWithAction(
+                label = "Folders",
+                actionLabel = "See all",
+                onAction = onSeeAll,
+            )
+        } else {
+            HomeSectionLabel("Folders")
+        }
+        Spacer(Modifier.height(6.dp))
+        val rows = visibleBookmarks.map { it to true } + listOfNotNull(recent?.let { it to false })
+        rows.forEachIndexed { index, (folder, isBookmark) ->
+            FolderRow(
+                folder = folder,
+                bookmarked = isBookmark,
+                onOpen = { onOpen(folder) },
+                onOpenInTerminal = { onOpenInTerminal(folder) },
+                onRemove = { if (isBookmark) onRemoveBookmark(folder) else onRemoveRecent() },
+            )
+            if (index != rows.lastIndex) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 30.dp),
+                    color = HomeTokens.hairline.copy(alpha = 0.6f),
+                )
+            }
+        }
+        if (bookmarks.size > 4) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "+${bookmarks.size - 4} more in Files",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim.copy(alpha = 0.8f),
+                modifier = Modifier.padding(start = 10.dp),
+            )
+        }
+    }
+}
+
+/**
+ * One slim folder row: kind icon (★ bookmark / 📁 recent), the folder name,
+ * the honest path beneath (shortened by ellipsis, never wrapped), and the
+ * 3-dot actions. Compact but touch-friendly: a 48dp+ row with a 32dp
+ * menu target. Tap anywhere else opens Files at the folder.
+ */
+@Composable
+private fun FolderRow(
+    folder: RecentFolder,
+    bookmarked: Boolean,
     onOpen: () -> Unit,
     onOpenInTerminal: () -> Unit,
     onRemove: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    PressableScale(onClick = onOpen, onClickLabel = "Open recent folder ${recent.name}", modifier = Modifier.padding(horizontal = 20.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(RoundedCornerShape(HomeTokens.heroRadius))
-                .background(HomeTokens.surfaceEnv)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (pressed) HomeTokens.surfaceBanner else Color.Transparent)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Button,
+                onClickLabel = "Open folder ${folder.name}",
+            ) { onOpen() }
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .heightIn(min = 44.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (bookmarked) Icons.Outlined.Star else Icons.Outlined.Folder,
+            contentDescription = if (bookmarked) "Bookmarked folder" else "Recent folder",
+            tint = if (bookmarked) HomeTokens.accent else HomeTokens.textDim,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = folder.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = HomeTokens.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = folder.path.value,
+                style = MaterialTheme.typography.bodySmall,
+                fontSize = 11.sp,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Box {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(HomeTokens.surfaceApp),
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClickLabel = "Folder actions") {
+                        menuOpen = true
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Folder,
-                    contentDescription = null,
-                    tint = HomeTokens.textPrimary,
-                    modifier = Modifier.size(20.dp),
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = "Folder actions",
+                    tint = HomeTokens.textDim,
+                    modifier = Modifier.size(18.dp),
                 )
             }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = recent.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = HomeTokens.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = recent.storageLabel + " · " + recent.path.value,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeTokens.textDim,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(role = Role.Button, onClickLabel = "Recent folder actions") {
-                            menuOpen = true
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "Recent folder actions",
-                        tint = HomeTokens.textDim,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-                RecentFolderMenu(
-                    expanded = menuOpen,
-                    onDismiss = { menuOpen = false },
-                    showTerminal = recent.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX,
-                    onOpen = { menuOpen = false; onOpen() },
-                    onOpenInTerminal = { menuOpen = false; onOpenInTerminal() },
-                    onRemove = { menuOpen = false; onRemove() },
-                )
-            }
+            FolderRowMenu(
+                expanded = menuOpen,
+                onDismiss = { menuOpen = false },
+                showTerminal = folder.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX,
+                removeLabel = if (bookmarked) "Remove Bookmark" else "Remove from Home",
+                onOpen = { menuOpen = false; onOpen() },
+                onOpenInTerminal = { menuOpen = false; onOpenInTerminal() },
+                onRemove = { menuOpen = false; onRemove() },
+            )
         }
     }
 }
 
-/** The Recent row's 3-dot actions — the folder's honest sheet, docked. */
+/** A folder row's 3-dot actions — the honest actions, docked to the row. */
 @Composable
-private fun RecentFolderMenu(
+private fun FolderRowMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     showTerminal: Boolean,
+    removeLabel: String,
     onOpen: () -> Unit,
     onOpenInTerminal: () -> Unit,
     onRemove: () -> Unit,
@@ -731,7 +797,7 @@ private fun RecentFolderMenu(
             )
         }
         DropdownMenuItem(
-            text = { Text("Remove from Home") },
+            text = { Text(removeLabel) },
             leadingIcon = { Icon(Icons.Outlined.Close, contentDescription = null, modifier = Modifier.size(18.dp)) },
             onClick = onRemove,
         )

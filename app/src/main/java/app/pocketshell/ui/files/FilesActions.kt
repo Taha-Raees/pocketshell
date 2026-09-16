@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -179,6 +181,8 @@ data class EntryActionHandlers(
     val onCompress: (() -> Unit)? = null,
     /** M7.2-A: extract this .zip into a folder of the current directory. */
     val onExtract: (() -> Unit)? = null,
+    /** Owner iteration: bookmark / unbookmark this directory (folders only). */
+    val onToggleBookmark: (() -> Unit)? = null,
     val onRename: () -> Unit,
     val onDelete: () -> Unit,
 )
@@ -193,6 +197,8 @@ data class EntryActionHandlers(
 @Composable
 fun EntryActionSheet(
     entry: FsEntry,
+    /** Owner iteration: current bookmark state — flips the folder action label. */
+    bookmarked: Boolean = false,
     onDismiss: () -> Unit,
     handlers: EntryActionHandlers,
 ) {
@@ -245,6 +251,16 @@ fun EntryActionSheet(
                 if (handlers.onTerminal != null) {
                     val terminal = handlers.onTerminal
                     SheetAction("Open Terminal Here", Icons.Outlined.Terminal, onClick = { terminal?.invoke() })
+                }
+                // Owner iteration: persist this folder for the Home "Folders"
+                // list — the label reflects the current state.
+                if (handlers.onToggleBookmark != null) {
+                    val toggleBookmark = handlers.onToggleBookmark
+                    SheetAction(
+                        if (bookmarked) "Remove Bookmark" else "Bookmark",
+                        if (bookmarked) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
+                        onClick = { toggleBookmark?.invoke() },
+                    )
                 }
                 SheetAction("New folder", Icons.Outlined.CreateNewFolder, onClick = { handlers.onNewFolder?.invoke() })
                 SheetAction("New file", Icons.Outlined.NoteAdd, onClick = { handlers.onNewFile?.invoke() })

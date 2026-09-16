@@ -52,6 +52,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -203,6 +204,8 @@ fun FilesScreen(
     // M7.2-A: archive surfaces + progress.
     val zipProgress by ops.zipProgress.collectAsStateWithLifecycle()
     val compressDialog by ops.compressDialog.collectAsStateWithLifecycle()
+    // Owner iteration: the folder bookmarks drive the ⋯ sheet's Bookmark action.
+    val bookmarks by ops.bookmarks.collectAsStateWithLifecycle()
     val extractDialog by ops.extractDialog.collectAsStateWithLifecycle()
 
     // Phase 5: the Android-side launchers (folder picker, import picker) and
@@ -479,6 +482,7 @@ fun FilesScreen(
     selected?.let { entry ->
         EntryActionSheet(
             entry = entry,
+            bookmarked = ops.bookmarked(entry, bookmarks),
             onDismiss = { selected = null },
             handlers = EntryActionHandlers(
                 onOpen = when (entry.kind) {
@@ -536,6 +540,14 @@ fun FilesScreen(
                 },
                 onExtract = if (entry.kind == EntryKind.FILE && ZipArchiveOps.isZipName(entry.name)) {
                     { selected = null; ops.requestExtract(entry.name) }
+                } else {
+                    null
+                },
+                // Owner iteration: bookmark / unbookmark a folder for the
+                // Home "Folders" list (directories only — the sheet offers
+                // what is genuinely possible).
+                onToggleBookmark = if (entry.kind == EntryKind.DIRECTORY) {
+                    { selected = null; ops.toggleBookmark(entry) }
                 } else {
                     null
                 },
@@ -1399,7 +1411,12 @@ private fun SearchRow(
 
 // ------------------------------------------------------------------ listing
 
-/** One quiet column of entries — directories first (the engine's order). */
+/**
+ * One quiet column of entries — directories first (the engine's order).
+ * File-manager styling (owner iteration): flat rows separated by thin
+ * hairlines, no per-row cards. The divider belongs to the ROW ABOVE's slot
+ * but sits OUTSIDE its click target; the last row closes the list bare.
+ */
 @Composable
 private fun Listing(
     entries: List<FsEntry>,
@@ -1414,21 +1431,29 @@ private fun Listing(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
     ) {
-        items(entries, key = { it.name }) { entry ->
-            EntryRow(
-                entry = entry,
-                highlighted = entry.name == highlight,
-                onClick = {
-                    when (entry.kind) {
-                        EntryKind.DIRECTORY -> onOpenChild(entry.name)
-                        else -> onSelect(entry)
-                    }
-                },
-                onActions = { onSelect(entry) },
-                selecting = selectionMode,
-                selectedNow = entry.name in selected,
-                onToggle = { onToggle(entry.name) },
-            )
+        itemsIndexed(entries, key = { _, entry -> entry.name }) { index, entry ->
+            Column {
+                EntryRow(
+                    entry = entry,
+                    highlighted = entry.name == highlight,
+                    onClick = {
+                        when (entry.kind) {
+                            EntryKind.DIRECTORY -> onOpenChild(entry.name)
+                            else -> onSelect(entry)
+                        }
+                    },
+                    onActions = { onSelect(entry) },
+                    selecting = selectionMode,
+                    selectedNow = entry.name in selected,
+                    onToggle = { onToggle(entry.name) },
+                )
+                if (index != entries.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        color = HomeTokens.hairline,
+                    )
+                }
+            }
         }
     }
 }
@@ -1449,8 +1474,9 @@ private fun EntryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 52.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .heightIn(min = 48.dp)
+            // Flat, full-width states — pressed and selected read as row
+            // fills, never as floating cards (owner iteration §10).
             .background(
                 when {
                     pressed -> HomeTokens.surfaceBanner

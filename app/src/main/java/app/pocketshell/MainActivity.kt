@@ -310,6 +310,7 @@ fun PocketShellRoot(
     val filesState by filesViewModel.state.collectAsStateWithLifecycle()
     val filesSearch by filesViewModel.search.collectAsStateWithLifecycle()
     val recentFolder by filesViewModel.recentFolder.collectAsStateWithLifecycle()
+    val bookmarks by filesViewModel.bookmarks.collectAsStateWithLifecycle()
 
     // M7 Phase 6: the quick text editor is process-scoped as well — its
     // loaded document and dirty buffer survive Home↔Editor navigation and
@@ -629,20 +630,21 @@ fun PocketShellRoot(
                 cardSize = cardSize,
                 iconColumns = iconColumns,
                 recentFolder = recentFolder,
-                onOpenRecentFolder = {
-                    val recent = recentFolder ?: return@HomeScreen
-                    filesViewModel.openRecentFolder(recent)
+                bookmarks = bookmarks,
+                onOpenFolder = { folder ->
+                    filesViewModel.openRecentFolder(folder)
                     screen = "files"
                 },
-                onOpenRecentInTerminal = {
-                    val recent = recentFolder ?: return@HomeScreen
-                    // The same honest area-kind gate the Recent row's menu
-                    // applies: only guest-Linux folders can host a session.
-                    if (recent.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX) {
-                        terminalViewModel.openLinuxShellAt(recent.path.value) { screen = "terminal" }
+                onOpenFolderInTerminal = { folder ->
+                    // The same honest area-kind gate the row's menu applies:
+                    // only guest-Linux folders can host a session.
+                    if (folder.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX) {
+                        terminalViewModel.openLinuxShellAt(folder.path.value) { screen = "terminal" }
                     }
                 },
+                onRemoveBookmark = { filesViewModel.removeBookmark(it) },
                 onRemoveRecentFolder = { filesViewModel.clearRecentFolder() },
+                onSeeAllFolders = { screen = "files" },
                 onOpenCompanion = companionViewModel::openCompanion,
                 onRemoveFromHome = launcherViewModel::hideFromHome,
                 onOpenLauncherSettings = { screen = "launcherSettings" },

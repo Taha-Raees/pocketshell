@@ -283,7 +283,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     // --------------------------------- folder bookmarks (owner iteration)
 
     /** The user's bookmarked folders (newest last); every read revalidates. */
-    val bookmarks: StateFlow<List<RecentFolder>> = settingsRepository.folderBookmarksRecord
+    override val bookmarks: StateFlow<List<RecentFolder>> = settingsRepository.folderBookmarksRecord
         .map { BookmarkStore.deserialize(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -293,7 +293,7 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
      * left open over an old directory can never bookmark the wrong target.
      * Persisted through the settings DataStore in one atomic rewrite.
      */
-    fun toggleBookmark(entry: FsEntry) {
+    override fun toggleBookmark(entry: FsEntry) {
         if (entry.kind != EntryKind.DIRECTORY) return
         val area = _state.value.areaId ?: return
         val parent = _state.value.path ?: return
@@ -313,11 +313,23 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     }
 
     /** Is [entry] in the CURRENT listing bookmarked? (Sheet label + state.) */
-    fun bookmarked(entry: FsEntry, bookmarks: List<RecentFolder>): Boolean {
+    override fun bookmarked(entry: FsEntry, bookmarks: List<RecentFolder>): Boolean {
         val area = _state.value.areaId ?: return false
         val parent = _state.value.path ?: return false
         val target = PathSafety.validatePath("${parent.value}/${entry.name}") ?: return false
         return bookmarks.any { it.isSameTarget(area.kind, area.key, target) }
+    }
+
+    /** Home row action: remove ONE bookmark by its exact identity. */
+    fun removeBookmark(folder: RecentFolder) {
+        viewModelScope.launch {
+            val current = BookmarkStore.deserialize(
+                settingsRepository.folderBookmarksRecord.first(),
+            )
+            settingsRepository.setFolderBookmarks(
+                BookmarkStore.serialize(current.filterNot { it == folder }),
+            )
+        }
     }
 
     /** The persisted tree-grant URIs the OS still holds for us (read grants). */
