@@ -3026,3 +3026,53 @@ Owner feedback, two messages, implemented as one revision commit:
   reused); still folders only, no Files entry; rows/closing rule as in
   round 1.
 - §62/11b + 18/19 rewritten for the round-2 contract.
+
+## Task 56 — M7.2 P10: the agent-native signal bridge (Agent L, 2026-09-17)
+
+Base `58f39bd` (main). Implementation `f55eab7` + docs. THE unresolved
+M7.2 problem — agent notifications beyond generic process truth — solved
+by bridging the agents' OWN structured notification mechanisms into the
+one authoritative activity model, through the P9 launch-record channel.
+
+- AGENT LABORATORY (x86 lab, mock-API method — real sessions, zero
+  credentials): Claude Code 2.1.274 hooks verified END-TO-END (print +
+  interactive pty: SessionStart/UserPromptSubmit/PreToolUse/
+  PermissionRequest/Notification/Stop/SessionEnd with session_id +
+  payload specifics; `--settings` merge proven non-invasive), Codex
+  0.154.0 notify verified (`agent-turn-complete` argv JSON, no trust
+  gate; hooks.json exists but trust-gated → deferred), OpenCode 1.18.31
+  plugin event bus verified (`permission.asked`/`replied`,
+  `session.idle`, `session.status`). ZCode hooks verified in the shipped
+  engine payload construction + official docs. Static verification (all
+  six remaining registry agents have mechanisms): kilo=OpenCode-fork
+  bus, cline=script hooks+TaskComplete, hermes=approval hooks+HERMES_HOME,
+  agy=embedded hooks.json+STATE_WAITING_FOR_USER, qwen=Claude-style
+  hooks+QWEN_HOME, gemini=Notification(ToolPermission). Evidence:
+  docs/M7.2-P10-AGENT-SIGNAL-BRIDGE.md §3, docs/p10-lab/*.
+- LINUX SIDE: assets/agentbridge/ps-emit.sh (POSIX+busybox, argv+stdin
+  transports, payload sanitization incl. hostile-input pins, parent pid+
+  stat-22 capture, generation guard); AgentSignalAdapters (claude/codex/
+  opencode — proven only; staging = per-launch <token>.d beside the
+  record file, dies with the generation; launch chain gained prep
+  snippet + anchor exec override); TerminalViewModel staging (best-effort
+  by contract — staging failure degrades to the plain channel).
+- ANDROID SIDE: AgentSignalBridge (parser + acceptance gate: parent
+  must be the anchored agent or live in the session's correlation
+  domain — recycled/foreign/zombie/wrong-token dropped; attention
+  semantics); signal record rides AgentLaunchRecords (append order);
+  detector delivers accepted signals exactly once per generation with
+  generation-break reset; engine gained the orthogonal attention axis
+  (Raised/Cleared/TurnSignalled; withdrawal on NOT_RUNNING + session
+  terminal edges; turn-ending-attention emits withdrawal only);
+  notifications gained the AGENT_ATTENTION id space with narrow
+  wordings ("is requesting permission" / "needs your input" / "ended
+  its turn" — the conscious, documented P7-ban-list revision; P4 sweep
+  extended, still bans finished/completed/success/failed); Home claims
+  gained attention states that outrank process claims.
+- TESTS: 68 new pins (parser/acceptance/detection/engine/mapping/
+  adapters/chain + REAL emitter execution fixture under /bin/sh);
+  full suite 1139 green. scripts/p10/rehearse_signal_bridge.sh 8/8 on
+  real Linux. Device gate: TESTING.md §63. Deliberately deferred
+  (documented): zcode adapter (config staging needs device-gate
+  verification), codex hooks (per-launch trust prompts), adapters for
+  the statically-verified six (each after its own lab pass).

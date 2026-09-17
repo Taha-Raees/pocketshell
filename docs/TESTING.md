@@ -4087,3 +4087,84 @@ available), no external browser ever opens for A taps, no Companion
 regression per §61 behaviors 7–12 (deck interplay unchanged), and the
 full unit suite at the gate SHA shows only the 4 known env failures.
 Record results in the worklog.
+
+---
+
+## §63 — M7.2 P10 gate: the agent-native signal bridge (attention on the shade)
+
+Build under gate: `main` @ f55eab7 (P10 bridge). Laptop-side evidence:
+1139 JVM tests green (68 new P10 pins), `scripts/p10/
+rehearse_signal_bridge.sh` 8/8 on x86 Linux. THIS gate is the ARM64
+device round: real agents with REAL credentials inside the PocketShell
+guest, real hooks firing. Install the branch-tip debug APK, then in the
+guest install at least: Claude Code (`npm i -g @anthropic-ai/claude-code`
+— ships linux-arm64), Codex (`npm i -g @openai/codex`), OpenCode
+(`npm i -g opencode-ai`), each authenticated as the user normally would
+(inside the guest, once, from a plain shell session).
+
+### A — Claude Code attention (the flagship path)
+
+1. Home → Claude Code launcher → submit a prompt that needs a
+   permission-asking tool (e.g. "create a file named ps10.txt in this
+   directory" — the Write prompt). EXPECT: the Android shade gains a NEW
+   notification (distinct from "Claude Code is running") titled
+   **"Claude Code is requesting permission"**; the Home Sessions row
+   shows **"Claude Code — Requesting permission"**.
+2. Tap the attention notification. EXPECT: it opens THAT session's
+   terminal (P5 route); the permission dialog is on screen.
+3. Approve the prompt and let the agent work. EXPECT: the attention
+   notification is WITHDRAWN (cancelled, not replaced — no "completed",
+   no "success" wording anywhere) once the agent's next tool activity
+   starts; the Home row returns to "Running".
+4. Complete the turn (let the agent answer). EXPECT: a one-shot
+   notification **"Claude Code ended its turn"**. No exit-code or
+   success/failure wording may appear at any point (§63 honesty sweep).
+5. USER-CONFIG PARITY: the user's own `~/.claude` settings/theme/auth
+   must behave exactly as without PocketShell (the staged bridge is
+   `--settings`-merged, non-invasive). A user hook in the user's own
+   settings still fires (merge, not replace).
+6. RELAUNCH: exit the agent, re-tap the launcher. EXPECT a NEW
+   generation (new `/var/lib/pocketshell-agent/<token>.jsonl` + `<token>.d/`);
+   signals from the OLD generation (if any linger) never surface; the new
+   session's attention works.
+
+### B — Codex turn completion (notify path)
+
+7. Home → Codex → run one turn to completion. EXPECT a notification
+   **"Codex ended its turn"** (from `agent-turn-complete`), session-scoped.
+8. Codex must still authenticate and behave normally (staged CODEX_HOME
+   symlinks the real `auth.json`). If the user's own `~/.codex/config.toml`
+   already defines `notify`, behavior is user-owned and the bridge stays
+   silent — acceptable, documented.
+
+### C — OpenCode attention + turn (plugin path)
+
+9. Home → OpenCode → trigger a bash permission ask. EXPECT
+   **"OpenCode is requesting permission"** (+ the command metadata when
+   the payload carries it). Approve → attention withdrawn; finish the
+   turn → **"OpenCode ended its turn"**.
+10. The user's global OpenCode settings survive the launch (staged
+    XDG_CONFIG_HOME with copy-through; auth/data dir untouched).
+
+### D — Isolation, staleness, honesty (the hard pins)
+
+11. TWO sessions, two different agents, both mid-work. Trigger attention
+    in session A only. EXPECT session B's shade/Home untouched — no
+    cross-session contamination of any surface.
+12. Close a session while an attention notification is up. EXPECT the
+    attention notification withdrawn; the session's record file AND its
+    `<token>.d/` staging gone (`ls /var/lib/pocketshell-agent/`).
+13. Plain shell + unbridged agents (kilo/hermes/agy/qwen/cline/zcode):
+    EXPECT process-truth behavior EXACTLY as P9 (running/unknown), and
+    NEVER an attention notification (no adapter ⇒ no signal ⇒ no claim).
+14. HONESTY SWEEP over every notification the shade can show in this
+    gate: no "completed", "success", "finished", "failed", "waiting for
+    input" anywhere. Allowed new wordings are EXACTLY: "is requesting
+    permission", "needs your input", "ended its turn", plus the Home
+    forms "— Requesting permission" / "— Needs your input".
+15. ZCode (device-gate verification, adapter deferred): in a guest with
+    ZCode available, confirm whether a per-session staged hook config
+    (workspace `~/.zcode/cli/config.json` merge or env override) can arm
+    `PermissionRequest`/`Stop` hooks WITHOUT prompting. If yes → the
+    ZCode adapter is a small follow-up on the proven pattern; if no →
+    the deferral stands, documented.
