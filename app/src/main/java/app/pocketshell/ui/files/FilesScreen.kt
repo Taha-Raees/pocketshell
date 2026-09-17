@@ -31,6 +31,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
@@ -301,6 +303,10 @@ fun FilesScreen(
                 onSwitchArea = onSwitchArea,
                 onAddSafFolder = bridge.pickFolder,
                 onOpenTerminalHere = onOpenTerminalHere,
+                // Owner round 2: the header bookmark toggle for the browsed
+                // folder — state read live from the bookmarks flow.
+                bookmarkedHere = ops.bookmarkedCurrent(bookmarks),
+                onToggleBookmarkHere = { ops.toggleBookmarkCurrent() },
             )
 
             if (searchMode) {
@@ -668,6 +674,10 @@ private fun FilesHeader(
     onSwitchArea: (AreaId) -> Unit,
     onAddSafFolder: () -> Unit,
     onOpenTerminalHere: () -> Unit = {},
+    // Owner round 2: the toolbar bookmark toggle for the BROWSED folder
+    // (state-reflected; the same record the Home Folders section reads).
+    bookmarkedHere: Boolean = false,
+    onToggleBookmarkHere: () -> Unit = {},
 ) {
     var switcherOpen by remember { mutableStateOf(false) }
     Row(
@@ -718,6 +728,29 @@ private fun FilesHeader(
                     imageVector = Icons.Outlined.DoneAll,
                     contentDescription = if (selectionMode) "Exit selection" else "Select items",
                     tint = if (selectionMode) HomeTokens.accent else HomeTokens.textDim,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+
+        // Owner round 2: the toolbar bookmark action — bookmarks THIS
+        // browsed folder (any area; the Home Folders section reads the same
+        // record). Filled + accent while bookmarked. Hidden during search
+        // mode (the two modes never mix) and where no location exists.
+        if (!searchMode && state.path != null) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button, onClickLabel = if (bookmarkedHere) "Remove bookmark" else "Bookmark this folder") {
+                        onToggleBookmarkHere()
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (bookmarkedHere) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                    contentDescription = if (bookmarkedHere) "Remove bookmark" else "Bookmark this folder",
+                    tint = if (bookmarkedHere) HomeTokens.accent else HomeTokens.textDim,
                     modifier = Modifier.size(22.dp),
                 )
             }

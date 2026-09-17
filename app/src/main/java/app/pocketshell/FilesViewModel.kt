@@ -298,18 +298,27 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
         val area = _state.value.areaId ?: return
         val parent = _state.value.path ?: return
         val target = PathSafety.validatePath("${parent.value}/${entry.name}") ?: return
-        viewModelScope.launch {
-            val current = BookmarkStore.deserialize(
-                settingsRepository.folderBookmarksRecord.first(),
-            )
-            fun RecentFolder.matchesTarget() = isSameTarget(area.kind, area.key, target)
-            val updated = if (current.any { it.matchesTarget() }) {
-                current.filterNot { it.matchesTarget() }
-            } else {
-                current + RecentFolder(area.kind, area.key, target)
-            }
-            settingsRepository.setFolderBookmarks(BookmarkStore.serialize(updated))
+        viewModelScope.launch { toggleBookmarkInternal(area, target) }
+    }
+
+    /** Header action (owner round 2): bookmark / unbookmark the BROWSED folder. */
+    override fun toggleBookmarkCurrent() {
+        val area = _state.value.areaId ?: return
+        val path = _state.value.path ?: return
+        viewModelScope.launch { toggleBookmarkInternal(area, path) }
+    }
+
+    private suspend fun toggleBookmarkInternal(area: AreaId, target: app.pocketshell.files.AreaPath) {
+        val current = BookmarkStore.deserialize(
+            settingsRepository.folderBookmarksRecord.first(),
+        )
+        fun RecentFolder.matchesTarget() = isSameTarget(area.kind, area.key, target)
+        val updated = if (current.any { it.matchesTarget() }) {
+            current.filterNot { it.matchesTarget() }
+        } else {
+            current + RecentFolder(area.kind, area.key, target)
         }
+        settingsRepository.setFolderBookmarks(BookmarkStore.serialize(updated))
     }
 
     /** Is [entry] in the CURRENT listing bookmarked? (Sheet label + state.) */
@@ -318,6 +327,13 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
         val parent = _state.value.path ?: return false
         val target = PathSafety.validatePath("${parent.value}/${entry.name}") ?: return false
         return bookmarks.any { it.isSameTarget(area.kind, area.key, target) }
+    }
+
+    /** Is the BROWSED folder bookmarked? (Header button state.) */
+    override fun bookmarkedCurrent(bookmarks: List<RecentFolder>): Boolean {
+        val area = _state.value.areaId ?: return false
+        val path = _state.value.path ?: return false
+        return bookmarks.any { it.isSameTarget(area.kind, area.key, path) }
     }
 
     /** Home row action: remove ONE bookmark by its exact identity. */
