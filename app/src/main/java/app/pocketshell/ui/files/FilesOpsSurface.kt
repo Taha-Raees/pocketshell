@@ -70,8 +70,14 @@ interface FilesOpsSurface {
     /** Bookmark / unbookmark the DIRECTORY [entry] against the current listing. */
     fun toggleBookmark(entry: app.pocketshell.files.FsEntry)
 
+    /** Bookmark / unbookmark the BROWSED folder (header action, owner round 2). */
+    fun toggleBookmarkCurrent()
+
     /** Is [entry] (in the current listing) bookmarked? Drives the sheet label. */
     fun bookmarked(entry: app.pocketshell.files.FsEntry, bookmarks: List<app.pocketshell.files.RecentFolder>): Boolean
+
+    /** Is the BROWSED folder bookmarked? (Header button state.) */
+    fun bookmarkedCurrent(bookmarks: List<app.pocketshell.files.RecentFolder>): Boolean
 
     /** A staged file ready to be handed to the Android share sheet. */
     val shareReady: StateFlow<ShareReady?>

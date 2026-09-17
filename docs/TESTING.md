@@ -4020,6 +4020,12 @@ branch tip, install `app/build/outputs/apk/debug/app-debug.apk`
 11. Files → enter a folder → tap the row's ⋮ (or long-press). EXPECT
     the sheet shows **Bookmark** for folders and NO bookmark action for
     files/symlinks. Tap Bookmark: sheet closes.
+11b. HEADER TOGGLE (owner round 2): the Files toolbar (next to the
+    terminal button) carries a bookmark button for the BROWSED folder —
+    outline when not bookmarked, filled + accent when bookmarked. Tap it
+    from any area at any location: Home gains/loses the ★ row after the
+    toggle; revisiting the folder shows the correct state; it survives a
+    restart. Hidden during search mode and where no location exists.
 12. Restart the app (swipe away + relaunch). Home shows the folder in
     the FOLDERS section with a ★; Files → the same folder's sheet now
     shows **Remove Bookmark**.
@@ -4037,14 +4043,15 @@ branch tip, install `app/build/outputs/apk/debug/app-debug.apk`
 17. Long names: bookmark a folder with a very long name. EXPECT a single
     ellipsized line per row, no wrapping into giant rows.
 
-### C — Home Folders section (§62/18–21, owner round 1 revision)
+### C — Home Folders section (§62/18–21, owner round 2 revision)
 
 18. Files BUTTON GONE: the old 64dp "Files" launcher row is REMOVED from
-    Home. "See all" at the END of the Folders title line IS the Files
-    entry now, and it is ALWAYS visible — even with zero bookmarks and
-    no recent folder (title line + rule, no rows below).
-19. SHAPE (owner mock): "Folders … See all" title line, one full-width
-    hairline under it, then slim ONE-LINE rows — ★ bookmarks (accent)
+    Home — folders only, no Files entry. "See all" (right side of the
+    FOLDERS title row) is the Files entry and the section is ALWAYS
+    composed, even at zero rows.
+19. SHAPE (owner round 2): a full-width hairline on TOP of the section,
+    then the "Folders … See all" row BELOW that rule (title left, action
+    right, one line), then slim ONE-LINE rows — ★ bookmarks (accent)
     first, 📁 recent last with a dim "(recent)" suffix and NO path line
     — no dividers between rows, one full-width hairline closing the
     section. Rows carry a trailing → at minimum padding (44dp touch

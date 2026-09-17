@@ -3009,3 +3009,20 @@ Owner feedback, two messages, implemented as one revision commit:
   (title line + rule; the section no longer disappears).
 - §62/12,15–25 rewritten to the revised contract; rows-step 19/22 now
   pin the no-divider shape and the retired Files button.
+
+### Task 55 amendment — owner round 2 (2026-09-17, same session)
+
+- FILES HEADER BOOKMARK: the Files toolbar gains a bookmark toggle for
+  the BROWSED folder, next to the terminal button (owner: "bookmark
+  button in files on top with terminal and all") — outline when off,
+  filled + accent when on; hidden in search mode / where no location
+  exists. FilesViewModel: toggleBookmarkCurrent + bookmarkedCurrent,
+  sharing the sheet action's atomic BookmarkStore rewrite
+  (toggleBookmarkInternal).
+- HOME RULE ABOVE TITLE: per owner round 2 ("title and see all both
+  will come down in same row", "no files only folders") the section now
+  opens with a full-width hairline ON TOP; the "Folders … See all" row
+  sits BELOW that rule (title left, action right — SectionHeaderWithAction
+  reused); still folders only, no Files entry; rows/closing rule as in
+  round 1.
+- §62/11b + 18/19 rewritten for the round-2 contract.

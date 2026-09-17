@@ -630,14 +630,13 @@ private fun ReadyDot() {
 }
 
 /**
- * The compact "Folders" dashboard section (owner mock): the title line
- * carries "See all" at its END — with the separate Files button retired,
- * that IS the Files entry, so the header line is ALWAYS composed (even at
- * zero rows). Below it one full-width hairline, then the slim rows —
- * ★ bookmarks first, the recent folder last — with NO dividers between
- * them and one full-width hairline closing the section. Rows are one
- * line at minimum padding; the overflow (beyond 4 bookmarks + recent)
- * lives in Files via See all.
+ * The compact "Folders" dashboard section (owner round 2): a full-width
+ * hairline on TOP, then the "Folders … See all" row BELOW it (title and
+ * action share one line; with the Files button retired, See all IS the
+ * Files entry, so the section is ALWAYS composed — even at zero rows).
+ * Then the slim one-line rows — ★ bookmarks, 📁 recent last — no dividers
+ * between them, one hairline closing the section. Overflow beyond
+ * 4 bookmarks + the recent row lives in Files via See all.
  */
 @Composable
 private fun FoldersSection(
@@ -652,12 +651,13 @@ private fun FoldersSection(
     val visibleBookmarks = bookmarks.take(4)
     val rows = visibleBookmarks.map { it to true } + listOfNotNull(recent?.let { it to false })
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Spacer(Modifier.height(12.dp))
+        HorizontalDivider(color = HomeTokens.hairline)
         SectionHeaderWithAction(
             label = "Folders",
             actionLabel = "See all",
             onAction = onSeeAll,
         )
-        HorizontalDivider(color = HomeTokens.hairline)
         rows.forEach { (folder, isBookmark) ->
             FolderRow(
                 folder = folder,
