@@ -222,6 +222,11 @@ class LaunchIdentityIntegrationTest {
             "AgentActivityRepository.kt", "SessionLifecycle.kt",
             "AgentRuntimeEvents.kt", "AgentRuntimeEventEngine.kt",
             "AgentHomeSessionClaims.kt",
+            // M7.2 P10 (documented revision): the agent-signal bridge joins
+            // the evidence seam family — it consumes the SAME /proc birth
+            // stamps and the SAME launch anchor (the shared birth-stamp
+            // comparison, including the device-measured skew tolerance).
+            "AgentSignalBridge.kt",
         )
         val completionOffenders = mutableListOf<String>()
         val runningOffenders = mutableListOf<String>()

@@ -387,8 +387,11 @@ object GuestGlibcRuntime {
      */
     private fun refuseSymlinkParents(rootfsDir: File, target: Path, entryName: String) {
         val root = Path(rootfsDir.absolutePath).normalize()
-        var node = target.parent?.normalize() ?: return
-        while (node != null && node != root) {
+        // see RuntimeInstaller.refuseSymlinkParents — walk strictly inside
+        // the rootfs (a top-level entry must not escape above it into
+        // Android's own /data/user/0 symlink)
+        var node = target.normalize().parent ?: return
+        while (node != null && node.startsWith(root) && node != root) {
             if (Files.isSymbolicLink(node)) {
                 throw IOException(
                     "archive entry \"$entryName\" resolves through a symlink (" +

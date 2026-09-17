@@ -360,11 +360,19 @@ class RuntimeInstaller(
      * entry's writes through its own earlier symlink entries. The pinned
      * minirootfs never triggers this (verified: zero directory symlinks; all
      * file entries live in real directories).
+     *
+     * Device-gate fix (fresh-install blocker, Android 10): the walk must
+     * inspect only components STRICTLY INSIDE [root] — a top-level entry
+     * (`./`) normalized onto the root itself, and the old walk then escaped
+     * above the rootfs into the app's own path, where ANDROID's own
+     * /data/user/0 symlink (present on every modern device) failed the
+     * guard. Components above the root are the operating system's, never
+     * the archive's.
      */
     private fun refuseSymlinkParents(root: File, target: Path, entryName: String) {
         val rootNode = Path(root.absolutePath).normalize()
-        var node = target.parent?.normalize() ?: return
-        while (node != null && node != rootNode) {
+        var node = target.normalize().parent ?: return
+        while (node != null && node.startsWith(rootNode) && node != rootNode) {
             if (Files.isSymbolicLink(node)) {
                 throw InstallException(
                     RuntimeState.EXTRACTING,

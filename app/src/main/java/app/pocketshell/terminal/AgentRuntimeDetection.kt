@@ -288,6 +288,28 @@ object AgentDescendantCorrelator {
 object AgentRuntimeDetection {
 
     /**
+     * M7.2 P10 (device-gate finding) — the birth-stamp comparison
+     * tolerance. On the real device (SM-G965F, Android 10, proot), two
+     * reads of the SAME process's /proc/<pid>/stat field 22 can disagree
+     * by a few scheduler ticks (measured: the launch anchor's self-read
+     * vs its own child's later read of the same pid differed by 2 ticks;
+     * host-side and guest-side reads of one process agree exactly). The
+     * comparison must therefore be tolerance-based: a PID-REUSE event —
+     * the attack this birth stamp exists to defeat — separates the two
+     * reads by seconds-to-hours, never by milliseconds. 10 ticks (100ms)
+     * is generous against the measured skew and structurally useless to
+     * a reused pid.
+     */
+    const val STARTTIME_SKEW_TICKS: Long = 10
+
+    /** True when two birth-stamp readings name the same process birth. */
+    fun sameBirth(a: Long?, b: Long?): Boolean {
+        if (a == null || b == null) return false
+        val diff = a - b
+        return diff in -STARTTIME_SKEW_TICKS..STARTTIME_SKEW_TICKS
+    }
+
+    /**
      * A session the scanner may observe, extracted from the manager's
      * authoritative state.
      *
@@ -518,7 +540,7 @@ object AgentRuntimeDetection {
         val anchor = record?.launch
         val anchorPid = anchor?.let { a ->
             byPid[a.pid]?.takeIf { p ->
-                p.state != 'Z' && p.startTime != null && p.startTime == a.startTicks
+                p.state != 'Z' && AgentRuntimeDetection.sameBirth(p.startTime, a.startTicks)
             }?.pid?.takeIf { it in correlated }
         }
         if (anchorPid != null && anchorPid !in matches) {

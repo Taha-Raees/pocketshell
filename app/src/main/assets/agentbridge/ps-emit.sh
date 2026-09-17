@@ -67,14 +67,15 @@ DATA=$(printf '%s' "$PAYLOAD" \
     | cut -c 1-800 \
     | sed 's/\\\\*$/_/')
 
-# The parent identity (the agent process that invoked us). The comm-safe
-# stat parse strips "pid (comm) " exactly like the launch anchor does;
-# after it: field 1 = state, 2 = ppid, 20 = starttime.
-PPARENT=""
+# The parent identity (the agent process that invoked us): the pid is
+# $PPID ITSELF (the emitter's direct parent), and the birth stamp is
+# field 22 of the PARENT's stat — read comm-safely exactly like the
+# launch anchor does (after stripping "pid (comm) ", field 1 = state,
+# field 20 = starttime).
+PPARENT="$PPID"
 PSTART=""
 if [ -r "/proc/$PPID/stat" ]; then
     PSTAT=$(sed 's/^[0-9]* (.*) //' "/proc/$PPID/stat" 2>/dev/null) || PSTAT=""
-    PPARENT=$(printf '%s' "$PSTAT" | cut -d ' ' -f2)
     PSTART=$(printf '%s' "$PSTAT" | cut -d ' ' -f20)
 fi
 case "$PPARENT" in ''|*[!0-9]*) PPARENT=0 ;; esac

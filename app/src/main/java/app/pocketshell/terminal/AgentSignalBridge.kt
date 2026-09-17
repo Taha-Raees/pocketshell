@@ -254,15 +254,16 @@ object AgentSignalBridge {
         val anchor = context.anchor
         if (anchor != null &&
             signal.parentPid == anchor.pid &&
-            signal.parentStartTicks == anchor.startTicks
+            AgentRuntimeDetection.sameBirth(signal.parentStartTicks, anchor.startTicks)
         ) {
             return true
         }
         val byPid = context.byPid ?: return false // no live truth: the anchorless arm cannot fire
         val parent = byPid[signal.parentPid] ?: return false
         if (parent.state == 'Z') return false
-        val liveStart = parent.startTime ?: return false
-        if (liveStart != signal.parentStartTicks) return false // recycled pid: not the same process
+        if (!AgentRuntimeDetection.sameBirth(parent.startTime, signal.parentStartTicks)) {
+            return false // recycled pid: not the same process
+        }
         return signal.parentPid in context.correlatedPids
     }
 

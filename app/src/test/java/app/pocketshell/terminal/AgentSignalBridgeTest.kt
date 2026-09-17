@@ -137,6 +137,26 @@ class AgentSignalBridgeTest {
     }
 
     @Test
+    fun `the anchor arm tolerates the measured proot birth-stamp skew - but nothing wider`() {
+        // device-gate finding: two reads of the same process's field 22 can
+        // differ by a few ticks under proot (measured: 2). Pid reuse cannot
+        // happen inside this window — that is the whole point of the bound.
+        val within = AgentSignalBridge.parseSignal(signal(pid = 500, start = 9002), 0)!!
+        assertTrue(AgentSignalBridge.accept(within, context()))
+        val tooFar = AgentSignalBridge.parseSignal(signal(pid = 500, start = 9000 + AgentRuntimeDetection.STARTTIME_SKEW_TICKS + 1), 0)!!
+        assertFalse(AgentSignalBridge.accept(tooFar, context()))
+    }
+
+    @Test
+    fun `the live-parent arm tolerates the same skew`() {
+        val s = AgentSignalBridge.parseSignal(signal(pid = 610, start = 9100 + 2), 0)!!
+        val snap = ProcfsSnapshot(listOf(proc(pid = 610, startTime = 9100)))
+        assertTrue(AgentSignalBridge.accept(s, context(anchor = null, snapshot = snap, correlated = setOf(610))))
+        val beyond = AgentSignalBridge.parseSignal(signal(pid = 610, start = 9100 + AgentRuntimeDetection.STARTTIME_SKEW_TICKS + 1), 0)!!
+        assertFalse(AgentSignalBridge.accept(beyond, context(anchor = null, snapshot = snap, correlated = setOf(610))))
+    }
+
+    @Test
     fun `a recycled pid with a different birth stamp is rejected - the pid-reuse guard`() {
         val s = AgentSignalBridge.parseSignal(signal(pid = 500, start = 777777), 0)!!
         // no anchor, but a LIVE pid 500 with a DIFFERENT start in the tree

@@ -61,11 +61,16 @@ class AgentSignalEmitterExecutionTest {
             val record = File(dir, "p9feed.jsonl")
             record.writeText("{\"t\":\"launch\",\"pid\":1,\"pgrp\":1,\"start\":1,\"agent\":\"claude\"}\n")
             val side = File(dir, "identity.txt")
-            // The wrapper shell records its OWN pid:start (fields 4/22, the
-            // comm-safe parse) — then invokes the emitter; the emitter's
-            // parent IS this shell, so the recorded identity must match.
+            // The wrapper shell records its OWN true identity (pid = $$,
+            // birth stamp = stat field 22 via the comm-safe parse) — then
+            // invokes the emitter; the emitter's parent IS this shell, so
+            // the recorded identity must match exactly. (Device-gate note:
+            // the first cut of the fixture recorded the wrapper's PPID —
+            // mirroring an emitter bug that read the GRANDparent pid — and
+            // the two mistakes cancelled out; both are fixed together.)
             val script = """
-                sed 's/^[0-9]* (.*) //' /proc/${"\$\$"}/stat | cut -d ' ' -f2,20 | tr ' ' ':' > ${side.absolutePath}
+                START=${"\$"}(sed 's/^[0-9]* (.*) //' /proc/${"\$\$"}/stat | cut -d ' ' -f20)
+                printf '%s:%s\n' "${"\$\$"}" "${"\$START"}" > ${side.absolutePath}
                 sh ${emitter.absolutePath} claude working ${record.absolutePath} <<'EOF'
                 {"hook_event_name":"PreToolUse","tool_name":"Bash"}
                 EOF
