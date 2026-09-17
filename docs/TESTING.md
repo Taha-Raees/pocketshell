@@ -3973,13 +3973,14 @@ These four join §A/1–6, §B/7–9, §C/10–12 as the §61 PASS bar.
 
 ## §62 — Files + Companion UX gate: terminal links, folder bookmarks, slim list (owner-run)
 
-Build under gate: `agent-Z/perf-companion-keyboard` @ d5365a8 ("terminal
+Build under gate: `agent-Z/perf-companion-keyboard` @ 47eadb9 ("terminal
 links → Companion" + "user folder bookmarks" + Files/Home slim-list
-iteration). Unit ceiling already verified on the box: 1071 tests, the 4
-known env failures only. This gate is the REAL-DEVICE round (phone +
-tablet where available). Install: `PS_LOCAL_NDK=29.0.14206865
-./gradlew :app:assembleDebug` from the branch tip, install
-`app/build/outputs/apk/debug/app-debug.apk`.
+iteration + owner round 1). Unit ceiling already verified on the box:
+1071 tests, the 4 known env failures only. This gate is the REAL-DEVICE
+round (phone + tablet where available). Install:
+`PS_LOCAL_NDK=29.0.14206865 ./gradlew :app:assembleDebug` from the
+branch tip, install `app/build/outputs/apk/debug/app-debug.apk`
+(sha256 e3f51b32…).
 
 ### A — Terminal URL → Companion (§62/1–8)
 
