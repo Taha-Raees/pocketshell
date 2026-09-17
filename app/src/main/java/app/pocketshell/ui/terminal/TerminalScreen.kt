@@ -108,6 +108,8 @@ fun TerminalScreen(
     keyboardExpanded: Boolean,
     onKeyboardExpandedChange: (Boolean) -> Unit,
     keyboardBottomInset: Dp,
+    /** Terminal-link entry: a confirmed tap landed on an http(s) URL. */
+    onTerminalLinkTap: (String) -> Unit = {},
     onSelect: (Long) -> Unit,
     onClose: (Long) -> Unit,
     onNewSession: () -> Unit,
@@ -224,6 +226,7 @@ fun TerminalScreen(
                     textSize = textSize,
                     onTextSizeChange = { textSize = it },
                     onSingleTap = { if (!keyboardExpanded) onKeyboardExpandedChange(true) },
+                    onTerminalLinkTap = onTerminalLinkTap,
                     onViewCreated = { terminalViewRef.value = it },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -475,9 +478,15 @@ private fun TerminalViewHost(
     textSize: Int,
     onTextSizeChange: (Int) -> Unit,
     onSingleTap: () -> Unit,
+    onTerminalLinkTap: (String) -> Unit,
     onViewCreated: (TerminalView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The client holds the callbacks from its ONE factory run — keep them
+    // fresh through updated state so the deck fallback reads the CURRENT
+    // keyboard state and link taps reach the current handler.
+    val currentOnSingleTap by rememberUpdatedState(onSingleTap)
+    val currentOnTerminalLinkTap by rememberUpdatedState(onTerminalLinkTap)
     // Pinch font size: accumulate scale until a step threshold is crossed, then
     // change one size step and reset the recognizer.
     val scaleAccum = remember { floatArrayOf(1f) }
@@ -497,13 +506,29 @@ private fun TerminalViewHost(
     }
     // Track the size we already applied (renderer fields are package-private upstream).
     val appliedSize = remember { mutableStateOf(Int.MIN_VALUE) }
+    // Perf pass (2026-09-15): the color identity already applied to the view
+    // — the theme generation it was painted at, and WHICH emulator instance
+    // it was applied to (a session switch or a late-created emulator needs a
+    // fresh reset even at the same generation). Reading TerminalTheme.generation
+    // (plain field, deliberately not compose state) keeps unrelated
+    // recompositions of this host from repainting the terminal.
+    val appliedColorGeneration = remember { mutableStateOf(-1) }
+    val appliedColorEmulator = remember { mutableStateOf<Any?>(null) }
     AndroidView(
         factory = { context ->
             val view = TerminalView(context, null)
             view.setTerminalViewClient(
                 PocketShellTerminalViewClient(
                     keyboardState = keyboardState,
-                    onSingleTap = onSingleTap,
+                    onSingleTap = { currentOnSingleTap() },
+                    // Terminal link first refusal: a hit opens the Companion
+                    // and consumes the tap; a miss keeps the deck fallback.
+                    onSingleTapAt = { e ->
+                        TerminalLinkTap.urlAt(view, e)?.let { url ->
+                            currentOnTerminalLinkTap(url)
+                            true
+                        } ?: false
+                    },
                     onScaleGesture = onScale,
                     // Upstream-documented first-session blinker start: called
                     // once updateSize() has actually created the emulator.
@@ -539,9 +564,20 @@ private fun TerminalViewHost(
                 view.setTextSize(textSize)
                 appliedSize.value = textSize
             }
-            view.setBackgroundColor(TerminalTheme.canvas.toArgb())
-            view.mEmulator?.mColors?.reset()
-            view.invalidate()
+            // Theme/session/emulator identity changed? repaint identity. Same
+            // identity? this update is a no-op — an unrelated recomposition
+            // (aurora tick, inset change, tab bar) must NOT force a full
+            // terminal repaint on the UI thread (perf pass 2026-09-15).
+            val emulator = view.mEmulator
+            if (appliedColorGeneration.value != TerminalTheme.generation ||
+                appliedColorEmulator.value !== emulator
+            ) {
+                view.setBackgroundColor(TerminalTheme.canvas.toArgb())
+                emulator?.mColors?.reset()
+                view.invalidate()
+                appliedColorGeneration.value = TerminalTheme.generation
+                appliedColorEmulator.value = emulator
+            }
         },
         modifier = modifier,
     )

@@ -9,15 +9,18 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.pocketshell.files.AreaId
 import app.pocketshell.files.AreaKind
+import app.pocketshell.files.BookmarkStore
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerCore
 import app.pocketshell.files.ExplorerOps
 import app.pocketshell.files.FileSearch
 import app.pocketshell.files.MultiSelectOps
 import app.pocketshell.files.FilesSearchState
+import app.pocketshell.files.FsEntry
 import app.pocketshell.files.PathSafety
 import app.pocketshell.files.RecentFolder
 import app.pocketshell.files.RecentFolderStore
+import app.pocketshell.files.isSameTarget
 import app.pocketshell.files.PendingTransfer
 import app.pocketshell.files.StorageArea
 import app.pocketshell.files.StorageAreas
@@ -53,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.drop
@@ -274,6 +278,58 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     /** The Recent row's "Remove from Home": clears the persisted record. */
     fun clearRecentFolder() {
         viewModelScope.launch { settingsRepository.setRecentFolderRecord(null, null, null) }
+    }
+
+    // --------------------------------- folder bookmarks (owner iteration)
+
+    /** The user's bookmarked folders (newest last); every read revalidates. */
+    override val bookmarks: StateFlow<List<RecentFolder>> = settingsRepository.folderBookmarksRecord
+        .map { BookmarkStore.deserialize(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /**
+     * Bookmark / Remove Bookmark for the ⋯ sheet: the DIRECTORY entry is
+     * resolved against the CURRENT listing (area + path + name), so a sheet
+     * left open over an old directory can never bookmark the wrong target.
+     * Persisted through the settings DataStore in one atomic rewrite.
+     */
+    override fun toggleBookmark(entry: FsEntry) {
+        if (entry.kind != EntryKind.DIRECTORY) return
+        val area = _state.value.areaId ?: return
+        val parent = _state.value.path ?: return
+        val target = PathSafety.validatePath("${parent.value}/${entry.name}") ?: return
+        viewModelScope.launch {
+            val current = BookmarkStore.deserialize(
+                settingsRepository.folderBookmarksRecord.first(),
+            )
+            fun RecentFolder.matchesTarget() = isSameTarget(area.kind, area.key, target)
+            val updated = if (current.any { it.matchesTarget() }) {
+                current.filterNot { it.matchesTarget() }
+            } else {
+                current + RecentFolder(area.kind, area.key, target)
+            }
+            settingsRepository.setFolderBookmarks(BookmarkStore.serialize(updated))
+        }
+    }
+
+    /** Is [entry] in the CURRENT listing bookmarked? (Sheet label + state.) */
+    override fun bookmarked(entry: FsEntry, bookmarks: List<RecentFolder>): Boolean {
+        val area = _state.value.areaId ?: return false
+        val parent = _state.value.path ?: return false
+        val target = PathSafety.validatePath("${parent.value}/${entry.name}") ?: return false
+        return bookmarks.any { it.isSameTarget(area.kind, area.key, target) }
+    }
+
+    /** Home row action: remove ONE bookmark by its exact identity. */
+    fun removeBookmark(folder: RecentFolder) {
+        viewModelScope.launch {
+            val current = BookmarkStore.deserialize(
+                settingsRepository.folderBookmarksRecord.first(),
+            )
+            settingsRepository.setFolderBookmarks(
+                BookmarkStore.serialize(current.filterNot { it == folder }),
+            )
+        }
     }
 
     /** The persisted tree-grant URIs the OS still holds for us (read grants). */

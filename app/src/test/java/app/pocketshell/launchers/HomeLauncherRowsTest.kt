@@ -20,8 +20,10 @@ import java.io.File
  * practical, over the real sources (comments/strings stripped):
  *
  *   1. HomeScreen: CompanionsSection lays ONE x-scroll row; ToolsSection
- *      lays TWO rows via chunked(2) column stacks; both scroll through the
- *      shared LauncherScroller and its ScrollDots;
+ *      fills ROW-MAJOR — one row while it fits, a second only when full,
+ *      beyond that the next PAGE (chunked(perPage) + chunked(columns),
+ *      owner 2026-09-16) — both scroll through the shared LauncherScroller
+ *      and its ScrollDots;
  *   2. the PackagesFooterLink footer is GONE and the tools header's action
  *      is the packages callback (onOpenPackages) — the companions header
  *      keeps its own launcher-settings Manage;
@@ -89,14 +91,22 @@ class HomeLauncherRowsTest {
     }
 
     @Test
-    fun `tools lay two rows via column pairs through the shared scroller`() {
+    fun `tools fill row-major and paginate beyond two rows`() {
         val body = funBlock(homeCode, "fun ToolsSection(")
         assertTrue(
             "ToolsSection must render through LauncherScroller",
             body.contains("LauncherScroller("),
         )
         assertTrue(
-            "ToolsSection must build TWO-row columns via chunked(2)",
+            "owner 2026-09-16: pages are row-major blocks of up to two full rows",
+            body.contains("chunked(perPage)"),
+        )
+        assertTrue(
+            "rows inside a page fill row-major across the page width",
+            body.contains("chunked(columns)"),
+        )
+        assertFalse(
+            "the fixed TWO-row column pairs are retired (chunked(2))",
             body.contains("chunked(2)"),
         )
     }

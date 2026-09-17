@@ -1,23 +1,61 @@
 package app.pocketshell
 
 import android.app.Application
+import android.content.res.Configuration
 import app.pocketshell.packages.PackageGateway
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.settings.AppTheme
+import app.pocketshell.settings.SettingsRepository
+import app.pocketshell.settings.ThemeMode
+import app.pocketshell.settings.themeModeIsDark
 import app.pocketshell.terminal.ShellEnvironment
 import app.pocketshell.ui.theme.TerminalTheme
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 class PocketShellApp : Application() {
+
+    companion object {
+        /**
+         * The persisted theme identity, read SYNCHRONOUSLY once in onCreate
+         * (owner 2026-09-16 no-glimpse fix): the process-start palette and
+         * SettingsViewModel's first-frame StateFlow seeds both come from
+         * here, so an open never flashes the fresh-install default before
+         * the saved theme lands. Fresh installs read the Aurora × Dark
+         * defaults — that feature is unchanged.
+         */
+        var startupTheme: AppTheme = AppTheme.AURORA
+            private set
+        var startupThemeMode: ThemeMode = ThemeMode.DARK
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
         // The terminal palette must be in place BEFORE any TerminalEmulator
         // is constructed (each emulator copies the static scheme defaults at
-        // creation — docs/PHASE-3.1-DESIGN.md). Control Center II: the
-        // fresh-install identity is Aurora × Dark, so the process-start
-        // terminal scheme (and the chrome token snapshot) is Aurora-dark;
-        // the first PocketShellTheme composition re-syncs from the user's
-        // saved preference before any child composes (the no-flash contract).
-        TerminalTheme.applyTheme(AppTheme.AURORA, light = false)
+        // creation — docs/PHASE-3.1-DESIGN.md) — and, per the owner's
+        // no-glimpse fix, it must be the SAVED palette, not the fresh-install
+        // default: the old hardcoded Aurora start showed Aurora for a glimpse
+        // on every open until the DataStore emit re-applied the saved theme.
+        // One small blocking read here (a few KB, once per process, guarded
+        // by a timeout that falls back to the defaults) replaces the flash;
+        // the first PocketShellTheme composition re-applies the SAME values.
+        runBlocking {
+            withTimeoutOrNull(500L) {
+                val repo = SettingsRepository(this@PocketShellApp)
+                startupTheme = repo.theme.first()
+                startupThemeMode = repo.themeMode.first()
+            }
+        }
+        val systemDark =
+            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+        TerminalTheme.applyTheme(
+            startupTheme,
+            light = themeModeIsDark(startupThemeMode, systemDark).not(),
+        )
         // Create the real per-app shell directories (HOME, TMPDIR) once.
         ShellEnvironment.ensureDirs(this)
         // Reconcile Linux runtime state from disk (M2.2) — derives the honest
@@ -52,4 +90,3 @@ class PocketShellApp : Application() {
         app.pocketshell.notifications.AgentRuntimeNotificationConsumer.ensureStarted()
     }
 }
-

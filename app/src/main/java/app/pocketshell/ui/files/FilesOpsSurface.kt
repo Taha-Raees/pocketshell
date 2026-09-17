@@ -62,6 +62,17 @@ interface FilesOpsSurface {
     /** The user-granted Android folders with their honest access state. */
     val safFolders: StateFlow<List<SafFolderInfo>>
 
+    // --------------------------------- folder bookmarks (owner iteration)
+
+    /** The user's bookmarked folders (newest last), revalidated on every read. */
+    val bookmarks: StateFlow<List<app.pocketshell.files.RecentFolder>>
+
+    /** Bookmark / unbookmark the DIRECTORY [entry] against the current listing. */
+    fun toggleBookmark(entry: app.pocketshell.files.FsEntry)
+
+    /** Is [entry] (in the current listing) bookmarked? Drives the sheet label. */
+    fun bookmarked(entry: app.pocketshell.files.FsEntry, bookmarks: List<app.pocketshell.files.RecentFolder>): Boolean
+
     /** A staged file ready to be handed to the Android share sheet. */
     val shareReady: StateFlow<ShareReady?>
 

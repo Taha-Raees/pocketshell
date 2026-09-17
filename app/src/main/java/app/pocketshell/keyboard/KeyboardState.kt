@@ -47,6 +47,9 @@ class KeyboardState {
 
     /** Clear every ONE_SHOT modifier; LOCKED modifiers persist. */
     fun clearOneShots() {
+        // Perf pass: the common path (no one-shots armed — plain typing)
+        // must not allocate a throwaway map per keypress.
+        if (!_modifiers.value.values.any { it == ModifierState.ONE_SHOT }) return
         _modifiers.update { current ->
             current.mapValues { (_, state) -> if (state == ModifierState.ONE_SHOT) ModifierState.OFF else state }
         }

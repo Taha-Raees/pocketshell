@@ -1,0 +1,64 @@
+#!/bin/sh
+# companion-perf-gate — §61 helper (perf pass 2026-09-15): A/B frame
+# measurement for the Companion sheet drag and the keyboard deck on a real
+# device. The script automates ONLY the deterministic parts (install,
+# launch, gfxinfo reset/dump/parse); the gestures themselves are
+# owner-driven, exactly like the §59/§60 interactive gates.
+#
+# Requirements: adb with exactly one device connected (pocketshell-adb
+# connect; if adb wedges: pkill -9 adb, restart server, reconnect).
+#
+# Usage:
+#   companion-perf-gate install <apk>       adb install -r <apk>
+#   companion-perf-gate launch              cold-launch the app
+#   companion-perf-gate measure [seconds]   reset frame stats, wait while
+#                                           you perform the gestures, then
+#                                           print jank % + percentiles
+#   companion-perf-gate stop                force-stop between A/B rounds
+#
+# §61 procedure (docs/TESTING.md):
+#   1. Install the BASELINE apk, launch, open a Companion, raise the sheet.
+#   2. Run `measure 20`; during the wait perform ~10 slow + ~10 fast
+#      handle drags (up AND down, crossing the collapse threshold), then
+#      drag while a page is scrolling. Note the Janky % + percentiles.
+#   3. `stop`, install the PERF apk, repeat 1–2. Compare.
+#   4. Keyboard: launch, open a terminal, open the deck, run
+#      `measure 20` and type rapidly (letters, modifiers, ESC/TAB/arrows,
+#      CTRL+C / CTRL+L, hold a key for repeat) while a compile or agent
+#      prints output. Compare A/B the same way.
+set -u
+command -v adb >/dev/null 2>&1 || { echo "adb missing" >&2; exit 2; }
+PKG=app.pocketshell
+
+sel="$(adb devices | awk 'NR==2{print $1}')"
+[ -n "$sel" ] && [ "$sel" != "List" ] || { echo "no device connected — connect first" >&2; exit 1; }
+s() { adb -s "$sel" "$@"; }
+
+case "${1:-}" in
+  install)
+    [ $# -eq 2 ] || { echo "usage: companion-perf-gate install <apk>" >&2; exit 2; }
+    s install -r "$2"
+    ;;
+  launch)
+    s shell am start -n "$PKG/.MainActivity" >/dev/null && echo "launched"
+    ;;
+  stop)
+    s shell am force-stop "$PKG" && echo "stopped"
+    ;;
+  measure)
+    secs="${2:-20}"
+    s shell dumpsys gfxinfo "$PKG" reset >/dev/null
+    echo "perform the gestures NOW — measuring for ${secs}s…"
+    sleep "$secs"
+    out="$(s shell dumpsys gfxinfo "$PKG")"
+    echo "$out" | grep -E "Total frames rendered|Janky frames|50th|90th|95th|99th" | head -8
+    echo "---"
+    echo "Rule of thumb: compare BASELINE vs PERF builds of the SAME"
+    echo "gesture script; the perf pass expects the drag rounds to show a"
+    echo "visibly lower janky-frame share and a tighter 90th percentile."
+    ;;
+  *)
+    grep '^#   companion-perf-gate' "$0" | sed 's/^# *//'
+    exit 2
+    ;;
+esac

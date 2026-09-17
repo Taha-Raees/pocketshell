@@ -310,6 +310,7 @@ fun PocketShellRoot(
     val filesState by filesViewModel.state.collectAsStateWithLifecycle()
     val filesSearch by filesViewModel.search.collectAsStateWithLifecycle()
     val recentFolder by filesViewModel.recentFolder.collectAsStateWithLifecycle()
+    val bookmarks by filesViewModel.bookmarks.collectAsStateWithLifecycle()
 
     // M7 Phase 6: the quick text editor is process-scoped as well — its
     // loaded document and dirty buffer survive Home↔Editor navigation and
@@ -424,6 +425,10 @@ fun PocketShellRoot(
                 // label); the screen stays intent-only.
                 onNewSession = { terminalViewModel.newSessionMatchingCurrent() },
                 onBack = { screen = "home" },
+                // Terminal links → Companion (owner iteration): the sheet
+                // opens on the root-scoped VM and the existing browser tab
+                // navigates — never an external browser.
+                onTerminalLinkTap = { url -> companionViewModel.openWithUrl(url) },
                 // Phase 3.1: the Terminal screen consumes the system-bar insets
                 // itself so its Midnight chrome extends edge-to-edge (the deck
                 // pads for the gesture bar). Every other screen keeps the
@@ -613,7 +618,6 @@ fun PocketShellRoot(
                     terminalViewModel.openCustomTool(tool) { screen = "terminal" }
                 },
                 onExplorePackages = { screen = "explore" },
-                onOpenFiles = { screen = "files" },
                 onOpenSettings = { screen = "settings" },
                 onOpenDiagnostics = { screen = "diagnostics" },
                 companions = companionDefs,
@@ -625,20 +629,21 @@ fun PocketShellRoot(
                 cardSize = cardSize,
                 iconColumns = iconColumns,
                 recentFolder = recentFolder,
-                onOpenRecentFolder = {
-                    val recent = recentFolder ?: return@HomeScreen
-                    filesViewModel.openRecentFolder(recent)
+                bookmarks = bookmarks,
+                onOpenFolder = { folder ->
+                    filesViewModel.openRecentFolder(folder)
                     screen = "files"
                 },
-                onOpenRecentInTerminal = {
-                    val recent = recentFolder ?: return@HomeScreen
-                    // The same honest area-kind gate the Recent row's menu
-                    // applies: only guest-Linux folders can host a session.
-                    if (recent.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX) {
-                        terminalViewModel.openLinuxShellAt(recent.path.value) { screen = "terminal" }
+                onOpenFolderInTerminal = { folder ->
+                    // The same honest area-kind gate the row's menu applies:
+                    // only guest-Linux folders can host a session.
+                    if (folder.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX) {
+                        terminalViewModel.openLinuxShellAt(folder.path.value) { screen = "terminal" }
                     }
                 },
+                onRemoveBookmark = { filesViewModel.removeBookmark(it) },
                 onRemoveRecentFolder = { filesViewModel.clearRecentFolder() },
+                onSeeAllFolders = { screen = "files" },
                 onOpenCompanion = companionViewModel::openCompanion,
                 onRemoveFromHome = launcherViewModel::hideFromHome,
                 onOpenLauncherSettings = { screen = "launcherSettings" },
@@ -655,20 +660,20 @@ fun PocketShellRoot(
         app.pocketshell.ui.companion.CompanionLayer(
             viewModel = companionViewModel,
             onOpenCompanionSettings = { screen = "companionSettings" },
-            // m4.0.3: the deck's measured height — the Companion panel and
-            // its picker sheet push themselves ABOVE the keyboard.
-            keyboardBottomInset = keyboardInset,
+            // m4.0.3 + owner feedback 2026-09-16: the sheet rides ABOVE the
+            // deck on EVERY screen — the inset is passed as a px provider so
+            // the deck's entrance animation never recomposes the layer.
+            keyboardVisible = keyboardExpanded,
+            keyboardBottomInsetPx = { keyboardInsetPx },
         )
 
-        // m4.0.12 §12 (device feedback carried from m4.0.4) — the deck's
-        // rebirth affordance, now on EVERY screen EXCEPT Home (iteration:
-        // owner request — Home has no typeable surface, so the parked [⌨]
-        // was visual noise there; Terminal reopens via canvas tap, and the
-        // other typeable screens keep the parked button). It is ANCHORED to
-        // the bottom-right corner: 12dp from the right edge, 8dp above the
-        // gesture-bar inset, still a 44×36dp touch target, never clipped,
-        // never over the system navigation.
-        if (!keyboardExpanded && screen != "home") {
+        // m4.0.12 §12 (device feedback carried from m4.0.4), amended by the
+        // owner 2026-09-16: the parked [⌨] is BACK ON HOME too — with the
+        // Companion raised over Home, Home IS a typeable surface now (the
+        // original "Home has no typeable surface" rationale is gone). Same
+        // anchor as everywhere: bottom-right, 44×36dp touch target, never
+        // over the system navigation.
+        if (!keyboardExpanded) {
             Box(modifier = Modifier.fillMaxSize()) {
                 val haptics = LocalHapticFeedback.current
                 Box(

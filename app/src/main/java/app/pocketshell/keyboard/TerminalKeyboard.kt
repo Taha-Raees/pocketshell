@@ -36,9 +36,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -387,7 +390,10 @@ private fun PSKey(
             .height(height)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(TerminalTheme.keyRadius))
-            .background(container)
+            // Perf pass: the pressed color animates in the DRAW phase — the
+            // animated value is read inside the draw scope, so the ~80ms
+            // press tween never recomposes the key.
+            .drawBehind { drawRect(container) }
             .semantics {
                 role = Role.Button
                 this.contentDescription = if (key.label == "space") "Space" else key.label
@@ -495,8 +501,14 @@ private fun ModifierButton(
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
-    val mods by keyboardState.modifiers.collectAsState()
-    val state = mods[slot.key] ?: ModifierState.OFF
+    // Perf pass: THIS button subscribes to its OWN modifier only — a
+    // one-shot clear after each keypress no longer recomposes all three
+    // modifier buttons, only the one that actually changed.
+    val state by remember(slot.key) {
+        keyboardState.modifiers
+            .map { it[slot.key] ?: ModifierState.OFF }
+            .distinctUntilChanged()
+    }.collectAsState(ModifierState.OFF)
 
     val container by animateColorAsState(
         targetValue = when (state) {
@@ -517,7 +529,8 @@ private fun ModifierButton(
         modifier = modifier
             .height(height)
             .clip(RoundedCornerShape(TerminalTheme.keyRadius))
-            .background(container)
+            // Perf pass: the state color tween runs in the DRAW phase.
+            .drawBehind { drawRect(container) }
             .border(
                 1.dp,
                 if (state == ModifierState.ONE_SHOT) TerminalTheme.accentDeep else TerminalTheme.divider,
@@ -586,7 +599,10 @@ private fun EnterKey(
             .height(height)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(TerminalTheme.keyRadius))
-            .background(container)
+            // Perf pass: the pressed color animates in the DRAW phase — the
+            // animated value is read inside the draw scope, so the ~80ms
+            // press tween never recomposes the key.
+            .drawBehind { drawRect(container) }
             .semantics {
                 role = Role.Button
                 this.contentDescription = "Enter"

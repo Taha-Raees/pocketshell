@@ -3875,3 +3875,208 @@ profile without a saved PocketShell appearance preference.
 Verdict: PASS = all fourteen hold; screenshot 1 (fresh Aurora first
 frame), 3 (Home full-width), 4 (4 columns), 7 (Light Aurora), 8 (terminal
 under Dark Aurora) and 13 (Nord preserved).
+
+## §61 — Perf pass gate: Companion sheet drag + keyboard deck (A/B frame measurement)
+
+Prerequisites: the perf-pass build (branch
+`agent-Z/perf-companion-keyboard`, ledger row "M7.3-Z.apk (perf pass)",
+staged /tmp/M7.3-Z-perf.apk, sha256 5ec8c1f7…) AND the baseline build it
+must be compared against (main @ 82cd3f5, staged
+/tmp/M7.3-Z-perf-base.apk, sha256 de268150… — verified free of the
+perf-pass symbols; the GIT identity is authoritative, zip-level shas
+differ per build). Both APKs install over each other (`adb install -r`,
+same applicationId).
+Device: the same ARM64 phone or the Galaxy Tab S7 SM_T870. Helper:
+`scripts/runtime/devtools/companion-perf-gate` (install / launch / stop /
+measure — the script resets and parses `dumpsys gfxinfo`; the gestures
+are owner-driven, like every interactive gate).
+
+### A — Sheet drag A/B (the core gate)
+
+1. Install the BASELINE apk, launch, open a Companion (any real site),
+   raise the sheet to roughly half height via the handle.
+2. Run `companion-perf-gate measure 20`; during the wait perform ~10 slow
+   and ~10 fast handle drags (up AND down), several full collapse-and-back
+   cycles (crossing the threshold repeatedly), and one drag while the
+   page is actively scrolling. Note janky-frame share + 90th/95th/99th
+   percentiles.
+3. `stop`, install the PERF apk, repeat 1–2 with the SAME gesture mix.
+   EXPECT: visibly fewer janky frames during drag; the page must NEVER
+   reflow, blink, or detach from the sheet mid-drag (§9: the canvas is
+   only clipped while moving); dragging below the collapse threshold and
+   back up mid-gesture must NOT blank or pause the page (the old build
+   detached the WebView there).
+4. Release-below-threshold must now GLIDE closed (~220 ms), not vanish;
+   release elsewhere stays exactly where released (no snap points).
+5. Tap the bar: minimize / restore still work; restore animates open.
+6. Long-press a link / scroll / pinch-zoom inside the page during a
+   raised sheet: the WebView owns its gestures; the sheet must not fight
+   them (unchanged from baseline).
+
+### B — Keyboard deck A/B
+
+7. On the terminal screen with the deck open, run `measure 20` and type
+   rapidly: letter bursts, held-key auto-repeat, digits (hold layer),
+   ESC/TAB/arrows, CTRL+C / CTRL+L / CTRL+R, SHIFT combos — then repeat
+   while `yes` streams in a second session or a compile prints output.
+   EXPECT: no perceptible added latency vs baseline; under output load
+   the PERF build should hold up better (the terminal no longer
+   force-repaints on every unrelated recomposition).
+8. Modifier taps: tap CTRL once (one-shot), then type — EXPECT only the
+   CTRL button visibly animates; ALT/SHIFT stay static (no flicker).
+9. Visual regression: pressed-key feedback (darkening + scale) looks and
+   feels the same as baseline — the color tween moved to the draw phase,
+   the LOOK is unchanged.
+
+### C — Companion + deck interaction
+
+10. Focus a text field inside the Companion page: the shared deck opens;
+    the sheet rides ABOVE the deck; the page resizes once (reflow on the
+    inset change is expected and acceptable — it is a real resize, not
+    part of a gesture). Dismiss the deck; the sheet returns.
+11. Type into the page via the deck: characters must land in the WEBVIEW
+    input (KeyboardInputRouter routing unchanged).
+12. Physical keyboard regression (from the M7.1 contract): with a
+    Bluetooth keyboard connected the deck auto-hides and reconnect/
+    disconnect flapping does NOT thrash it (audit verdict: well
+    protected — verify nothing moved).
+
+Verdict: PASS = §A/3–5 hold, §B/7 shows no regression (or improvement)
+with correct visual feedback, §C holds. Record both builds' janky % and
+percentiles in the worklog. Automated frame numbers are a COMPARISON
+tool here; the hard PASS/FAIL criteria are the behavioral EXPECT lines.
+
+### §61 amendment — owner-feedback round (2026-09-16, build perf pass #2)
+
+19. DECK CLAMP: raise the sheet near full height, then open the deck
+    (tap a page input or the ⌨). EXPECT the sheet to sit ENTIRELY above
+    the deck — the page's bottom edge ends at the deck's top edge; at
+    taller fractions the panel is clamped (never extends under the
+    keyboard), and dragging up while the deck is open stops at the deck.
+    The page's bottom-anchored input bar (e.g. ChatGPT "Ask anything")
+    must remain visible above the deck.
+20. DRAG-UP RIDES THE FINGER: drag the handle upward. EXPECT the page's
+    TOP edge to ride directly under the tab strip while moving (the page
+    follows the finger — the old build left the page at the old height
+    with a blank band above it, see owner screenshot). While moving, any
+    overflow clips at the panel's bottom edge; on release the page
+    resizes once to fill the panel.
+21. OPEN/CLOSE ANIMATION RIDE: tap-to-minimize and tap-to-restore animate
+    (~220 ms) with the page riding under the strip — no blank band above
+    the page mid-animation, no detach.
+22. HOME ⌨: the parked keyboard button is back on Home (bottom-right).
+    Tap it → the deck opens on Home; raise a Companion, focus a page
+    input, type — characters land in the page. The sheet rides above the
+    deck on Home exactly like on Terminal.
+
+These four join §A/1–6, §B/7–9, §C/10–12 as the §61 PASS bar.
+
+## §62 — Files + Companion UX gate: terminal links, folder bookmarks, slim list (owner-run)
+
+Build under gate: `agent-Z/perf-companion-keyboard` @ 47eadb9 ("terminal
+links → Companion" + "user folder bookmarks" + Files/Home slim-list
+iteration + owner round 1). Unit ceiling already verified on the box:
+1071 tests, the 4 known env failures only. This gate is the REAL-DEVICE
+round (phone + tablet where available). Install:
+`PS_LOCAL_NDK=29.0.14206865 ./gradlew :app:assembleDebug` from the
+branch tip, install `app/build/outputs/apk/debug/app-debug.apk`
+(sha256 e3f51b32…).
+
+### A — Terminal URL → Companion (§62/1–8)
+
+1. Serve a page from the guest: `python3 -m http.server 8080` (or
+   `npm run dev` / Vite / Next dev server) inside a Linux session.
+   EXPECT the "Serving HTTP on ..." line(s) rendered normally (ANSI
+   intact, no styling glitches, no links drawn inside vim/htop).
+2. Tap `http://localhost:8080` (or the exact dev-server URL) in the
+   output. EXPECT: the Companion sheet RAISES (~220 ms) and the page
+   loads INSIDE PocketShell. Chrome/external browser must NOT open.
+3. Tap a `http://127.0.0.1:PORT` and a LAN-IP URL (`http://192.168.x.x:
+   PORT` from another device serving on the same Wi-Fi). EXPECT both to
+   open in the Companion with NO internet required.
+4. Tap an HTTPS URL (`https://github.com/...`). EXPECT Companion load.
+   A URL with query + fragment (`.../path?a=1#s`) must carry them.
+5. Punctuation: tap a URL followed by a period or `)` in prose output.
+   EXPECT the trailing punctuation is NOT part of the loaded URL.
+6. REUSE: with a Companion already open on some page, tap a terminal
+   URL. EXPECT the SAME tab navigates (no second browser, tab strip
+   count unchanged, no reload of the previous page on the way out).
+   Tap the SAME URL twice in a row: the second tap must NOT reload the
+   page (no flicker/scroll reset).
+7. REPEATED taps while collapsed: collapse the sheet, tap the URL
+   again. EXPECT raise + navigate, still one WebView (tab count
+   unchanged across all of A).
+8. FALSE-POSITIVE guards: tap plain text (`www.example.com` without
+   scheme, `http://single-label`, versions like `1.2.3`). EXPECT the old
+   behavior only (keyboard deck opens; no Companion, no browser).
+9. SELECTION/SCROLL regression: long-press → select text still works;
+   scroll/fling still works; a URL tap inside a mouse-reporting app
+   (vim with `:set mouse=a`, htop) must NOT navigate (app owns taps).
+10. SCROLLBACK: scroll up so the URL line is in scrollback, tap the
+    URL. EXPECT same behavior as on the live screen.
+
+### B — Folder bookmarks (§62/11–17)
+
+11. Files → enter a folder → tap the row's ⋮ (or long-press). EXPECT
+    the sheet shows **Bookmark** for folders and NO bookmark action for
+    files/symlinks. Tap Bookmark: sheet closes.
+12. Restart the app (swipe away + relaunch). Home shows the folder in
+    the FOLDERS section with a ★; Files → the same folder's sheet now
+    shows **Remove Bookmark**.
+13. Bookmark folders from DIFFERENT areas: Linux `/root/...`, Android
+    Downloads shelf, and an Android document-tree (SAF) folder. Restart.
+    EXPECT all three listed (order = newest last).
+14. INVALID: bookmark a folder, then `rm -rf` it (Linux area), then tap
+    the bookmark. EXPECT an honest listing error — no crash, no silent
+    fake folder. The bookmark row may remain; it opens honestly.
+15. REMOVE: Home → LONG-PRESS the bookmark row → Remove Bookmark. EXPECT
+    the row disappears; restart confirms persistence of the removal.
+16. MANY: bookmark 6+ folders. EXPECT Home shows 4 + the recent row; the
+    always-visible "See all" opens Files, which shows all with no cap.
+    Home must NOT grow an endless list.
+17. Long names: bookmark a folder with a very long name. EXPECT a single
+    ellipsized line per row, no wrapping into giant rows.
+
+### C — Home Folders section (§62/18–21, owner round 1 revision)
+
+18. Files BUTTON GONE: the old 64dp "Files" launcher row is REMOVED from
+    Home. "See all" at the END of the Folders title line IS the Files
+    entry now, and it is ALWAYS visible — even with zero bookmarks and
+    no recent folder (title line + rule, no rows below).
+19. SHAPE (owner mock): "Folders … See all" title line, one full-width
+    hairline under it, then slim ONE-LINE rows — ★ bookmarks (accent)
+    first, 📁 recent last with a dim "(recent)" suffix and NO path line
+    — no dividers between rows, one full-width hairline closing the
+    section. Rows carry a trailing → at minimum padding (44dp touch
+    height). NEVER cards.
+20. ACTIONS: tap a row → Files opens at that folder. LONG-PRESS a row →
+    menu (Open / Open in Terminal — guest-Linux only / Remove Bookmark
+    or Remove from Home). There is no ⋮ on the row face.
+21. RESPONSIVE: rotate (landscape), try tablet/foldable/DeX widths. The
+    folders list stays a LIST (single column, capped width) even while
+    other sections reflow into grids.
+
+### D — Files list visual (§62/22–26, owner round 1 revision)
+
+22. Listing style: FLAT rows, NO dividers (owner: dividers removed — the
+    pre-iteration look), no rounded cards; pressed/selected read as
+    full-width row fills. Readable across all themes (Aurora Dark/Light,
+    Nord, Dracula, Gruvbox, Solarized, Light, Dark).
+23. MULTI-SELECT: enter selection mode. EXPECT checkbox replaces the
+    icon, selected rows fill (no card shapes). Select one / many; Copy,
+    Move, Zip, Delete, cancel — all must work as before. Long-press in
+    normal mode still opens the action sheet.
+24. BREADCRUMBS: unchanged behavior — compact bar, horizontal scroll to
+    the current crumb, long paths ellipsize per crumb, ancestors remain
+    tappable. No giant path card.
+25. TEXT SCALING: Settings → Appearance → largest text scale. Rows grow
+    in HEIGHT with the text (names never truncate mid-glyph), stay slim,
+    and never turn into cards (44dp touch height at default scale).
+26. METADATA: file rows keep the size label; folders/symlinks stay
+    clean; symlink target line intact.
+
+Verdict: PASS = every EXPECT above holds on phone (and tablet where
+available), no external browser ever opens for A taps, no Companion
+regression per §61 behaviors 7–12 (deck interplay unchanged), and the
+full unit suite at the gate SHA shows only the 4 known env failures.
+Record results in the worklog.

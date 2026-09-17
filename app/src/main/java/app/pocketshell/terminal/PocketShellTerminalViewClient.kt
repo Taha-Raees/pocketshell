@@ -18,6 +18,15 @@ class PocketShellTerminalViewClient(
     private val keyboardState: KeyboardState,
     private val onSingleTap: () -> Unit = {},
     private val onScaleGesture: (Float) -> Float = { it },
+    /**
+     * Terminal-link entry (owner iteration): first refusal on a confirmed
+     * single tap. The hook receives the raw event (view-relative
+     * coordinates — the same unit TerminalView#getColumnAndRow consumes);
+     * returning true consumes the tap so [onSingleTap] (the keyboard-deck
+     * fallback) does not run. Never fires during text selection — upstream
+     * consumes those taps before the client sees them.
+     */
+    private val onSingleTapAt: ((MotionEvent) -> Boolean)? = null,
     /** Invoked when the emulator becomes available (after attachSession →
      *  updateSize). Upstream documents this as the sanctioned moment for the
      *  host to start the cursor blinker for the first session. */
@@ -61,7 +70,10 @@ class PocketShellTerminalViewClient(
 
     override fun onScale(scale: Float): Float = onScaleGesture(scale)
 
-    override fun onSingleTapUp(e: MotionEvent) = onSingleTap()
+    override fun onSingleTapUp(e: MotionEvent) {
+        if (onSingleTapAt?.invoke(e) == true) return
+        onSingleTap()
+    }
 
     override fun onLongPress(event: MotionEvent): Boolean = false // upstream starts text selection
 

@@ -2768,3 +2768,244 @@ Stage Summary:
   after the old audit, and ZCode installs through the unofficial
   community client with its status stated on-screen. All nine Home
   tools now genuinely install with one tap, visibly and honestly.
+
+## Task 52 — Perf pass: Companion sheet drag + keyboard/terminal repaint (agent-Z/perf-companion-keyboard)
+
+Agent Z (ZCode), 2026-09-15 → 09-16, branch `agent-Z/perf-companion-keyboard`
+based on main 82cd3f5. ONE focused performance iteration before the Play
+Store milestone: the internal Companion browser, the sheet drag, and the
+custom terminal keyboard. AUDIT FIRST → MEASURE → IMPLEMENT → MEASURE.
+
+- BASELINE: main 82cd3f5, version 0.13.0-m7.3 (code 49); full suite 1047
+  tests = the 4 known aarch64 env failures only. Static audit of the whole
+  Companion/sheet/keyboard path (CompanionLayer 841 lines, CompanionWebHost
+  546, TerminalKeyboard 617, KeyboardState, router, dispatcher,
+  TerminalScreen host, ExternalKeyboard model) plus a delegated read-only
+  keyboard audit whose every applied claim was re-verified in source.
+- SHEET (d6fbaab): the drag wrote a compose state per pointer move — the
+  whole layer recomposed every frame (AndroidView.update → present() with
+  it), and crossing the raised threshold MID-GESTURE detached the WebView
+  and fired pauseAll while the finger was down. The live fraction is now a
+  mutableFloatStateOf read ONLY inside the canvas box's layout block
+  (deferred read): a pointer move invalidates LAYOUT alone — no
+  recomposition, no diffing, no WebView work per frame; the sheet and the
+  page are one physical surface (the canvas is measured once per
+  transition at CompanionHeights.canvasTarget — unit-pinned — and only
+  clipped while moving; §9 semantics kept: 1:1 drag, stay-where-released,
+  no snap points, one settled write per release). Composition flips once
+  per gesture (dragActive / collapseAnimating); open/toggle/collapse
+  animate ~220 ms through the same layout-only path; a release below the
+  threshold GLIDES closed instead of vanishing; the first persisted
+  height snaps on process recreation (no entrance animation).
+- KEYBOARD/TERMINAL (21763b4): (1) TerminalViewHost's AndroidView.update
+  re-ran setBackgroundColor + mColors.reset() + invalidate() on EVERY
+  recomposition — an aurora tick, an inset change or a tab-bar change
+  behind the Companion forced a FULL terminal repaint on the UI thread;
+  now keyed on TerminalTheme.generation (bumped once per applyTheme, the
+  single palette mutation path) + the emulator instance applied (session
+  switch / late emulator creation still repaint). (2) PSKey/EnterKey/
+  ModifierButton pressed-color tweens animated in composition (~5
+  recompositions per tap at 60 Hz) — now read inside drawBehind (draw
+  phase only; look unchanged). (3) All three ModifierButtons collected
+  the whole modifier map — a one-shot clear after EVERY keypress
+  recomposed all three; each now subscribes to its own slot
+  (map + distinctUntilChanged, remembered per key). (4) clearOneShots
+  early-outs instead of allocating a throwaway map per keypress.
+- DELIBERATELY NOT CHANGED: hold-capable keys dispatching on lift (the
+  m4.0.3 "- key did nothing" product fix), the external-keyboard
+  visibility/debounce model (audit verdict: well protected — event-driven,
+  400 ms stability window + hard confirm + edge guards), WebView settings
+  (the m4.0.11 frozen render contract — JS + DOM storage only), and the
+  structural main-thread emulation contract (input and PTY output share
+  the main thread by upstream design; noted as debt, not fixable here).
+- TESTS: full suite at the tip = 1049 tests, ONLY the same 4 known aarch64
+  env failures (root-UID /proc denial ×3, /proc self-visibility ×1);
+  new CompanionHeights.canvasTarget pins green; companion suite 42 green;
+  keyboard suite 75 green.
+- ARTIFACTS: /tmp/M7.3-Z-perf.apk (sha256 5ec8c1f7…) vs A/B baseline
+  /tmp/M7.3-Z-perf-base.apk (main 82cd3f5, sha256 de268150…, verified
+  free of perf-pass symbols). Ledger row "M7.3-Z.apk (perf pass)".
+- DEVICE: NOT RUN by the agent — wireless debugging was OFF on the phone
+  and the Tab SM_T870 unreachable (5555 refused, mDNS silent) for the
+  whole session; self-adb needs the rotating port from Developer options.
+  The interactive gate is OWNER-RUN: docs/TESTING.md §61 with
+  scripts/runtime/devtools/companion-perf-gate (install/launch/stop/
+  measure around owner-driven gestures; gfxinfo janky-% + percentiles
+  A/B). Build-level verification only on this box; no frame numbers are
+  claimed without the device — that is what §61 exists to produce.
+- Stopping here per the brief: no Play Billing, no backup/sync, no new
+  features. Next milestone is the Play Store release work.
+
+## Task 53 — Owner device-feedback round: deck clamp, drag-up page ride, Home ⌨ (perf branch)
+
+Agent Z (ZCode), 2026-09-16, branch `agent-Z/perf-companion-keyboard`
+(off Task 52). Owner report + screenshot ("dragging upwards leave
+webpage") triaged into three fixes:
+
+- DECK ALWAYS PUSHES THE SHEET (the "input under keyboard" report): the
+  panel math mapped fractions against the FULL screen height and ignored
+  the deck inset, so at taller fractions the canvas overflowed down into
+  the deck's area (the deck then covered the page's bottom — exactly
+  where ChatGPT-style input bars live). The canvas box now clamps its
+  height to the space ABOVE the deck (container − inset − handle −
+  strip), and dragSheetBy caps the fraction at the same bound — the
+  finger stops deterministically at the deck instead of the panel
+  overflowing. At rest the page stays BOTTOM-anchored in a clamped
+  panel, so bottom-edge input bars stay visible for typing.
+- DRAG-UP PAGE RIDE (the screenshot bug): the frozen-canvas contract
+  kept the page at its pre-drag height bottom-anchored — dragging UP
+  grew a blank band between the strip and the page (page visibly "left
+  behind"). Placement is now stateful: while the panel MOVES (drag or
+  animation) the canvas TOP is glued under the tab strip — the page
+  follows the finger 1:1, overflow clips at the panel's bottom edge; at
+  rest it bottom-anchors again. collapseAnimating generalized to
+  panelAnimating (set for every settle animation, not just closes) and
+  shared by the placement rule and the raised/composition gate.
+- DECK ANIMATION COST: the deck enters via expandVertically(180 ms) and
+  the inset was consumed as a Dp PARAMETER — every animation frame
+  recomposed the whole root (TerminalScreen + CompanionLayer + …).
+  CompanionLayer now takes keyboardVisible (flips once per open/close)
+  + keyboardBottomInsetPx (() -> Int) and consumes the inset INSIDE its
+  layout blocks: deck open/close invalidates layout alone.
+- HOME ⌨ RESTORED (owner override of the b143678 removal): the parked
+  keyboard button shows on Home again — with the Companion raised over
+  Home, Home is a typeable surface (tap ⌨ → deck → focus a page input →
+  type). Removed the vestigial imePadding calls (system IME permanently
+  disabled — one-keyboard policy).
+- §61 amended with gates 19–22 (deck clamp, drag-up ride, animation
+  ride, Home ⌨). Compile + companion(42)/keyboard(75) suites green;
+  full suite + APK build at the tip recorded in the ledger row
+  "M7.3-Z.apk (perf pass #2)".
+
+## Task 54 — Owner round 3: no theme glimpse, deck off at open, tools row-major on tablet
+
+Agent Z (ZCode), 2026-09-16, branch `agent-Z/perf-companion-keyboard`.
+Three owner reports, three root causes:
+
+- NO THEME GLIMPSE AT OPEN: PocketShellApp.onCreate hardcoded
+  `applyTheme(AURORA, dark)` as the process-start palette, and the
+  "no-flash contract" comment was wrong in practice — the saved theme
+  only landed when DataStore's first emit reached the StateFlows, so
+  every open flashed Aurora before the saved identity. onCreate now
+  reads the persisted theme+mode SYNCHRONOUSLY once (runBlocking +
+  500 ms timeout guard falling back to the defaults) and applies THAT;
+  SettingsViewModel seeds its first-frame StateFlow values from the
+  same result (`PocketShellApp.startupTheme/startupThemeMode`), so the
+  first composition re-applies identical values — no flash. Fresh
+  installs still open Aurora × Dark (the CC-II default is untouched).
+- DECK OFF AT OPEN: the On-screen keyboard preference defaulted ON
+  (`!= "false"`), so every open showed the deck until it was explicitly
+  turned off in Settings. Default flipped to explicit-ON
+  (`== "true"`, SettingsViewModel initial false) — owner override of
+  the M7.1.1 contract, with the source pin in
+  ExternalKeyboardIntegrationTest updated to the new wording. Nothing
+  is lost: canvas tap, the ⌨ affordance and web-input focus all open
+  the deck on demand; an explicit Settings ON keeps the always-on
+  baseline.
+- TOOLS ROW-MAJOR (tablet): ToolsSection hard-wired TWO rows via
+  `chunked(2)` column pairs. Owner contract: entries fill ONE row
+  across the page width; a second row appears only when the first is
+  full; anything beyond two rows moves to the NEXT PAGE (scroll dots)
+  — never a third row. Implemented as row-major pages
+  (`chunked(columns * 2)` per page, `chunked(columns)` per row inside
+  it), badges keyed by tool id; HomeLauncherRowsTest's structural pin
+  updated from "chunked(2)" to the new row-major contract.
+- Verification: launchers+keyboard+settings+companion suites 183 tests
+  green; full suite + APK at the tip in the ledger row "perf pass #3".
+
+## Task 55 — Files + Companion UX: terminal links → Companion, folder bookmarks, slim list (agent-Z/perf-companion-keyboard)
+
+Owner iteration, five work areas on one branch stacked on the perf pass
+(main @ 82cd3f5 + Tasks 52–54). Baseline rule honored: the Companion
+perf architecture (zero-recomposition drag, canvas layout-only reads,
+prepare/present pooling) untouched.
+
+- TERMINAL LINKS: a confirmed single tap now hit-tests the tapped cell
+  (`PocketShellTerminalViewClient.onSingleTapAt`, first refusal before
+  the keyboard-deck fallback; `TerminalViewHost` keeps the callbacks
+  fresh via `rememberUpdatedState` — also fixing the stale
+  `keyboardExpanded` capture in the same statement). Text extraction
+  lives in the vendored VIEW module (`TerminalLinkProbe.java`,
+  selection's sanctioned buffer access, user-tap-triggered only,
+  read-only, mouse-tracking gated so vim/htop keep their taps); the app
+  layer stays behind the P7 no-screen-scraping boundary and supplies
+  only the URL policy (`TerminalUrlDetector`: explicit http(s) +
+  localhost/IPv4/dotted-domain hosts, sentence punctuation trimmed,
+  wrap-boundary URLs matched whole across row segments in WcWidth
+  column space, 15 unit pins). Vendored emulator/renderer/PTY: zero
+  lines changed.
+- COMPANION NAVIGATION: `CompanionViewModel.openWithUrl(url)` — active
+  tab, else default def, else first; ONE atomic tabs write re-anchors
+  `lastUrl`, opens/focuses the tab, raises the sheet, clears any
+  failure card; `CompanionWebHost.navigate(defId, url)` loads a LIVE
+  WebView in place with a same-URL no-op (repeated taps never reload);
+  a cold tab composes at the URL through its lastUrl anchor (prepare
+  only pends on the creation path — verified in source). No second
+  browser, no WebView recreation, no external browser; CompanionLayer.kt
+  untouched (perf invariants preserved). Note:
+  `CompanionValidation.normalizeUrl` (definition-time) rejects dotless
+  hosts — the terminal path deliberately bypasses it so localhost/LAN
+  links work; the WebView client's own http(s) allowlist still gates the
+  final load.
+- BOOKMARKS: `BookmarkStore` — ONE JSON document in the settings
+  DataStore (`folder_bookmarks`), typed + `PathSafety.validatePath`
+  revalidated on EVERY read (same discipline as RecentFolderStore);
+  corrupt doc → fewer bookmarks, never an unvalidated path; no cap.
+  `FilesViewModel.bookmarks` StateFlow + `toggleBookmark(entry)` (sheet
+  action, resolved against the CURRENT listing) + `removeBookmark`
+  (Home row, identity-based) + `bookmarked()` for the sheet label,
+  exposed through `FilesOpsSurface`. 6 unit pins (round-trip, corrupt
+  JSON, unknown kind, traversal path, membership).
+- FILES SHEET: folder ⋯ sheet gains Bookmark / Remove Bookmark
+  (state-flipped label + icon, directories only) wired via
+  `EntryActionHandlers.onToggleBookmark` + `EntryActionSheet.bookmarked`.
+- FILES LIST: EntryRow drops the rounded-card clip for FLAT rows (48dp
+  min, full-width pressed/selected fills in the token system — no
+  hard-coded colors), Listing renders inset hairline dividers BETWEEN
+  rows (start 56dp, outside the touch target, none after the last row).
+  Multi-select visuals, checkboxes, ⋮ affordance, symlink target and
+  size metadata preserved; breadcrumbs untouched (already compact +
+  auto-scrolling; BreadcrumbsTest green).
+- HOME: the 64dp RecentFolderRow card is REPLACED by FoldersSection —
+  bookmarked folders (★ accent) then the recent folder (📁 dim) as slim
+  two-line rows in the Sessions-section idiom (flat, transparent at
+  rest, pressed fill only, hairline inset dividers), window = 4
+  bookmarks + recent, "See all" header action + "+N more in Files"
+  overflow, section NOT composed at zero content. Per-folder callbacks
+  (open / open-in-terminal with the guest gate / remove) wired from
+  MainActivity.
+- VERIFICATION: full suite at d5365a8 = 1071 tests, 4 failed — exactly
+  the known env baseline set (GuestApkCompat, DoctorScript,
+  RuntimeCrashGuard, AgentObservationTopology; all /proc-root-UID).
+  One REAL regression caught and fixed mid-iteration: the first
+  TerminalLinkTap read buffer text in the app layer and tripped
+  AgentRuntimeWaitingEvidenceBoundaryTest (no screen scraping) —
+  restructured into terminal-view; boundary green again. APK built:
+  app-debug.apk sha256 85d02a0d… (assembleDebug at the tip). DEVICE
+  gate: not runnable from inside this session (no adb transport, no
+  host pm/am/screencap reachable from the proot guest) — §62 added to
+  docs/TESTING.md as the owner-run gate (26 EXPECT steps: localhost/
+  LAN/HTTPS taps, reuse/no-reload, scrollback, vim mouse guard,
+  bookmark lifecycle incl. rm -rf + restart, 6+ overflow, zero state,
+  multi-select regression, themes, text scale).
+
+### Task 55 amendment — owner round 1 (2026-09-16, same session)
+
+Owner feedback, two messages, implemented as one revision commit:
+- FILES: the §62 dividers are REMOVED — back to the pre-iteration
+  no-divider look, KEEPING the flat card-less rows (52dp min, full-width
+  pressed/selected fills).
+- HOME per the owner's mock: FoldersSection = "Folders … See all" title
+  line (See all at the END of the title line), one full-width hairline
+  UNDER the header, slim ONE-LINE rows with NO dividers between and one
+  full-width hairline closing the section; rows carry a trailing →
+  (AutoMirrored ArrowForward, decorative) at minimum padding (44dp
+  touch height); the recent row shows name + dim "(recent)" suffix, no
+  path line; the ⋮ left the row face — management (Open in Terminal /
+  Remove) moved to LONG-PRESS.
+- FILES BUTTON RETIRED: FilesLauncherRow (the 64dp Files card) removed
+  from Home along with the onOpenFiles param — "See all" on the title
+  line IS the Files entry now, always composed even at zero rows
+  (title line + rule; the section no longer disappears).
+- §62/12,15–25 rewritten to the revised contract; rows-step 19/22 now
+  pin the no-divider shape and the retired Files button.

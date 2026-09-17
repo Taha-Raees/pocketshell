@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,9 +28,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
@@ -62,9 +65,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -135,7 +142,6 @@ fun HomeScreen(
     onOpenCommandApp: (CommandApp) -> Unit,
     onOpenCustomTool: (CustomTool) -> Unit,
     onExplorePackages: () -> Unit,
-    onOpenFiles: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     companions: List<CompanionDef>,
@@ -149,12 +155,17 @@ fun HomeScreen(
     iconSize: IconSize = IconSize.DEFAULT,
     cardSize: CardSize = CardSize.DEFAULT,
     iconColumns: IconColumns = IconColumns.AUTO,
-    // The recently-browsed folder (files/RecentFolder.kt) — shown ABOVE the
-    // Files row; its 3-dot menu mirrors the Files entry actions honestly.
+    // Owner iteration — the compact "Folders" list: bookmarked folders (★)
+    // first, then the last-browsed folder (📁), as slim dashboard rows —
+    // never giant cards. Zero bookmarks AND no recent → the section is not
+    // composed at all; Home stays a dashboard, not a file manager.
+    bookmarks: List<RecentFolder> = emptyList(),
     recentFolder: RecentFolder? = null,
-    onOpenRecentFolder: () -> Unit = {},
-    onOpenRecentInTerminal: () -> Unit = {},
+    onOpenFolder: (RecentFolder) -> Unit = {},
+    onOpenFolderInTerminal: (RecentFolder) -> Unit = {},
+    onRemoveBookmark: (RecentFolder) -> Unit = {},
     onRemoveRecentFolder: () -> Unit = {},
+    onSeeAllFolders: () -> Unit = {},
     onOpenCompanion: (String) -> Unit,
     onRemoveFromHome: (String) -> Unit,
     onOpenLauncherSettings: () -> Unit,
@@ -239,20 +250,19 @@ fun HomeScreen(
                     onOpenDiagnostics = onOpenDiagnostics,
                 )
 
-                // M7 Phase 3 — the ONE Files entry point: a quiet launcher
-                // surface under the environments, before the tools grid.
-                // Home stays uncluttered (one row, no badges, no counters).
-                recentFolder?.let { recent ->
-                    Spacer(Modifier.height(12.dp))
-                    RecentFolderRow(
-                        recent = recent,
-                        onOpen = onOpenRecentFolder,
-                        onOpenInTerminal = onOpenRecentInTerminal,
-                        onRemove = onRemoveRecentFolder,
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                FilesLauncherRow(onOpenFiles = onOpenFiles)
+                // Owner iteration — the ONE folders surface, and (owner round:
+                // "no separate files button") the ONLY Files entry: the
+                // header's "See all" opens the explorer. Header + rule are
+                // always composed, even at zero rows.
+                FoldersSection(
+                    bookmarks = bookmarks,
+                    recent = recentFolder,
+                    onOpen = onOpenFolder,
+                    onOpenInTerminal = onOpenFolderInTerminal,
+                    onRemoveBookmark = onRemoveBookmark,
+                    onRemoveRecent = onRemoveRecentFolder,
+                    onSeeAll = onSeeAllFolders,
+                )
 
                 // M7.1 P1 — Companions: the preinstalled (seeded) + custom
                 // companion websites as launcher entries. A tap raises the
@@ -620,99 +630,136 @@ private fun ReadyDot() {
 }
 
 /**
- * The recently-browsed folder (owner iteration): the SAME launcher-row
- * language as the Files row beneath it — icon plate, name, honest storage
- * label — plus the Files rows' own 3-dot affordance. Tap opens Files at the
- * folder; the 3-dot menu carries the folder's honest actions: Open, Open in
- * Terminal (guest-Linux folders only — the same area-kind gate as the Files
- * sheet), Remove from Home (clears the record; hide-only, never deletes).
+ * The compact "Folders" dashboard section (owner mock): the title line
+ * carries "See all" at its END — with the separate Files button retired,
+ * that IS the Files entry, so the header line is ALWAYS composed (even at
+ * zero rows). Below it one full-width hairline, then the slim rows —
+ * ★ bookmarks first, the recent folder last — with NO dividers between
+ * them and one full-width hairline closing the section. Rows are one
+ * line at minimum padding; the overflow (beyond 4 bookmarks + recent)
+ * lives in Files via See all.
  */
 @Composable
-private fun RecentFolderRow(
-    recent: RecentFolder,
+private fun FoldersSection(
+    bookmarks: List<RecentFolder>,
+    recent: RecentFolder?,
+    onOpen: (RecentFolder) -> Unit,
+    onOpenInTerminal: (RecentFolder) -> Unit,
+    onRemoveBookmark: (RecentFolder) -> Unit,
+    onRemoveRecent: () -> Unit,
+    onSeeAll: () -> Unit,
+) {
+    val visibleBookmarks = bookmarks.take(4)
+    val rows = visibleBookmarks.map { it to true } + listOfNotNull(recent?.let { it to false })
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        SectionHeaderWithAction(
+            label = "Folders",
+            actionLabel = "See all",
+            onAction = onSeeAll,
+        )
+        HorizontalDivider(color = HomeTokens.hairline)
+        rows.forEach { (folder, isBookmark) ->
+            FolderRow(
+                folder = folder,
+                bookmarked = isBookmark,
+                onOpen = { onOpen(folder) },
+                onOpenInTerminal = { onOpenInTerminal(folder) },
+                onRemove = { if (isBookmark) onRemoveBookmark(folder) else onRemoveRecent() },
+            )
+        }
+        if (rows.isNotEmpty()) {
+            HorizontalDivider(color = HomeTokens.hairline)
+        }
+    }
+}
+
+/**
+ * One slim folder row (owner mock): kind icon (★ bookmark / 📁 recent),
+ * ONE line — the folder name, with the recent row suffixed "(recent)" —
+ * and a trailing → affordance. Minimum padding: as slim as a 44dp touch
+ * target allows. Management (Open in Terminal / Remove) is OFF the row
+ * face (the mock carries no ⋮) and lives on LONG-PRESS.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FolderRow(
+    folder: RecentFolder,
+    bookmarked: Boolean,
     onOpen: () -> Unit,
     onOpenInTerminal: () -> Unit,
     onRemove: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    PressableScale(onClick = onOpen, onClickLabel = "Open recent folder ${recent.name}", modifier = Modifier.padding(horizontal = 20.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(RoundedCornerShape(HomeTokens.heroRadius))
-                .background(HomeTokens.surfaceEnv)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(HomeTokens.surfaceApp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Folder,
-                    contentDescription = null,
-                    tint = HomeTokens.textPrimary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = recent.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = HomeTokens.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = recent.storageLabel + " · " + recent.path.value,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeTokens.textDim,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(role = Role.Button, onClickLabel = "Recent folder actions") {
-                            menuOpen = true
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "Recent folder actions",
-                        tint = HomeTokens.textDim,
-                        modifier = Modifier.size(18.dp),
-                    )
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (pressed) HomeTokens.surfaceBanner else Color.Transparent)
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Button,
+                onClickLabel = "Open folder ${folder.name}",
+                onLongClickLabel = "Folder actions",
+                onClick = { onOpen() },
+                onLongClick = { menuOpen = true },
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (bookmarked) Icons.Outlined.Star else Icons.Outlined.Folder,
+            contentDescription = if (bookmarked) "Bookmarked folder" else "Recent folder",
+            tint = if (bookmarked) HomeTokens.accent else HomeTokens.textDim,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = if (bookmarked) {
+                AnnotatedString(folder.name)
+            } else {
+                // The mock's "📁 RMS(recent)": the name, with a dim recent marker.
+                buildAnnotatedString {
+                    append(folder.name)
+                    withStyle(SpanStyle(color = HomeTokens.textDim)) { append(" (recent)") }
                 }
-                RecentFolderMenu(
-                    expanded = menuOpen,
-                    onDismiss = { menuOpen = false },
-                    showTerminal = recent.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX,
-                    onOpen = { menuOpen = false; onOpen() },
-                    onOpenInTerminal = { menuOpen = false; onOpenInTerminal() },
-                    onRemove = { menuOpen = false; onRemove() },
-                )
-            }
-        }
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = HomeTokens.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(10.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+            // Decorative — the row's own onClickLabel covers accessibility.
+            contentDescription = null,
+            tint = HomeTokens.textDim,
+            modifier = Modifier.size(16.dp),
+        )
+        FolderRowMenu(
+            expanded = menuOpen,
+            onDismiss = { menuOpen = false },
+            showTerminal = folder.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX,
+            removeLabel = if (bookmarked) "Remove Bookmark" else "Remove from Home",
+            onOpen = { menuOpen = false; onOpen() },
+            onOpenInTerminal = { menuOpen = false; onOpenInTerminal() },
+            onRemove = { menuOpen = false; onRemove() },
+        )
     }
 }
 
-/** The Recent row's 3-dot actions — the folder's honest sheet, docked. */
+/** A folder row's 3-dot actions — the honest actions, docked to the row. */
 @Composable
-private fun RecentFolderMenu(
+private fun FolderRowMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     showTerminal: Boolean,
+    removeLabel: String,
     onOpen: () -> Unit,
     onOpenInTerminal: () -> Unit,
     onRemove: () -> Unit,
@@ -731,63 +778,14 @@ private fun RecentFolderMenu(
             )
         }
         DropdownMenuItem(
-            text = { Text("Remove from Home") },
+            text = { Text(removeLabel) },
             leadingIcon = { Icon(Icons.Outlined.Close, contentDescription = null, modifier = Modifier.size(18.dp)) },
             onClick = onRemove,
         )
     }
 }
 
-/**
- * M7 Phase 3 — the Files launcher: one compact full-width surface in the
- * environment-launcher family (icon + name + one honest subtitle). It opens
- * the explorer at PocketShell Linux /root; the Android Downloads shelf is a
- * switch inside Files. Exactly ONE entry point on Home — no clutter.
- */
-@Composable
-private fun FilesLauncherRow(onOpenFiles: () -> Unit) {
-    PressableScale(onClick = onOpenFiles, onClickLabel = "Open Files", modifier = Modifier.padding(horizontal = 20.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(RoundedCornerShape(HomeTokens.heroRadius))
-                .background(HomeTokens.surfaceEnv)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(HomeTokens.surfaceApp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Folder,
-                    contentDescription = null,
-                    tint = HomeTokens.textPrimary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Files",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = HomeTokens.textPrimary,
-                )
-                Text(
-                    text = "Linux files · Downloads",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeTokens.textDim,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
+/** A folder row's long-press actions — the honest actions, docked. */
 
 // ---------------------------------------------------- horizontal launcher scroll
 
@@ -857,12 +855,15 @@ private fun ScrollDots(count: Int, state: ScrollState, modifier: Modifier = Modi
 
 /**
  * "Your tools" (M7.1 P1/P2.2) — the built-in CLI launchers + the user's
- * custom tools as launcher entries on the canvas, TWO rows with x-scroll
- * and page dots. A launcher is NOT an install claim: every tile is visible
- * by default and honesty lives at tap time (the existing verify-then-launch
- * path). No container is drawn around any of this. The header's Manage
- * action opens the PACKAGES page — the single packages affordance (§9),
- * aligned with the section it installs into (M7.1 P2.2).
+ * custom tools as launcher entries on the canvas. Owner layout contract
+ * (2026-09-16): entries fill ONE row across the page width; a second row
+ * appears only when the first is full; anything beyond two rows moves to
+ * the NEXT PAGE (scroll dots) — never a third row. A launcher is NOT an
+ * install claim: every tile is visible by default and honesty lives at
+ * tap time (the existing verify-then-launch path). No container is drawn
+ * around any of this. The header's Manage action opens the PACKAGES page —
+ * the single packages affordance (§9), aligned with the section it
+ * installs into (M7.1 P2.2).
  */
 @Composable
 private fun ToolsSection(
@@ -892,29 +893,37 @@ private fun ToolsSection(
         // Deterministic text badges over the VISIBLE launchers (collision
         // rule: shortest meaningful prefix, greedy in display order).
         val badges = remember(tools) { LauncherBadges.assign(tools.map { it.label }) }
-        // TWO rows, x-scroll: entries are consumed in column pairs so the
-        // reading order continues the old wrapping grid's row-major flow.
-        val toolColumns = remember(tools) { tools.chunked(2) }
-        LauncherScroller(pages = ceil(toolColumns.size / columns.toFloat()).toInt()) {
-            toolColumns.forEachIndexed { colIndex, columnTools ->
-                Column(modifier = Modifier.width(entryWidth)) {
-                    columnTools.forEachIndexed { rowInColumn, tool ->
-                        LauncherGridEntry(
-                            launcherId = tool.id,
-                            label = tool.label,
-                            badge = badges[colIndex * 2 + rowInColumn],
-                            iconFile = iconFiles[tool.id],
-                            iconDp = iconDp,
-                            verifying = verifyingApp == tool.label,
-                            onClick = {
-                                when (tool) {
-                                    is ToolLauncher.Builtin -> onOpenCommandApp(tool.app)
-                                    is ToolLauncher.Custom -> onOpenCustomTool(tool.tool)
-                                }
-                            },
-                            onLongClick = { onLongPress(tool.id, tool.label) },
-                            modifier = Modifier.width(entryWidth),
-                        )
+        val badgeByTool = remember(tools) {
+            tools.withIndex().associate { (index, tool) -> tool.id to badges[index] }
+        }
+        // Row-major pages (owner contract): a page is up to two full rows;
+        // a short list renders as a single row on page one.
+        val perPage = (columns * 2).coerceAtLeast(1)
+        val toolPages = remember(tools, columns) { tools.chunked(perPage) }
+        LauncherScroller(pages = toolPages.size) {
+            toolPages.forEach { pageTools ->
+                Column(modifier = Modifier.width(entryWidth * columns)) {
+                    pageTools.chunked(columns).forEach { rowTools ->
+                        Row {
+                            rowTools.forEach { tool ->
+                                LauncherGridEntry(
+                                    launcherId = tool.id,
+                                    label = tool.label,
+                                    badge = badgeByTool[tool.id] ?: "",
+                                    iconFile = iconFiles[tool.id],
+                                    iconDp = iconDp,
+                                    verifying = verifyingApp == tool.label,
+                                    onClick = {
+                                        when (tool) {
+                                            is ToolLauncher.Builtin -> onOpenCommandApp(tool.app)
+                                            is ToolLauncher.Custom -> onOpenCustomTool(tool.tool)
+                                        }
+                                    },
+                                    onLongClick = { onLongPress(tool.id, tool.label) },
+                                    modifier = Modifier.width(entryWidth),
+                                )
+                            }
+                        }
                     }
                 }
             }

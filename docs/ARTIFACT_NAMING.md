@@ -123,6 +123,36 @@ is a new ledger row with its own SHA-256.
 - tests:       compileDebugKotlin + ui.theme suites + HomeLauncherRows source pins green; compile-level only otherwise (small-fix cadence)
 - device gate: OWNER — verify: Solarized/Nord/Dracula show ZERO aurora wash anywhere (esp. Terminal + Files edges), Aurora animates as before, Appearance's Aurora card preview still glows under other themes; Companion drag bar resizes only when grabbed on the bar itself (72dp) — content on both edges receives its own touches again
 
+### M7.3-Z.apk (agent Z — perf pass: Companion sheet drag + keyboard/terminal repaint)
+
+- date:        2026-09-16
+- git:         agent-Z/perf-companion-keyboard — perf commits d6fbaab (sheet) + 21763b4 (keyboard/terminal) + docs
+- agent:       Z — Agent Z (ZCode)
+- workstream:  Play-Store-blocker performance pass — (1) Companion sheet drag rebuilt on a deferred layout read (mutableFloatStateOf consumed ONLY in the canvas box's layout block): pointer moves invalidate layout alone — zero recomposition, zero WebView work per frame; canvas measures once per transition (CompanionHeights.canvasTarget, unit-pinned) and is only clipped while the sheet moves; raised/composition decisions key on SETTLED state — no more mid-gesture WebView detach + pauseAll when crossing the threshold; open/toggle/collapse animate ~220ms through the same layout-only path; release-below-threshold glides closed. (2) TerminalViewHost update no longer repaints the terminal on every recomposition (theme-generation + emulator-identity keyed; TerminalTheme.generation). (3) Deck key pressed-colors animate in draw phase (PSKey/EnterKey/ModifierButton drawBehind). (4) ModifierButtons subscribe per-slot. (5) clearOneShots early-out. NOT changed (deliberate): hold-keys dispatch on lift (m4.0.3 fix), external-keyboard visibility model, WebView settings (frozen render contract).
+- apk sha256:  5ec8c1f7c4e3e0dfbde0aaa4d6067cf19be3785541bab41a01842bc13917a7c1 (staged /tmp/M7.3-Z-perf.apk); A/B baseline main@82cd3f5 staged /tmp/M7.3-Z-perf-base.apk sha256 de2681507460e385000ec7e6f05b2bb8525309db313d599c20211f6920480312
+- tests:       full :app:testDebugUnitTest 1049 tests — only the SAME 4 pre-existing aarch64 environment failures (root-UID /proc denial x3, /proc self-visibility x1); new: CompanionHeights.canvasTarget pins (2) green; companion suite 42 green; keyboard suite 75 green
+- device gate: OWNER — docs/TESTING.md §61 (A/B frame measurement with scripts/runtime/devtools/companion-perf-gate): sheet drag jank% + percentiles baseline vs perf, no reflow/detach mid-drag, glide-close on collapse release, deck typing under load, one-shot modifier isolation, physical-keyboard regression
+
+### M7.3-Z.apk (agent Z — perf pass #2: owner device-feedback round)
+
+- date:        2026-09-16
+- git:         agent-Z/perf-companion-keyboard — follow-up to d6fbaab/21763b4 (Task 53 in worklog)
+- agent:       Z — Agent Z (ZCode)
+- workstream:  owner screenshot + report fixes — (1) deck ALWAYS pushes the Companion above it: panel height + drag cap clamp to the space above the deck (was: panel ignored the inset and overflowed under the keyboard at taller fractions — page input bars unreachable); (2) drag-up fix from the owner screenshot: while the panel moves the canvas TOP is glued under the tab strip (page rides the finger 1:1; was: frozen page left at the old height with a blank band above it); at rest the page bottom-anchors so bottom-edge input bars stay visible; (3) deck entrance inset consumed in LAYOUT only (expandVertically frames no longer recompose the root); (4) parked keyboard button back on Home (owner override — Companion makes Home typeable); vestigial imePadding dropped
+- apk sha256:  84e44772493054939fc769a1889db49cb239250ac2d356125a08a5e57903b2ff (staged /tmp/M7.3-Z.apk)
+- tests:       companion 42 + keyboard 75 green; full suite at the tip = 1049 tests, the SAME 4 known aarch64 env failures only
+- device gate: OWNER — docs/TESTING.md §61 gates 19-22 (added this round) plus §A/§B/§C
+
+### M7.3-Z.apk (agent Z — perf pass #3: no theme glimpse, deck off at open, tools row-major)
+
+- date:        2026-09-16
+- git:         agent-Z/perf-companion-keyboard — owner round 3 (worklog Task 54)
+- agent:       Z — Agent Z (ZCode)
+- workstream:  three owner reports — (1) NO THEME GLIMPSE: startup palette is the SAVED theme (synchronous onCreate read + ViewModel first-frame seeds; fresh installs still open Aurora x Dark); (2) DECK OFF AT OPEN: On-screen keyboard preference defaults to explicit-ON (owner override of the M7.1.1 default-ON contract; canvas tap / keyboard button / input focus still open the deck on demand); (3) TOOLS ROW-MAJOR on Home: one row while it fits, second row only when full, beyond that the next page (scroll dots) — replaces the fixed chunked(2) two-row layout; pins updated in HomeLauncherRowsTest + ExternalKeyboardIntegrationTest
+- apk sha256:  89c30d72f45261911cc1de83d20a89ea92bba6d545a0a1230f062019819fa407 (staged /tmp/M7.3-Z.apk)
+- tests:       launchers+keyboard+settings+companion 183 green; full suite at the tip = 1049 with the SAME 4 known aarch64 env failures
+- device gate: OWNER — app open shows the saved theme with no Aurora flash and NO keyboard deck; Settings > On-screen keyboard ON restores always-on; tool list single row -> second row -> next page on the tablet
+
 ## 6. Integration builds
 
 The unsuffixed `M<...>.apk` continues to be produced by the existing

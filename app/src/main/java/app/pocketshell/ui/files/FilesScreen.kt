@@ -52,6 +52,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -203,6 +204,8 @@ fun FilesScreen(
     // M7.2-A: archive surfaces + progress.
     val zipProgress by ops.zipProgress.collectAsStateWithLifecycle()
     val compressDialog by ops.compressDialog.collectAsStateWithLifecycle()
+    // Owner iteration: the folder bookmarks drive the ⋯ sheet's Bookmark action.
+    val bookmarks by ops.bookmarks.collectAsStateWithLifecycle()
     val extractDialog by ops.extractDialog.collectAsStateWithLifecycle()
 
     // Phase 5: the Android-side launchers (folder picker, import picker) and
@@ -479,6 +482,7 @@ fun FilesScreen(
     selected?.let { entry ->
         EntryActionSheet(
             entry = entry,
+            bookmarked = ops.bookmarked(entry, bookmarks),
             onDismiss = { selected = null },
             handlers = EntryActionHandlers(
                 onOpen = when (entry.kind) {
@@ -536,6 +540,14 @@ fun FilesScreen(
                 },
                 onExtract = if (entry.kind == EntryKind.FILE && ZipArchiveOps.isZipName(entry.name)) {
                     { selected = null; ops.requestExtract(entry.name) }
+                } else {
+                    null
+                },
+                // Owner iteration: bookmark / unbookmark a folder for the
+                // Home "Folders" list (directories only — the sheet offers
+                // what is genuinely possible).
+                onToggleBookmark = if (entry.kind == EntryKind.DIRECTORY) {
+                    { selected = null; ops.toggleBookmark(entry) }
                 } else {
                     null
                 },
@@ -1399,7 +1411,11 @@ private fun SearchRow(
 
 // ------------------------------------------------------------------ listing
 
-/** One quiet column of entries — directories first (the engine's order). */
+/**
+ * One quiet column of entries — directories first (the engine's order).
+ * Owner round (post-§62 feedback): NO dividers — the pre-iteration look,
+ * now with the flat (card-less) rows the slim-list iteration introduced.
+ */
 @Composable
 private fun Listing(
     entries: List<FsEntry>,
@@ -1450,7 +1466,9 @@ private fun EntryRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
-            .clip(RoundedCornerShape(10.dp))
+            // Flat, full-width states — pressed and selected read as row
+            // fills, never as floating cards (owner iteration §10; the
+            // rounded-card clip is gone, no dividers per owner round).
             .background(
                 when {
                     pressed -> HomeTokens.surfaceBanner
