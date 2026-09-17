@@ -158,6 +158,64 @@ object AgentSignalAdapters {
     }
 
     // -----------------------------------------------------------------
+    // ZCode CLI — hooks (docs/M7.2-P10 §3.1: mechanism verified in the
+    // shipped engine bundle + official hooks documentation; live-fire is
+    // the §63 D15 device-gate step).
+    //
+    // The CLI reads user config from `$HOME/.zcode/cli/config.json`
+    // (strace-confirmed on the unofficial CLI 0.16.5) with the SAME hook
+    // vocabulary as Claude Code (SessionStart, UserPromptSubmit,
+    // PreToolUse, PermissionRequest, PostToolUse, PostToolUseFailure,
+    // Stop — payload JSON on stdin with session_id/hook_event_name; the
+    // engine constructs hook_event_name/session_id/permission_mode/
+    // agent_type/transcript_path, verified in the shipped bundle).
+    // Configuration-file hooks need `enabled: true`.
+    //
+    // STAGING: HOME is redirected to the launch's staged `home/`, which
+    // carries ONLY our config — and that config points `storage.dir`
+    // back at the guest's REAL home (`/root/.zcode`), so the user's
+    // login credentials, model choice and session database persist
+    // across launches while our hooks ride along. Two documented limits:
+    // (a) the guest real home is `/root` (the guest runs as root — the
+    // same constant the launch chain already relies on); (b) headless
+    // (-p) runs default to permission mode `yolo`, where no permission
+    // is ever requested — the attention path fires in interactive TUI
+    // sessions (the launcher's shape) with the default ask-flow.
+    // -----------------------------------------------------------------
+    internal class ZCodeAdapter(override val agentToken: String) : AgentSignalAdapter {
+
+        override fun stagedFiles(stagingGuestDir: String, recordGuestPath: String, emitGuestPath: String): List<StagedFile> {
+            fun hook(kind: String) =
+                "{\"type\":\"command\",\"command\":\"sh $emitGuestPath $agentToken $kind $recordGuestPath\"}"
+            fun event(event: String, kind: String) =
+                "\"$event\":[{\"hooks\":[${hook(kind)}]}]"
+            val config = "{\"storage\":{\"dir\":\"/root/.zcode\"}," +
+                "\"hooks\":{\"enabled\":true,\"timeoutMs\":8000,\"events\":{" +
+                event("SessionStart", "session_start") + "," +
+                event("UserPromptSubmit", "working") + "," +
+                event("PreToolUse", "working") + "," +
+                event("PermissionRequest", "permission_request") + "," +
+                event("PostToolUse", "working") + "," +
+                event("Stop", "turn_complete") +
+                "}}}"
+            return listOf(StagedFile("home/.zcode/cli/config.json", config + "\n"))
+        }
+
+        override fun anchorCommand(stagingGuestDir: String): String =
+            "HOME=$stagingGuestDir/home $agentToken"
+    }
+
+    // -----------------------------------------------------------------
+    //
+    // A plugin in <config-dir>/opencode/plugin/ receives the WHOLE event
+    // bus: permission.asked (attention, with the command metadata),
+    // permission.replied, session.status busy, session.idle (turn
+    // completion), session.created, session.error. The staged plugin
+    // writes signal records DIRECTLY (it runs inside the agent's own
+    // runtime with fs access) — it records its own process identity
+    // (pid + /proc starttime) exactly like the shell emitter, so
+    // acceptance treats its records identically.
+    // -----------------------------------------------------------------
     // OpenCode — plugin events (VERIFIED, docs/M7.2-P10 §2.3).
     //
     // A plugin in <config-dir>/opencode/plugin/ receives the WHOLE event
@@ -239,6 +297,7 @@ object AgentSignalAdapters {
         ClaudeCodeAdapter("claude"),
         CodexAdapter("codex"),
         OpenCodeAdapter("opencode"),
+        ZCodeAdapter("zcode"),
     ).associateBy { it.agentToken }
 
     /** The adapter for an agent token, or null when no mechanism is proven. */

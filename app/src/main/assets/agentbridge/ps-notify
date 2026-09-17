@@ -1,0 +1,94 @@
+#!/bin/sh
+# PocketShell ps-notify — the HEADLESS notification path (M7.2 P10).
+#
+# Any process running inside a LIVE PocketShell session can raise a real
+# Android notification by calling this tool — no agent, no hooks, no TUI:
+#
+#   /var/lib/pocketshell-agent/ps-notify permission  "waiting for approval"
+#   /var/lib/pocketshell-agent/ps-notify input       "need a decision"
+#   /var/lib/pocketshell-agent/ps-notify working
+#   /var/lib/pocketshell-agent/ps-notify turn        "build finished"
+#
+# HOW IT WORKS. The tool walks its OWN /proc ancestry looking for a
+# process that matches a live session's launch-record anchor (pid +
+# birth stamp, the same 10-tick tolerance the Android acceptance gate
+# uses). The signal is then appended to THAT session's record file with
+# the matched ancestor as the recorded parent identity — so the Android
+# side accepts it through the exact same correlation gate as any
+# agent-native signal, and a signal from OUTSIDE any session's tree is
+# structurally worthless (no anchor match, never delivered).
+#
+# HONESTY. The wording on the notification follows the kind: "permission"
+# raises the permission wording, "input" raises the input wording, "turn"
+# raises the turn wording. Your script is the claimant — the guest is the
+# user's own environment (the same trust boundary as the terminal), but
+# the claim is only ever as wide as the kind your script chose.
+
+AGENT="script"
+KIND_RAW="$1"
+MESSAGE="$2"
+
+case "$KIND_RAW" in
+    permission) KIND="permission_request" ;;
+    input) KIND="attention" ;;
+    working) KIND="working" ;;
+    turn) KIND="turn_complete" ;;
+    *)
+        echo "usage: ps-notify permission|input|working|turn [message]" >&2
+        exit 1
+        ;;
+esac
+
+BRIDGE_DIR="${PS_BRIDGE_DIR:-/var/lib/pocketshell-agent}"
+
+# The generation to signal: match THIS process's ancestry against every
+# live generation's launch anchor (newest file first).
+RECORD=""
+pid=$$
+while [ "$pid" -gt 1 ]; do
+    PSTAT=$(sed 's/^[0-9]* (.*) //' "/proc/$pid/stat" 2>/dev/null) || PSTAT=""
+    [ -n "$PSTAT" ] || break
+    START=$(printf '%s' "$PSTAT" | cut -d ' ' -f20)
+    for rec in $(ls -t "$BRIDGE_DIR"/*.jsonl 2>/dev/null); do
+        LINE=$(grep -m1 '"t":"launch"' "$rec" 2>/dev/null) || LINE=""
+        [ -n "$LINE" ] || continue
+        LPID=$(printf '%s' "$LINE" | grep -o '"pid":[0-9]*' | grep -o '[0-9]*')
+        LSTART=$(printf '%s' "$LINE" | grep -o '"start":[0-9]*' | grep -o '[0-9]*')
+        [ -n "$LPID" ] && [ "$LPID" = "$pid" ] || continue
+        DELTA=$((LSTART - START))
+        [ $DELTA -le 10 ] && [ $DELTA -ge -10 ] || continue
+        RECORD="$rec"
+        break
+    done
+    [ -n "$RECORD" ] && break
+    pid=$(printf '%s' "$PSTAT" | cut -d ' ' -f2)
+done
+
+[ -n "$RECORD" ] || {
+    echo "ps-notify: no live session generation matches this process tree" >&2
+    exit 1
+}
+[ -w "$RECORD" ] || exit 1
+
+# Sanitize the message exactly like the bridge emitter: one line, escaped,
+# bounded.
+DATA=""
+if [ -n "$MESSAGE" ]; then
+    DATA=$(printf '%s' "$MESSAGE" \
+        | tr '\t\n\r' '   ' \
+        | tr -d '\001-\010\013\014\016-\037\177' \
+        | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' \
+        | cut -c 1-800 \
+        | sed 's/\\\\*$/_/')
+fi
+
+SEQ=$(tail -c 65536 "$RECORD" 2>/dev/null | grep -c '"t":"signal"') || SEQ=0
+case "$SEQ" in ''|*[!0-9]*) SEQ=0 ;; esac
+SEQ=$((SEQ + 1))
+
+# The recorded parent identity is the MATCHED ANCHOR ancestor — the same
+# process the Android side validates against the launch record.
+printf '{"t":"signal","agent":"%s","kind":"%s","seq":%s,"pid":%s,"start":%s,"data":"%s"}\n' \
+    "$AGENT" "$KIND" "$SEQ" "$pid" "$START" "$DATA" >> "$RECORD" 2>/dev/null || :
+
+exit 0

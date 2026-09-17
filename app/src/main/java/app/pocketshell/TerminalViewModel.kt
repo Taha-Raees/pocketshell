@@ -368,6 +368,13 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         const val EMITTER_ASSET = "agentbridge/ps-emit.sh"
 
         /**
+         * M7.2 P10 — the headless ps-notify asset (refreshed at the STABLE
+         * bridge path on every registry launch so guest scripts can raise
+         * notifications without an agent).
+         */
+        const val NOTIFY_ASSET = "agentbridge/ps-notify"
+
+        /**
          * p7.1 — the pinned fallback label of a plain Linux-shell session
          * (openLinuxShell / openLinuxShellAt). One constant, referenced by
          * both spawn sites and the "+" kind check, so the string can never
@@ -772,6 +779,20 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
             emitHost.outputStream().use { output -> input.copyTo(output) }
         }
         if (!emitHost.setExecutable(true)) return null
+
+        // M7.2 P10: the headless ps-notify tool at the STABLE bridge path —
+        // any process inside any live session can raise a notification
+        // through the same acceptance gate. Refreshed on every launch
+        // (idempotent; best-effort like the rest of staging).
+        try {
+            val notifyHost = File(stagingHost.parentFile, "ps-notify")
+            getApplication<Application>().assets.open(NOTIFY_ASSET).use { input ->
+                notifyHost.outputStream().use { output -> input.copyTo(output) }
+            }
+            notifyHost.setExecutable(true)
+        } catch (_: Exception) {
+            // the headless tool is additional capability, never a launch requirement
+        }
 
         // The adapter's config files (paths are adapter-owned relative
         // segments; parents are created as needed).

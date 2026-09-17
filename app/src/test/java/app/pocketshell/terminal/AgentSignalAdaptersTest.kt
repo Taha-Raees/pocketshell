@@ -28,13 +28,47 @@ class AgentSignalAdaptersTest {
         assertNotNull(AgentSignalAdapters.forToken("claude"))
         assertNotNull(AgentSignalAdapters.forToken("codex"))
         assertNotNull(AgentSignalAdapters.forToken("opencode"))
+        // M7.2 P10 (device round): the unofficial CLI's hooks mechanism is
+        // verified in the shipped engine + official docs; staging ships,
+        // live-fire is the §63 D15 device-gate step.
+        assertNotNull(AgentSignalAdapters.forToken("zcode"))
         // honest absence: no adapter without a verified mechanism
-        assertNull(AgentSignalAdapters.forToken("zcode"))
         assertNull(AgentSignalAdapters.forToken("kilo"))
         assertNull(AgentSignalAdapters.forToken("hermes"))
         assertNull(AgentSignalAdapters.forToken("agy"))
         assertNull(AgentSignalAdapters.forToken("qwen"))
         assertNull(AgentSignalAdapters.forToken("cline"))
+    }
+
+    @Test
+    fun `the ZCode adapter stages HOME-isolated hooks with storage pointed back at the real home`() {
+        val adapter = AgentSignalAdapters.forToken("zcode")!!
+        val files = adapter.stagedFiles(staging, record, emit)
+        assertEquals(1, files.size)
+        assertEquals("home/.zcode/cli/config.json", files[0].relativePath)
+        val config = files[0].content
+        // the user's login/credentials/model state stay shared via storage.dir
+        assertTrue(config.contains("\"storage\":{\"dir\":\"/root/.zcode\"}"))
+        assertTrue(config.contains("\"enabled\":true"))
+        // the proven event vocabulary, mapped to the bridge kinds
+        for (pair in listOf(
+            "SessionStart" to "session_start",
+            "UserPromptSubmit" to "working",
+            "PreToolUse" to "working",
+            "PermissionRequest" to "permission_request",
+            "PostToolUse" to "working",
+            "Stop" to "turn_complete",
+        )) {
+            val command = "sh $emit zcode ${pair.second} $record"
+            assertTrue(
+                "hook ${pair.first} must invoke the emitter with kind ${pair.second}",
+                config.contains("\"${pair.first}\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"$command\"}]}]"),
+            )
+        }
+        // PostToolUseFailure is a tool failure, not a bridge kind — not armed
+        assertTrue(!config.contains("PostToolUseFailure"))
+        // the anchor redirects HOME only; storage.dir keeps state persistent
+        assertEquals("HOME=$staging/home zcode", adapter.anchorCommand(staging))
     }
 
     // --------------------------------------------------------- Claude Code
