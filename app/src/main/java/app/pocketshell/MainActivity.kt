@@ -618,7 +618,6 @@ fun PocketShellRoot(
                     terminalViewModel.openCustomTool(tool) { screen = "terminal" }
                 },
                 onExplorePackages = { screen = "explore" },
-                onOpenFiles = { screen = "files" },
                 onOpenSettings = { screen = "settings" },
                 onOpenDiagnostics = { screen = "diagnostics" },
                 companions = companionDefs,

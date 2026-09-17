@@ -1413,9 +1413,8 @@ private fun SearchRow(
 
 /**
  * One quiet column of entries — directories first (the engine's order).
- * File-manager styling (owner iteration): flat rows separated by thin
- * hairlines, no per-row cards. The divider belongs to the ROW ABOVE's slot
- * but sits OUTSIDE its click target; the last row closes the list bare.
+ * Owner round (post-§62 feedback): NO dividers — the pre-iteration look,
+ * now with the flat (card-less) rows the slim-list iteration introduced.
  */
 @Composable
 private fun Listing(
@@ -1431,29 +1430,21 @@ private fun Listing(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
     ) {
-        itemsIndexed(entries, key = { _, entry -> entry.name }) { index, entry ->
-            Column {
-                EntryRow(
-                    entry = entry,
-                    highlighted = entry.name == highlight,
-                    onClick = {
-                        when (entry.kind) {
-                            EntryKind.DIRECTORY -> onOpenChild(entry.name)
-                            else -> onSelect(entry)
-                        }
-                    },
-                    onActions = { onSelect(entry) },
-                    selecting = selectionMode,
-                    selectedNow = entry.name in selected,
-                    onToggle = { onToggle(entry.name) },
-                )
-                if (index != entries.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 56.dp),
-                        color = HomeTokens.hairline,
-                    )
-                }
-            }
+        items(entries, key = { it.name }) { entry ->
+            EntryRow(
+                entry = entry,
+                highlighted = entry.name == highlight,
+                onClick = {
+                    when (entry.kind) {
+                        EntryKind.DIRECTORY -> onOpenChild(entry.name)
+                        else -> onSelect(entry)
+                    }
+                },
+                onActions = { onSelect(entry) },
+                selecting = selectionMode,
+                selectedNow = entry.name in selected,
+                onToggle = { onToggle(entry.name) },
+            )
         }
     }
 }
@@ -1474,9 +1465,10 @@ private fun EntryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = 52.dp)
             // Flat, full-width states — pressed and selected read as row
-            // fills, never as floating cards (owner iteration §10).
+            // fills, never as floating cards (owner iteration §10; the
+            // rounded-card clip is gone, no dividers per owner round).
             .background(
                 when {
                     pressed -> HomeTokens.surfaceBanner

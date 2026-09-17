@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreVert
@@ -64,9 +65,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -137,7 +142,6 @@ fun HomeScreen(
     onOpenCommandApp: (CommandApp) -> Unit,
     onOpenCustomTool: (CustomTool) -> Unit,
     onExplorePackages: () -> Unit,
-    onOpenFiles: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     companions: List<CompanionDef>,
@@ -246,9 +250,10 @@ fun HomeScreen(
                     onOpenDiagnostics = onOpenDiagnostics,
                 )
 
-                // Owner iteration — the ONE folders surface: bookmarks +
-                // recent as a compact divider-separated list above the Files
-                // row. Hidden entirely when there is nothing to show.
+                // Owner iteration — the ONE folders surface, and (owner round:
+                // "no separate files button") the ONLY Files entry: the
+                // header's "See all" opens the explorer. Header + rule are
+                // always composed, even at zero rows.
                 FoldersSection(
                     bookmarks = bookmarks,
                     recent = recentFolder,
@@ -258,8 +263,6 @@ fun HomeScreen(
                     onRemoveRecent = onRemoveRecentFolder,
                     onSeeAll = onSeeAllFolders,
                 )
-                Spacer(Modifier.height(12.dp))
-                FilesLauncherRow(onOpenFiles = onOpenFiles)
 
                 // M7.1 P1 — Companions: the preinstalled (seeded) + custom
                 // companion websites as launcher entries. A tap raises the
@@ -627,13 +630,14 @@ private fun ReadyDot() {
 }
 
 /**
- * The compact "Folders" dashboard section (owner iteration): bookmarked
- * folders first (★), then the last-browsed folder (📁), as SLIM rows in the
- * Sessions-section language — flat, transparent at rest, a pressed fill as
- * the only surface, thin hairlines between. NOT cards: five folders must
- * never become five giant buttons. Display window: 4 bookmarks + the
- * recent row; the overflow stays in Files ("See all" in the header).
- * Zero content → the section is not composed at all.
+ * The compact "Folders" dashboard section (owner mock): the title line
+ * carries "See all" at its END — with the separate Files button retired,
+ * that IS the Files entry, so the header line is ALWAYS composed (even at
+ * zero rows). Below it one full-width hairline, then the slim rows —
+ * ★ bookmarks first, the recent folder last — with NO dividers between
+ * them and one full-width hairline closing the section. Rows are one
+ * line at minimum padding; the overflow (beyond 4 bookmarks + recent)
+ * lives in Files via See all.
  */
 @Composable
 private fun FoldersSection(
@@ -646,20 +650,15 @@ private fun FoldersSection(
     onSeeAll: () -> Unit,
 ) {
     val visibleBookmarks = bookmarks.take(4)
-    if (visibleBookmarks.isEmpty() && recent == null) return
+    val rows = visibleBookmarks.map { it to true } + listOfNotNull(recent?.let { it to false })
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-        if (bookmarks.size > 4) {
-            SectionHeaderWithAction(
-                label = "Folders",
-                actionLabel = "See all",
-                onAction = onSeeAll,
-            )
-        } else {
-            HomeSectionLabel("Folders")
-        }
-        Spacer(Modifier.height(6.dp))
-        val rows = visibleBookmarks.map { it to true } + listOfNotNull(recent?.let { it to false })
-        rows.forEachIndexed { index, (folder, isBookmark) ->
+        SectionHeaderWithAction(
+            label = "Folders",
+            actionLabel = "See all",
+            onAction = onSeeAll,
+        )
+        HorizontalDivider(color = HomeTokens.hairline)
+        rows.forEach { (folder, isBookmark) ->
             FolderRow(
                 folder = folder,
                 bookmarked = isBookmark,
@@ -667,31 +666,21 @@ private fun FoldersSection(
                 onOpenInTerminal = { onOpenInTerminal(folder) },
                 onRemove = { if (isBookmark) onRemoveBookmark(folder) else onRemoveRecent() },
             )
-            if (index != rows.lastIndex) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 30.dp),
-                    color = HomeTokens.hairline.copy(alpha = 0.6f),
-                )
-            }
         }
-        if (bookmarks.size > 4) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = "+${bookmarks.size - 4} more in Files",
-                style = MaterialTheme.typography.bodySmall,
-                color = HomeTokens.textDim.copy(alpha = 0.8f),
-                modifier = Modifier.padding(start = 10.dp),
-            )
+        if (rows.isNotEmpty()) {
+            HorizontalDivider(color = HomeTokens.hairline)
         }
     }
 }
 
 /**
- * One slim folder row: kind icon (★ bookmark / 📁 recent), the folder name,
- * the honest path beneath (shortened by ellipsis, never wrapped), and the
- * 3-dot actions. Compact but touch-friendly: a 48dp+ row with a 32dp
- * menu target. Tap anywhere else opens Files at the folder.
+ * One slim folder row (owner mock): kind icon (★ bookmark / 📁 recent),
+ * ONE line — the folder name, with the recent row suffixed "(recent)" —
+ * and a trailing → affordance. Minimum padding: as slim as a 44dp touch
+ * target allows. Management (Open in Terminal / Remove) is OFF the row
+ * face (the mock carries no ⋮) and lives on LONG-PRESS.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FolderRow(
     folder: RecentFolder,
@@ -706,16 +695,19 @@ private fun FolderRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 44.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(if (pressed) HomeTokens.surfaceBanner else Color.Transparent)
-            .clickable(
+            .combinedClickable(
                 interactionSource = interaction,
                 indication = null,
                 role = Role.Button,
                 onClickLabel = "Open folder ${folder.name}",
-            ) { onOpen() }
-            .padding(horizontal = 10.dp, vertical = 8.dp)
-            .heightIn(min = 44.dp),
+                onLongClickLabel = "Folder actions",
+                onClick = { onOpen() },
+                onLongClick = { menuOpen = true },
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -724,51 +716,40 @@ private fun FolderRow(
             tint = if (bookmarked) HomeTokens.accent else HomeTokens.textDim,
             modifier = Modifier.size(18.dp),
         )
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = folder.name,
-                style = MaterialTheme.typography.bodyMedium,
-                color = HomeTokens.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = folder.path.value,
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 11.sp,
-                color = HomeTokens.textDim,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Box {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button, onClickLabel = "Folder actions") {
-                        menuOpen = true
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = "Folder actions",
-                    tint = HomeTokens.textDim,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            FolderRowMenu(
-                expanded = menuOpen,
-                onDismiss = { menuOpen = false },
-                showTerminal = folder.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX,
-                removeLabel = if (bookmarked) "Remove Bookmark" else "Remove from Home",
-                onOpen = { menuOpen = false; onOpen() },
-                onOpenInTerminal = { menuOpen = false; onOpenInTerminal() },
-                onRemove = { menuOpen = false; onRemove() },
-            )
-        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = if (bookmarked) {
+                AnnotatedString(folder.name)
+            } else {
+                // The mock's "📁 RMS(recent)": the name, with a dim recent marker.
+                buildAnnotatedString {
+                    append(folder.name)
+                    withStyle(SpanStyle(color = HomeTokens.textDim)) { append(" (recent)") }
+                }
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = HomeTokens.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(10.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+            // Decorative — the row's own onClickLabel covers accessibility.
+            contentDescription = null,
+            tint = HomeTokens.textDim,
+            modifier = Modifier.size(16.dp),
+        )
+        FolderRowMenu(
+            expanded = menuOpen,
+            onDismiss = { menuOpen = false },
+            showTerminal = folder.areaKind == app.pocketshell.files.AreaKind.GUEST_LINUX,
+            removeLabel = if (bookmarked) "Remove Bookmark" else "Remove from Home",
+            onOpen = { menuOpen = false; onOpen() },
+            onOpenInTerminal = { menuOpen = false; onOpenInTerminal() },
+            onRemove = { menuOpen = false; onRemove() },
+        )
     }
 }
 
@@ -804,56 +785,7 @@ private fun FolderRowMenu(
     }
 }
 
-/**
- * M7 Phase 3 — the Files launcher: one compact full-width surface in the
- * environment-launcher family (icon + name + one honest subtitle). It opens
- * the explorer at PocketShell Linux /root; the Android Downloads shelf is a
- * switch inside Files. Exactly ONE entry point on Home — no clutter.
- */
-@Composable
-private fun FilesLauncherRow(onOpenFiles: () -> Unit) {
-    PressableScale(onClick = onOpenFiles, onClickLabel = "Open Files", modifier = Modifier.padding(horizontal = 20.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(RoundedCornerShape(HomeTokens.heroRadius))
-                .background(HomeTokens.surfaceEnv)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(HomeTokens.surfaceApp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Folder,
-                    contentDescription = null,
-                    tint = HomeTokens.textPrimary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Files",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = HomeTokens.textPrimary,
-                )
-                Text(
-                    text = "Linux files · Downloads",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeTokens.textDim,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
+/** A folder row's long-press actions — the honest actions, docked. */
 
 // ---------------------------------------------------- horizontal launcher scroll
 

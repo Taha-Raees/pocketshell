@@ -4020,56 +4020,57 @@ tablet where available). Install: `PS_LOCAL_NDK=29.0.14206865
     the sheet shows **Bookmark** for folders and NO bookmark action for
     files/symlinks. Tap Bookmark: sheet closes.
 12. Restart the app (swipe away + relaunch). Home shows the folder in
-    the FOLDERS section with a ★ and its path; Files → the same folder's
-    sheet now shows **Remove Bookmark**.
+    the FOLDERS section with a ★; Files → the same folder's sheet now
+    shows **Remove Bookmark**.
 13. Bookmark folders from DIFFERENT areas: Linux `/root/...`, Android
     Downloads shelf, and an Android document-tree (SAF) folder. Restart.
     EXPECT all three listed (order = newest last).
 14. INVALID: bookmark a folder, then `rm -rf` it (Linux area), then tap
     the bookmark. EXPECT an honest listing error — no crash, no silent
     fake folder. The bookmark row may remain; it opens honestly.
-15. REMOVE: Home → row ⋮ → Remove Bookmark. EXPECT the row disappears;
-    restart confirms persistence of the removal.
-16. MANY: bookmark 6+ folders. EXPECT Home shows 4 + the recent row,
-    header gains "See all", footer reads "+N more in Files"; Files shows
-    all with no cap. Home must NOT grow an endless list.
-17. Long names / deep paths: bookmark a folder with a very long name and
-    a deep path. EXPECT single-line name + path, ellipsized, no wrapping
-    into giant rows.
+15. REMOVE: Home → LONG-PRESS the bookmark row → Remove Bookmark. EXPECT
+    the row disappears; restart confirms persistence of the removal.
+16. MANY: bookmark 6+ folders. EXPECT Home shows 4 + the recent row; the
+    always-visible "See all" opens Files, which shows all with no cap.
+    Home must NOT grow an endless list.
+17. Long names: bookmark a folder with a very long name. EXPECT a single
+    ellipsized line per row, no wrapping into giant rows.
 
-### C — Home Folders section (§62/18–21)
+### C — Home Folders section (§62/18–21, owner round 1 revision)
 
-18. ZERO state: no bookmarks + no recent folder (fresh profile or after
-    removing everything). EXPECT NO folders section at all — the page
-    goes straight from environments to the Files row.
-19. MIXED: 2 bookmarks + 1 recent. EXPECT bookmarks (★, accent) first,
-    then the recent folder (📁, dim), thin dividers between, SLIM rows —
-    never 64dp cards. Rows are two lines max (name + path).
-20. RECENT menu still works: Open / Open in Terminal (guest-Linux only)
-    / Remove from Home. Bookmarked rows: Open / Open in Terminal (guest
-    only) / Remove Bookmark.
+18. Files BUTTON GONE: the old 64dp "Files" launcher row is REMOVED from
+    Home. "See all" at the END of the Folders title line IS the Files
+    entry now, and it is ALWAYS visible — even with zero bookmarks and
+    no recent folder (title line + rule, no rows below).
+19. SHAPE (owner mock): "Folders … See all" title line, one full-width
+    hairline under it, then slim ONE-LINE rows — ★ bookmarks (accent)
+    first, 📁 recent last with a dim "(recent)" suffix and NO path line
+    — no dividers between rows, one full-width hairline closing the
+    section. Rows carry a trailing → at minimum padding (44dp touch
+    height). NEVER cards.
+20. ACTIONS: tap a row → Files opens at that folder. LONG-PRESS a row →
+    menu (Open / Open in Terminal — guest-Linux only / Remove Bookmark
+    or Remove from Home). There is no ⋮ on the row face.
 21. RESPONSIVE: rotate (landscape), try tablet/foldable/DeX widths. The
     folders list stays a LIST (single column, capped width) even while
-    other sections reflow into grids — no 3-column folder grid, no
-    horizontal cards.
+    other sections reflow into grids.
 
-### D — Files list visual (§62/22–26)
+### D — Files list visual (§62/22–26, owner round 1 revision)
 
-22. Listing style: every row FLAT (no rounded card borders), thin
-    dividers BETWEEN rows aligned with the text column (not crossing the
-    icons), none after the last row. Compact rhythm; touch still easy
-    (48dp rows). Dividers must remain readable in Aurora Dark, Aurora
-    Light, Nord, Dracula, Gruvbox, Solarized, Light, Dark.
+22. Listing style: FLAT rows, NO dividers (owner: dividers removed — the
+    pre-iteration look), no rounded cards; pressed/selected read as
+    full-width row fills. Readable across all themes (Aurora Dark/Light,
+    Nord, Dracula, Gruvbox, Solarized, Light, Dark).
 23. MULTI-SELECT: enter selection mode. EXPECT checkbox replaces the
-    icon, selected rows fill (no card shapes), dividers stay coherent.
-    Select one / many; Copy, Move, Zip, Delete, cancel — all must work
-    as before. Long-press in normal mode still opens the action sheet.
+    icon, selected rows fill (no card shapes). Select one / many; Copy,
+    Move, Zip, Delete, cancel — all must work as before. Long-press in
+    normal mode still opens the action sheet.
 24. BREADCRUMBS: unchanged behavior — compact bar, horizontal scroll to
     the current crumb, long paths ellipsize per crumb, ancestors remain
     tappable. No giant path card.
 25. TEXT SCALING: Settings → Appearance → largest text scale. Rows grow
     in HEIGHT with the text (names never truncate mid-glyph), stay slim,
-    and never turn into cards. At least 48dp touch height preserved.
+    and never turn into cards (44dp touch height at default scale).
 26. METADATA: file rows keep the size label; folders/symlinks stay
     clean; symlink target line intact.
 

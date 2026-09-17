@@ -2988,3 +2988,24 @@ prepare/present pooling) untouched.
   LAN/HTTPS taps, reuse/no-reload, scrollback, vim mouse guard,
   bookmark lifecycle incl. rm -rf + restart, 6+ overflow, zero state,
   multi-select regression, themes, text scale).
+
+### Task 55 amendment — owner round 1 (2026-09-16, same session)
+
+Owner feedback, two messages, implemented as one revision commit:
+- FILES: the §62 dividers are REMOVED — back to the pre-iteration
+  no-divider look, KEEPING the flat card-less rows (52dp min, full-width
+  pressed/selected fills).
+- HOME per the owner's mock: FoldersSection = "Folders … See all" title
+  line (See all at the END of the title line), one full-width hairline
+  UNDER the header, slim ONE-LINE rows with NO dividers between and one
+  full-width hairline closing the section; rows carry a trailing →
+  (AutoMirrored ArrowForward, decorative) at minimum padding (44dp
+  touch height); the recent row shows name + dim "(recent)" suffix, no
+  path line; the ⋮ left the row face — management (Open in Terminal /
+  Remove) moved to LONG-PRESS.
+- FILES BUTTON RETIRED: FilesLauncherRow (the 64dp Files card) removed
+  from Home along with the onOpenFiles param — "See all" on the title
+  line IS the Files entry now, always composed even at zero rows
+  (title line + rule; the section no longer disappears).
+- §62/12,15–25 rewritten to the revised contract; rows-step 19/22 now
+  pin the no-divider shape and the retired Files button.
