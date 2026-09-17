@@ -160,6 +160,79 @@ sealed class AgentRuntimeEvent {
             SESSION_REMOVED,
         }
     }
+
+    // ------------------------------------------------------------------
+    // M7.2 P10 — the AGENT-NATIVE SIGNAL events (the attention axis).
+    //
+    // These derive from ACCEPTED agent-native signals only — structured
+    // events the agent itself declared through its own notification
+    // mechanism, relayed through the session's launch-record channel and
+    // accepted by [AgentSignalBridge.accept] (parent identity proven
+    // against the anchor / the session's correlation domain). They are
+    // ORTHOGONAL to the four-state runtime contract above: a session can
+    // be RUNNING and not attention-bearing, or attention-bearing while its
+    // process evidence lapsed. No event here may widen its claim beyond
+    // what the agent's own payload said (P7 wording rules).
+    // ------------------------------------------------------------------
+
+    /**
+     * The agent PROVED (its own structured signal) that it is waiting on
+     * the user: a permission request, or an input wait. [signal] is the
+     * exact accepted signal — every surface can answer "what proved
+     * this?". Re-emitted for a genuinely NEW prompt (a later signal of the
+     * same flavor with a new identity); never re-emitted for a re-delivery.
+     */
+    data class AgentAttentionRaised(
+        override val sessionId: Long,
+        override val agent: LaunchIdentity.KnownAgent,
+        val attention: AgentSignalBridge.AgentAttentionPhase,
+        val signal: AgentSignalBridge.SignalRecord,
+        override val occurredAtMs: Long,
+    ) : AgentRuntimeEvent()
+
+    /**
+     * A pending attention claim ENDED — the agent's own later signal
+     * proved it is no longer waiting: it went back to work, its turn
+     * ended, or its session ended. This is a WITHDRAWAL of the earlier
+     * claim (cancel-shaped, like NoLongerDetected), never a statement
+     * about success or completion.
+     */
+    data class AgentAttentionCleared(
+        override val sessionId: Long,
+        override val agent: LaunchIdentity.KnownAgent,
+        val cause: Cause,
+        override val occurredAtMs: Long,
+    ) : AgentRuntimeEvent() {
+        enum class Cause {
+            /** The agent signalled activity again (it is working — the wait is over). */
+            RESUMED_WORK,
+
+            /** The agent signalled its turn ended while attention was pending. */
+            TURN_ENDED,
+
+            /** The agent signalled its own session ended. */
+            AGENT_SESSION_ENDED,
+
+            /** The terminal session itself ended or was removed (attention died with it). */
+            SESSION_TERMINATED,
+        }
+    }
+
+    /**
+     * The agent signalled that it finished its turn (Codex
+     * agent-turn-complete, Claude Stop, OpenCode session.idle): it is back
+     * at its prompt. This is the agent's OWN completion-of-turn fact —
+     * worded narrowly downstream ("finished responding"), never as
+     * task success/failure. Emitted only when NO attention was pending
+     * (a turn that ends a pending attention emits the withdrawal instead —
+     * one story per signal, no contradictory double surface).
+     */
+    data class AgentTurnSignalled(
+        override val sessionId: Long,
+        override val agent: LaunchIdentity.KnownAgent,
+        val signal: AgentSignalBridge.SignalRecord,
+        override val occurredAtMs: Long,
+    ) : AgentRuntimeEvent()
 }
 
 /**
@@ -246,6 +319,21 @@ data class AgentRuntimeEventMemory(
         val lastState: AgentRuntimeState?,
         /** The most recent process evidence the detector held (null when none so far). */
         val lastEvidence: AgentRuntimeDetection.ProcessEvidence?,
+        /**
+         * M7.2 P10 — the attention story this session is currently telling:
+         * NONE, or the phase proven by the last attention-bearing signal.
+         * [attentionSignalIndex] is the proving signal's line index (the
+         * re-delivery guard); both reset on every clearing signal.
+         */
+        val attention: AgentSignalBridge.AgentAttentionPhase =
+            AgentSignalBridge.AgentAttentionPhase.NONE,
+        val attentionSignalIndex: Int = -1,
+        /**
+         * The highest signal line index consumed for this session — the
+         * exactly-once guard for the signal-edge events (a re-delivered
+         * observation tail can never re-emit).
+         */
+        val lastSignalIndex: Int = -1,
     )
 }
 
@@ -355,6 +443,17 @@ object AgentRuntimeTransitions {
                 ?: input.finished[sessionId]?.exitStatus
             tracked = tracked - sessionId
             ended += sessionId
+            // M7.2 P10: an attention claim dies with its session — the
+            // agent can no longer be waiting on anyone. The withdrawal is
+            // emitted BEFORE the terminal edge (cancel-shaped, one story).
+            if (session.attention != AgentSignalBridge.AgentAttentionPhase.NONE) {
+                events += AgentRuntimeEvent.AgentAttentionCleared(
+                    sessionId = sessionId,
+                    agent = session.agent,
+                    cause = AgentRuntimeEvent.AgentAttentionCleared.Cause.SESSION_TERMINATED,
+                    occurredAtMs = nowMs,
+                )
+            }
             events += if (finishedStatus != null) {
                 AgentRuntimeEvent.SessionEnded(
                     sessionId = sessionId,
@@ -474,6 +573,62 @@ object AgentRuntimeTransitions {
                 tracked = tracked + (sessionId to session)
             }
 
+            // M7.2 P10 — the AGENT-NATIVE SIGNAL fold: consume the
+            // observation's undelivered accepted signals IN ORDER, before
+            // the runtime-state arms (the signal edges are independent of
+            // the four-state edges; a signal must fire even on a tick whose
+            // runtime state did not change). Each attention-bearing signal
+            // RAISES the attention story (a new prompt is a new story —
+            // the exactly-once line-index guard filters re-deliveries);
+            // each clearing signal WITHDRAWS it (or, when nothing was
+            // pending, a turn signal stands alone as the agent's
+            // turn-fact). A turn that ends a pending attention emits the
+            // withdrawal ONLY — one story per signal, no double surface.
+            //
+            // (The fold works on a non-null local: the loop reassignments
+            // would otherwise break the smart cast for the state arms.)
+            var folded: AgentRuntimeEventMemory.TrackedAgentSession = session
+            for (signal in observation.newSignals.sortedBy { it.lineIndex }) {
+                if (signal.lineIndex <= folded.lastSignalIndex) continue // re-delivery
+                val phase = AgentSignalBridge.attentionPhase(signal)
+                if (phase != AgentSignalBridge.AgentAttentionPhase.NONE) {
+                    events += AgentRuntimeEvent.AgentAttentionRaised(
+                        sessionId = sessionId,
+                        agent = folded.agent,
+                        attention = phase,
+                        signal = signal,
+                        occurredAtMs = nowMs,
+                    )
+                    folded = folded.copy(
+                        attention = phase,
+                        attentionSignalIndex = signal.lineIndex,
+                        lastSignalIndex = signal.lineIndex,
+                    )
+                } else {
+                    if (folded.attention != AgentSignalBridge.AgentAttentionPhase.NONE) {
+                        events += AgentRuntimeEvent.AgentAttentionCleared(
+                            sessionId = sessionId,
+                            agent = folded.agent,
+                            cause = clearCauseFor(signal.kind),
+                            occurredAtMs = nowMs,
+                        )
+                    } else if (signal.kind == AgentSignalBridge.AgentSignalKind.TURN_COMPLETE) {
+                        events += AgentRuntimeEvent.AgentTurnSignalled(
+                            sessionId = sessionId,
+                            agent = folded.agent,
+                            signal = signal,
+                            occurredAtMs = nowMs,
+                        )
+                    }
+                    folded = folded.copy(
+                        attention = AgentSignalBridge.AgentAttentionPhase.NONE,
+                        attentionSignalIndex = -1,
+                        lastSignalIndex = signal.lineIndex,
+                    )
+                }
+            }
+            session = folded
+
             if (observation.state == session.lastState) {
                 // Same state re-observed: no event (Part F). A RUNNING
                 // observation refreshes the evidence silently — the pids may
@@ -514,6 +669,18 @@ object AgentRuntimeTransitions {
 
                 AgentRuntimeState.NOT_RUNNING -> {
                     if (session.lastState == null) continue // structurally impossible; never fake an absence
+                    // M7.2 P10: a pending attention claim dies with the
+                    // agent's process — nothing is waiting on the user
+                    // anymore. The withdrawal precedes the disappearance
+                    // story (cancel-shaped; never a completion claim).
+                    if (session.attention != AgentSignalBridge.AgentAttentionPhase.NONE) {
+                        events += AgentRuntimeEvent.AgentAttentionCleared(
+                            sessionId = sessionId,
+                            agent = session.agent,
+                            cause = AgentRuntimeEvent.AgentAttentionCleared.Cause.SESSION_TERMINATED,
+                            occurredAtMs = nowMs,
+                        )
+                    }
                     events += AgentRuntimeEvent.NoLongerDetected(
                         sessionId = sessionId,
                         agent = session.agent,
@@ -525,6 +692,8 @@ object AgentRuntimeTransitions {
                         sessionId to session.copy(
                             lastState = AgentRuntimeState.NOT_RUNNING,
                             lastEvidence = null,
+                            attention = AgentSignalBridge.AgentAttentionPhase.NONE,
+                            attentionSignalIndex = -1,
                         )
                         )
                 }
@@ -551,4 +720,24 @@ object AgentRuntimeTransitions {
             events = events,
         )
     }
+
+    /**
+     * The withdrawal cause a clearing signal proves. SESSION_START clears
+     * as resumed work (a fresh agent session is an agent that is starting
+     * to work — a pending "come back" from a previous story is over).
+     */
+    private fun clearCauseFor(kind: AgentSignalBridge.AgentSignalKind): AgentRuntimeEvent.AgentAttentionCleared.Cause =
+        when (kind) {
+            AgentSignalBridge.AgentSignalKind.WORKING,
+            AgentSignalBridge.AgentSignalKind.SESSION_START,
+            -> AgentRuntimeEvent.AgentAttentionCleared.Cause.RESUMED_WORK
+
+            AgentSignalBridge.AgentSignalKind.TURN_COMPLETE ->
+                AgentRuntimeEvent.AgentAttentionCleared.Cause.TURN_ENDED
+
+            AgentSignalBridge.AgentSignalKind.SESSION_END ->
+                AgentRuntimeEvent.AgentAttentionCleared.Cause.AGENT_SESSION_ENDED
+
+            else -> AgentRuntimeEvent.AgentAttentionCleared.Cause.RESUMED_WORK
+        }
 }

@@ -88,32 +88,48 @@ object AgentLaunchRecords {
         val agent: String,
     )
 
+    /**
+     * M7.2 P10 — the AGENT-NATIVE SIGNAL record: one structured event the
+     * agent itself declared through its own notification mechanism (hooks /
+     * notify / plugin events), relayed into this file by the staged bridge
+     * emitter. The model lives in [AgentSignalBridge]; the parsed signals
+     * ride [SessionRecords.signals] in file (append) order.
+     */
+
     /** The parsed content of one launch-record file. */
     data class SessionRecords(
         val launch: LaunchRecord?,
         val exits: List<ExitRecord>,
+        /** Agent-native signals in file (append) order. Empty when none. */
+        val signals: List<AgentSignalBridge.SignalRecord> = emptyList(),
     )
 
     val EMPTY: SessionRecords = SessionRecords(launch = null, exits = emptyList())
 
     /**
-     * Strict parser: accepts exactly the two record shapes the chain emits,
-     * one JSON object per line, and nothing else. Unknown lines, malformed
-     * JSON, wrong types or out-of-domain values are DROPPED (the anchor
-     * simply disappears — missing evidence is never upgraded to a guess).
-     * A truncated final line (a crash mid-write) degrades to the records
-     * before it, which is exactly the honest state.
+     * Strict parser: accepts exactly the record shapes the chain and the
+     * staged bridge emitter write, one JSON object per line, and nothing
+     * else. Unknown lines, malformed JSON, wrong types or out-of-domain
+     * values are DROPPED (the anchor simply disappears — missing evidence
+     * is never upgraded to a guess). A truncated final line (a crash
+     * mid-write) degrades to the records before it, which is exactly the
+     * honest state. Signals keep their file order — the append order is
+     * the ordering authority the signal layer consumes, and a signal's
+     * [AgentSignalBridge.SignalRecord.lineIndex] is its position in that
+     * signal sequence (stable for an append-only file).
      */
     fun parse(text: String): SessionRecords {
         var launch: LaunchRecord? = null
         val exits = ArrayList<ExitRecord>(2)
+        val signals = ArrayList<AgentSignalBridge.SignalRecord>(4)
         for (rawLine in text.lineSequence()) {
             val line = rawLine.trim()
             if (line.isEmpty()) continue
             parseLaunch(line)?.let { launch = it; continue }
-            parseExit(line)?.let { exits += it }
+            parseExit(line)?.let { exits += it; continue }
+            AgentSignalBridge.parseSignal(line, signals.size)?.let { signals += it; continue }
         }
-        return SessionRecords(launch = launch, exits = exits)
+        return SessionRecords(launch = launch, exits = exits, signals = signals)
     }
 
     /** Read + parse one record file; unreadable == empty (the channel is simply absent). */
@@ -163,15 +179,32 @@ object AgentLaunchRecords {
      * The full record-carrying launch chain: the anchor, the exit record,
      * then the unchanged trailing-exec contract (the interactive login
      * shell takes over when the agent exits).
+     *
+     * M7.2 P10 — [agentCommandOverride] lets a signal adapter replace the
+     * command the anchor execs (the agent plus its staged-config flag or
+     * env — [app.pocketshell.terminal.AgentSignalAdapters]); the recorded
+     * pid/pgrp/start are UNCHANGED (the override command still execs in
+     * the anchor's process). [prepSnippet] is an optional outer-chain step
+     * (auth symlinks etc.) that runs BEFORE the anchor, `|| :`-guarded by
+     * its author — a failed prep must never kill the launch.
      */
     fun launchChain(
         agentCommand: String,
         agentToken: String,
         guestShell: String,
         guestRecordFile: String,
-    ): String =
-        "${anchorSnippet(agentCommand, agentToken, guestRecordFile)} ; " +
+        agentCommandOverride: String? = null,
+        prepSnippet: String? = null,
+    ): String {
+        val anchor = anchorSnippet(
+            agentCommand = agentCommandOverride ?: agentCommand,
+            agentToken = agentToken,
+            guestRecordFile = guestRecordFile,
+        )
+        val prep = prepSnippet?.let { "$it ; " } ?: ""
+        return "$prep${anchor} ; " +
             "${exitSnippet(agentToken, guestRecordFile)} ; exec $guestShell -l"
+    }
 
     // ---- strict line parsers (no JSON library: the schema is ours) ----
 

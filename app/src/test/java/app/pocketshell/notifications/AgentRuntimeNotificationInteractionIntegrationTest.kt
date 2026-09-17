@@ -260,10 +260,20 @@ class AgentRuntimeNotificationInteractionIntegrationTest {
                 whenBlock.contains("NotificationRoute.ROUTE_OPEN_SESSION") &&
                 whenBlock.contains("NotificationRoute.EXTRA_SESSION_ID"),
         )
+        // M7.2 P10 (the documented revision of this pin): AGENT_ATTENTION
+        // joins the exhaustive when — the attention/turn surface taps into
+        // the SAME session-targeted route (the user must reach the agent
+        // that raised the signal), on its own notification id space.
+        assertTrue(
+            "AGENT_ATTENTION must map to the session-targeted route carrying the session id",
+            whenBlock.contains("EventKind.AGENT_ATTENTION ->") &&
+                whenBlock.contains("NotificationRoute.ROUTE_OPEN_SESSION") &&
+                whenBlock.contains("NotificationRoute.EXTRA_SESSION_ID"),
+        )
         assertEquals(
-            "the when must stay exhaustive (exactly two kinds)",
-            2,
-            Regex("EventKind\\.(SESSION_ACTIVITY|AGENT_RUNTIME) ->").findAll(whenBlock).count(),
+            "the when must stay exhaustive (exactly three kinds)",
+            3,
+            Regex("EventKind\\.(SESSION_ACTIVITY|AGENT_RUNTIME|AGENT_ATTENTION) ->").findAll(whenBlock).count(),
         )
     }
 

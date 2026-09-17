@@ -197,6 +197,8 @@ fun guestLaunchChainWithRecords(
     launchCommand: List<String>,
     guestShell: String,
     guestRecordFile: String,
+    agentCommandOverride: String? = null,
+    prepSnippet: String? = null,
 ): String {
     // Registry launch commands are plain single tokens today; apply the
     // same allowlist/quoting as the plain chain for defense in depth.
@@ -209,6 +211,8 @@ fun guestLaunchChainWithRecords(
         agentToken = token,
         guestShell = guestShell,
         guestRecordFile = guestRecordFile,
+        agentCommandOverride = agentCommandOverride,
+        prepSnippet = prepSnippet,
     )
 }
 

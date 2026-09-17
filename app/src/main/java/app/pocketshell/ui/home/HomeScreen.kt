@@ -1134,12 +1134,23 @@ private fun SessionsSection(
                                     c.agentDisplayName + " — Running"
                                 AgentHomeSessionClaims.Claim.UNKNOWN ->
                                     c.agentDisplayName + " — Runtime unknown"
+                                // M7.2 P10 — the attention axis: the agent's
+                                // OWN accepted signal ("requesting
+                                // permission" / "needs your input"), worded
+                                // exactly as wide as the proof.
+                                AgentHomeSessionClaims.Claim.ATTENTION_PERMISSION ->
+                                    c.agentDisplayName + " — Requesting permission"
+                                AgentHomeSessionClaims.Claim.ATTENTION_INPUT ->
+                                    c.agentDisplayName + " — Needs your input"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
                             color = when (c.claim) {
                                 AgentHomeSessionClaims.Claim.RUNNING -> HomeTokens.runningGreen
                                 AgentHomeSessionClaims.Claim.UNKNOWN -> HomeTokens.textDim
+                                AgentHomeSessionClaims.Claim.ATTENTION_PERMISSION,
+                                AgentHomeSessionClaims.Claim.ATTENTION_INPUT,
+                                -> HomeTokens.runningGreen
                             },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

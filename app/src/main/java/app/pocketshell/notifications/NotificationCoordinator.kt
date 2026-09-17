@@ -145,8 +145,15 @@ object NotificationCoordinator {
      * it is a compile-time-forced decision: the identity `when` in [post]
      * must map every kind to its notification id space AND its channel
      * explicitly.
+     *
+     * M7.2 P10 adds AGENT_ATTENTION: the agent-native attention/turn
+     * surfaces (the agent's OWN structured signals — permission requests,
+     * input waits, turn completion). It rides [CHANNEL_AGENT_RUNTIME] (the
+     * same agent-activity class, calm rules intact) but owns its OWN id
+     * space ([NotificationIds.AGENT_ATTENTION_BASE]) so the "is running"
+     * fact and the "is waiting on you" fact coexist as distinct surfaces.
      */
-    enum class EventKind { SESSION_ACTIVITY, AGENT_RUNTIME }
+    enum class EventKind { SESSION_ACTIVITY, AGENT_RUNTIME, AGENT_ATTENTION }
 
     /**
      * Post an event notification on the event channel. Honest no-op (false)
@@ -168,11 +175,13 @@ object NotificationCoordinator {
         val id = when (request.kind) {
             EventKind.SESSION_ACTIVITY -> NotificationIds.sessionEvent(request.sessionId)
             EventKind.AGENT_RUNTIME -> NotificationIds.agentRuntime(request.sessionId)
+            EventKind.AGENT_ATTENTION -> NotificationIds.agentAttention(request.sessionId)
         }
 
         val channel = when (request.kind) {
             EventKind.SESSION_ACTIVITY -> CHANNEL_SESSION_EVENTS
             EventKind.AGENT_RUNTIME -> CHANNEL_AGENT_RUNTIME
+            EventKind.AGENT_ATTENTION -> CHANNEL_AGENT_RUNTIME
         }
 
         val notification: Notification = Notification.Builder(context, channel)
@@ -260,6 +269,13 @@ object NotificationCoordinator {
                         putExtra(NotificationRoute.EXTRA_ROUTE, NotificationRoute.ROUTE_OPEN_APP)
                     }
                     EventKind.AGENT_RUNTIME -> {
+                        putExtra(NotificationRoute.EXTRA_ROUTE, NotificationRoute.ROUTE_OPEN_SESSION)
+                        putExtra(NotificationRoute.EXTRA_SESSION_ID, sessionId)
+                    }
+                    // M7.2 P10: an attention/turn tap is the same "land me in
+                    // that session" route — the user must reach the agent
+                    // that raised the signal, by the same authoritative id.
+                    EventKind.AGENT_ATTENTION -> {
                         putExtra(NotificationRoute.EXTRA_ROUTE, NotificationRoute.ROUTE_OPEN_SESSION)
                         putExtra(NotificationRoute.EXTRA_SESSION_ID, sessionId)
                     }

@@ -400,11 +400,21 @@ object TerminalSessionManager {
             // per-launch file IS the runtime generation — no stale anchor
             // may outlive the session it belongs to). Best-effort: an
             // undeletable file is logged, never fatal.
+            // M7.2 P10: the staged signal-bridge directory (the per-launch
+            // `<token>.d/` sibling with the agents' hook configs and the
+            // emitter) dies with the same generation — a staged hook can
+            // never outlive the channel it was staged for.
             removed.launchRecordPath?.let { path ->
                 try {
                     File(path).delete()
                 } catch (e: Exception) {
                     Log.w(LOG_TAG, "closeSession($id): launch record cleanup failed: ${e.message}")
+                }
+                try {
+                    val staging = File(path.removeSuffix(".jsonl") + ".d")
+                    if (staging.isDirectory) staging.deleteRecursively()
+                } catch (e: Exception) {
+                    Log.w(LOG_TAG, "closeSession($id): signal staging cleanup failed: ${e.message}")
                 }
             }
             _sessions.update { list -> list.filterNot { it.id == id } }

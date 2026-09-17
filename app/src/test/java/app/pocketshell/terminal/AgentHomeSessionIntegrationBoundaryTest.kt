@@ -370,6 +370,18 @@ class AgentHomeSessionIntegrationBoundaryTest {
             "the unknown claim literal must exist (wording, not color-only)",
             literals.any { it.endsWith("— Runtime unknown") },
         )
+        // M7.2 P10 (documented revision): the attention literals exist and
+        // are exactly as wide as the agent-proven signal behind them — a
+        // permission signal says "requesting permission" (the narrow claim
+        // P7 §10 mandated), an input-wait signal says "needs your input".
+        assertTrue(
+            "the attention-permission claim literal must exist (wording, not color-only)",
+            literals.any { it.endsWith("— Requesting permission") },
+        )
+        assertTrue(
+            "the attention-input claim literal must exist (wording, not color-only)",
+            literals.any { it.endsWith("— Needs your input") },
+        )
 
         // The M7.2 honesty ban list, over every literal the Sessions section
         // can ship: no completion/success/failure/waiting claim may ride the

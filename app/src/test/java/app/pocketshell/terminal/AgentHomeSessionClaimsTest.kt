@@ -298,9 +298,13 @@ class AgentHomeSessionClaimsTest {
     }
 
     @Test
-    fun `the claim vocabulary is exactly the two proven states`() {
+    fun `the claim vocabulary is exactly the proven states`() {
+        // M7.2 P10 (the documented revision of this pin): the two P4-proven
+        // states are joined by the attention axis — claims that exist ONLY
+        // when the agent's own structured signal (accepted with validated
+        // parent identity) proves them. No claim names anything wider.
         assertEquals(
-            setOf("RUNNING", "UNKNOWN"),
+            setOf("RUNNING", "UNKNOWN", "ATTENTION_PERMISSION", "ATTENTION_INPUT"),
             AgentHomeSessionClaims.Claim.entries.map { it.name }.toSet(),
         )
     }

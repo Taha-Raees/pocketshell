@@ -150,6 +150,31 @@ object AgentRuntimeNotificationConsumer {
                 Log.d(LOG_TAG, "runtime surface withdrawn session=${action.sessionId}")
             }
 
+            // M7.2 P10 — the attention surface: the agent's OWN structured
+            // signal (permission request / input wait / turn end), posted on
+            // its own id space. Attention surfaces are action-needed, not
+            // ongoing-state: tapping one dismisses it and opens the session.
+            is AgentRuntimeNotificationMapping.Action.ShowAttention -> {
+                val posted = NotificationCoordinator.post(
+                    NotificationCoordinator.EventNotification(
+                        kind = NotificationCoordinator.EventKind.AGENT_ATTENTION,
+                        sessionId = action.sessionId,
+                        title = action.title,
+                        text = action.text,
+                        ongoing = false,
+                    ),
+                )
+                Log.d(
+                    LOG_TAG,
+                    "attention surface session=${action.sessionId} title=\"${action.title}\" posted=$posted",
+                )
+            }
+
+            is AgentRuntimeNotificationMapping.Action.CancelAttention -> {
+                NotificationCoordinator.cancel(NotificationIds.agentAttention(action.sessionId))
+                Log.d(LOG_TAG, "attention surface withdrawn session=${action.sessionId}")
+            }
+
             AgentRuntimeNotificationMapping.Action.None -> Unit
         }
     }

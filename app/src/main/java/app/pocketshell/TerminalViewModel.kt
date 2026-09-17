@@ -29,6 +29,7 @@ import app.pocketshell.terminal.AgentHomeSessionClaims
 import app.pocketshell.terminal.AgentHint
 import app.pocketshell.terminal.AgentLaunchRecords
 import app.pocketshell.terminal.AgentMatchedBy
+import app.pocketshell.terminal.AgentSignalAdapters
 import kotlinx.coroutines.flow.Flow
 import app.pocketshell.terminal.ShellEnvironment
 import app.pocketshell.terminal.SpawnOrigin
@@ -361,6 +362,12 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         const val ORPHAN_RECORD_AGE_MS = 24L * 60 * 60 * 1000
 
         /**
+         * M7.2 P10 — the staged bridge emitter asset (copied into every
+         * launch's staging directory, executable in the guest).
+         */
+        const val EMITTER_ASSET = "agentbridge/ps-emit.sh"
+
+        /**
          * p7.1 — the pinned fallback label of a plain Linux-shell session
          * (openLinuxShell / openLinuxShellAt). One constant, referenced by
          * both spawn sites and the "+" kind check, so the string can never
@@ -615,9 +622,12 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 val sysDataBinds = withContext(Dispatchers.IO) {
                     TerminalSessionManager.prepareLinuxSession(application)
                 }
-                // M7.2 P9: the launch-record channel (registry launches only).
+                // M7.2 P9/P10: the launch-record channel (registry launches
+                // only) — now also STAGING the agent-signal bridge when the
+                // launched agent has a proven adapter (the agent's own
+                // hooks/notify/plugin config pointed at the staged emitter).
                 val record = if (launchCommand != null) {
-                    withContext(Dispatchers.IO) { prepareLaunchRecord() }
+                    withContext(Dispatchers.IO) { prepareLaunchChannel(launchCommand.first()) }
                 } else {
                     null
                 }
@@ -626,7 +636,9 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                         guestLaunchChainWithRecords(
                             launchCommand = launchCommand,
                             guestShell = ShellEnvironment.SHELL_PATH_GUEST,
-                            guestRecordFile = record.second,
+                            guestRecordFile = record.guestPath,
+                            agentCommandOverride = record.anchorCommandOverride,
+                            prepSnippet = record.prepSnippet,
                         )
                     launchCommand != null ->
                         guestLaunchChain(
@@ -651,7 +663,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                             sysDataBinds,
                             origin = origin,
                             agent = agent,
-                            launchRecordPath = record?.first,
+                            launchRecordPath = record?.hostPath,
                         ).id
                         guestSessionIds.add(newId)
                         _selectedId.value = newId
@@ -674,17 +686,39 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
+     * M7.2 P9/P10 — one launch's record CHANNEL: the generation file plus
+     * (when the agent has a proven signal adapter) the staged bridge.
+     */
+    private data class LaunchChannel(
+        val hostPath: String,
+        val guestPath: String,
+        /** The adapter's anchor exec command (agent + staged-config flag/env); null when unstaged. */
+        val anchorCommandOverride: String? = null,
+        /** The adapter's outer-chain prep step; null when none. */
+        val prepSnippet: String? = null,
+    )
+
+    /**
      * M7.2 P9 — the fresh per-launch record file: the runtime GENERATION
      * made physical. Creates the guest-visible events dir inside the
      * app-owned rootfs, sweeps crash-orphans (files untouched for 24h —
      * a live session's file is appended to, so its mtime is always
      * recent; the mtime check is a spawn-time comparison, never a timer),
-     * then touches the new generation's file. Returns (hostPath,
-     * guestPath) or null when the channel is unavailable — the launch
-     * then uses the plain chain and loses nothing but the anchor/exit
-     * extra evidence.
+     * then touches the new generation's file. Returns null when the
+     * channel is unavailable — the launch then uses the plain chain and
+     * loses nothing but the anchor/exit extra evidence.
+     *
+     * M7.2 P10 — SIGNAL STAGING. When the launched agent has a proven
+     * [AgentSignalAdapters] adapter, this also builds the per-launch
+     * staging directory `<token>.d/` beside the record file: the bridge
+     * emitter asset (copied, executable), the adapter's config files, the
+     * adapter's copy-through of the user's own global agent config, and
+     * the anchor/prep chain snippets that point the agent at all of it.
+     * STAGING IS BEST-EFFORT BY CONTRACT: any staging failure degrades to
+     * the un-staged channel (record file only) — the bridge is additional
+     * evidence, never a launch requirement.
      */
-    private fun prepareLaunchRecord(): Pair<String, String>? = try {
+    private fun prepareLaunchChannel(agentToken: String): LaunchChannel? = try {
         val rootfs = RuntimeStorage(getApplication<Application>().noBackupFilesDir).rootfsDir
         if (!rootfs.isDirectory) {
             null
@@ -695,19 +729,85 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
             } else {
                 val now = System.currentTimeMillis()
                 dir.listFiles()?.forEach { f ->
-                    if (f.isFile && f.lastModified() < now - ORPHAN_RECORD_AGE_MS) f.delete()
+                    val orphan = f.lastModified() < now - ORPHAN_RECORD_AGE_MS
+                    if (orphan) {
+                        if (f.isFile) f.delete() else if (f.isDirectory) f.deleteRecursively()
+                    }
                 }
                 val token = AgentLaunchRecords.newToken(java.util.UUID.randomUUID().toString())
                 val host = File(dir, "$token.jsonl")
-                if (host.createNewFile()) {
-                    host.absolutePath to AgentLaunchRecords.guestFilePath(token)
-                } else {
+                if (!host.createNewFile()) {
                     null
+                } else {
+                    val guestPath = AgentLaunchRecords.guestFilePath(token)
+                    val channel = LaunchChannel(hostPath = host.absolutePath, guestPath = guestPath)
+                    stageSignalBridge(channel, agentToken, rootfs, token) ?: channel
                 }
             }
         }
     } catch (_: Exception) {
         null // the channel is additional evidence, never a launch requirement
+    }
+
+    /**
+     * M7.2 P10 — stage one launch's signal bridge (see
+     * [prepareLaunchChannel]). Returns the channel WITH the adapter's
+     * snippets, or null (keep the plain channel) on any staging failure.
+     */
+    private fun stageSignalBridge(
+        channel: LaunchChannel,
+        agentToken: String,
+        rootfs: File,
+        token: String,
+    ): LaunchChannel? = try {
+        val adapter = AgentSignalAdapters.forToken(agentToken) ?: return null
+        val stagingHost = File(rootfs, "var/lib/pocketshell-agent/$token.d")
+        if (!stagingHost.isDirectory && !stagingHost.mkdirs()) return null
+        val stagingGuestDir = "${AgentLaunchRecords.GUEST_DIR}/$token.d"
+        val emitGuestPath = "$stagingGuestDir/emit.sh"
+
+        // The emitter: copied from the APK assets, executable in the guest.
+        val emitHost = File(stagingHost, "emit.sh")
+        getApplication<Application>().assets.open(EMITTER_ASSET).use { input ->
+            emitHost.outputStream().use { output -> input.copyTo(output) }
+        }
+        if (!emitHost.setExecutable(true)) return null
+
+        // The adapter's config files (paths are adapter-owned relative
+        // segments; parents are created as needed).
+        val recordGuestPath = channel.guestPath
+        for (file in adapter.stagedFiles(stagingGuestDir, recordGuestPath, emitGuestPath)) {
+            require(!file.relativePath.contains("..")) { "staged path escapes staging dir" }
+            val target = File(stagingHost, file.relativePath)
+            if (file.executable) target.setExecutable(true)
+            target.parentFile?.let { if (!it.isDirectory && !it.mkdirs()) return null }
+            target.writeText(file.content)
+        }
+
+        // Copy-through: the user's own global agent config files survive
+        // into the staged config dir (regular top-level files only).
+        for (guestDir in adapter.copyThroughGuestDirs) {
+            val source = File(rootfs, guestDir)
+            if (!source.isDirectory) continue
+            val targetDir = File(stagingHost, guestDir)
+            if (!targetDir.isDirectory && !targetDir.mkdirs()) continue
+            source.listFiles()?.forEach { f ->
+                if (f.isFile) {
+                    try {
+                        f.copyTo(File(targetDir, f.name), overwrite = true)
+                    } catch (_: Exception) {
+                        // a single uncopiable file degrades to defaults — never fatal
+                    }
+                }
+            }
+        }
+
+        channel.copy(
+            anchorCommandOverride = adapter.anchorCommand(stagingGuestDir),
+            prepSnippet = adapter.prepSnippet(stagingGuestDir),
+        )
+    } catch (_: Exception) {
+        null // staging is additional evidence, never a launch requirement
     }
 
     // ------------------------------------------------------------- M2.4 flows

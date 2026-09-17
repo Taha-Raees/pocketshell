@@ -320,7 +320,32 @@ object AgentRuntimeDetection {
         val observedAtMs: Long,
     )
 
-    /** One session's runtime observation — the unit published to consumers. */
+    /**
+     * One session's runtime observation — the unit published to consumers.
+     *
+     * M7.2 P10 — the AGENT-NATIVE SIGNAL fields: the launch channel now
+     * also carries the agent's OWN structured events (hooks / notify /
+     * plugin events relayed by the staged bridge emitter into the session's
+     * record file). The detector ACCEPTS a signal only when its recorded
+     * parent identity (pid + birth stamp) is provably the session's
+     * anchored agent or a live process inside the session's own correlation
+     * domain ([AgentSignalBridge.accept]); everything below concerns
+     * ACCEPTED signals only.
+     *
+     *  - [newSignals] — accepted signals the CONSUMING layer has not been
+     *    shown yet (append-order); delivered exactly once per generation,
+     *    then never re-delivered (the engine's edge source).
+     *  - [signalCount] — total accepted signals in the CURRENT generation
+     *    (the consumption cursor's cumulative truth).
+     *  - [attention] — what the agent currently PROVES it is waiting on
+     *    (the orthogonal attention axis; derived purely from the accepted
+     *    signal stream — the latest attention-bearing signal wins, any
+     *    later working/turn/end signal clears it).
+     *  - [attentionSignal] — the exact signal that proves [attention].
+     *  - [signalGeneration] — the launch anchor identity ("pid:start") the
+     *    signal story belongs to; a new anchor (a new launch generation)
+     *    resets the story. Empty when the channel recorded no anchor.
+     */
     data class Observation(
         val sessionId: Long,
         val state: AgentRuntimeState,
@@ -346,6 +371,12 @@ object AgentRuntimeDetection {
          * it to success/failure/completion (PART P).
          */
         val lastExit: AgentLaunchRecords.ExitRecord? = null,
+        val newSignals: List<AgentSignalBridge.SignalRecord> = emptyList(),
+        val signalCount: Int = 0,
+        val attention: AgentSignalBridge.AgentAttentionPhase =
+            AgentSignalBridge.AgentAttentionPhase.NONE,
+        val attentionSignal: AgentSignalBridge.SignalRecord? = null,
+        val signalGeneration: String = "",
     )
 
     /**
@@ -394,6 +425,14 @@ object AgentRuntimeDetection {
                     updatedAtMs = nowMs,
                     agent = resolvedAgent(session, prev),
                     lastExit = prev?.lastExit,
+                    // Missing scan evidence is not signal absence: the
+                    // attention story stands as last proven (no new
+                    // signals are deliverable without a scan).
+                    newSignals = emptyList(),
+                    signalCount = prev?.signalCount ?: 0,
+                    attention = prev?.attention ?: AgentSignalBridge.AgentAttentionPhase.NONE,
+                    attentionSignal = prev?.attentionSignal,
+                    signalGeneration = prev?.signalGeneration.orEmpty(),
                 )
             }
         }
@@ -442,11 +481,15 @@ object AgentRuntimeDetection {
         discoveryTokens: List<String>,
     ): Observation {
         val everObserved = prev?.everObservedRunning ?: false
-        // Not forked yet: no correlation root, nothing provable.
+        // Not forked yet: no correlation root, nothing provable. Signals
+        // may already exist (the chain writes the anchor before the fork
+        // callback lands) — the anchor arm of acceptance still applies.
         if (session.rootPid <= 0) {
+            val story = signalStory(session, prev, record, record?.launch, emptySet(), byPid)
             return Observation(
                 session.sessionId, AgentRuntimeState.UNKNOWN, prev?.evidence, everObserved, nowMs,
                 resolvedAgent(session, prev), prev?.lastExit,
+                story.newSignals, story.signalCount, story.attention, story.attentionSignal, story.generation,
             )
         }
         val correlated = AgentDescendantCorrelator.correlatedPids(snapshot, session.rootPid)
@@ -481,6 +524,11 @@ object AgentRuntimeDetection {
         if (anchorPid != null && anchorPid !in matches) {
             matches[anchorPid] = AgentMatchedBy.LAUNCH_ANCHOR
         }
+        // M7.2 P10 — the agent-native signal story: accept the channel's
+        // signals against THIS session's anchor + live correlation domain,
+        // fold the attention axis, and surface only the not-yet-delivered
+        // tail to consumers.
+        val story = signalStory(session, prev, record, anchor, correlated, byPid)
         // Deterministic resolution order for discovery: the anchor's own
         // token first (the launch named it), then strongest-grade matches,
         // then lowest pid. Predicted sessions resolve to their own identity.
@@ -503,11 +551,19 @@ object AgentRuntimeDetection {
                 updatedAtMs = nowMs,
                 agent = resolvedAgent ?: prev?.agent,
                 lastExit = prev?.lastExit,
+                newSignals = story.newSignals,
+                signalCount = story.signalCount,
+                attention = story.attention,
+                attentionSignal = story.attentionSignal,
+                signalGeneration = story.generation,
             )
         }
         val prevAgent = resolvedAgent(session, prev)
         if (!everObserved) {
-            return Observation(session.sessionId, AgentRuntimeState.UNKNOWN, null, false, nowMs, prevAgent, prev?.lastExit)
+            return Observation(
+                session.sessionId, AgentRuntimeState.UNKNOWN, null, false, nowMs, prevAgent, prev?.lastExit,
+                story.newSignals, story.signalCount, story.attention, story.attentionSignal, story.generation,
+            )
         }
         // Previously observed running; no match now. Distinguish proven
         // absence (the previously-matched pids are gone — or zombies) from
@@ -526,10 +582,87 @@ object AgentRuntimeDetection {
             record?.exits?.lastOrNull() ?: prev?.lastExit
         }
         return if (stillAliveUnmatched) {
-            Observation(session.sessionId, AgentRuntimeState.UNKNOWN, prev?.evidence, true, nowMs, prevAgent, exitFact)
+            Observation(
+                session.sessionId, AgentRuntimeState.UNKNOWN, prev?.evidence, true, nowMs, prevAgent, exitFact,
+                story.newSignals, story.signalCount, story.attention, story.attentionSignal, story.generation,
+            )
         } else {
-            Observation(session.sessionId, AgentRuntimeState.NOT_RUNNING, null, true, nowMs, prevAgent, exitFact)
+            Observation(
+                session.sessionId, AgentRuntimeState.NOT_RUNNING, null, true, nowMs, prevAgent, exitFact,
+                story.newSignals, story.signalCount, story.attention, story.attentionSignal, story.generation,
+            )
         }
+    }
+
+    /**
+     * M7.2 P10 — one session's ACCEPTED signal story: the accepted tail of
+     * the channel's signals, the cumulative accepted count (the engine's
+     * consumption cursor), the attention axis the accepted stream proves,
+     * and the generation the story belongs to.
+     *
+     * Acceptance ([AgentSignalBridge.accept]) ties every signal to THIS
+     * session: the expected agent token is the session's own spawn-truth
+     * token (predicted sessions) or the token the channel's anchor named
+     * (discovery), and the recorded parent must be the anchored agent or a
+     * live process in the session's correlation domain. A generation break
+     * (a new anchor identity — the file was recreated by a new launch)
+     * resets the delivery cursor so the new generation's signals are all
+     * delivered exactly once.
+     */
+    private data class SignalStory(
+        val newSignals: List<AgentSignalBridge.SignalRecord>,
+        val signalCount: Int,
+        val attention: AgentSignalBridge.AgentAttentionPhase,
+        val attentionSignal: AgentSignalBridge.SignalRecord?,
+        val generation: String,
+    )
+
+    private fun signalStory(
+        session: EligibleAgentSession,
+        prev: Observation?,
+        record: AgentLaunchRecords.SessionRecords?,
+        anchor: AgentLaunchRecords.LaunchRecord?,
+        correlated: Set<Int>,
+        byPid: Map<Int, ProcfsProcess>,
+    ): SignalStory {
+        val signals = record?.signals.orEmpty()
+        val generation = anchor?.let { "${it.pid}:${it.startTicks}" } ?: ""
+        val generationChanged = prev != null && prev.signalGeneration != generation
+        val cursor = if (prev == null || generationChanged) 0 else prev.signalCount
+        val expectedToken =
+            if (!session.discovery && session.token.isNotBlank()) session.token else anchor?.agent.orEmpty()
+        var attention = AgentSignalBridge.AgentAttentionPhase.NONE
+        var attentionSignal: AgentSignalBridge.SignalRecord? = null
+        val accepted = ArrayList<AgentSignalBridge.SignalRecord>(signals.size)
+        for (signal in signals) {
+            val isAccepted = AgentSignalBridge.accept(
+                signal,
+                AgentSignalBridge.AcceptanceContext(
+                    anchor = anchor,
+                    expectedAgentToken = expectedToken,
+                    byPid = byPid,
+                    correlatedPids = correlated,
+                ),
+            )
+            if (!isAccepted) continue
+            accepted += signal
+            val phase = AgentSignalBridge.attentionPhase(signal)
+            if (phase == AgentSignalBridge.AgentAttentionPhase.NONE) {
+                attention = AgentSignalBridge.AgentAttentionPhase.NONE
+                attentionSignal = null
+            } else {
+                attention = phase
+                attentionSignal = signal
+            }
+        }
+        val newSignals = if (accepted.size > cursor) accepted.drop(cursor) else emptyList()
+        return SignalStory(
+            newSignals = newSignals,
+            signalCount = accepted.size,
+            attention = attention,
+            attentionSignal = attentionSignal,
+            generation = generation,
+        )
     }
 
     /**

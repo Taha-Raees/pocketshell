@@ -64,10 +64,11 @@ package app.pocketshell.terminal
 object AgentHomeSessionClaims {
 
     /**
-     * The ONLY two activity claims the Home Sessions row may state about an
-     * agent — both already proven surfaces of the P4 notification contract.
+     * The activity claims the Home Sessions row may state about an agent —
+     * the P4-proven surfaces plus the M7.2 P10 attention axis (the agent's
+     * OWN structured signal, accepted only with validated parent identity).
      */
-    enum class Claim { RUNNING, UNKNOWN }
+    enum class Claim { RUNNING, UNKNOWN, ATTENTION_PERMISSION, ATTENTION_INPUT }
 
     /**
      * One session's renderable agent-activity claim: which session it
@@ -100,15 +101,30 @@ object AgentHomeSessionClaims {
      * parity mapping documented on this object, pinned exhaustively by
      * AgentHomeSessionClaimsTest. `null` = Home states NO agent activity
      * (the normal session presentation).
+     *
+     * M7.2 P10 — the attention axis takes PRECEDENCE when the agent itself
+     * is proving a wait: an accepted signal carries validated parent
+     * identity (the strongest evidence class this architecture has), so a
+     * proven "requesting permission" / "needs your input" outranks the
+     * process-only claims. When no attention is proven, the parity mapping
+     * is unchanged.
      */
-    fun claimFor(state: AgentRuntimeState, everObservedRunning: Boolean): Claim? =
-        when (state) {
+    fun claimFor(
+        state: AgentRuntimeState,
+        everObservedRunning: Boolean,
+        attention: AgentSignalBridge.AgentAttentionPhase =
+            AgentSignalBridge.AgentAttentionPhase.NONE,
+    ): Claim? = when (attention) {
+        AgentSignalBridge.AgentAttentionPhase.PERMISSION_REQUEST -> Claim.ATTENTION_PERMISSION
+        AgentSignalBridge.AgentAttentionPhase.INPUT_REQUIRED -> Claim.ATTENTION_INPUT
+        AgentSignalBridge.AgentAttentionPhase.NONE -> when (state) {
             AgentRuntimeState.RUNNING -> Claim.RUNNING
             AgentRuntimeState.UNKNOWN ->
                 if (everObservedRunning) Claim.UNKNOWN else null
             AgentRuntimeState.NOT_RUNNING -> null
             AgentRuntimeState.NOT_APPLICABLE -> null
         }
+    }
 
     /**
      * Present the claims for ALL live sessions in one fold. Sessions with
@@ -139,6 +155,8 @@ object AgentHomeSessionClaims {
             val claim = claimFor(
                 state = observation?.state ?: AgentRuntimeState.UNKNOWN,
                 everObservedRunning = observation?.everObservedRunning ?: false,
+                attention = observation?.attention
+                    ?: AgentSignalBridge.AgentAttentionPhase.NONE,
             ) ?: return@mapNotNull null
             SessionClaim(
                 sessionId = session.sessionId,

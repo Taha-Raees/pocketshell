@@ -211,5 +211,14 @@ object AgentRuntimeEventEngine {
         is AgentRuntimeEvent.SessionEnded ->
             "session ${event.sessionId} SESSION_ENDED agent=${event.agent.displayName} " +
                 "cause=${event.cause} lastState=${event.lastState ?: "(never observed)"}"
+        is AgentRuntimeEvent.AgentAttentionRaised ->
+            "session ${event.sessionId} ATTENTION_RAISED agent=${event.agent.displayName} " +
+                "attention=${event.attention} (signal line=${event.signal.lineIndex}, kind=${event.signal.kind})"
+        is AgentRuntimeEvent.AgentAttentionCleared ->
+            "session ${event.sessionId} ATTENTION_CLEARED agent=${event.agent.displayName} " +
+                "cause=${event.cause} — withdrawal is not completion"
+        is AgentRuntimeEvent.AgentTurnSignalled ->
+            "session ${event.sessionId} TURN_SIGNALLED agent=${event.agent.displayName} " +
+                "(signal line=${event.signal.lineIndex}) — the agent ended its turn"
     }
 }

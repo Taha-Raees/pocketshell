@@ -140,6 +140,12 @@ class AgentRuntimeNotificationTransitionMatrixTest {
                     NotificationIds.agentRuntime(action.sessionId)
                 is AgentRuntimeNotificationMapping.Action.Cancel ->
                     NotificationIds.agentRuntime(action.sessionId)
+                // M7.2 P10: attention surfaces live on their OWN id space —
+                // the runtime-surface identity pin does not reach them.
+                is AgentRuntimeNotificationMapping.Action.ShowAttention ->
+                    NotificationIds.agentAttention(action.sessionId)
+                is AgentRuntimeNotificationMapping.Action.CancelAttention ->
+                    NotificationIds.agentAttention(action.sessionId)
                 AgentRuntimeNotificationMapping.Action.None -> null
             }
         }.filterNotNull()

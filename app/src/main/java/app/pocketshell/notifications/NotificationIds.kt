@@ -46,6 +46,17 @@ object NotificationIds {
     const val AGENT_RUNTIME_BASE = 20_000
 
     /**
+     * First id of the coordinator-owned agent-ATTENTION event space
+     * (M7.2 P10): the agent-native attention/turn surface ("requesting
+     * permission", "needs your input", "finished responding"). Kept separate
+     * from [AGENT_RUNTIME_BASE] ON PURPOSE: the runtime surface ("is
+     * running") stays a true ongoing fact while the attention surface states
+     * what the agent is waiting on — the two coexist as distinct system
+     * notifications for the same session.
+     */
+    const val AGENT_ATTENTION_BASE = 30_000
+
+    /**
      * The notification id for a per-session event notification.
      *
      * @throws IllegalStateException for a session id outside the representable
@@ -78,5 +89,23 @@ object NotificationIds {
             "session id $sessionId is outside the agent-runtime notification space — refusing to wrap silently"
         }
         return AGENT_RUNTIME_BASE + sessionId.toInt()
+    }
+
+    /**
+     * The notification id for a per-session agent-ATTENTION notification
+     * (M7.2 P10): the attention surface ("requesting permission" / "needs
+     * your input") and the turn surface ("finished responding") share ONE id
+     * per session — the agent can only be in one of those stories at a time
+     * (a turn that ends a pending attention withdraws it), so one slot
+     * per session can never accumulate multiple attention notifications.
+     *
+     * @throws IllegalStateException for a session id outside the representable
+     *   agent-attention space — the same loud-failure rule as the other spaces.
+     */
+    fun agentAttention(sessionId: Long): Int {
+        check(sessionId in 1..(Int.MAX_VALUE - AGENT_ATTENTION_BASE).toLong()) {
+            "session id $sessionId is outside the agent-attention notification space — refusing to wrap silently"
+        }
+        return AGENT_ATTENTION_BASE + sessionId.toInt()
     }
 }

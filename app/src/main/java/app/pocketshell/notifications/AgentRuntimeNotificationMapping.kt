@@ -1,6 +1,7 @@
 package app.pocketshell.notifications
 
 import app.pocketshell.terminal.AgentRuntimeEvent
+import app.pocketshell.terminal.AgentSignalBridge
 import app.pocketshell.terminal.ExitStatus
 
 /**
@@ -66,6 +67,14 @@ object AgentRuntimeNotificationMapping {
     enum class PostedKind { RUNNING, UNKNOWN }
 
     /**
+     * M7.2 P10 — what the separate agent-ATTENTION surface (its own id,
+     * [NotificationIds.agentAttention]) currently carries, if anything.
+     * The attention surface and the runtime surface COEXIST: "is running"
+     * and "is waiting on you" are both true at once.
+     */
+    enum class AttentionPosted { PERMISSION, INPUT, TURN }
+
+    /**
      * The consumer's notification-domain memory (Part G). Process-scoped,
      * in-memory, bounded by the number of agent sessions this process saw.
      * It records only what THIS layer showed — never what any session or
@@ -78,6 +87,8 @@ object AgentRuntimeNotificationMapping {
         val everPosted: Set<Long> = emptySet(),
         /** Ended sessions — tombstones; events for them are ignored. */
         val ended: Set<Long> = emptySet(),
+        /** M7.2 P10 — the attention surface currently posted per session (empty = none). */
+        val attentionPosted: Map<Long, AttentionPosted> = emptyMap(),
     )
 
     /** What the consumer should do about one event. */
@@ -106,6 +117,20 @@ object AgentRuntimeNotificationMapping {
 
         /** Cancel the per-session notification (safe no-op if none). */
         data class Cancel(val sessionId: Long) : Action
+
+        /**
+         * M7.2 P10 — post or update the per-session ATTENTION surface (the
+         * id is [NotificationIds.agentAttention]; distinct from the runtime
+         * surface, so the two truths coexist).
+         */
+        data class ShowAttention(
+            val sessionId: Long,
+            val title: String,
+            val text: String,
+        ) : Action
+
+        /** M7.2 P10 — cancel the per-session attention surface (safe no-op if none). */
+        data class CancelAttention(val sessionId: Long) : Action
 
         /** Nothing to do (the honest answer for most events). */
         data object None : Action
@@ -180,7 +205,14 @@ object AgentRuntimeNotificationMapping {
             }
 
             is AgentRuntimeEvent.SessionEnded -> {
-                var next = memory.copy(ended = memory.ended + event.sessionId)
+                var next = memory.copy(
+                    ended = memory.ended + event.sessionId,
+                    // M7.2 P10 hygiene: an attention surface state never
+                    // outlives its session's tombstone. (The engine emits
+                    // the withdrawal BEFORE this edge; this is defense in
+                    // depth for the recorded state.)
+                    attentionPosted = memory.attentionPosted - event.sessionId,
+                )
                 val hadSurface = event.sessionId in memory.posted
                 if (hadSurface) next = next.copy(posted = next.posted - event.sessionId)
                 when {
@@ -206,6 +238,71 @@ object AgentRuntimeNotificationMapping {
 
                     else -> next to Action.None
                 }
+            }
+
+            // --------------------------------------------------------------
+            // M7.2 P10 — the agent-native attention axis. These wordings
+            // are the "conscious, documented revision" of the P7 wording
+            // ban lists (docs/M7.2-P10-AGENT-SIGNAL-BRIDGE.md §8): the
+            // claims are only ever as wide as the agent's OWN structured
+            // payload that proved them — a permission signal may say
+            // "requesting permission", an idle_prompt signal may say
+            // "needs your input", a turn-complete signal may say
+            // "finished responding". Nothing here upgrades exit codes,
+            // absences, or guesses into any of those claims.
+            // --------------------------------------------------------------
+
+            is AgentRuntimeEvent.AgentAttentionRaised -> {
+                val kind = when (event.attention) {
+                    AgentSignalBridge.AgentAttentionPhase.PERMISSION_REQUEST -> AttentionPosted.PERMISSION
+                    AgentSignalBridge.AgentAttentionPhase.INPUT_REQUIRED -> AttentionPosted.INPUT
+                    AgentSignalBridge.AgentAttentionPhase.NONE -> null
+                }
+                if (kind == null) {
+                    // Structurally impossible from the engine (a Raised
+                    // always carries a real phase); stay silent rather
+                    // than invent a surface.
+                    memory to Action.None
+                } else {
+                    val next = memory.copy(
+                        attentionPosted = memory.attentionPosted + (event.sessionId to kind),
+                    )
+                    next to Action.ShowAttention(
+                        sessionId = event.sessionId,
+                        title = attentionTitle(event.agent.displayName, kind),
+                        text = attentionText(event, kind),
+                    )
+                }
+            }
+
+            is AgentRuntimeEvent.AgentAttentionCleared -> {
+                if (event.sessionId !in memory.attentionPosted) {
+                    memory to Action.None
+                } else {
+                    // The wait is OVER (the agent went back to work, ended
+                    // its turn, or died) — the withdrawal is the honest
+                    // state: cancel, no replacement ("cleared" is not
+                    // completion, and says nothing about success).
+                    val next = memory.copy(
+                        attentionPosted = memory.attentionPosted - event.sessionId,
+                    )
+                    next to Action.CancelAttention(event.sessionId)
+                }
+            }
+
+            is AgentRuntimeEvent.AgentTurnSignalled -> {
+                // The agent's OWN turn-end fact: one calm surface per turn
+                // (the attention slot updates in place; setOnlyAlertOnce
+                // keeps repeats silent). Narrow wording — a turn ended, the
+                // agent is back at its prompt; no success/completion claim.
+                val next = memory.copy(
+                    attentionPosted = memory.attentionPosted + (event.sessionId to AttentionPosted.TURN),
+                )
+                next to Action.ShowAttention(
+                    sessionId = event.sessionId,
+                    title = turnTitle(event.agent.displayName),
+                    text = turnText(event.sessionId),
+                )
             }
         }
     }
@@ -244,5 +341,62 @@ object AgentRuntimeNotificationMapping {
         is ExitStatus.Exited -> "Terminal session $sessionId exited (code ${status.code})"
         is ExitStatus.Signaled ->
             "Terminal session $sessionId was terminated by signal ${status.signal}"
+    }
+
+    // ---------------------------------------------------------- M7.2 P10 wording
+
+    /**
+     * The attention surface's title — exactly as wide as the proven claim:
+     * a permission signal says "requesting permission" (the narrow claim
+     * P7 §10 mandated for permission evidence), an input signal says
+     * "needs your input".
+     */
+    fun attentionTitle(displayName: String, kind: AttentionPosted): String = when (kind) {
+        AttentionPosted.PERMISSION -> "$displayName is requesting permission"
+        AttentionPosted.INPUT -> "$displayName needs your input"
+        AttentionPosted.TURN -> turnTitle(displayName)
+    }
+
+    /**
+     * The attention surface's body. When the agent's own payload named the
+     * tool it wants to run (Claude Code PermissionRequest payloads carry
+     * tool_name), the body names it — the agent said it, the bridge
+     * relayed it verbatim; nothing is inferred beyond that.
+     */
+    fun attentionText(event: AgentRuntimeEvent.AgentAttentionRaised, kind: AttentionPosted): String {
+        val tool = toolNameFromPayload(event.signal.data)
+        val session = "terminal session ${event.sessionId}"
+        return when (kind) {
+            AttentionPosted.PERMISSION -> when (tool) {
+                null -> "The agent asked for your approval in $session"
+                else -> "The agent asked for your approval to use $tool in $session"
+            }
+            AttentionPosted.INPUT -> "The agent is waiting for you in $session"
+            AttentionPosted.TURN -> turnText(event.sessionId)
+        }
+    }
+
+    /**
+     * The turn surface's title — the agent's own turn-end fact, narrowly
+     * worded ("ended its turn" — exactly what a turn-complete/Stop/idle
+     * signal declares; deliberately NOT "finished", which the P4 wording
+     * sweep bans and which would read as a task-completion claim).
+     */
+    fun turnTitle(displayName: String): String = "$displayName ended its turn"
+
+    /** The turn surface's body: turn ended, agent back at its prompt. Nothing more. */
+    fun turnText(sessionId: Long): String =
+        "The agent ended its turn (terminal session $sessionId)"
+
+    /**
+     * Extracts `tool_name` from an accepted signal's payload (the raw JSON
+     * the agent's hook/plugin wrote, relayed verbatim). Best-effort BY
+     * DESIGN: a payload without the field simply yields null — the wording
+     * degrades to the still-true generic line, never to a guess.
+     */
+    private fun toolNameFromPayload(data: String): String? {
+        if (data.isEmpty()) return null
+        val match = Regex("\"tool_name\":\"([A-Za-z0-9_.-]+)\"").find(data) ?: return null
+        return match.groupValues.get(1).takeIf { it.isNotBlank() }
     }
 }
