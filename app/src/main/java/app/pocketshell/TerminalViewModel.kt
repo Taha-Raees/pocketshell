@@ -375,6 +375,19 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         const val NOTIFY_ASSET = "agentbridge/ps-notify"
 
         /**
+         * M7.2 P10 — the stable Codex `notify` handler asset (installed at
+         * the bridge path root; the user's config.toml references it).
+         */
+        const val CODEX_NOTIFY_ASSET = "agentbridge/codex-notify"
+
+        /**
+         * M7.2 P10 — the Codex hooks template (installed at the bridge path
+         * root; the launch prep copies it into the real ~/.codex/hooks.json
+         * when the user has none — the TUI's one-time trust dialog arms it).
+         */
+        const val CODEX_HOOKS_ASSET = "agentbridge/codex-hooks.json"
+
+        /**
          * p7.1 — the pinned fallback label of a plain Linux-shell session
          * (openLinuxShell / openLinuxShellAt). One constant, referenced by
          * both spawn sites and the "+" kind check, so the string can never
@@ -790,6 +803,18 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 notifyHost.outputStream().use { output -> input.copyTo(output) }
             }
             notifyHost.setExecutable(true)
+            // the stable Codex `notify` handler (relays into ps-notify)
+            val codexNotifyHost = File(stagingHost.parentFile, "codex-notify")
+            getApplication<Application>().assets.open(CODEX_NOTIFY_ASSET).use { input ->
+                codexNotifyHost.outputStream().use { output -> input.copyTo(output) }
+            }
+            codexNotifyHost.setExecutable(true)
+            // the Codex hooks template (copied into the real ~/.codex by
+            // the launch prep ONCE — trust is the user's one approval)
+            val codexHooksHost = File(stagingHost.parentFile, "codex-hooks.json")
+            getApplication<Application>().assets.open(CODEX_HOOKS_ASSET).use { input ->
+                codexHooksHost.outputStream().use { output -> input.copyTo(output) }
+            }
         } catch (_: Exception) {
             // the headless tool is additional capability, never a launch requirement
         }

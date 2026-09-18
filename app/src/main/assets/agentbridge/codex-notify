@@ -1,0 +1,11 @@
+#!/bin/sh
+# PocketShell codex-notify — the stable Codex `notify` handler (M7.2 P10).
+#
+# Codex invokes this with the turn-completion JSON as its FIRST argument
+# ({"type":"agent-turn-complete","thread-id":...,"last-assistant-message":...}).
+# The payload is relayed as the signal's data through ps-notify, which
+# resolves THIS session by walking the process ancestry to the launch
+# anchor — no per-launch staging, no CODEX_HOME isolation: codex runs
+# with its own real home and the bridge rides along.
+
+exec /var/lib/pocketshell-agent/ps-notify turn "$1"

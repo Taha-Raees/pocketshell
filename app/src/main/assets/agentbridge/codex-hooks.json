@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "/var/lib/pocketshell-agent/ps-notify start"}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "/var/lib/pocketshell-agent/ps-notify working"}]}],
+    "PreToolUse": [{"hooks": [{"type": "command", "command": "/var/lib/pocketshell-agent/ps-notify working"}]}],
+    "PermissionRequest": [{"hooks": [{"type": "command", "command": "/var/lib/pocketshell-agent/ps-notify permission"}]}],
+    "PostToolUse": [{"hooks": [{"type": "command", "command": "/var/lib/pocketshell-agent/ps-notify working"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "/var/lib/pocketshell-agent/ps-notify turn"}]}]
+  }
+}

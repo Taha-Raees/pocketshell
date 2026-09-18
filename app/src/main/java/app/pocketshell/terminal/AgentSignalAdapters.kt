@@ -128,33 +128,34 @@ object AgentSignalAdapters {
     // -----------------------------------------------------------------
     // Codex — notify (VERIFIED, docs/M7.2-P10 §2.2).
     //
-    // `notify = ["cmd"]` in config.toml fires once per completed turn with
-    // the JSON payload as ARGV[1] ({"type":"agent-turn-complete",
-    // "thread-id":...,"last-assistant-message":...}), with NO trust gate —
-    // zero launch friction. The Claude-compatible hooks.json (which also
-    // carries PermissionRequest) requires per-hook trust approval on a
-    // fresh CODEX_HOME — a prompt on EVERY launch — so hooks are
-    // deliberately NOT armed by this adapter (documented deferral).
-    //
-    // Staging isolates CODEX_HOME; the outer-chain prep symlinks the
-    // user's real auth into the staged home so sign-in survives. The
-    // notify line is the ONLY content of the staged config.toml (v1: the
-    // user's model/provider preferences do not transfer into PocketShell's
-    // staged home — documented trade-off).
+    // Device-round redesign (SM-T870): the launch anchor runs in the
+    // guest's busybox ash, which REJECTS `exec VAR=val cmd` — and the
+    // earlier CODEX_HOME staging also re-asked Codex's directory-trust
+    // dialog on every launch. The adapter now launches codex with its
+    // OWN REAL HOME (trust + auth + model state persist; zero friction)
+    // and arms the bridge through the USER'S OWN config.toml: the prep
+    // step appends `notify = ["…/codex-notify"]` ONCE, idempotently, and
+    // ONLY when the user has no `notify` of their own. The stable
+    // codex-notify wrapper relays the turn-completion payload through
+    // ps-notify's ancestry matching — no per-launch staging at all.
+    // (Codex's own config.toml is user-owned space: the append is the
+    // one disclosed write, visible in the launch chain, trivially
+    // removable by deleting the line.)
     // -----------------------------------------------------------------
     internal class CodexAdapter(override val agentToken: String) : AgentSignalAdapter {
 
-        override fun stagedFiles(stagingGuestDir: String, recordGuestPath: String, emitGuestPath: String): List<StagedFile> {
-            val config = "notify = [\"sh\", \"$emitGuestPath\", \"$agentToken\", " +
-                "\"turn_complete\", \"$recordGuestPath\"]\n"
-            return listOf(StagedFile("codex/config.toml", config))
-        }
+        override fun stagedFiles(stagingGuestDir: String, recordGuestPath: String, emitGuestPath: String): List<StagedFile> =
+            emptyList()
 
-        override fun anchorCommand(stagingGuestDir: String): String =
-            "CODEX_HOME=$stagingGuestDir/codex $agentToken"
+        override fun anchorCommand(stagingGuestDir: String): String = agentToken
 
         override fun prepSnippet(stagingGuestDir: String): String? =
-            "ln -sf \"\$HOME/.codex/auth.json\" \"$stagingGuestDir/codex/auth.json\" 2>/dev/null || :"
+            "grep -q \"^notify\" \"\$HOME/.codex/config.toml\" 2>/dev/null || " +
+                "printf \'\\nnotify = [\"/var/lib/pocketshell-agent/codex-notify\"]\\n\' " +
+                ">> \"\$HOME/.codex/config.toml\" 2>/dev/null || : ; " +
+                "[ -f \"\$HOME/.codex/hooks.json\" ] || " +
+                "cp /var/lib/pocketshell-agent/codex-hooks.json \"\$HOME/.codex/hooks.json\" " +
+                "2>/dev/null || :"
     }
 
     // -----------------------------------------------------------------
@@ -201,8 +202,9 @@ object AgentSignalAdapters {
             return listOf(StagedFile("home/.zcode/cli/config.json", config + "\n"))
         }
 
+        // `env VAR=val cmd` — busybox ash (the guest shell) rejects `exec VAR=val cmd`.
         override fun anchorCommand(stagingGuestDir: String): String =
-            "HOME=$stagingGuestDir/home $agentToken"
+            "env HOME=$stagingGuestDir/home $agentToken"
     }
 
     // -----------------------------------------------------------------
@@ -284,8 +286,9 @@ object AgentSignalAdapters {
             return listOf(StagedFile("xdg-config/opencode/plugin/pocketshell-bridge.js", plugin))
         }
 
+        // `env VAR=val cmd` — busybox ash (the guest shell) rejects `exec VAR=val cmd`.
         override fun anchorCommand(stagingGuestDir: String): String =
-            "XDG_CONFIG_HOME=$stagingGuestDir/xdg-config $agentToken"
+            "env XDG_CONFIG_HOME=$stagingGuestDir/xdg-config $agentToken"
 
         override val copyThroughGuestDirs: List<String> = listOf("root/.config/opencode")
     }

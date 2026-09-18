@@ -68,7 +68,7 @@ class AgentSignalAdaptersTest {
         // PostToolUseFailure is a tool failure, not a bridge kind — not armed
         assertTrue(!config.contains("PostToolUseFailure"))
         // the anchor redirects HOME only; storage.dir keeps state persistent
-        assertEquals("HOME=$staging/home zcode", adapter.anchorCommand(staging))
+        assertEquals("env HOME=$staging/home zcode", adapter.anchorCommand(staging))
     }
 
     // --------------------------------------------------------- Claude Code
@@ -109,24 +109,19 @@ class AgentSignalAdaptersTest {
     // ---------------------------------------------------------------- Codex
 
     @Test
-    fun `the Codex adapter stages a notify-only config - no trust-gated hooks`() {
-        val files = AgentSignalAdapters.forToken("codex")!!
-            .stagedFiles(staging, record, emit)
-        assertEquals(1, files.size)
-        assertEquals("codex/config.toml", files[0].relativePath)
-        val config = files[0].content
-        assertTrue(config.contains("notify = [\"sh\", \"$emit\", \"codex\", \"turn_complete\", \"$record\"]"))
-        // the trust gate is exactly why hooks are NOT armed by this adapter
-        assertFalse(config.contains("hooks"))
-    }
-
-    @Test
-    fun `the Codex anchor isolates CODEX_HOME and the prep symlinks real auth`() {
+    fun `the Codex adapter launches the real home and arms notify through the user's own config`() {
         val adapter = AgentSignalAdapters.forToken("codex")!!
-        assertEquals("CODEX_HOME=$staging/codex codex", adapter.anchorCommand(staging))
+        // no CODEX_HOME staging: trust/auth/model state persist across launches
+        assertTrue(adapter.stagedFiles(staging, record, emit).isEmpty())
+        assertEquals("codex", adapter.anchorCommand(staging))
         val prep = adapter.prepSnippet(staging)!!
-        assertTrue(prep.startsWith("ln -sf"))
-        assertTrue(prep.contains(".codex/auth.json"))
+        // one-time, idempotent append; respects an existing user notify
+        assertTrue(prep.contains("grep -q"))
+        assertTrue(prep.contains("notify = [\"/var/lib/pocketshell-agent/codex-notify\"]"))
+        // hooks.json lands in the real home only when the user has none —
+        // the TUI's one-time trust dialog then arms the hook path
+        assertTrue(prep.contains("hooks.json"))
+        assertTrue(prep.contains("codex-hooks.json"))
         assertTrue(prep.endsWith("|| :"))
     }
 
@@ -146,7 +141,7 @@ class AgentSignalAdaptersTest {
             assertTrue("plugin must bridge $event", plugin.contains("\"$event\""))
         }
         // the staged config dir redirect + the user's global config survives
-        assertEquals("XDG_CONFIG_HOME=$staging/xdg-config opencode", adapter.anchorCommand(staging))
+        assertEquals("env XDG_CONFIG_HOME=$staging/xdg-config opencode", adapter.anchorCommand(staging))
         assertEquals(listOf("root/.config/opencode"), adapter.copyThroughGuestDirs)
     }
 

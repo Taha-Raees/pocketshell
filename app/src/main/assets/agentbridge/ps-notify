@@ -24,6 +24,9 @@
 # user's own environment (the same trust boundary as the terminal), but
 # the claim is only ever as wide as the kind your script chose.
 
+# The agent token is adopted from the MATCHED generation's launch record
+# (set after the anchor match below) — a signal must name the session's
+# own agent for the Android acceptance gate to credit it.
 AGENT="script"
 KIND_RAW="$1"
 MESSAGE="$2"
@@ -33,11 +36,18 @@ case "$KIND_RAW" in
     input) KIND="attention" ;;
     working) KIND="working" ;;
     turn) KIND="turn_complete" ;;
+    start) KIND="session_start" ;;
+    ended) KIND="session_end" ;;
     *)
-        echo "usage: ps-notify permission|input|working|turn [message]" >&2
+        echo "usage: ps-notify permission|input|working|turn|start|ended [message]" >&2
         exit 1
         ;;
 esac
+# No message argument: the payload arrives on STDIN (agent hook payloads —
+# JSON on stdin is exactly how Claude Code / Codex / ZCode hooks deliver).
+if [ -z "$MESSAGE" ]; then
+    MESSAGE=$(cat 2>/dev/null)
+fi
 
 BRIDGE_DIR="${PS_BRIDGE_DIR:-/var/lib/pocketshell-agent}"
 
@@ -58,6 +68,7 @@ while [ "$pid" -gt 1 ]; do
         DELTA=$((LSTART - START))
         [ $DELTA -le 10 ] && [ $DELTA -ge -10 ] || continue
         RECORD="$rec"
+        AGENT=$(printf '%s' "$LINE" | grep -o '"agent":"[a-z0-9._+%-]*"' | sed 's/"agent":"//; s/"//')
         break
     done
     [ -n "$RECORD" ] && break
