@@ -3277,3 +3277,73 @@ without SELinux bypasses, without fake detection.
   fallback (same evidence class) covers it on device; registration-style
   launch metadata unnecessary for v1 (generic discovery works);
   tmux/agent-launched servers need no special path (same-UID listeners).
+
+## Task 59 — M8.2: Servers as the first HOME APPLICATION (Agent L, 2026-09-18)
+
+Continuation on `agent-L/m8.2-home-app` (base = M8.1 tip). Owner direction:
+the two hero SLOTS become ONE Home Application Card, and Servers becomes the
+reference implementation of a PocketShell-native single-page application
+that lives entirely inside that card. Two architectural requirements: the
+one-card Home architecture, and strict theme independence (Aurora is ONE
+theme, never the visual system).
+
+- ONE-CARD ARCHITECTURE: the two-slot widget system (WidgetHost,
+  WidgetRegistry, WidgetSlotsCodec, Terminal/Linux/Storage/Agents hero
+  widgets) is REMOVED — superseded, not extended (worklog Task 57's
+  framework served its milestone; the survivors are the M8.1 probe layer,
+  the pure Agents summary for the future Agents application, the
+  declarative catalog layer, and StorageScan.formatBytes → StorageScan).
+  New: `HomeApplication` (abstract single-page app contract + HomeAppSpec
+  + HomeAppContext), `HomeApplications` (ONE registry, resolve →
+  Found|Missing), `HomeApplicationRepository/ViewModel` (the SAME
+  home_widgets DataStore, ONE new key `home_app_id`, absent/corrupt →
+  default; the two-slot record is deliberately not migrated), and
+  `ui/home/HomeApplicationHost` (the card host: derived chrome via
+  HomeTokens.homeAppCardHeight = 240×CardSize-scale — dimensions from the
+  existing layout, not invented; Missing card for unknown ids; the ONE
+  WidgetNav seam unchanged).
+- SERVERS SPA (ServersApp): the card IS the screen. Overview = header +
+  count + status line ("● N RUNNING") + verified rows with directory
+  sublines + footer stats + honest state line; row tap → DETAIL in the
+  same card (compact back header, title, RUNNING, 127.0.0.1:P, directory,
+  PID/PROCESS table, attribution in plain words, TERMINAL + COMPANION).
+  The detail selection is rememberSaveable AND the card registers its own
+  BackHandler — system back returns detail→overview INSIDE Home; only
+  from the overview does back reach the rest of Home. Empty state: honest
+  line + "Open Linux" (the guest is where dev servers live). Responsive:
+  ServersLayout.from(width,height) — COMPACT (one-line rows, capped,
+  "+N more") vs ROOMY (status header, cwd lines, footer, scrolling rows);
+  thresholds JVM-pinned at 420/200dp inner (the chrome padding corrected
+  the first device estimate). M8.1 truthfulness untouched: same probe,
+  same attribution rules, no invented controls.
+- THEME INDEPENDENCE: the application and the host read ONLY
+  HomeTokens→TerminalTheme (chrome tone, text pairs, accent, hairline,
+  runningGreen) and the theme-gated shared aurora phase (edge appears
+  only under the Aurora identity). Source pins: no Color(0x…), no
+  "Aurora" literals, no canvas-tone text pair in ServersApp.
+- DEVICE GATE §66 (SM-T870 ONLY, `adb -s` everywhere — the S9+ is the
+  parallel agent's): one-card Home verified; full workflow Open Linux →
+  server → overview row → in-card detail (PID + attribution) → COMPANION
+  rendered the server's directory listing → in-card back → overview; in-
+  card back re-verified after rotation; detail SURVIVED rotation
+  (rememberSaveable); COMPACT (user's Compact card size) and ROOMY
+  (Default) hierarchies both rendered on device; THEME SWEEP captured all
+  10 installed themes with a live server (Nord/Solarized/Rosé Pine
+  spot-verified in detail — card follows every palette, no Aurora
+  artifacts elsewhere). Device left: Aurora theme, Servers application,
+  one idle loopback python server in session #1 (left running — a
+  parallel agent's Antigravity session appeared on this device mid-gate
+  and global keystrokes were stopped to avoid interfering with it).
+- TESTS: +2 suites (HomeApplicationsTest 6, ServersLayoutTest 4),
+  contract test rewritten for M8.2 (one-card pins, theme-independence
+  pins, in-card-back pins, persistence pins, external/catalog pins kept).
+  Codec/registry suites removed with their code. FULL SUITE 1214/1214.
+  APK M8.2-L (ebe9f9b8392572f0cc83a22a39d43002d73468f60c88f5f627b9c1ef68f35e94),
+  ledger ARTIFACT_NAMING §5.
+- LESSON (device): the Home content width on this tablet measures 780.8dp
+  (the legacy widthIn(720) cap does not bind at 853dp screen width —
+  pre-existing behavior the card inherits); the chrome padding eats
+  32dp of the card height, so responsive thresholds are INNER
+  dimensions; detail pages in a fixed-height card must budget their
+  vertical space or scroll (buttons clipped twice before the compact
+  layout fit).

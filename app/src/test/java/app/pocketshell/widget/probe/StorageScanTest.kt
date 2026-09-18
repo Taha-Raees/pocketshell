@@ -1,6 +1,6 @@
 package app.pocketshell.widget.probe
 
-import app.pocketshell.widget.StorageWidget
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -87,10 +87,10 @@ class StorageScanTest {
 
     @Test
     fun `human byte formatting is stable`() {
-        assertEquals("0 B", StorageWidget.formatBytes(0))
-        assertEquals("512 B", StorageWidget.formatBytes(512))
-        assertEquals("1.0 KB", StorageWidget.formatBytes(1024))
-        assertEquals("3.5 MB", StorageWidget.formatBytes((3.5 * 1024 * 1024).toLong()))
-        assertEquals("38 GB", StorageWidget.formatBytes(38L * 1024 * 1024 * 1024))
+        assertEquals("0 B", StorageScan.formatBytes(0))
+        assertEquals("512 B", StorageScan.formatBytes(512))
+        assertEquals("1.0 KB", StorageScan.formatBytes(1024))
+        assertEquals("3.5 MB", StorageScan.formatBytes((3.5 * 1024 * 1024).toLong()))
+        assertEquals("38 GB", StorageScan.formatBytes(38L * 1024 * 1024 * 1024))
     }
 }

@@ -312,21 +312,17 @@ fun PocketShellRoot(
     val recentFolder by filesViewModel.recentFolder.collectAsStateWithLifecycle()
     val bookmarks by filesViewModel.bookmarks.collectAsStateWithLifecycle()
 
-    // M8 — the Home widget slots (process-scoped like the launchers): the
-    // persisted assignment survives screen switches and rotation.
-    val homeWidgetsViewModel: app.pocketshell.widget.HomeWidgetsViewModel = viewModel()
-    val widgetSlots by homeWidgetsViewModel.slots.collectAsStateWithLifecycle()
-    // The Control Center row's live summary: which widget renders each slot
-    // (a slot whose id no longer resolves reads honestly as "Missing").
-    val homeWidgetsSubtitle = remember(widgetSlots) {
-        app.pocketshell.widget.WidgetRegistry
-            .resolve(widgetSlots.ifEmpty { app.pocketshell.widget.WidgetRegistry.DEFAULT_SLOTS })
-            .joinToString(" · ") { entry ->
-                when (entry) {
-                    is app.pocketshell.widget.WidgetSlotEntry.Resolved -> entry.widget.spec.name
-                    is app.pocketshell.widget.WidgetSlotEntry.Missing -> "Missing"
-                }
-            }
+    // M8.2 — the ONE Home Application Card's application (process-scoped
+    // like the launchers): the persisted choice survives screen switches
+    // and rotation. The Control Center row's summary is its live name
+    // (an id that no longer resolves reads honestly as "Missing").
+    val homeApplicationViewModel: app.pocketshell.widget.HomeApplicationViewModel = viewModel()
+    val homeAppId by homeApplicationViewModel.homeAppId.collectAsStateWithLifecycle()
+    val homeWidgetsSubtitle = remember(homeAppId) {
+        when (val resolved = app.pocketshell.widget.HomeApplications.resolve(homeAppId)) {
+            is app.pocketshell.widget.HomeApplications.Resolved.Found -> resolved.application.spec.name
+            is app.pocketshell.widget.HomeApplications.Resolved.Missing -> "Missing"
+        }
     }
 
     // M7 Phase 6: the quick text editor is process-scoped as well — its
@@ -601,7 +597,7 @@ fun PocketShellRoot(
 
             // M8 — Control Center → Home widgets (slot assignment).
             "homeWidgets" -> app.pocketshell.ui.settings.HomeWidgetsScreen(
-                viewModel = homeWidgetsViewModel,
+                viewModel = homeApplicationViewModel,
                 onBack = { screen = "settings" },
                 modifier = Modifier.padding(padding),
             )
@@ -674,7 +670,7 @@ fun PocketShellRoot(
                 onRemoveFromHome = launcherViewModel::hideFromHome,
                 onOpenLauncherSettings = { screen = "launcherSettings" },
                 // M8 — widget slots + the two new widget nav seams.
-                widgetSlots = widgetSlots,
+                homeAppId = homeAppId,
                 onOpenGuestFiles = {
                     // The Storage widget's destination: the explorer at the
                     // GUEST ROOT, through the existing validated folder seam

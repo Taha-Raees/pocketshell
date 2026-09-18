@@ -4371,3 +4371,57 @@ SM-T870 (Android 13), the ONLY device used (parallel agent owns the other).
   this gate (no authenticated agent on this device).
 - Servers do not survive PocketShell process death (no daemon infra) —
   the widget reflects that honestly.
+
+## §66 — M8.2 gate: ONE Home Application Card + Servers as the first Home Application
+
+Build under gate: `agent-L/m8.2-home-app`, M8.2-L.apk (sha256 in
+ARTIFACT_NAMING §5). Laptop-side: 1214/1214 JVM tests (HomeApplications,
+ServersLayout responsive contract, M8.2 source contract incl. theme-
+independence + in-card-back pins; M8.1 probe tests unchanged). Device:
+SM-T870 ONLY (`adb -s R52R30PEZDY` throughout; the S9+ belongs to the
+parallel agent and was never targeted).
+
+- [x] ONE CARD: Home's hero area is a single full-width application
+      surface (Servers), replacing the two-slot row; dimensions derived
+      from the existing layout (HomeTokens.homeAppCardHeight = 240 ×
+      CardSize scale; the width inherits the existing content width —
+      measured 780.8dp on this 853dp-wide tablet, matching the pre-M8.2
+      layout's actual behavior). Folders/Companions/Tools/Sessions
+      sections preserved unchanged.
+- [x] THE CARD IS THE SCREEN: overview (title, count, status header,
+      rows with directory lines, footer stats, honest state line) → row
+      tap → DETAIL inside the same card (back header, title, RUNNING,
+      endpoint, directory, PID/PROCESS table, attribution line,
+      TERMINAL + COMPANION actions) → the system back returns the CARD
+      to the overview while the user remains on Home (verified twice,
+      incl. after rotation). No second Activity, no full-screen app.
+- [x] RESPONSIVE: ROOMY hierarchy on the tablet (status header + cwd
+      lines + footer stats); COMPACT on constrained space (hierarchy
+      test-pinned at the exact width/height thresholds; device showed
+      COMPACT under the user's Compact card-size setting and ROOMY at
+      Default — both verified live). Landscape: detail state SURVIVED
+      rotation (rememberSaveable) and re-rendered with actions visible.
+- [x] TRUTHFULNESS (M8.1 contract intact): real discovery (cmdline ∪
+      canon → loopback connect → fd-diff/cmdline attribution), "Open
+      Linux" empty-state action, "Nothing listening" honesty, no
+      Stop/Restart controls. One real workflow ran end-to-end: Open
+      Linux → server start → overview row → detail (PID 28015) →
+      COMPANION rendered the server's directory listing → in-card back
+      → overview.
+- [x] THEME SWEEP (all 10 installed themes, server live, Home captured
+      per theme): PocketShell, Nord, Dracula, Gruvbox, Solarized, One
+      Dark, Monokai, Rosé Pine, Cyber, Aurora — the card follows every
+      palette (surface, text, dim text, accent, hairline, status
+      colors) with no hardcoded colors and no Aurora dependency (source
+      pins in HomeWidgetContractTest; spot-verified Nord / Solarized /
+      Rosé Pine renders). The aurora edge rides the theme-gated shared
+      phase, so it appears ONLY under the Aurora identity.
+- [x] STATE RESTORATION: the in-card detail selection survives rotation
+      (device-verified) and process-scoped round-trips; slot-era
+      persistence replaced by ONE key (home_app_id; old two-slot record
+      deliberately not migrated — the concept it described is gone).
+- Device state after gate: Aurora theme, default application (Servers),
+  one leftover python3 -m http.server 8080 in the Alpine session #1
+  (harmless loopback listing; Ctrl+C in that session stops it). The
+  Antigravity session (#2) that appeared mid-gate belongs to the
+  parallel agent — left untouched.

@@ -1,6 +1,7 @@
 package app.pocketshell.widget.external
 
 import app.pocketshell.widget.probe.ListeningSocket
+import app.pocketshell.widget.probe.StorageScan
 import app.pocketshell.widget.probe.StorageBreakdown
 
 /**
@@ -57,7 +58,7 @@ object DeclarativeWidgetRenderer {
                 CardData(
                     headline = headline,
                     countLine = if (result.breakdown.totalBytes == 0L) null else {
-                        app.pocketshell.widget.StorageWidget.formatBytes(result.breakdown.totalBytes)
+                        StorageScan.formatBytes(result.breakdown.totalBytes)
                     },
                     rows = rows,
                     empty = result.breakdown.totalBytes == 0L,
@@ -85,7 +86,7 @@ object DeclarativeWidgetRenderer {
         } else {
             subtree.name
         }
-        val size = app.pocketshell.widget.StorageWidget.formatBytes(subtree.bytes)
+        val size = StorageScan.formatBytes(subtree.bytes)
         return mapOf(
             "name" to label,
             "size" to size,

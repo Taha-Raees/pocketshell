@@ -20,24 +20,24 @@ import app.pocketshell.ui.system.MidnightPageScaffold
 import app.pocketshell.ui.system.MidnightRadioRow
 import app.pocketshell.ui.system.MidnightSectionDivider
 import app.pocketshell.ui.system.MidnightSectionLabel
-import app.pocketshell.widget.WidgetRegistry
+import app.pocketshell.widget.HomeApplications
 
 /**
- * M8 — Control Center → Home widgets. The MINIMUM management surface:
- * pick the widget for each of the two Home hero slots, restore the
- * defaults. Not a marketplace: installation of optional catalog widgets is
- * a future milestone (docs/M8-WIDGET-SYSTEM.md §7); the picker lists what
- * is actually installed (today: the built-ins).
+ * M8.2 — Control Center → Home application. The ONE Home Application Card
+ * hosts one PocketShell-native single-page application; this page chooses
+ * which. Not a marketplace: the registry (HomeApplications) makes future
+ * applications (Storage, Agents, …) a one-entry addition — deliberately
+ * not built yet (owner direction).
  */
 @Composable
 fun HomeWidgetsScreen(
-    viewModel: app.pocketshell.widget.HomeWidgetsViewModel,
+    viewModel: app.pocketshell.widget.HomeApplicationViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val slots by viewModel.slots.collectAsStateWithLifecycle()
+    val appId by viewModel.homeAppId.collectAsStateWithLifecycle()
 
-    MidnightPageScaffold(title = "Home widgets", onBack = onBack, modifier = modifier) {
+    MidnightPageScaffold(title = "Home application", onBack = onBack, modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -45,50 +45,43 @@ fun HomeWidgetsScreen(
         ) {
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "The two hero cards on Home are slots. Each one renders " +
-                    "the widget you assign to it; the defaults keep the " +
-                    "Terminal and Linux cards.",
+                text = "The large card on Home is ONE application surface. It " +
+                    "is the application's screen: actions change the content " +
+                    "inside the card while you stay on Home.",
                 style = MaterialTheme.typography.bodySmall,
                 color = HomeTokens.textDim,
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
             Spacer(Modifier.height(10.dp))
 
-            SlotPicker(slotLabel = "Slot 1", currentId = slots.getOrNull(0), onAssign = { viewModel.assignSlot(0, it) })
-            MidnightSectionDivider()
-            Spacer(Modifier.height(10.dp))
-            SlotPicker(slotLabel = "Slot 2", currentId = slots.getOrNull(1), onAssign = { viewModel.assignSlot(1, it) })
+            MidnightSectionLabel("Application")
+            Spacer(Modifier.height(4.dp))
+            HomeApplications.specs.forEach { spec ->
+                MidnightRadioRow(
+                    selected = appId == spec.id,
+                    label = spec.name,
+                    sublabel = spec.summary,
+                    onClick = { viewModel.select(spec.id) },
+                )
+            }
             MidnightSectionDivider()
             Spacer(Modifier.height(10.dp))
 
             TextButton(
-                onClick = { viewModel.restoreDefaults() },
+                onClick = { viewModel.restoreDefault() },
                 modifier = Modifier.padding(horizontal = 20.dp),
             ) {
-                Text("Restore defaults", color = HomeTokens.accent)
+                Text("Restore default", color = HomeTokens.accent)
             }
+            Text(
+                text = "Future Home applications (Storage, Agents, …) will " +
+                    "appear here when they ship.",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            )
 
             Spacer(Modifier.height(24.dp))
-        }
-    }
-}
-
-@Composable
-private fun SlotPicker(
-    slotLabel: String,
-    currentId: String?,
-    onAssign: (String) -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        MidnightSectionLabel(slotLabel)
-        Spacer(Modifier.height(4.dp))
-        WidgetRegistry.specs.forEach { spec ->
-            MidnightRadioRow(
-                selected = currentId == spec.id,
-                label = spec.name,
-                sublabel = spec.summary,
-                onClick = { onAssign(spec.id) },
-            )
         }
     }
 }

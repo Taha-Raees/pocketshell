@@ -87,6 +87,21 @@ object StorageScan {
     /** Generous by design: a heavy dev rootfs is tens of thousands of files. */
     const val DEFAULT_MAX_FILES: Long = 200_000
 
+    /** Human bytes: one decimal under 10 units, whole otherwise, KiB base. */
+    fun formatBytes(bytes: Long): String {
+        if (bytes < 1024) return "$bytes B"
+        val kib = bytes / 1024.0
+        if (kib < 1024) return number(kib) + " KB"
+        val mib = kib / 1024.0
+        if (mib < 1024) return number(mib) + " MB"
+        val gib = mib / 1024.0
+        return number(gib) + " GB"
+    }
+
+    private fun number(value: Double): String =
+        if (value < 10) String.format(java.util.Locale.US, "%.1f", value)
+        else value.toLong().toString()
+
     private class Budget(val maxFiles: Long) {
         var counted = 0L
         val exceeded: Boolean get() = counted > maxFiles

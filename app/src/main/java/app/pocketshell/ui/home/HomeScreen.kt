@@ -107,10 +107,10 @@ import kotlin.math.roundToInt
  * dashboard of rounded boxes:
  *
  *   IDENTITY    PocketShell mark + wordmark + tagline · Info / Settings
- *   FOUNDATION  the two hero slots (M8 widget system): the same borderless
- *               tone-step cards, now a HOST — persisted slot ids resolved
- *               through the widget registry (defaults: Terminal + Linux,
- *               unchanged); see docs/M8-WIDGET-SYSTEM.md
+ *   FOUNDATION  ONE Home Application Card (M8.2): a single persistent
+ *               surface hosting the selected PocketShell-native
+ *               single-page application (default: Servers) — the card IS
+ *               the application's screen; see docs/M8-WIDGET-SYSTEM.md §9
  *   FILES       the one quiet Files entry (M7 Phase 3)
  *   COMPANIONS  the companion websites as launcher entries (M7.1 P1) —
  *               taps raise the EXISTING companion sheet
@@ -171,12 +171,10 @@ fun HomeScreen(
     onOpenCompanion: (String) -> Unit,
     onRemoveFromHome: (String) -> Unit,
     onOpenLauncherSettings: () -> Unit,
-    // M8 — the two Home widget slots: the persisted slot assignment
-    // (empty → the core defaults), resolved through WidgetRegistry and
-    // drawn in the unchanged hero chrome. The two new seams are
-    // navigation-only: Files at the guest root (Storage widget) and the
-    // Control Center's Home-widgets page (missing-widget recovery).
-    widgetSlots: List<String> = emptyList(),
+    // M8.2 — the ONE Home Application Card: the persisted application
+    // choice, resolved through HomeApplications and drawn in the standard
+    // application chrome. The nav seams are navigation-only.
+    homeAppId: String = app.pocketshell.widget.HomeApplications.DEFAULT_ID,
     onOpenGuestFiles: () -> Unit = {},
     onOpenWidgetSettings: () -> Unit = {},
     /** M8.1 — open a verified local server URL in the Companion browser. */
@@ -259,12 +257,15 @@ fun HomeScreen(
                 // layout bit-for-bit (Terminal wide + Linux); a replaced
                 // slot swaps in the chosen widget's content, never a new
                 // layout language.
-                WidgetHeroRow(
-                    slotIds = widgetSlots,
+                // M8.2 — ONE Home Application Card: the entire hero area
+                // is a single persistent surface hosting the selected
+                // Home application (Servers by default). The card is the
+                // application's screen — see widget/ServersApp.kt and
+                // docs/M8-WIDGET-SYSTEM.md §9.
+                HomeApplicationHost(
+                    appId = homeAppId,
                     cardSize = cardSize,
                     runtimeState = runtimeState,
-                    runningSessions = activeSessions.count { !it.isFinished },
-                    agentClaims = agentClaims,
                     onOpenTerminal = onOpenTerminal,
                     onOpenLinuxShell = onOpenLinuxShell,
                     onOpenDiagnostics = onOpenDiagnostics,
@@ -1043,6 +1044,38 @@ private fun SessionsSection(
 
 // ------------------------------------------------------------------- helpers
 
-// PressableScale (the shared 80ms press feedback) moved to WidgetHost.kt —
-// the widget host and this file use the ONE implementation.
+/** Soft press feedback (80ms scale) shared by the launch surfaces. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PressableScale(
+    onClick: () -> Unit,
+    onClickLabel: String?,
+    modifier: Modifier = Modifier,
+    pressedScale: Float = 0.98f,
+    onLongPress: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) pressedScale else 1f,
+        animationSpec = tween(80, easing = FastOutSlowInEasing),
+        label = "homePressScale",
+    )
+    Box(
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Button,
+                onClickLabel = onClickLabel,
+                onLongClickLabel = if (onLongPress != null) "Launcher options" else null,
+                onClick = { onClick() },
+                onLongClick = onLongPress,
+            ),
+    ) {
+        content()
+    }
+}
 

@@ -61,4 +61,15 @@ object HomeTokens {
 
     /** Launcher content max width on tablets (centered, never stretched). */
     val contentMaxWidth: Dp = 720.dp
+
+    /**
+     * M8.2 — the ONE Home Application Card's height, derived from the
+     * existing layout rather than invented: the two hero cards it replaces
+     * shared a (160 × card-size-scale)dp row across half the width each;
+     * the application card takes the row's FULL width and extends the
+     * same height budget to (240 × card-size-scale)dp — the space its
+     * single-page content (header, status, rows, actions) is designed
+     * around. The user's Control Center card-size setting still scales it.
+     */
+    fun homeAppCardHeight(scale: Float): Dp = (240 * scale).dp
 }

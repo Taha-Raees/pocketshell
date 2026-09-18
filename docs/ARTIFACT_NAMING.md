@@ -170,6 +170,15 @@ labels is deferred to the integration layer; agent builds never touch it.
 - tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
 - device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §64 RESULTS recorded in docs/TESTING.md (A/B/D/E/F/G pass; C honest-degrade verified with the platform boundary proven closed: procfs app+guest EACCES, netlink sock_diag EACCES; aurora idle-draw cost attributed to pre-existing Control Center II)
 
+### M8.2-L.apk
+- date:        2026-09-18
+- git:         agent-L/m8.2-home-app (see worklog Task 59 for the implementation commit)
+- agent:       L — Agent L (ZCode)
+- workstream:  M8.2 — ONE Home Application Card; Servers as the first PocketShell-native Home Application (single-page, in-card navigation, theme-independent)
+- apk sha256:  ebe9f9b8392572f0cc83a22a39d43002d73468f60c88f5f627b9c1ef68f35e94
+- tests:       full :app JVM suite 1214/1214 green (responsive + registry + M8.2 source contract; M8.1 probe tests unchanged); :app:assembleDebug green
+- device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §66 RESULTS in docs/TESTING.md (one-card Home; full in-card workflow incl. Companion render; in-card back; rotation state restoration; COMPACT+ROOMY hierarchies; 10-theme sweep)
+
 ### M8.1-L.apk
 - date:        2026-09-18
 - git:         agent-L/m8.1-servers (see worklog Task 58 for the implementation commit)
