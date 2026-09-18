@@ -160,3 +160,12 @@ The unsuffixed `M<...>.apk` continues to be produced by the existing
 `android-ci` workflow from `main` (run #5 pattern: audited, suite-gated,
 SHA256SUMS artifact). CI-side adoption of this filename for its artifact
 labels is deferred to the integration layer; agent builds never touch it.
+
+### M8-L.apk
+- date:        2026-09-18
+- git:         4c0c65e (agent-L/m8-home-widgets)
+- agent:       L — Agent L (ZCode)
+- workstream:  M8 — Home Linux Widget System (slots + Servers/Storage/Agents widgets + declarative catalog layer)
+- apk sha256:  524d43589f559b6bc0aa590315c960b8ca203803b324a0e39ff0e358d34cacaf
+- tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
+- device gate: NOT PERFORMED — checklist docs/TESTING.md §64 (incl. the /proc/net readability probe, probe-cost re-measure, slot management, parity check). Awaiting device.
