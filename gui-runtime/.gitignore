@@ -1,0 +1,7 @@
+build/
+build-android/
+*.o
+src/protocol-*.c
+src/protocol-*.h
+client/protocol-xdg-shell-client.c
+client/xdg-shell-client-protocol.h
