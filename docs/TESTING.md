@@ -4247,3 +4247,48 @@ Install the branch-tip debug APK, then:
 - [ ] Logcat during 5 min idle on Home with Servers visible: no repeated
       proot spawns (probe is pure procfs reads), no wake storms.
 - [ ] Aurora animation on replaced cards matches the two core cards.
+
+### §64 RESULTS — recorded 2026-09-18 on SM-T870 (Android 13, arm64), M8-L.apk (4c0c65e)
+
+- **A — PASS.** In-place update over 0.13.0-m7.3; Home renders the default
+  Terminal + Linux cards bit-identical to pre-M8; guest stayed READY.
+- **B — PASS.** Control Center "Home" region first, live summary row; picker
+  lists all five widgets; assign/replace (Servers→slot 1, Storage→slot 2,
+  Agents→slot 2) all render correctly; Restore defaults returns
+  Terminal+Linux; assignment survives process death (DataStore); landscape
+  re-layout clean (cards cap at contentMaxWidth, live states kept through
+  the configuration change).
+- **C — HONEST DEGRADE VERIFIED; KERNEL BOUNDARY PROVEN CLOSED.**
+  `run-as cat /proc/net/tcp` → EACCES; inside the guest, busybox
+  `netstat -tln` → "Permission denied" for BOTH /proc/net/tcp and tcp6;
+  netlink sock_diag (the /proc-free `ss` path, NDK-built probe) → EACCES
+  for the app domain AND even adb shell. There is NO unprivileged path to
+  listening-socket enumeration on this platform; the widget's "Port tables
+  unavailable" is the truthful terminal state. Lifting it requires a
+  privileged helper (system-permission getConnectionOwnerInfo / root
+  helper) — documented in M8-WIDGET-SYSTEM.md §4.
+- **D — PASS.** Storage card: 10 GB total; root 7.5 GB / usr 2.5 GB /
+  Package cache 168 MB. Guest `du -sm`: root 8330 MB, usr 2605 MB, var 52
+  MB — same ranking, widget reads LOGICAL file bytes vs du's 4K-block
+  allocation (documented; a "block-size" refinement option exists). The
+  widget's scan completes in seconds; du under proot took ~3 minutes.
+- **E — PASS (running axis; attention axis not exercised).** ZCode launched
+  from its tool tile → Agents card: "1 active" + "ZCode — Running"
+  (runningGreen); Sessions row #2 carries the identical "ZCode — Running"
+  claim; the plain Alpine shell row has NO claim and is not counted.
+  Attention wording not device-exercised (the guest ZCode is
+  unauthenticated → no permission prompt occurred; the P10 gate §63 already
+  device-verified the attention signal path).
+- **F — PASS.** DataStore-injected slot id "gone-widget-x" → slot 1 renders
+  the "Missing widget" card (id shown, "Manage in Settings → Home widgets"
+  hint), no crash, no substitution; its tap opens the management page;
+  Restore defaults rewrites the store to the defaults (verified bytes).
+- **G — PASS with attribution.** Idle-Home foreground CPU measured 76–80%
+  of one core with the Aurora identity — attributed to the PRE-EXISTING
+  Control-Center-II aurora per-frame draw (608 frames/10 s, 0% jank; with a
+  non-aurora identity: 0 frames and 9.4% CPU). NOT an M8 regression: M8
+  adds no per-frame work and the hero cards carried auroraEdge before. The
+  on-device Servers probe costs ≈6 denied opens per 30 s by design.
+- Device state after gate: defaults restored, test sessions closed, theme
+  Aurora (restored), rotation left portrait-locked (was auto-flipping on
+  the desk — owner may re-enable auto-rotate).

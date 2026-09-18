@@ -3181,3 +3181,33 @@ DATA (a validated declarative manifest), never downloaded code.
   widget enable/disable for built-ins (slots make it redundant);
   per-widget settings; tmux/SSH/Processes widgets pending their
   capability/authoritative-source prerequisites.
+
+### Task 57 device gate — M8 on SM-T870 (Android 13), 2026-09-18
+
+M8-L.apk installed as an in-place update; §64 executed end-to-end (results
+appended to TESTING.md §64; ledger row updated). Verdict: ALL CHECKS PASS,
+with one platform discovery and one attribution finding.
+
+- PLATFORM DISCOVERY (closes the M8 open question): /proc/net is NOT
+  readable by the app on this hardware — and the boundary is closed on
+  every unprivileged path: app-side cat EACCES; in-guest busybox netstat
+  EACCES (same procfs bind); netlink sock_diag EACCES for the app domain
+  AND adb shell (NDK-built inet_diag probe, run-as-executed from
+  app-owned storage after proving /data/local/tmp exec is SELinux-denied).
+  The Servers widget's honest "Port tables unavailable" is therefore the
+  CORRECT terminal state on this platform, not a defect. Lifting requires
+  a privileged helper — documented (M8-WIDGET-SYSTEM.md §4).
+- STORAGE WIDGET LIVE: 10 GB (root 7.5 / usr 2.5 / cache 168 MB) matching
+  guest du ranking; widget = logical bytes vs du = 4K blocks (documented
+  refinement option); scan in seconds vs du's ~3 min under proot.
+- AGENTS WIDGET LIVE: ZCode from tool tile → "1 active" + "ZCode — Running"
+  with exact Sessions-row parity; plain shells excluded. Attention axis not
+  re-exercised (guest zcode unauthenticated; §63 covered it).
+- MISSING WIDGET: injected unresolvable slot id via a byte-length-preserving
+  DataStore patch → honest Missing card (id + hint), tap → management page,
+  Restore defaults verified at the byte level.
+- ATTRIBUTION: idle-Home foreground CPU 76–80% of one core is the
+  PRE-EXISTING Aurora per-frame draw (608 frames/10 s, 0% jank; non-aurora
+  identity: 0 frames, 9.4%) — NOT M8; M8 adds no per-frame work.
+- Slot management, persistence, rotation re-layout, restore-defaults all
+  pass; device left in clean state (defaults, no sessions, Aurora theme).

@@ -115,6 +115,16 @@ Honest degradation: runtime not READY → "Linux not ready" (no probing);
 tables unreadable → "Port tables unavailable"; empty → "Nothing listening".
 Tap → Terminal (where servers are worked with).
 
+**Device-proven boundary (SM-T870, Android 13, §64):** `/proc/net` is
+EACCES for the app domain — and the wall is closed on every unprivileged
+path: the guest's own `netstat` hits the same procfs bind denial, and
+netlink sock_diag (the /proc-free `ss` mechanism) is denied to the app
+domain AND adb shell. "Port tables unavailable" is therefore the correct
+terminal state on current Android for this app's security model; lifting
+it would require a privileged helper (e.g. the system-permission-gated
+`ConnectivityManager.getConnectionOwnerInfo` or a root-side helper), which
+is out of scope by design.
+
 ## 5. The Storage widget (Linux storage, on demand)
 
 Sizes the guest rootfs per TOP-LEVEL subtree plus the bound apk cache
@@ -214,13 +224,20 @@ is not composed.
 - Build: `./gradlew :app:assembleDebug` green → `download/M8-L.apk`
   (delivery ledger: `docs/ARTIFACT_NAMING.md` §5).
 
-## 10. Limitations and what needs a real device
+## 10. Limitations and what the device gate established
 
-- `/proc/net` visibility on Android is **expected** to be per-UID (exactly
-  our view) but is UNPROVEN on this hardware — probed with honest
-  degradation; device gate item §64.
-- All performance numbers are x86 proxies.
-- Visual acceptance (two-slot layout, replaced slots, Missing card,
-  Control Center flow) needs eyes on a device.
-- tmux/SSH/Processes/Build-status/Containers: see the research table —
-  each is deferred or rejected for documented reasons, not overlooked.
+- `/proc/net` visibility on Android: **answered by the device gate —
+  DENIED**, on every unprivileged path (app procfs, guest procfs, netlink
+  sock_diag; §4). The Servers widget ships as an honest-degrade widget; a
+  future privileged-helper path is the only honest revival.
+- Idle-Home foreground CPU on the 120Hz-class tablet is dominated by the
+  PRE-EXISTING Aurora per-frame draw (60 fps continuous, 0% jank; ~76–80%
+  of one core with Aurora, 0 frames + 9.4% with a non-aurora identity) —
+  measured and attributed in §64-G; M8 adds no per-frame work.
+- Storage numbers are logical file bytes (du reports 4K-block allocation —
+  same ranking, ~10% higher totals on this rootfs); a block-accounting
+  refinement is a noted option.
+- Visual acceptance, slot management, storage, agents parity, missing-
+  widget honesty: device-verified (§64). Tmux/SSH/Processes/Build-status/
+  Containers: see the research table — each is deferred or rejected for
+  documented reasons, not overlooked.

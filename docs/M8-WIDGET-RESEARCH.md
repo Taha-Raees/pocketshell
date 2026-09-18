@@ -23,9 +23,13 @@ gate (`docs/TESTING.md` §64) re-measures on ARM64 hardware.
 - SELinux denies untrusted apps `/proc/stat`, `loadavg`, `uptime`, `version`,
   `vmstat` (device-confirmed, M2.6) — anything built on global CPU/load
   counters cannot be honest on this platform.
-- `/proc/net/*` readability app-side is **expected but unproven on device**
-  (modern Android scopes it per-UID, which is exactly the view we need);
-  probed with honest degradation, verified in the device gate.
+- `/proc/net/*` readability app-side was the one open platform question —
+  **answered by the device gate: DENIED on SM-T870/Android 13 on every
+  unprivileged path** (app-side procfs, guest-side procfs/netstat, netlink
+  sock_diag — EACCES in all three). The Servers widget ships with honest
+  degradation ("Port tables unavailable"); see M8-WIDGET-SYSTEM.md §4 for
+  the proven boundary and the only honest revival path (privileged
+  helper).
 - Lab cost measurements (x86 proxy):
   - `/proc/net/tcp`+`tcp6` LISTEN parse: **~1.9 ms** per pass.
   - full `/proc/<pid>/fd` socket-inode scan (239 procs): **~28–92 ms** —
@@ -41,7 +45,7 @@ gate (`docs/TESTING.md` §64) re-measures on ARM64 hardware.
 |---|--------|----------------------|-------------|------|--------------|---------|------------------|
 | 1 | **Terminal** (core) | THE entry point; running-session count at a glance | `TerminalSessionManager.sessions` (reactive) | zero | n/a | **BUILD — core slot 1** | existing card, becomes the default slot-1 widget |
 | 2 | **Linux** (core) | runtime state honesty (ready / installing / repair) | `RuntimeManager.state` (reactive) | zero | n/a | **BUILD — core slot 2** | existing card, becomes the default slot-2 widget |
-| 3 | **Servers** (listening ports + owner) | dev servers started in the guest are otherwise invisible until you type `netstat`; tap → terminal | app-side `/proc/net/tcp(6)` + `/proc/<pid>/fd` socket-inode match (same-UID) | ~2 ms steady / ~30 ms on change | perfect (no proot spawn; works before any terminal opens) | **BUILD (built-in)** | merges the "Servers" and "Ports" candidates — same data, developer framing; no `ss`/iproute2 needed; kernel may scope `/proc/net` per-UID (exactly our view) — probe + degrade honestly |
+| 3 | **Servers** (listening ports + owner) | dev servers started in the guest are otherwise invisible until you type `netstat`; tap → terminal | app-side `/proc/net/tcp(6)` + `/proc/<pid>/fd` socket-inode match (same-UID) | ~2 ms steady / ~30 ms on change | perfect (no proot spawn; works before any terminal opens) | **BUILD (built-in) — ships honest-degrade: /proc/net proven DENIED on device (all paths)** | merges the "Servers" and "Ports" candidates — same data, developer framing; Android 13 denies /proc/net AND netlink sock_diag to the app domain (device-proven §64), so the card states "Port tables unavailable"; revival requires a privileged helper |
 | 4 | **Storage** (Linux-side) | dev caches/toolchains eat GBs; `du` by hand is slow and awkward on a phone | app-side NOFOLLOW walk of the app-owned rootfs + apk cache | ~122 ms / 30k files, on-demand + cached | perfect (app UID owns every byte) | **BUILD (built-in)** | shows Linux storage, NOT Android storage; tap → Files at guest root; honest "scanning…" state |
 | 5 | **Agents** | "is my agent still running / does it need me?" — the M7.2 question, answerable without opening a tab | `AgentActivityRepository.homeSessionClaims` (the ONE projection) | zero (pure projection) | n/a | **BUILD (built-in)** | reuses the exact parity wording; no second detector, no `/proc`, vocabulary allowlist discipline extends |
 | 6 | Processes | `ps`/`top` already answer this in one command; weak differentiation | same as #3 | low | ok | **optional (catalog later)** | value did not beat "just type ps"; revisit only with a genuinely interactive angle (inspect/kill flow) |

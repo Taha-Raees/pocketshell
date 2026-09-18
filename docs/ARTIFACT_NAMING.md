@@ -168,4 +168,4 @@ labels is deferred to the integration layer; agent builds never touch it.
 - workstream:  M8 — Home Linux Widget System (slots + Servers/Storage/Agents widgets + declarative catalog layer)
 - apk sha256:  524d43589f559b6bc0aa590315c960b8ca203803b324a0e39ff0e358d34cacaf
 - tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
-- device gate: NOT PERFORMED — checklist docs/TESTING.md §64 (incl. the /proc/net readability probe, probe-cost re-measure, slot management, parity check). Awaiting device.
+- device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §64 RESULTS recorded in docs/TESTING.md (A/B/D/E/F/G pass; C honest-degrade verified with the platform boundary proven closed: procfs app+guest EACCES, netlink sock_diag EACCES; aurora idle-draw cost attributed to pre-existing Control Center II)
