@@ -3076,3 +3076,108 @@ one authoritative activity model, through the P9 launch-record channel.
   (documented): zcode adapter (config staging needs device-gate
   verification), codex hooks (per-launch trust prompts), adapters for
   the statically-verified six (each after its own lab pass).
+
+## Task 57 — M8: the Home Linux Widget System (Agent L, 2026-09-18)
+
+Base a102035 (main + local P10 commits). Branch `agent-L/m8-home-widgets`.
+The two hardcoded hero cards became a real WIDGET SYSTEM: Home is the host,
+widgets are independently described capabilities, and optional widgets are
+DATA (a validated declarative manifest), never downloaded code.
+
+- AUDIT FIRST: Home (HomeScreen/`EnvironmentLaunchers` → TerminalTile/
+  LinuxTile, HomeTokens recipe, manual string-state navigation in
+  MainActivity), Control Center (SettingsScreen ranked regions,
+  MidnightPage kit, AppearanceSettingsContractTest route pins), guest
+  runtime (proot Alpine 3.24.1 pin; non-PTY `GuestCommandRunner`;
+  PROCFS-CONTRACT: hidepid own-UID procfs, SELinux-denied /proc/stat·
+  loadavg·uptime; `HostProcfsReader` precedent), M7.2 (the ONE
+  `AgentActivityRepository.homeSessionClaims` projection + the
+  source-reading boundary-pin technique), persistence idioms (per-domain
+  Preferences DataStore + kotlinx JSON, corrupt→default; `ToolInstallCatalog`
+  install-spec precedent; SHA-256-pinned `RuntimeInstaller` as the only
+  HTTP). No repo AGENTS.md; global rules + worklog discipline applied.
+- LAB (x86 proxy, honest label): pinned minirootfs re-verified by SHA;
+  busybox applet inventory extracted → `netstat`/`lsof`/`du`/`df`/`ps`/
+  `top` present, `ss`/`tmux`/`ssh` ABSENT (dev-bootstrap-only). Costs:
+  /proc/net parse ~1.9 ms; fd-scan 239 procs ~28–92 ms (→ gate on
+  inode-set change); 30k-file walk ~122 ms. **`canonicalPath` THROWS on
+  `socket:[…]` fd links — `Files.readSymbolicLink` is the only correct
+  read** (fixture-verified; regression-pinned by contract test).
+- RESEARCH (docs/M8-WIDGET-RESEARCH.md): 12 candidates scored against
+  "why would a Linux developer want this on the phone". BUILT: Servers
+  (ports+owners from the kernel's own tables — app-UID procfs means the
+  guest's servers ARE the app's sockets; zero proot spawns), Storage
+  (Linux-side, app-owned walks, on-demand+cached, budget→honest
+  "partial scan"), Agents (pure client-side aggregation over the ONE P8
+  claims projection — parity wording, proven-only "N active" headline).
+  Core Terminal+Linux preserved bit-for-bit as slot defaults. Deferred/
+  rejected with reasons: tmux (capability-gated, per-refresh proot cost),
+  SSH (no authoritative session source yet), Processes (ps is one command
+  away), Toolchain (diagnostics, not Home), Build status (would be fake —
+  banned), Databases/Containers (proot cannot provide namespaces/cgroups —
+  documented platform limit), device stats (banned; status bar exists;
+  SELinux denies the counters anyway).
+- FRAMEWORK: `widget/` package — WidgetSpec/WidgetTone/WidgetPalette,
+  abstract HomeWidget (spec + tap contract + Content), WidgetRegistry
+  (ONE list; resolve → Resolved|Missing; MissingWidgetCard states the id,
+  never substitutes), HomeWidgetSlotsRepository (ONE DataStore
+  `home_widgets`/`slot_widget_ids`, codec absent/corrupt→defaults,
+  exactly-two-slots fill/trim), HomeWidgetsViewModel (root-scoped,
+  assign/restore only). Host `ui/home/WidgetHost.kt`: the historical hero
+  chrome (clip→tone surface→aurora edge→16dp), per-widget width weights
+  (defaults 1.25:1.0 reproduce today), `PressableScale` moved here (ONE
+  implementation). Widgets act ONLY through `WidgetNav` (implemented once
+  in MainActivity from existing callbacks) — no second navigation, no PTY
+  writes, no notifications.
+- HOME INTEGRATION: HomeScreen's EnvironmentLaunchers/TerminalTile/
+  LinuxTile/ReadyDot REMOVED (moved into TerminalWidget/LinuxWidget with
+  identical visuals, honest gates and tap labels); HomeScreen gained
+  `widgetSlots` + two nav seams and renders `WidgetHeroRow`. The M7.2 P8
+  pins over HomeScreen hold unchanged (claims seam, no-poll) — and are
+  EXTENDED: HomeWidgetContractTest bans every probing token
+  (/proc, delay(, while(true), Thread(, PortProbe, …) from HomeScreen.kt —
+  probing lives in the widget package only.
+- PROBES: `PortProbe` (tcp+tcp6 LISTEN parse → (port,inode);
+  fd readlink scan gated on inode-set change; other-UID sockets NOT
+  claimed; lifecycle-aware 5 s tick while Home composed AND resumed via
+  currentStateFlow+collectLatest — no background polling; honest
+  Unavailable/Unreadable/empty states). `StorageScan` (NOFOLLOW walk,
+  symlink subtrees skipped, file budget → truncated flag, apk-cache row,
+  process-scoped 30-min cache). Device gate: TESTING.md §64.
+- AGENTS WIDGET DISCIPLINE: consumes ONLY `context.agentClaims` (the host
+  passes the P8 projection down); pure `AgentActivitySummary` (attention →
+  running → unknown tiers; headline counts PROVEN only: "N active"/
+  "K unknown"/mix; "No agent sessions" empty state); ban-list sweep over
+  the widget domain's literals; contract test forbids detector access,
+  /proc, own state. Authorized as the Nth ROADMAP-pattern consumer of the
+  projection (owner-directed M8) — "UI reads state, never events" unchanged.
+- OPTIONAL WIDGETS / TRUST MODEL: `widget/external/` — @Serializable
+  manifest schema (id/name/semver/minAppVersion/capabilities/probe/card),
+  STRICT validator (unknown JSON keys reject; id/version shapes; probe
+  kind must be a BUILT-IN primitive — `proc.net.listen`|`storage.rootfs`;
+  probe must be covered by declared capabilities; bounded card fields),
+  data-only `DeclarativeWidgetRenderer` (plain {field} substitution, "—"
+  for unknown fields). Catalog format lives IN-REPO at `widgets/`
+  (registry.json + example manifests, every one test-validated against the
+  implementation — drift guard) with the in-repo-vs-separate-repo rationale
+  documented. Staged trust model documented (§7 of M8-WIDGET-SYSTEM.md):
+  stage 1 = schema+validator+renderer, no installer (nothing downloaded is
+  ever executed; no silent install); stage 2 = fetcher with pinned
+  registry + digests + explicit consent; stage 3 (only if needed) = shell
+  probes gated behind SIGNED manifests — checksums alone never make remote
+  commands safe.
+- CONTROL CENTER: new "Home" region (first, above Appearance) with a live
+  two-slot summary row; `HomeWidgetsScreen` (route `homeWidgets`): Slot 1/
+  Slot 2 radio pickers over `WidgetRegistry.specs` + Restore defaults.
+  Not a marketplace (owner: minimum UI).
+- TESTS: 60 new (codec 9, registry 6, port probe 10, storage scan 5,
+  agents summary 5, manifest validator 7, declarative renderer 6, source
+  contract 8 + cross-checks). FULL SUITE 1199/1199 GREEN — all pre-existing
+  boundary pins pass over the refactored HomeScreen. Build:
+  `:app:assembleDebug` green → `download/M8-L.apk`
+  (sha256 524d43589f559b6bc0aa590315c960b8ca203803b324a0e39ff0e358d34cacaf,
+  ledger ARTIFACT_NAMING §5). Device gate §64 written; NOT performed.
+- Deliberately deferred (documented): catalog installer/network path;
+  widget enable/disable for built-ins (slots make it redundant);
+  per-widget settings; tmux/SSH/Processes widgets pending their
+  capability/authoritative-source prerequisites.

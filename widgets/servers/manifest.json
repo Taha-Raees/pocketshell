@@ -1,0 +1,16 @@
+{
+  "id": "servers",
+  "name": "Servers",
+  "version": "1.0.0",
+  "summary": "Listening ports and what owns them",
+  "author": "PocketShell core (example)",
+  "minAppVersion": "0.13.0",
+  "capabilities": ["proc.net", "guest.ready"],
+  "probe": { "kind": "proc.net.listen", "params": {} },
+  "card": {
+    "headline": "Servers",
+    "emptyLine": "Nothing listening",
+    "itemTemplate": ":{port}  {process}",
+    "maxLines": 3
+  }
+}

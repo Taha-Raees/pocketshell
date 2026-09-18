@@ -36,7 +36,8 @@ The milestone is the app milestone the build targets — taken from the
 | `A` | Kilo Code — primary phone development agent (workstation program) |
 | `B` | Agent B — notifications / companion & UI polish (live worktree) |
 | `Z` | Agent Z (ZCode) — terminal audit (Phase 4) + Settings Control Center |
-| `C`–`Y` | unassigned — reserved; assign on first use and record here |
+| `L` | Agent L (ZCode) — M7.2 P10 agent signal bridge + M8 Home widget system |
+| `C`–`Y` | unassigned — reserved; assign on first use and record here (except `L`, recorded above) |
 
 One letter per agent/workstream. Two agents on the same milestone never
 share or overwrite each other's artifacts — the suffix guarantees it.

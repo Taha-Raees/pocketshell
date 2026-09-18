@@ -1,0 +1,16 @@
+{
+  "id": "storage",
+  "name": "Storage",
+  "version": "1.0.0",
+  "summary": "Linux-side storage and what eats it",
+  "author": "PocketShell core (example)",
+  "minAppVersion": "0.13.0",
+  "capabilities": ["storage.rootfs", "guest.ready"],
+  "probe": { "kind": "storage.rootfs", "params": {} },
+  "card": {
+    "headline": "Storage",
+    "emptyLine": "Empty",
+    "itemTemplate": "{name}  {size}",
+    "maxLines": 3
+  }
+}

@@ -312,6 +312,23 @@ fun PocketShellRoot(
     val recentFolder by filesViewModel.recentFolder.collectAsStateWithLifecycle()
     val bookmarks by filesViewModel.bookmarks.collectAsStateWithLifecycle()
 
+    // M8 — the Home widget slots (process-scoped like the launchers): the
+    // persisted assignment survives screen switches and rotation.
+    val homeWidgetsViewModel: app.pocketshell.widget.HomeWidgetsViewModel = viewModel()
+    val widgetSlots by homeWidgetsViewModel.slots.collectAsStateWithLifecycle()
+    // The Control Center row's live summary: which widget renders each slot
+    // (a slot whose id no longer resolves reads honestly as "Missing").
+    val homeWidgetsSubtitle = remember(widgetSlots) {
+        app.pocketshell.widget.WidgetRegistry
+            .resolve(widgetSlots.ifEmpty { app.pocketshell.widget.WidgetRegistry.DEFAULT_SLOTS })
+            .joinToString(" · ") { entry ->
+                when (entry) {
+                    is app.pocketshell.widget.WidgetSlotEntry.Resolved -> entry.widget.spec.name
+                    is app.pocketshell.widget.WidgetSlotEntry.Missing -> "Missing"
+                }
+            }
+    }
+
     // M7 Phase 6: the quick text editor is process-scoped as well — its
     // loaded document and dirty buffer survive Home↔Editor navigation and
     // rotation (the back guard keeps the screen from ever being left dirty;
@@ -533,6 +550,8 @@ fun PocketShellRoot(
                 companionCount = companionDefs.size,
                 toolCount = CommandAppCatalog.registry.size + customTools.size,
                 hiddenLauncherCount = hiddenLauncherIds.size,
+                homeWidgetsSubtitle = homeWidgetsSubtitle,
+                onOpenHomeWidgets = { screen = "homeWidgets" },
                 onOpenAppearance = { screen = "appearance" },
                 onOpenCompanions = { screen = "companionSettings" },
                 onOpenLaunchers = { screen = "launcherSettings" },
@@ -577,6 +596,13 @@ fun PocketShellRoot(
 
             "diagnostics" -> DiagnosticsScreen(
                 onBack = { screen = "home" },
+                modifier = Modifier.padding(padding),
+            )
+
+            // M8 — Control Center → Home widgets (slot assignment).
+            "homeWidgets" -> app.pocketshell.ui.settings.HomeWidgetsScreen(
+                viewModel = homeWidgetsViewModel,
+                onBack = { screen = "settings" },
                 modifier = Modifier.padding(padding),
             )
 
@@ -647,6 +673,25 @@ fun PocketShellRoot(
                 onOpenCompanion = companionViewModel::openCompanion,
                 onRemoveFromHome = launcherViewModel::hideFromHome,
                 onOpenLauncherSettings = { screen = "launcherSettings" },
+                // M8 — widget slots + the two new widget nav seams.
+                widgetSlots = widgetSlots,
+                onOpenGuestFiles = {
+                    // The Storage widget's destination: the explorer at the
+                    // GUEST ROOT, through the existing validated folder seam
+                    // (same path a Home folder row takes — no new Files API).
+                    val guestRoot = app.pocketshell.files.PathSafety.validatePath("/")
+                    if (guestRoot != null) {
+                        filesViewModel.openRecentFolder(
+                            app.pocketshell.files.RecentFolder(
+                                app.pocketshell.files.AreaKind.GUEST_LINUX,
+                                "default",
+                                guestRoot,
+                            ),
+                        )
+                    }
+                    screen = "files"
+                },
+                onOpenWidgetSettings = { screen = "homeWidgets" },
                 // Phase 3.2: Home is an edge-to-edge launcher — it consumes
                 // the status-bar inset itself (like the Terminal branch).
                 modifier = Modifier,

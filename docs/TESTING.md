@@ -4168,3 +4168,82 @@ guest install at least: Claude Code (`npm i -g @anthropic-ai/claude-code`
     `PermissionRequest`/`Stop` hooks WITHOUT prompting. If yes → the
     ZCode adapter is a small follow-up on the proven pattern; if no →
     the deferral stands, documented.
+
+## §64 — M8 gate: the Home Linux Widget System (two slots + probe widgets)
+
+Build under gate: `agent-L/m8-home-widgets` (implementation commit, see
+worklog Task 57). Laptop-side evidence: 1199 JVM tests green (60 new M8
+pins incl. source contract), `:app:assembleDebug` green →
+`download/M8-L.apk` (sha256 in ARTIFACT_NAMING §5). Lab probe costs are
+x86 PROXIES (M8-WIDGET-RESEARCH §1); this gate re-measures on ARM64.
+Install the branch-tip debug APK, then:
+
+### A — defaults & preservation (fresh + existing user)
+- [ ] Install over the current build (in-place update). Home shows the two
+      cards EXACTLY as before M8: Terminal (wide, canvas tone, "N running")
+      + Linux ("Alpine · ready", ready dot). No visual regression.
+- [ ] Fresh-install identity (clear app data BEFORE first launch): same
+      two default cards (slots decode to defaults).
+
+### B — slot management (Control Center)
+- [ ] Settings shows a new "Home" region row "Home widgets" with the live
+      summary ("Terminal · Linux"). Tap → the management page: Slot 1 and
+      Slot 2 pickers listing all five widgets (Terminal, Linux, Servers,
+      Storage, Agents) + "Restore defaults".
+- [ ] Assign "Servers" to slot 1 → Home shows Servers in the WIDE slot;
+      Terminal gone from slots but still available in the picker.
+- [ ] Assign "Storage" to slot 2; assign "Agents" to slot 1 → layout stays
+      the two-card language, weights uniform for non-core widgets.
+- [ ] "Restore defaults" → back to Terminal + Linux.
+- [ ] Back navigation: Settings → Home widgets → back lands on Settings;
+      rotation preserves the assignment; process death (swipe away +
+      relaunch) preserves it (DataStore).
+
+### C — Servers widget (the /proc/net probe)
+- [ ] Linux READY, no servers: card reads "Nothing listening".
+- [ ] In a guest session start servers: `python3 -m http.server 8080 &`,
+      `node -e "require('http').createServer(()=>{}).listen(3000)"` (after
+      `apk add nodejs` or via an npm tool). Within ~5 s the card shows
+      ":8080 python3" / ":3000 node" and "2 running". Kill them → rows
+      disappear within ~5 s.
+- [ ] THE KERNEL QUESTION this gate exists for: if the card instead reads
+      "Port tables unavailable", record `adb shell run-as app.pocketshell
+      cat /proc/net/tcp` output and the exact device/OS — the per-UID
+      /proc/net assumption is then disproven on this hardware and the
+      guest-side netstat fallback (documented M8-WIDGET-SYSTEM §4 note)
+      becomes the follow-up work.
+- [ ] While Home shows the widget, `adb shell top -n 1 | grep pocketshell`
+      shows no measurable CPU storm (steady state ≈ one 2 ms-class parse
+      per 5 s; measure the fd-scan delta when starting/stopping a server).
+- [ ] Leave Home, open Terminal → no probe work happens off-Home (no
+      visible battery/CPU change); screen off → same.
+- [ ] Linux NOT installed → card reads "Linux not ready" (no probing).
+
+### D — Storage widget (on-demand scan)
+- [ ] First display: brief "Scanning…" then real numbers (total + top
+      subtrees; a heavy rootfs shows usr/var/package-cache realistically).
+- [ ] Numbers sanity: compare total with `du -sh <rootfs>` from Files'
+      guest area (same ballpark; du counts differently at boundaries).
+- [ ] Re-enter Home within 30 min → NO rescan (instant, cached). Numbers
+      refresh only after the staleness window or process death.
+- [ ] Storage is genuinely large (install nodejs + npm i): card stays
+      correct; scan time stays sub-second-class (note the number).
+
+### E — Agents widget (claims projection, no new detection)
+- [ ] With no agent sessions: "No agent sessions".
+- [ ] Launch an agent (any registry agent) via a tool tile: card shows
+      "1 active" + "<Name> — Running" (exact Sessions wording). Let it
+      request permission (P10 hooks path): line becomes "— Requesting
+      permission"; the ATTENTION row sorts above others.
+- [ ] Card matches the Sessions rows for the same session at all times
+      (parity check — same wording, same states).
+
+### F — missing-widget honesty
+- [ ] Temporarily install the widget-state harness below (or set slot id
+      "gone-widget" via a debug build): Home renders a "Missing widget"
+      card (not a crash, not a substitution); tap → Home widgets page.
+
+### G — perf + hygiene
+- [ ] Logcat during 5 min idle on Home with Servers visible: no repeated
+      proot spawns (probe is pure procfs reads), no wake storms.
+- [ ] Aurora animation on replaced cards matches the two core cards.

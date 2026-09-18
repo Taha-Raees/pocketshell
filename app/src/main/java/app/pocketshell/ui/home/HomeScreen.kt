@@ -107,8 +107,10 @@ import kotlin.math.roundToInt
  * dashboard of rounded boxes:
  *
  *   IDENTITY    PocketShell mark + wordmark + tagline · Info / Settings
- *   FOUNDATION  the two environments — Terminal and Linux — as borderless
- *               tone-step surfaces (§8)
+ *   FOUNDATION  the two hero slots (M8 widget system): the same borderless
+ *               tone-step cards, now a HOST — persisted slot ids resolved
+ *               through the widget registry (defaults: Terminal + Linux,
+ *               unchanged); see docs/M8-WIDGET-SYSTEM.md
  *   FILES       the one quiet Files entry (M7 Phase 3)
  *   COMPANIONS  the companion websites as launcher entries (M7.1 P1) —
  *               taps raise the EXISTING companion sheet
@@ -169,6 +171,14 @@ fun HomeScreen(
     onOpenCompanion: (String) -> Unit,
     onRemoveFromHome: (String) -> Unit,
     onOpenLauncherSettings: () -> Unit,
+    // M8 — the two Home widget slots: the persisted slot assignment
+    // (empty → the core defaults), resolved through WidgetRegistry and
+    // drawn in the unchanged hero chrome. The two new seams are
+    // navigation-only: Files at the guest root (Storage widget) and the
+    // Control Center's Home-widgets page (missing-widget recovery).
+    widgetSlots: List<String> = emptyList(),
+    onOpenGuestFiles: () -> Unit = {},
+    onOpenWidgetSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // M7.1 P1 — the Home launcher model. The old Home-visible guest probe
@@ -241,13 +251,23 @@ fun HomeScreen(
                     Spacer(Modifier.height(14.dp))
                 }
 
-                EnvironmentLaunchers(
+                // M8 — the hero cards are now WIDGET SLOTS: the persisted
+                // assignment resolved through the registry, rendered in the
+                // unchanged two-card chrome. The defaults reproduce today's
+                // layout bit-for-bit (Terminal wide + Linux); a replaced
+                // slot swaps in the chosen widget's content, never a new
+                // layout language.
+                WidgetHeroRow(
+                    slotIds = widgetSlots,
+                    cardSize = cardSize,
                     runtimeState = runtimeState,
                     runningSessions = activeSessions.count { !it.isFinished },
-                    cardSize = cardSize,
+                    agentClaims = agentClaims,
                     onOpenTerminal = onOpenTerminal,
                     onOpenLinuxShell = onOpenLinuxShell,
                     onOpenDiagnostics = onOpenDiagnostics,
+                    onOpenGuestFiles = onOpenGuestFiles,
+                    onOpenWidgetSettings = onOpenWidgetSettings,
                 )
 
                 // Owner iteration — the ONE folders surface, and (owner round:
@@ -457,177 +477,11 @@ private fun SectionDivider() {
 
 // ------------------------------------------------------ environment launchers
 
-/**
- * The two foundations (§8) — borderless tone-step surfaces. Terminal wears the
- * canvas tone (it IS a terminal); Linux wears the chrome tone, one step
- * lighter than the page. No borders, no shadows: depth comes from the
- * Midnight Sapphire surface stack alone.
- */
-@Composable
-private fun EnvironmentLaunchers(
-    runtimeState: RuntimeState,
-    runningSessions: Int,
-    cardSize: CardSize,
-    onOpenTerminal: () -> Unit,
-    onOpenLinuxShell: () -> Unit,
-    onOpenDiagnostics: () -> Unit,
-) {
-    // Control Center "Card size": the card weight scales the hero tiles'
-    // height around the historical 160dp default.
-    val heroHeight = (160 * cardSize.scale).dp
-    val auroraPhase = LocalAuroraPhase.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        TerminalTile(
-            runningSessions = runningSessions,
-            heightDp = heroHeight,
-            auroraPhase = auroraPhase,
-            onClick = onOpenTerminal,
-            modifier = Modifier.weight(1.25f),
-        )
-        LinuxTile(
-            runtimeState = runtimeState,
-            heightDp = heroHeight,
-            auroraPhase = auroraPhase,
-            onClick = { if (runtimeState == RuntimeState.READY) onOpenLinuxShell() else onOpenDiagnostics() },
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun TerminalTile(
-    runningSessions: Int,
-    heightDp: Dp,
-    auroraPhase: State<Float>,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    PressableScale(onClick = onClick, onClickLabel = "Open the Terminal", modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(heightDp)
-                .clip(RoundedCornerShape(HomeTokens.heroRadius))
-                .background(HomeTokens.surfaceHero)
-                // Aurora identity: the hero tiles are the page's important
-                // cards — they carry the circulating glow edge.
-                .auroraEdge(auroraPhase, HomeTokens.heroRadius)
-                .padding(16.dp),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                TerminalMark(size = 32.dp)
-                Spacer(Modifier.weight(1f))
-                if (runningSessions > 0) {
-                    // Real session counts only — plain mono text, no chip box.
-                    Text(
-                        text = "$runningSessions running",
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 11.sp,
-                        color = HomeTokens.onHeroDim,
-                    )
-                }
-            }
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = "Terminal",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = HomeTokens.onHero,
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = "Native shell",
-                style = MaterialTheme.typography.bodySmall,
-                color = HomeTokens.onHeroDim,
-                maxLines = 1,
-            )
-        }
-    }
-}
-
-@Composable
-private fun LinuxTile(
-    runtimeState: RuntimeState,
-    heightDp: Dp,
-    auroraPhase: State<Float>,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    // Honest gate (M2 architecture): READY enters the guest, everything else
-    // routes to Diagnostics where install/retry/repair actually live.
-    val stateLine = when (runtimeState) {
-        RuntimeState.READY -> "Alpine · ready"
-        RuntimeState.NOT_INSTALLED -> "Not installed yet"
-        RuntimeState.DOWNLOADING,
-        RuntimeState.VERIFYING,
-        RuntimeState.EXTRACTING,
-        RuntimeState.CONFIGURING,
-        -> "Installing…"
-        RuntimeState.FAILED -> "Install failed"
-        RuntimeState.REPAIR_REQUIRED -> "Repair needed"
-        RuntimeState.UNSUPPORTED_ABI -> "No arm64 CPU"
-    }
-    PressableScale(
-        onClick = onClick,
-        onClickLabel = if (runtimeState == RuntimeState.READY) "Open the Linux environment" else "Open Diagnostics",
-        modifier = modifier,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(heightDp)
-                .clip(RoundedCornerShape(HomeTokens.heroRadius))
-                .background(HomeTokens.surfaceEnv)
-                .auroraEdge(auroraPhase, HomeTokens.heroRadius)
-                .padding(16.dp),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                MountainMark(size = 32.dp)
-                Spacer(Modifier.weight(1f))
-                if (runtimeState == RuntimeState.READY) {
-                    ReadyDot()
-                }
-            }
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = "Linux",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = HomeTokens.textPrimary,
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = stateLine,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (runtimeState == RuntimeState.READY) HomeTokens.accent else HomeTokens.textDim,
-                maxLines = 1,
-            )
-            if (runtimeState != RuntimeState.READY && runtimeState != RuntimeState.UNSUPPORTED_ABI) {
-                Text(
-                    text = "Diagnostics",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeTokens.textDim.copy(alpha = 0.75f),
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-/** The Linux tile's quiet readiness cue (the state text carries the meaning). */
-@Composable
-private fun ReadyDot() {
-    Box(
-        modifier = Modifier
-            .size(6.dp)
-            .background(HomeTokens.accent, CircleShape),
-    )
-}
+// M8 — the environment tiles ARE widgets now. TerminalTile and LinuxTile
+// moved to the widget package (TerminalWidget / LinuxWidget) unchanged in
+// behavior; the shared hero chrome they drew lives in WidgetHost. The
+// honest Linux gate (READY → guest, otherwise Diagnostics) moved WITH the
+// widget — same decisions, same wording, same tap labels.
 
 /**
  * The compact "Folders" dashboard section (owner round 2): a full-width
@@ -1186,37 +1040,6 @@ private fun SessionsSection(
 
 // ------------------------------------------------------------------- helpers
 
-/** Soft press feedback (80ms scale) shared by the launch surfaces. */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun PressableScale(
-    onClick: () -> Unit,
-    onClickLabel: String?,
-    modifier: Modifier = Modifier,
-    pressedScale: Float = 0.98f,
-    onLongPress: (() -> Unit)? = null,
-    content: @Composable () -> Unit,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) pressedScale else 1f,
-        animationSpec = tween(80, easing = FastOutSlowInEasing),
-        label = "homePressScale",
-    )
-    Box(
-        modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .combinedClickable(
-                interactionSource = interaction,
-                indication = null,
-                role = Role.Button,
-                onClickLabel = onClickLabel,
-                onLongClickLabel = if (onLongPress != null) "Launcher options" else null,
-                onClick = { onClick() },
-                onLongClick = onLongPress,
-            ),
-    ) {
-        content()
-    }
-}
+// PressableScale (the shared 80ms press feedback) moved to WidgetHost.kt —
+// the widget host and this file use the ONE implementation.
+

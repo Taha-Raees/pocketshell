@@ -46,8 +46,9 @@ import app.pocketshell.ui.theme.ThemeCatalog
 /**
  * Settings — the Control Center hub (Settings/Control Center task §1).
  *
- * The page is four clearly-ranked REGIONS, not a flat preference list:
+ * The page is five clearly-ranked REGIONS, not a flat preference list:
  *
+ *   HOME        → the Home widget slots (M8 widget system)
  *   APPEARANCE  → the Appearance page (mode, identity, density, previews)
  *   COMPANIONS  → the companion websites management area
  *   CLI TOOLS   → the Home launcher management area
@@ -68,6 +69,9 @@ fun SettingsScreen(
     companionCount: Int,
     toolCount: Int,
     hiddenLauncherCount: Int,
+    /** M8 — the live slot summary ("Terminal · Servers") for the Home row. */
+    homeWidgetsSubtitle: String,
+    onOpenHomeWidgets: () -> Unit,
     onOpenAppearance: () -> Unit,
     onOpenCompanions: () -> Unit,
     onOpenLaunchers: () -> Unit,
@@ -86,6 +90,19 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             Spacer(Modifier.height(6.dp))
+
+            // ---- Home (M8 widget system) --------------------------------------
+            MidnightSectionLabel("Home")
+            Spacer(Modifier.height(4.dp))
+            ControlCenterRow(
+                title = "Home widgets",
+                subtitle = homeWidgetsSubtitle,
+                onClick = onOpenHomeWidgets,
+                onClickLabel = "Manage Home widgets",
+            )
+
+            MidnightSectionDivider()
+            Spacer(Modifier.height(10.dp))
 
             // ---- Appearance ---------------------------------------------------
             MidnightSectionLabel("Appearance")
