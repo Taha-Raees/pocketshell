@@ -169,3 +169,12 @@ labels is deferred to the integration layer; agent builds never touch it.
 - apk sha256:  524d43589f559b6bc0aa590315c960b8ca203803b324a0e39ff0e358d34cacaf
 - tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
 - device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §64 RESULTS recorded in docs/TESTING.md (A/B/D/E/F/G pass; C honest-degrade verified with the platform boundary proven closed: procfs app+guest EACCES, netlink sock_diag EACCES; aurora idle-draw cost attributed to pre-existing Control Center II)
+
+### M8.1-L.apk
+- date:        2026-09-18
+- git:         agent-L/m8.1-servers (see worklog Task 58 for the implementation commit)
+- agent:       L — Agent L (ZCode)
+- workstream:  M8.1 — Servers widget discovers REAL guest servers (cmdline∪canon → loopback verification → fd-diff attribution; loopback-cleartext NSC for Companion)
+- apk sha256:  bc2a320f63017f921a352c8ac416756eaa57e3d61ff7dcabf0412da76f064628
+- tests:       full :app JVM suite 1218/1218 green (19 new ServerProbe/paths tests incl. real-socket verification); :app:assembleDebug green
+- device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §65 RESULTS in docs/TESTING.md (discovery/details/multi-server/stop verified live; Companion rendered the guest server's response — server log shows GET / 200 from 127.0.0.1; force-stop → honest empty)

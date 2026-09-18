@@ -3211,3 +3211,69 @@ with one platform discovery and one attribution finding.
   identity: 0 frames, 9.4%) — NOT M8; M8 adds no per-frame work.
 - Slot management, persistence, rotation re-layout, restore-defaults all
   pass; device left in clean state (defaults, no sessions, Aurora theme).
+
+## Task 58 — M8.1: the Servers widget finds REAL Linux servers (Agent L, 2026-09-18)
+
+Continuation of Task 57 on `agent-L/m8.1-servers`. The owner directive:
+"Port tables unavailable" is a valid finding but NOT a stopping point —
+make the widget a real Linux dev-server control surface without root,
+without SELinux bypasses, without fake detection.
+
+- INVESTIGATION (lab + device, every claim verified): (1) `/proc/<pid>/net`
+  is the SAME INODE as the global `/proc/net` (`/proc/net -> self/net`
+  symlink; inode identity proven on the lab host) → the per-pid "escape
+  hatch" is DENIED on device too (tcp/tcp6/udp rc=1 from the app's own
+  scan script — no per-pid breakthrough exists). (2) `/proc/<pid>/fd`
+  socket links, cmdline, cwd readlink, stat ARE readable as the app UID
+  (the RuntimeAgentDetector mechanism class). (3) The app and guest share
+  ONE loopback (proot creates no netns): app-side TCP connect to a guest
+  listener SUCCEEDS (NDK probe, ECONNREFUSED↔CONNECT OK around server
+  lifecycle). (4) fdinfo leaks no addresses. (5) The accept-correlation
+  idea: while a client holds a connection open, the accepting process
+  GAINS a `socket:[inode]` fd — proven in the lab for threaded (python)
+  and single-accept (node) servers; `canonicalPath` strikes again —
+  `Files.readSymbolicLink` required.
+- ARCHITECTURE (ServerProbe, widget/probe/): probe-first layer 0 keeps the
+  kernel-table path alive for future policies (unit-pinned TABLE_MATCH);
+  the shipped pipeline is cmdline port candidates (numeric tokens, -p N,
+  --port N, :N, host:port) ∪ a bounded ≤32-port dev canon → TCP connect
+  VERIFICATION on 127.0.0.1 → attribution by held-connection fd-diff
+  restricted to socket-owning own-UID pids (ACCEPTOR_MATCH), with the
+  fallback rule "exactly one socket-owning pid names the port"
+  (CMDLINE_MATCH). Canon-only hits with no own-UID attribution are
+  EXCLUDED — the widget never claims foreign local services and never
+  shows an unverified port. Idle gate: unchanged pid set + no servers ⇒
+  a tick is one /proc readdir.
+- WIDGET: rows "● :8080 python3" (runningGreen = verified endpoint),
+  count, "Nothing listening"/"Local listeners" states; row tap → detail
+  dialog with REAL facts only (verified endpoint, attributed PID +
+  attribution rule in plain words, cwd mapped host→Linux paths — guest
+  rootfs → "(guest)", files/home → "~") and TWO supported actions:
+  Open in Terminal, Open in Companion (http://127.0.0.1:P/ via the
+  EXISTING companion tab machinery — WidgetNav.openCompanion). No
+  Stop/Restart controls: the app does not own these processes.
+- COMPANION BLOCKER FOUND AND FIXED: the WebView failed local loads with
+  net::ERR_CLEARTEXT_NOT_PERMITTED (targetSdk 28+ default). Added
+  network_security_config.xml: cleartext DENIED platform-wide (explicit)
+  with a LOOPBACK-ONLY exception (127.0.0.1/localhost). Loopback traffic
+  never leaves the device and terminates in the app's own UID.
+- DEVICE GATE §65 (SM-T870, the ONLY device used): idle "Nothing
+  listening" (the M8 dead-end state is gone); python :8080 discovered
+  within a tick ("1 running / ● :8080 python3"); details show PID +
+  attribution + "~ (Linux home)"; Companion RENDERED the server's
+  directory listing — the guest server's own log recorded
+  `127.0.0.1 - - "GET / HTTP/1.1" 200`; Ctrl+C → "Nothing listening";
+  two sessions :3000+:8080 → "2 running" both rows; a mistyped launch
+  (adb keystroke race) did NOT appear — only verified endpoints display;
+  force-stop → relaunch → "Nothing listening" (no daemon infra — stated).
+- TESTS: +19 (ServerProbeTest — real-socket verification, fixture proc
+  trees, cmdline extraction incl. host:port, canon bounds, idle gate,
+  self-pid exclusion, table-path takeover; ServersPathsTest — cwd
+  mapping). Full suite 1218/1218. APK M8.1-L
+  (bc2a320f63017f921a352c8ac416756eaa57e3d61ff7dcabf0412da76f064628),
+  ledger ARTIFACT_NAMING §5.
+- DEFERRED (documented): per-port accept-corroboration (double-connect)
+  to harden ACCEPTOR_MATCH against scheduler races — CMDLINE_MATCH
+  fallback (same evidence class) covers it on device; registration-style
+  launch metadata unnecessary for v1 (generic discovery works);
+  tmux/agent-launched servers need no special path (same-UID listeners).

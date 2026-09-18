@@ -692,6 +692,9 @@ fun PocketShellRoot(
                     screen = "files"
                 },
                 onOpenWidgetSettings = { screen = "homeWidgets" },
+                // M8.1 — verified local server URLs ride the EXISTING
+                // companion tab machinery (the terminal-links path).
+                onOpenCompanionUrl = { url -> companionViewModel.openWithUrl(url) },
                 // Phase 3.2: Home is an edge-to-edge launcher — it consumes
                 // the status-bar inset itself (like the Terminal branch).
                 modifier = Modifier,

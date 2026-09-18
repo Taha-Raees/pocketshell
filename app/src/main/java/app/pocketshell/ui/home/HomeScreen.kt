@@ -179,6 +179,8 @@ fun HomeScreen(
     widgetSlots: List<String> = emptyList(),
     onOpenGuestFiles: () -> Unit = {},
     onOpenWidgetSettings: () -> Unit = {},
+    /** M8.1 — open a verified local server URL in the Companion browser. */
+    onOpenCompanionUrl: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // M7.1 P1 — the Home launcher model. The old Home-visible guest probe
@@ -268,6 +270,7 @@ fun HomeScreen(
                     onOpenDiagnostics = onOpenDiagnostics,
                     onOpenGuestFiles = onOpenGuestFiles,
                     onOpenWidgetSettings = onOpenWidgetSettings,
+                    onOpenCompanionUrl = onOpenCompanionUrl,
                 )
 
                 // Owner iteration — the ONE folders surface, and (owner round:

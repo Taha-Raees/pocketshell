@@ -70,19 +70,22 @@ fun WidgetHeroRow(
     onOpenDiagnostics: () -> Unit,
     onOpenGuestFiles: () -> Unit,
     onOpenWidgetSettings: () -> Unit,
+    /** M8.1 — open a local server URL in the existing Companion browser. */
+    onOpenCompanionUrl: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Control Center "Card size": the card weight scales the hero tiles'
     // height around the historical 160dp default (unchanged).
     val heroHeight = (160 * cardSize.scale).dp
     val auroraPhase = LocalAuroraPhase.current
-    val nav = remember(onOpenTerminal, onOpenLinuxShell, onOpenDiagnostics, onOpenGuestFiles, onOpenWidgetSettings) {
+    val nav = remember(onOpenTerminal, onOpenLinuxShell, onOpenDiagnostics, onOpenGuestFiles, onOpenWidgetSettings, onOpenCompanionUrl) {
         object : WidgetNav {
             override fun openTerminal() = onOpenTerminal()
             override fun openLinuxShell() = onOpenLinuxShell()
             override fun openDiagnostics() = onOpenDiagnostics()
             override fun openGuestFiles() = onOpenGuestFiles()
             override fun openWidgetSettings() = onOpenWidgetSettings()
+            override fun openCompanion(url: String) = onOpenCompanionUrl(url)
         }
     }
     val entries = WidgetRegistry.resolve(

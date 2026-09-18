@@ -4292,3 +4292,82 @@ Install the branch-tip debug APK, then:
 - Device state after gate: defaults restored, test sessions closed, theme
   Aurora (restored), rotation left portrait-locked (was auto-flipping on
   the desk — owner may re-enable auto-rotate).
+
+## §65 — M8.1 gate: the Servers widget discovers REAL guest servers (no /proc/net)
+
+Build under gate: `agent-L/m8.1-servers`, M8.1-L.apk (sha256 in ARTIFACT_NAMING
+§5). Laptop-side: 1218/1219 JVM suite green (19 new ServerProbe/paths tests,
+incl. REAL-socket endpoint verification and fixture proc trees). Device:
+SM-T870 (Android 13), the ONLY device used (parallel agent owns the other).
+
+### A — The platform question, settled
+- [x] `/proc/<server-pid>/net/tcp` is DENIED to the app domain (rc=1 for
+      tcp, tcp6 AND udp, probed from the app's own scan script) — per-pid
+      net tables are the SAME inode as the global `/proc/net` (`/proc/net
+      -> self/net` symlink; inode identity verified on the lab host). The
+      hoped-for per-pid breakthrough does not exist on this kernel/policy.
+- [x] What IS readable as the app UID (device-verified): numeric pid dirs,
+      cmdline, cwd readlink, stat, `fd/*` socket links.
+- [x] The app can TCP-connect to guest loopback listeners (proot creates
+      no network namespace) — verified with an NDK probe before and after
+      server start/stop (ECONNREFUSED ↔ CONNECT OK).
+
+### B — The working pipeline (probe-first, real-wins)
+- [x] Layer 0 retained: if a future policy ever exposes the tables, the
+      cheap authoritative path takes over (unit-pinned with a readable
+      fixture table → TABLE_MATCH).
+- [x] Layer 1-3 (the shipped path): cmdline port candidates ∪ bounded
+      dev-port canon → TCP connect verification → attribution (held-
+      connection fd-diff, or exactly-one socket-owning pid naming the
+      port). Canon-only hits that attribute to nothing own-UID are
+      EXCLUDED — never a device-wide port scanner.
+
+### C — Real servers, real workflow (all on device)
+- [x] Idle: card reads "Nothing listening" (the M8 "Port tables
+      unavailable" state is GONE — probing works).
+- [x] `python3 -m http.server 8080` in a guest session → within one tick
+      the card shows "1 running / ● :8080 python3 / Local listeners".
+- [x] Row tap → details: "PID 18451 (names this port, owns sockets)",
+      "Directory ~ (Linux home)" (host cwd → Linux path mapping), the
+      verified-endpoint line, and the Companion URL note.
+- [x] Companion: the existing companion tab navigated to
+      http://127.0.0.1:8080/ and RENDERED the server's directory listing
+      (the server's own log shows `127.0.0.1 - - "GET / HTTP/1.1" 200`).
+      REQUIRED the M8.1 network-security-config: loopback-only cleartext
+      exception (127.0.0.1/localhost) — without it the WebView fails with
+      net::ERR_CLEARTEXT_NOT_PERMITTED (observed, then fixed); cleartext
+      stays denied platform-wide.
+- [x] Stop (Ctrl+C in the session, the user's own gesture) → card returns
+      to "Nothing listening" within a tick.
+- [x] Multi-server: two sessions, :3000 + :8080 → "2 running" with both
+      rows, port-sorted, correct process names.
+- [x] Honest witness moment: a mistyped launch (adb keystroke race, not an
+      app fault) did NOT appear on the card — the widget only shows
+      verified endpoints.
+- [x] PocketShell process death: force-stop kills sessions AND their
+      servers; relaunch shows "Nothing listening" (the guest has no
+      daemon layer — stated honestly, see limitations).
+
+### D — Performance
+- [x] Idle gate: while the numeric pid set is unchanged and nothing was
+      listening, a tick is ONE /proc readdir (unit-pinned). Full pipeline
+      (~2 fd passes + ≤32 loopback connects + 1 held connection) runs only
+      when the pid set changed or servers were present; lab cost of the
+      fd pass ≈44 ms/273 pids. Home idle CPU remains dominated by the
+      pre-existing Aurora per-frame draw (§64-G attribution) — M8.1 adds
+      no per-frame work.
+
+### E — Limitations recorded (honest)
+- Attribution on device exercised the CMDLINE_MATCH fallback; the
+  ACCEPTOR_MATCH diff is lab-proven + unit-tested but its 120 ms settle
+  window can lose to scheduler delays on a busy phone — by design the
+  fallback rule (same evidence class) covers it.
+- Node `-e "…listen(3000)…"` inline servers carry the port INSIDE the
+  script string — extraction needs the host:port/numeric token form or a
+  canon hit; both verified by real endpoints. `npm run dev` has NO port in
+  argv: discovery rides the dev-port canon (e.g. Vite 5173 is listed).
+- tmux/agent-launched servers: same-UID listeners are discovered
+  identically (mechanism is launcher-agnostic); not separately typed in
+  this gate (no authenticated agent on this device).
+- Servers do not survive PocketShell process death (no daemon infra) —
+  the widget reflects that honestly.

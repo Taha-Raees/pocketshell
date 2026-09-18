@@ -94,36 +94,55 @@ Design decisions, each anchored to an existing repo mechanism:
 - **Rotation/process death**: slots live in DataStore (root-scoped
   ViewModel, `WhileSubscribed`); nothing transient is lost that matters.
 
-## 4. The Servers widget (ports + owners, no proot)
+## 4. The Servers widget (REAL guest servers, no kernel tables)
 
-The app and the guest share ONE Linux UID. The kernel's own tables are the
-authoritative source and need no guest exec:
+**M8.1 rewrite (device-proven):** `/proc/net` AND `/proc/<pid>/net` are
+SELinux-denied to the app domain — per-pid tables are the SAME inode as
+the global one (`/proc/net -> self/net`), so there is no per-pid escape
+hatch on current Android. The shipped pipeline needs none of it and shows
+REAL servers running in the Linux guest:
 
-- `/proc/net/tcp` + `tcp6` LISTEN rows (st `0A`) → (port, socket-inode).
-- `/proc/<pid>/fd/*` readlink `socket:[inode]` → owning pid; name from
-  `cmdline` argv[0] basename (kernel `comm` fallback).
-- Rows whose owner does not resolve are OTHER-UID sockets and are **not
-  shown** — the widget never claims foreign sockets as "your servers".
+1. **Discover candidates** — own-UID process facts (readable as the app's
+   UID: numeric pid dirs, `cmdline`, `cwd`, `fd` socket links):
+   cmdlines that explicitly name a port (numeric token, `-p N`,
+   `--port N`, `:N`, `host:port`) ∪ a bounded dev-port canon (≤32 ports:
+   3000/5173/8000/8080/9229/19000-class defaults).
+2. **Verify** — a real TCP connect to 127.0.0.1:P. The app and the guest
+   share ONE loopback (proot creates no network namespace — device-
+   verified), so connect success is KERNEL-FACT evidence that something
+   listens. Nothing is ever shown without this.
+3. **Attribute** — hold the connection open and diff socket-owning
+   own-UID pids' `fd` links: the pid that GAINS a `socket:[inode]` is the
+   acceptor (kernel fact; proven for threaded and single-accept servers).
+   Fallback rule: exactly one socket-owning pid names the port. Both
+   rules are stated in the detail dialog in plain words.
+4. **Exclude** — canon-only hits that attribute to nothing own-UID are
+   foreign local services and are never claimed.
 
-Refresh policy: parse tick every 5 s **while Home is composed and resumed**
-(`Lifecycle.currentStateFlow` + `collectLatest` — backgrounded cancels the
-loop, leaving Home disposes it); the expensive fd scan runs **only when the
-listener inode set changes**. A `canonicalPath` on `socket:[…]` links
-throws (lab-verified) — the probe uses `Files.readSymbolicLink`.
+Refresh policy: the idle gate skips the pipeline entirely while the
+numeric pid set is unchanged and nothing was listening (a tick is one
+`/proc` readdir); the full pipeline (~2 fd passes + ≤32 loopback
+connects) runs when the pid set changed or servers were present, every 5 s
+while Home is composed AND resumed. Tap on a server row → detail dialog
+(verified endpoint, attributed PID, the project directory mapped to Linux
+paths, the two supported actions: Open in Terminal, Open in Companion).
+No Stop/Restart — the app does not own these processes.
 
-Honest degradation: runtime not READY → "Linux not ready" (no probing);
-tables unreadable → "Port tables unavailable"; empty → "Nothing listening".
-Tap → Terminal (where servers are worked with).
+**Companion integration** rides the existing companion tab machinery
+(`WidgetNav.openCompanion` → `openWithUrl`) and required ONE platform
+change: `network_security_config.xml` with cleartext DENIED platform-wide
+(the explicit targetSdk-28 default) and a LOOPBACK-ONLY exception
+(127.0.0.1/localhost) — without it the WebView fails local dev servers
+with `net::ERR_CLEARTEXT_NOT_PERMITTED` (device-observed, then fixed).
+Loopback traffic never leaves the device and terminates in the app's own
+UID's processes.
 
-**Device-proven boundary (SM-T870, Android 13, §64):** `/proc/net` is
-EACCES for the app domain — and the wall is closed on every unprivileged
-path: the guest's own `netstat` hits the same procfs bind denial, and
-netlink sock_diag (the /proc-free `ss` mechanism) is denied to the app
-domain AND adb shell. "Port tables unavailable" is therefore the correct
-terminal state on current Android for this app's security model; lifting
-it would require a privileged helper (e.g. the system-permission-gated
-`ConnectivityManager.getConnectionOwnerInfo` or a root-side helper), which
-is out of scope by design.
+Honest degradation: runtime not READY → "Linux not ready"; no verified
+listeners → "Nothing listening" (the honest working state; the old
+"Port tables unavailable" only remains if even /proc pids and loopback
+connects become unavailable). Device-verified end-to-end (§65): start →
+discovered → details → Companion served the server's response
+(`GET / HTTP/1.1" 200` in the server's own log) → stop → empty.
 
 ## 5. The Storage widget (Linux storage, on demand)
 

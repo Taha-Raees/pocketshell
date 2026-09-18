@@ -27,6 +27,9 @@ interface WidgetNav {
 
     /** The Control Center's Home-widgets management page. */
     fun openWidgetSettings()
+
+    /** Open a local URL in the existing Companion browser (M8.1 servers). */
+    fun openCompanion(url: String)
 }
 
 /**
