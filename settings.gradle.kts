@@ -25,3 +25,4 @@ rootProject.name = "PocketShell"
 include(":app")
 include(":terminal-emulator")
 include(":terminal-view")
+include(":gui-runtime")

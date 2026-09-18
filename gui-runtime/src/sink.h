@@ -41,7 +41,12 @@ struct mc_sink {
 /* Laptop rehearsal sinks */
 mc_sink *mc_sink_x11_create(int width, int height);
 mc_sink *mc_sink_ppm_create(int width, int height, const char *outdir, int every);
-/* Android sink: ANativeWindow* comes from JNI (ANativeWindow_fromSurface). */
+/* Android sink: ANativeWindow* comes from JNI (ANativeWindow_fromSurface).
+ * Pass NULL to create unattached; a window is attached later at runtime. */
 mc_sink *mc_sink_egl_create(void *anativewindow);
+
+/* runtime surface attach/detach (mc loop thread; safe while running) */
+void mc_sink_egl_runtime_attach(mc_sink *s, void *anativewindow, int w, int h);
+void mc_sink_egl_runtime_detach(mc_sink *s);
 
 #endif

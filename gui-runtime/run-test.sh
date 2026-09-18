@@ -7,7 +7,7 @@ SINK="${1:-ppm}"
 SECS="${2:-8}"
 export XDG_RUNTIME_DIR=/tmp/mc-xdg
 RUN=/tmp/mc-run
-rm -rf "$RUN" /tmp/mc-xdg/*
+rm -rf "$RUN" /tmp/mc-xdg; mkdir -p /tmp/mc-xdg
 mkdir -p "$RUN"
 pkill -f "gui-runtime/build/mc" 2>/dev/null
 sleep 0.3

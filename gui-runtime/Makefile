@@ -21,7 +21,7 @@ GEN = src/protocol-wayland-server.h src/protocol-wayland-server.c \
       src/protocol-xdg-shell-server.h src/protocol-xdg-shell.c \
       client/xdg-shell-client-protocol.h client/protocol-xdg-shell-client.c
 
-MC_OBJS = src/main.o src/shm.o src/shell.o src/seat.o \
+MC_OBJS = src/main.o src/mc_core.o src/shm.o src/shell.o src/seat.o \
           src/protocol-wayland-server.o src/protocol-xdg-shell.o \
           src/backends/sink_x11.o src/backends/sink_ppm.o
 CLIENT_OBJS = client/simple-client.o client/protocol-xdg-shell-client.o

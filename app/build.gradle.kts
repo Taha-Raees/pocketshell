@@ -98,6 +98,7 @@ kotlin {
 
 dependencies {
     // Vendored terminal engine (GPLv3) — see docs/THIRD_PARTY.md
+    implementation(project(":gui-runtime"))
     implementation(project(":terminal-emulator"))
     implementation(project(":terminal-view"))
 

@@ -59,6 +59,12 @@ struct mc_state {
 /* main.c */
 uint32_t mc_next_serial(struct mc_state *st);
 void mc_buffer_detached(struct mc_state *st, struct wl_resource *buffer);
+/* mc_core.c */
+void mc_globals_create(struct mc_state *st);
+int  mc_present_tick(struct mc_state *st);
+int  sink_fd_ready(int fd, uint32_t mask, void *data);
+void mc_seat_tick(struct mc_state *st);
+int  mc_cli_tick(void *data);
 
 /* shm.c */
 bool mc_buffer_info(struct wl_resource *buffer, int32_t *w, int32_t *h,
@@ -75,5 +81,8 @@ void mc_seat_pointer_motion(struct mc_state *st, int x, int y);
 void mc_seat_pointer_button(struct mc_state *st, int evdev_btn, bool down);
 void mc_seat_pointer_axis(struct mc_state *st, int steps); /* +down */
 void mc_seat_key(struct mc_state *st, uint32_t evdev_code, bool down);
+void mc_seat_touch_down(struct mc_state *st, int32_t id, int x, int y);
+void mc_seat_touch_motion(struct mc_state *st, int32_t id, int x, int y);
+void mc_seat_touch_up(struct mc_state *st, int32_t id);
 
 #endif

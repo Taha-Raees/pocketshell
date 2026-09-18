@@ -96,6 +96,8 @@ static void
 egl_present(mc_sink *s, const uint8_t *pix, int w, int h, int stride)
 {
 	struct eglsink *e = s->priv;
+	if (!e->surf)
+		return;
 	/* Scale client surface to the full window (kiosk). uv in [0,1]. */
 	float cw = (float)w, chh = (float)h, ww = (float)e->w, wh = (float)e->h;
 	/* letterbox: pick contained rect, center it */
@@ -144,4 +146,49 @@ mc_sink_egl_create(void *anativewindow)
 	s->present = egl_present;
 	s->poll_fd = -1;
 	return s;
+}
+
+/* ---- runtime attach/detach (called on the mc loop thread) ---- */
+
+void
+mc_sink_egl_runtime_attach(mc_sink *s, void *anativewindow, int w, int h)
+{
+	struct eglsink *e = s->priv;
+	if (!anativewindow)
+		return;
+	if (!e->surf) {
+		/* first attach: full EGL bring-up on this (loop) thread */
+		e->win = (ANativeWindow *)anativewindow;
+		if (egl_init(s, &w, &h) != 0)
+			fprintf(stderr, "mc-egl: runtime init failed\n");
+		return;
+	}
+	if ((ANativeWindow *)anativewindow != e->win) {
+		/* surface object replaced: tear down, then bring up fresh */
+		mc_sink_egl_runtime_detach(s);
+		e->win = (ANativeWindow *)anativewindow;
+		if (egl_init(s, &w, &h) != 0)
+			fprintf(stderr, "mc-egl: re-init failed\n");
+		return;
+	}
+	/* same surface, maybe new size */
+	eglQuerySurface(e->dpy, e->surf, EGL_WIDTH, &e->w);
+	eglQuerySurface(e->dpy, e->surf, EGL_HEIGHT, &e->h);
+	(void)w; (void)h;
+}
+
+void
+mc_sink_egl_runtime_detach(mc_sink *s)
+{
+	struct eglsink *e = s->priv;
+	if (e->surf != EGL_NO_SURFACE) {
+		eglMakeCurrent(e->dpy, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			       EGL_NO_CONTEXT);
+		eglDestroySurface(e->dpy, e->surf);
+		e->surf = EGL_NO_SURFACE;
+	}
+	if (e->win) {
+		ANativeWindow_release(e->win);
+		e->win = NULL;
+	}
 }

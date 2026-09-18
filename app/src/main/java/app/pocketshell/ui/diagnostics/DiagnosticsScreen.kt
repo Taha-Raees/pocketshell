@@ -52,7 +52,11 @@ import app.pocketshell.ui.system.MidnightSectionLabel
  * weights: filled Sapphire (install/retry) and quiet hairline (remove/check).
  */
 @Composable
-fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun DiagnosticsScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenGuiRuntime: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val rows = remember { Diagnostics.snapshot(context) }
     val runtimeState by RuntimeManager.state.collectAsStateWithLifecycle()
@@ -89,6 +93,12 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                         null -> FactState.NEUTRAL
                     },
                 )
+            }
+
+            if (onOpenGuiRuntime != null) {
+                Spacer(Modifier.height(8.dp))
+                MidnightQuietButton(text = "Linux GUI runtime (P3) — open", onClick = onOpenGuiRuntime)
+                Spacer(Modifier.height(4.dp))
             }
 
             MidnightSectionDivider()

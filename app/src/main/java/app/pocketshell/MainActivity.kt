@@ -76,7 +76,13 @@ import app.pocketshell.ui.theme.PocketShellTheme
 import app.pocketshell.ui.theme.TerminalTheme
 import app.pocketshell.ui.theme.rememberAuroraMotionPolicy
 import app.pocketshell.ui.theme.rememberAuroraPhase
+import app.pocketshell.gui.McGuiRuntimeHolder
+import app.pocketshell.gui.ProcessBuilderGuestClientRunner
+import app.pocketshell.ui.gui.GuiScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
 
@@ -215,6 +221,17 @@ fun PocketShellRoot(
     // remaining per-process (cleared on session switch inside TerminalScreen).
     val keyboardState = remember { KeyboardState() }
     var screen by rememberSaveable { mutableStateOf("home") }
+
+    // P3 GUI runtime: manager is process-scoped; the screen owns surface+input
+    val appContext = LocalContext.current
+    val guiManager = remember {
+        McGuiRuntimeHolder.get(
+            appContext,
+            ProcessBuilderGuestClientRunner(appContext),
+        )
+    }
+    val guiScope = rememberCoroutineScope()
+    var guiStatus by remember { mutableStateOf("Linux GUI runtime — not started") }
 
     // m4.0.3/m4.0.12 — the shared keyboard is a ROOT concern: ONE deck for
     // the whole app (terminal, Companion over any screen, Compose text
@@ -577,6 +594,35 @@ fun PocketShellRoot(
 
             "diagnostics" -> DiagnosticsScreen(
                 onBack = { screen = "home" },
+                modifier = Modifier.padding(padding),
+                onOpenGuiRuntime = { screen = "gui" },
+            )
+
+            "gui" -> GuiScreen(
+                manager = guiManager,
+                statusText = guiStatus,
+                onStartRuntime = {
+                    guiScope.launch {
+                        runCatching { guiManager.prepareFromAssets() }
+                            .onFailure { e ->
+                                guiStatus = "prepare failed: ${e.message}"
+                            }
+                            .onSuccess {
+                                val rc = guiManager.start(1280, 800)
+                                if (rc != 0) guiStatus = "start failed rc=$rc"
+                            }
+                    }
+                },
+                onLaunchClient = {
+                    guiScope.launch {
+                        runCatching { guiManager.startGuestClient("/run/gui/simple-client") }
+                            .onFailure { e -> guiStatus = "client failed: ${e.message}" }
+                    }
+                },
+                onKillClient = { guiManager.killClient() },
+                onStopRuntime = {
+                    guiScope.launch { guiManager.stop() }
+                },
                 modifier = Modifier.padding(padding),
             )
 
