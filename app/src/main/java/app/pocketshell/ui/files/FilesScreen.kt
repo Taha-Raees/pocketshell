@@ -84,6 +84,7 @@ import app.pocketshell.files.AreaPath
 import app.pocketshell.files.Breadcrumbs
 import app.pocketshell.files.EntryKind
 import app.pocketshell.files.ExplorerCore
+import app.pocketshell.files.saf.FileShareOps
 import app.pocketshell.files.FileSearch
 import app.pocketshell.files.FilesSearchState
 import app.pocketshell.files.FsEntry
@@ -532,7 +533,18 @@ fun FilesScreen(
                 // M7.2-A: hand a copy to an installed Android app (ACTION_VIEW
                 // over a FileProvider content:// URI) — files only; the VM
                 // surfaces the honest no-handler notice when nothing can open it.
-                onOpenWith = if (entry.kind == EntryKind.FILE) {
+                // M8.3: an .apk gets the SYSTEM INSTALLER ("Install") —
+                // mutually exclusive with the generic open-with hand-off.
+                onInstallApk = if (entry.kind == EntryKind.FILE &&
+                    FileShareOps.isApkName(entry.name)
+                ) {
+                    { selected = null; ops.requestInstallApk(entry.name) }
+                } else {
+                    null
+                },
+                onOpenWith = if (entry.kind == EntryKind.FILE &&
+                    !FileShareOps.isApkName(entry.name)
+                ) {
                     { selected = null; ops.requestOpenWith(entry.name) }
                 } else {
                     null

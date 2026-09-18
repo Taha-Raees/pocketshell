@@ -1675,55 +1675,88 @@ class FilesViewModel(application: Application) : AndroidViewModel(application), 
     // ---------------------------------------------------------- open with
 
     override fun requestOpenWith(name: String) {
-        val state = _state.value
-        val area = currentAreaOrNull() ?: return
-        val dir = state.path ?: return
-        val kind = state.entries.firstOrNull { it.name == name }?.kind
+        val kind = currentFileKindOrNull(name)
         if (kind != EntryKind.FILE) {
             notice("Only files can be opened in an Android app.")
             return
         }
+        viewModelScope.launch { stageAndOffer(name, install = false) }
+    }
+
+    /**
+     * M8.3 — install an .apk through the SYSTEM package installer: the
+     * same staged FileProvider copy, the package-archive MIME (which the
+     * system installer resolves), a direct launch (no chooser — the
+     * installer IS the handler and shows its own confirmation screen).
+     * Offered by the sheet for .apk files only; nothing installs
+     * silently.
+     */
+    override fun requestInstallApk(name: String) {
+        val kind = currentFileKindOrNull(name)
+        if (kind != EntryKind.FILE) {
+            notice("Only files can be installed.")
+            return
+        }
+        if (!FileShareOps.isApkName(name)) {
+            notice("\"$name\" is not an Android package (.apk).")
+            return
+        }
+        viewModelScope.launch { stageAndOffer(name, install = true) }
+    }
+
+    /** The current entry's kind, or null when the listing moved on. */
+    private fun currentFileKindOrNull(name: String): EntryKind? {
+        val state = _state.value
+        currentAreaOrNull() ?: return null
+        state.path ?: return null
+        return state.entries.firstOrNull { it.name == name }?.kind
+    }
+
+    private suspend fun stageAndOffer(name: String, install: Boolean) {
+        val state = _state.value
+        val area = currentAreaOrNull() ?: return
+        val dir = state.path ?: return
         val child = ExplorerOps.composeChild(dir, name) ?: return
-        viewModelScope.launch {
-            val staged = withContext(explorerIo) {
-                FileShareOps.stageForShare(
-                    sourceArea = area,
-                    source = child,
-                    stagingDir = File(getApplication<Application>().cacheDir, FileShareOps.STAGING_DIR_NAME),
-                )
-            }
-            when (staged) {
-                is FileShareOps.Staging.Error -> notice(staged.reason)
-                is FileShareOps.Staging.Ok -> {
-                    val application = getApplication<Application>()
-                    val mimeType = FileShareOps.guessMimeType(name)
-                    // Honest no-handler detection BEFORE launching: resolve
-                    // ACTION_VIEW for the staged content URI's type. (The
-                    // app targets SDK 28, so Android 11+ package filtering
-                    // does not hide resolvers from this probe.)
-                    val probe = Intent(Intent.ACTION_VIEW)
-                        .setDataAndType(
-                            Uri.parse("content://${FileShareOps.FILE_PROVIDER_AUTHORITY}/staging"),
-                            mimeType,
-                        )
-                    val handler = runCatching { probe.resolveActivity(application.packageManager) }
-                        .getOrNull()
-                    if (handler == null) {
-                        notice(
-                            "No installed Android app can open \"$name\" ($mimeType).",
-                        )
-                        return@launch
-                    }
-                    _openWithReady.value = OpenWithReady(
-                        name = name,
-                        uriString = FileProvider.getUriForFile(
-                            application,
-                            FileShareOps.FILE_PROVIDER_AUTHORITY,
-                            staged.file,
-                        ).toString(),
-                        mimeType = mimeType,
+        val staged = withContext(explorerIo) {
+            FileShareOps.stageForShare(
+                sourceArea = area,
+                source = child,
+                stagingDir = File(getApplication<Application>().cacheDir, FileShareOps.STAGING_DIR_NAME),
+            )
+        }
+        when (staged) {
+            is FileShareOps.Staging.Error -> notice(staged.reason)
+            is FileShareOps.Staging.Ok -> {
+                val application = getApplication<Application>()
+                val mimeType = FileShareOps.guessMimeType(name)
+                // Honest no-handler detection BEFORE launching: resolve
+                // ACTION_VIEW for the staged content URI's type. (The
+                // app targets SDK 28, so Android 11+ package filtering
+                // does not hide resolvers from this probe.)
+                val probe = Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(
+                        Uri.parse("content://${FileShareOps.FILE_PROVIDER_AUTHORITY}/staging"),
+                        mimeType,
                     )
+                val handler = runCatching { probe.resolveActivity(application.packageManager) }
+                    .getOrNull()
+                if (handler == null) {
+                    notice(
+                        if (install) "No package installer could handle \"$name\"."
+                        else "No installed Android app can open \"$name\" ($mimeType).",
+                    )
+                    return
                 }
+                _openWithReady.value = OpenWithReady(
+                    name = name,
+                    uriString = FileProvider.getUriForFile(
+                        application,
+                        FileShareOps.FILE_PROVIDER_AUTHORITY,
+                        staged.file,
+                    ).toString(),
+                    mimeType = mimeType,
+                    install = install,
+                )
             }
         }
     }

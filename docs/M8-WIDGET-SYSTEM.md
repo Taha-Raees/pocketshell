@@ -1,28 +1,34 @@
 # M8 — Home Linux Widget System (architecture)
 
-Status: implemented on `agent-L/m8-home-widgets`, laptop-side verified (Agent L,
-2026-09-18). Research/candidate table: `docs/M8-WIDGET-RESEARCH.md`.
-Device gate: `docs/TESTING.md` §64.
+Status: M8 delivered on `agent-L/m8-home-widgets`; **M8.2 re-architected the
+hero area into the ONE Home Application Card** (Servers as the first
+PocketShell-native single-page application); **M8.3 evolves it into the
+Home Application carousel** (multiple user-selected applications, swipe to
+change; Git and SSH added as the next two). Research/candidate table:
+`docs/M8-WIDGET-RESEARCH.md`. Device gates: `docs/TESTING.md` §64–§66;
+M8.3 gate §67.
 
 ---
 
 ## 1. Problem and product shape
 
-Home owns two large hero cards (Terminal, Linux) that were hardcoded
-composables. M8 turns them into **two widget slots**:
+Home owns ONE hero area: the **Home Application carousel** (M8.3).
 
-    Home
-      ├── Widget slot 1 (default: Terminal)
-      └── Widget slot 2 (default: Linux)
+    PocketShell Home
+        ↓
+    Home Application carousel (horizontal swipe, snap-per-app)
+        ↓
+    multiple user-selected Home Applications
+        ↓
+    each application owns ONE full-width application canvas
 
-The slots do not know what a widget is. Home is the **host**; a widget is an
-independently described **capability** that must answer, per
-`M8-WIDGET-RESEARCH.md`, the product question: *why would a Linux developer
-want this on their phone instead of typing a command?*
-
-The historical two cards are preserved bit-for-bit as **core widgets**: same
-chrome, same weights (1.25 : 1.0), same honest gates, same tap labels, same
-wording. A fresh install or a cleared record renders exactly today's Home.
+The user remains on Home; actions transform the current application's
+content inside its canvas (Servers overview → detail; Companion; …).
+The canvas dimensions come from the existing Home layout
+(`HomeTokens.homeAppCardHeight`), and the information hierarchy adapts to
+them — applications are designed FOR the canvas, never scaled desktop
+layouts. The carousel order, membership and per-application state
+persistence are described in §3b.
 
 ## 2. Framework (the smallest extensible design)
 
@@ -81,18 +87,31 @@ Design decisions, each anchored to an existing repo mechanism:
   settings), implemented once in MainActivity from the existing callbacks.
   No new navigation system, no PTY writes, no notifications posted.
 
-## 3. Slot lifecycle
+## 3. Application lifecycle (M8.3 carousel)
 
-- **Fresh install**: no DataStore key → defaults (`core.terminal`,
-  `core.linux`) → today's Home exactly.
-- **Replace**: Control Center → Home widgets → pick a widget per slot →
-  ids persisted → Home recomposes.
-- **Restore defaults**: one action, writes the two core ids.
-- **Missing**: slot id unknown (future uninstall/renumber) → Missing card
-  (see above); the stored id is preserved so a restored/reinstalled widget
-  re-attaches without user action.
-- **Rotation/process death**: slots live in DataStore (root-scoped
-  ViewModel, `WhileSubscribed`); nothing transient is lost that matters.
+- **Persistence**: ONE ordered list — `home_app_ids` (JSON array of
+  registry ids) in the home_widgets DataStore, capped at 12 entries.
+  The M8.2 single record (`home_app_id`) is retained as the MIGRATION
+  source: an absent list + present legacy id seeds a one-entry list, so
+  every M8.2 user lands on their configured application. Absent/corrupt/
+  empty → the default (`servers`). Codec: `HomeAppIdCodec` (shape-checked,
+  dedup, cap; unknown well-shaped ids survive decode and render the
+  honest Missing card).
+- **Carousel**: `HomeApplicationHost` renders the list as a
+  `HorizontalPager` with per-page identity = application id (reordering
+  never mixes saved state), snap-per-page, page dots (only when there is
+  something to swipe), and an honest empty-card state with the Manage
+  action when the user removes everything.
+- **State preservation**: each page's in-card state (detail selection,
+  scroll) survives swiping away and back via the pager's per-page
+  saveable holder, and rotation via `rememberSaveable`.
+- **Control Center → Home applications**: the configured list (reorder
+  up/down, remove), the registry's remaining applications (add), and
+  Restore default (→ `["servers"]`). The empty list is a legal
+  configuration.
+- **Performance**: only pages adjacent to the current one stay composed;
+  inactive applications do no work (their ticks are composition- and
+  lifecycle-driven). No new polling exists anywhere in the framework.
 
 ## 4. The Servers widget (REAL guest servers, no kernel tables)
 

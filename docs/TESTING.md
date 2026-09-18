@@ -4425,3 +4425,43 @@ parallel agent and was never targeted).
   (harmless loopback listing; Ctrl+C in that session stops it). The
   Antigravity session (#2) that appeared mid-gate belongs to the
   parallel agent — left untouched.
+
+## §67 — M8.3 gate: Home Application carousel (Servers · Git · SSH) + Diagnostics crash fix
+
+Build under gate: `agent-L/m8.3-home-carousel`, M8.3-L.apk (sha256 in
+ARTIFACT_NAMING §5). Laptop-side: full JVM suite 1330/1330 green (Git 47,
+SSH 54, Diagnostics 7, carousel/persistence suites). Device: SM-T870
+(Android 13) ONLY — every adb command pinned `adb -s R52R30PEZDY`.
+
+- [x] MIGRATION: the device's M8.2-era record resolves to the carousel's
+      ["servers"] on first launch; the legacy key is kept only as the
+      migration source (codec-pinned).
+- [x] CONTROL CENTER: "Home applications" management — On Home (Servers,
+      reorder ↑↓, remove ✕), Available (Git, SSH with +), Restore default.
+      Adding Git + SSH moved them into "On Home" and the Settings row
+      summary reads "Servers · Git · SSH" live.
+- [x] CAROUSEL: three full-size pages with page dots; horizontal swipe
+      snaps per application (Servers → Git → SSH → back); each
+      application keeps its own in-card state across swipes.
+- [x] GIT (live): the batched probe discovered 3 REAL repositories in the
+      guest (incl. ~/Projects/DevPocket, branch `session`, ↑8↓0, clean);
+      status header + repo rows + "Live from the guest" + REFRESH all
+      render. Honest states verified separately (Looking… during exec).
+- [x] SSH: honest empty state on this device ("No ssh configuration
+      found / Run ssh in a Linux terminal — running clients appear here;
+      hosts come from ~/.ssh/config." + Open Linux). Parser/argv/known-
+      hosts/security behavior is JVM-verified (54 tests) — ~/.ssh/config
+      was not fabricated on the user's device just for a screenshot.
+- [x] DIAGNOSTICS CRASH FIX (the user-reported bug): the page now loads
+      instantly on the real grown runtime (10.3 GB, 180,615 files —
+      exactly the scale that used to ANR/kill the app); honest loading
+      rows ("measuring…") then real values (Alpine 3.24.1, 10.3 GB,
+      56.5 GB free, 180,615 files). Root cause + fix: see worklog
+      Task 60 (unbounded symlink-following main-thread walkTopDown ×2 →
+      budgeted NOFOLLOW single-pass IO collection).
+- [x] HEADER TERMINAL BUTTON: new header action — tap opens the Linux
+      guest shell, long-press opens the Android native shell.
+- Device state after gate: Aurora theme; carousel = Servers · Git · SSH;
+  one idle python :8080 loopback server in session #1 (from the §65 gate;
+  stop with Ctrl+C). The Antigravity session seen mid-gate belonged to
+  the parallel agent — untouched.

@@ -317,12 +317,16 @@ fun PocketShellRoot(
     // and rotation. The Control Center row's summary is its live name
     // (an id that no longer resolves reads honestly as "Missing").
     val homeApplicationViewModel: app.pocketshell.widget.HomeApplicationViewModel = viewModel()
-    val homeAppId by homeApplicationViewModel.homeAppId.collectAsStateWithLifecycle()
-    val homeWidgetsSubtitle = remember(homeAppId) {
-        when (val resolved = app.pocketshell.widget.HomeApplications.resolve(homeAppId)) {
-            is app.pocketshell.widget.HomeApplications.Resolved.Found -> resolved.application.spec.name
-            is app.pocketshell.widget.HomeApplications.Resolved.Missing -> "Missing"
-        }
+    val homeAppIds by homeApplicationViewModel.homeAppIds.collectAsStateWithLifecycle()
+    // The Control Center row's live summary: the carousel's applications in
+    // order (an id that no longer resolves reads honestly as "Missing").
+    val homeWidgetsSubtitle = remember(homeAppIds) {
+        homeAppIds.joinToString(" · ") { id ->
+            when (val resolved = app.pocketshell.widget.HomeApplications.resolve(id)) {
+                is app.pocketshell.widget.HomeApplications.Resolved.Found -> resolved.application.spec.name
+                is app.pocketshell.widget.HomeApplications.Resolved.Missing -> "Missing"
+            }
+        }.ifEmpty { "None" }
     }
 
     // M7 Phase 6: the quick text editor is process-scoped as well — its
@@ -670,7 +674,7 @@ fun PocketShellRoot(
                 onRemoveFromHome = launcherViewModel::hideFromHome,
                 onOpenLauncherSettings = { screen = "launcherSettings" },
                 // M8 — widget slots + the two new widget nav seams.
-                homeAppId = homeAppId,
+                homeAppIds = homeAppIds,
                 onOpenGuestFiles = {
                     // The Storage widget's destination: the explorer at the
                     // GUEST ROOT, through the existing validated folder seam

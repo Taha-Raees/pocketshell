@@ -9,42 +9,21 @@ import java.io.File
  */
 object RuntimeDiagnostics {
 
-    data class Report(
-        val state: RuntimeState,
-        val metadata: RuntimeMetadata?,
-        /** Total bytes under runtime/ (null when absent). */
-        val runtimeSizeBytes: Long?,
-        /** Bytes available on the volume hosting the runtime. */
-        val freeBytes: Long,
-        val rootfsEntryCount: Int?,
-    )
-
-    fun report(storage: RuntimeStorage, state: RuntimeState): Report {
-        val size = if (storage.runtimeDirExists()) directorySize(storage.rootDir) else null
-        val entries = if (storage.runtimeDirExists()) {
-            storage.rootfsDir.walkTopDown().filter { it.isFile }.count()
-        } else {
-            null
-        }
-        val free = runCatching {
-            StatFs(storage.rootDir.parentFile?.absolutePath).availableBytes
-        }.getOrDefault(0L)
-        return Report(
-            state = state,
-            metadata = RuntimeMetadata.read(storage.metadataFile),
-            runtimeSizeBytes = size,
-            freeBytes = free,
-            rootfsEntryCount = entries,
-        )
-    }
-
+    /**
+     * M8.3: the old `report()`/`directorySize()` (two unbounded, symlink-
+     * following walkTopDown passes over the whole runtime tree, run on the
+     * MAIN thread during Diagnostics composition) were removed after they
+     * were proven to ANR the app as the rootfs/apk-cache grew — the device
+     * gate §67 covers the replacement. Storage facts now come from
+     * diagnostics/RuntimeStorageFacts.collect(): single-pass, NOFOLLOW,
+     * budget-capped, on Dispatchers.IO.
+     *
+     * Kept: [formatBytes] (the screen's byte formatting).
+     */
     fun formatBytes(bytes: Long): String = when {
         bytes >= 1 shl 30 -> "%.1f GB".format(bytes.toDouble() / (1 shl 30))
         bytes >= 1 shl 20 -> "%.1f MB".format(bytes.toDouble() / (1 shl 20))
         bytes >= 1 shl 10 -> "%.1f KB".format(bytes.toDouble() / (1 shl 10))
         else -> "$bytes B"
     }
-
-    private fun directorySize(dir: File): Long =
-        dir.walkTopDown().filter { it.isFile }.fold(0L) { acc, f -> acc + f.length() }
 }

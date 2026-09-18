@@ -268,6 +268,15 @@ interface FilesOpsSurface {
     fun requestOpenWith(name: String)
 
     /** The Android app launch happened (or failed) — drop the staged offer. */
+    /**
+     * M8.3: install this .apk through the SYSTEM package installer
+     * (ACTION_VIEW over a staged FileProvider copy with the
+     * package-archive MIME). The installer shows its own confirmation —
+     * PocketShell never installs silently. Offered by the sheet for
+     * .apk files only.
+     */
+    fun requestInstallApk(name: String)
+
     fun consumeOpenWithReady()
 
     /** The UI's startActivity failed — surface the honest reason verbatim. */
@@ -421,4 +430,6 @@ data class ShareReady(
         val name: String,
         val uriString: String,
         val mimeType: String,
+        /** M8.3: true = hand to the SYSTEM INSTALLER (apk), not a chooser. */
+        val install: Boolean = false,
     )

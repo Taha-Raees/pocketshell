@@ -135,4 +135,13 @@ object FileShareOps {
             }
         }
     }
+
+    /**
+     * M8.3: an installable Android package — the Files sheet offers the
+     * SYSTEM INSTALLER for these (ACTION_VIEW over the staged copy with
+     * the package-archive MIME), never a generic "open with". Case-
+     * insensitive on the extension.
+     */
+    fun isApkName(name: String): Boolean =
+        name.substringAfterLast('.', "").lowercase() == "apk"
 }

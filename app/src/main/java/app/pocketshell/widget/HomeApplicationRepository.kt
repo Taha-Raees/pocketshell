@@ -6,46 +6,79 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 
 private val Context.homeWidgetsDataStore by preferencesDataStore(name = "home_widgets")
 
 /**
- * M8.2 — Home-application persistence, in the established per-domain
- * pattern (the SAME "home_widgets" DataStore file the two-slot era used;
- * the M8 slot record key is obsolete and simply no longer read).
+ * M8.3 — Home-application persistence: the carousel hosts an ORDERED LIST
+ * of applications (M8.2's single application is the list of one, migrated).
  *
- * ONE key: "home_app_id" — the id of the application hosted by the Home
- * Application Card. Absent/corrupt → the default application. There is
- * deliberately NO migration machinery: the old value described two hero
- * slots, a concept that no longer exists; the new record starts fresh at
- * the default.
+ * Same "home_widgets" DataStore file, keys:
+ *   home_app_ids  — the ordered list (JSON array of registry ids)
+ *   home_app_id   — the M8.2 single-application record, kept ONLY as the
+ *                   migration source: when the list key is absent and the
+ *                   legacy key exists, the list is seeded [legacy].
+ *
+ * Absent/corrupt/empty → the default application. Ids are shape-checked
+ * here; an id that no longer resolves in the registry renders the honest
+ * Missing card (stated, never substituted).
  */
 class HomeApplicationRepository(private val context: Context) {
 
-    private val appIdKey = stringPreferencesKey("home_app_id")
+    private val appIdsKey = stringPreferencesKey("home_app_ids")
+    private val legacyAppIdKey = stringPreferencesKey("home_app_id")
 
-    val homeAppId: Flow<String> = context.homeWidgetsDataStore.data.map { prefs ->
-        HomeAppIdCodec.decode(prefs[appIdKey])
+    val homeAppIds: Flow<List<String>> = context.homeWidgetsDataStore.data.map { prefs ->
+        HomeAppIdCodec.decodeList(
+            raw = prefs[appIdsKey],
+            legacySingle = prefs[legacyAppIdKey],
+        )
     }
 
-    suspend fun setHomeAppId(id: String) {
-        context.homeWidgetsDataStore.edit { it[appIdKey] = HomeAppIdCodec.encode(id) }
+    suspend fun setHomeAppIds(ids: List<String>) {
+        context.homeWidgetsDataStore.edit { it[appIdsKey] = HomeAppIdCodec.encode(ids) }
     }
 
     suspend fun restoreDefault() {
-        setHomeAppId(HomeApplications.DEFAULT_ID)
+        setHomeAppIds(listOf(HomeApplications.DEFAULT_ID))
     }
 }
 
-/** Id codec: shape-checked, absent/corrupt → the default application. */
+/** List codec: JSON array of well-shaped ids, M8.2 migration, honest default. */
 object HomeAppIdCodec {
 
     private val pattern = Regex("""[a-z][a-z0-9.-]{1,63}""")
 
-    fun encode(id: String): String = id
+    /** Sanity cap: an "arbitrary reasonable number" of Home applications. */
+    const val MAX_APPS = 12
 
-    fun decode(raw: String?): String {
-        val trimmed = raw?.trim().orEmpty()
-        return if (pattern.matches(trimmed)) trimmed else HomeApplications.DEFAULT_ID
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun encode(ids: List<String>): String =
+        json.encodeToString(ListSerializer(String.serializer()), ids)
+
+    fun decode(raw: String?): List<String> = decodeList(raw = raw, legacySingle = null)
+
+    fun decodeList(raw: String?, legacySingle: String?): List<String> {
+        val parsed = raw?.let {
+            try {
+                json.decodeFromString(ListSerializer(String.serializer()), it)
+            } catch (_: Exception) {
+                null
+            }
+        }
+        val ids = (parsed ?: emptyList())
+            .filter { pattern.matches(it.trim()) }
+            .map { it.trim() }
+            .distinct()
+            .take(MAX_APPS)
+        if (ids.isNotEmpty()) return ids
+        // M8.2 migration: a single-application record seeds the list.
+        val legacy = legacySingle?.trim().orEmpty()
+        if (pattern.matches(legacy)) return listOf(legacy)
+        return listOf(HomeApplications.DEFAULT_ID)
     }
 }

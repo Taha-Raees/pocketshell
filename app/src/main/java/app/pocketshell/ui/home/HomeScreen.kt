@@ -171,10 +171,10 @@ fun HomeScreen(
     onOpenCompanion: (String) -> Unit,
     onRemoveFromHome: (String) -> Unit,
     onOpenLauncherSettings: () -> Unit,
-    // M8.2 — the ONE Home Application Card: the persisted application
-    // choice, resolved through HomeApplications and drawn in the standard
-    // application chrome. The nav seams are navigation-only.
-    homeAppId: String = app.pocketshell.widget.HomeApplications.DEFAULT_ID,
+    // M8.3 — the Home Application CAROUSEL: the persisted ordered list of
+    // applications, rendered by the host as swipeable full-size canvases.
+    // The nav seams are navigation-only.
+    homeAppIds: List<String> = listOf(app.pocketshell.widget.HomeApplications.DEFAULT_ID),
     onOpenGuestFiles: () -> Unit = {},
     onOpenWidgetSettings: () -> Unit = {},
     /** M8.1 — open a verified local server URL in the Companion browser. */
@@ -239,7 +239,12 @@ fun HomeScreen(
                     .align(Alignment.CenterHorizontally),
             ) {
                 Spacer(Modifier.height(8.dp))
-                BrandHeader(onOpenDiagnostics, onOpenSettings)
+                BrandHeader(
+                    onOpenDiagnostics = onOpenDiagnostics,
+                    onOpenSettings = onOpenSettings,
+                    onOpenLinuxShell = onOpenLinuxShell,
+                    onOpenTerminal = onOpenTerminal,
+                )
                 Spacer(Modifier.height(16.dp))
 
                 if (launchError != null) {
@@ -263,7 +268,7 @@ fun HomeScreen(
                 // application's screen — see widget/ServersApp.kt and
                 // docs/M8-WIDGET-SYSTEM.md §9.
                 HomeApplicationHost(
-                    appId = homeAppId,
+                    appIds = homeAppIds,
                     cardSize = cardSize,
                     runtimeState = runtimeState,
                     onOpenTerminal = onOpenTerminal,
@@ -378,7 +383,12 @@ fun HomeScreen(
 // ----------------------------------------------------------------- brand header
 
 @Composable
-private fun BrandHeader(onOpenDiagnostics: () -> Unit, onOpenSettings: () -> Unit) {
+private fun BrandHeader(
+    onOpenDiagnostics: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenLinuxShell: () -> Unit,
+    onOpenTerminal: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -403,23 +413,49 @@ private fun BrandHeader(onOpenDiagnostics: () -> Unit, onOpenSettings: () -> Uni
                 color = HomeTokens.textDim,
             )
         }
+        // M8.3 — the terminal returns to the header (the one-card Home has
+        // no environment tiles): tap opens the LINUX guest shell, long-
+        // press opens the ANDROID native shell — both honest, existing
+        // launch paths, distinguished by the gesture.
+        HeaderIconButton(
+            icon = Icons.Outlined.Terminal,
+            description = "Terminal",
+            onClick = onOpenLinuxShell,
+            onLongClick = onOpenTerminal,
+            onLongClickLabel = "Open the Android shell",
+        )
+        Spacer(Modifier.width(4.dp))
         HeaderIconButton(Icons.Outlined.Info, "Diagnostics", onOpenDiagnostics)
         Spacer(Modifier.width(4.dp))
         HeaderIconButton(Icons.Outlined.Settings, "Settings", onOpenSettings)
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HeaderIconButton(
     icon: ImageVector,
     description: String,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     Box(
         modifier = Modifier
             .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(role = Role.Button) { onClick() },
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        role = Role.Button,
+                        onClickLabel = description,
+                        onLongClickLabel = onLongClickLabel,
+                        onClick = { onClick() },
+                        onLongClick = onLongClick,
+                    )
+                } else {
+                    Modifier.clickable(role = Role.Button, onClickLabel = description) { onClick() }
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

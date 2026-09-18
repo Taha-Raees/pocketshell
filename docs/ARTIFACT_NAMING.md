@@ -170,6 +170,15 @@ labels is deferred to the integration layer; agent builds never touch it.
 - tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
 - device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §64 RESULTS recorded in docs/TESTING.md (A/B/D/E/F/G pass; C honest-degrade verified with the platform boundary proven closed: procfs app+guest EACCES, netlink sock_diag EACCES; aurora idle-draw cost attributed to pre-existing Control Center II)
 
+### M8.3-L.apk
+- date:        2026-09-19
+- git:         agent-L/m8.3-home-carousel (see worklog Task 60 for the implementation commit)
+- agent:       L — Agent L (ZCode)
+- workstream:  M8.3 — Home Application carousel (Servers · Git · SSH) + Diagnostics crash fix; orchestrated via 3 subagents
+- apk sha256:  14537bef80b9dc8499e2aca06f33ba22a79a294617887c760572a57e4f412d9f
+- tests:       full :app JVM suite 1330/1330 green (Git 47, SSH 54, Diagnostics 7, carousel/persistence/contract suites); :app:assembleDebug green
+- device gate: PERFORMED 2026-09-19 on SM-T870 (Android 13) — §67 RESULTS in docs/TESTING.md (carousel + swipe + dots; Git live on 3 real guest repos; SSH honest empty; Diagnostics loads instantly on a 180k-file runtime — crash fix verified; header Terminal button)
+
 ### M8.2-L.apk
 - date:        2026-09-18
 - git:         agent-L/m8.2-home-app (see worklog Task 59 for the implementation commit)

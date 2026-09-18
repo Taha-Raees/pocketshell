@@ -106,32 +106,45 @@ class HomeWidgetContractTest {
     // --------------------------------- 1. the one-card architecture
 
     @Test
-    fun `Home hosts exactly ONE application card - the two-slot era is gone`() {
+    fun `Home hosts the application carousel - neither slots nor a single fixed app`() {
         val home = stripCommentsAndStrings(
             mainSource("app/pocketshell/ui/home/HomeScreen.kt"),
         )
         assertTrue(
-            "Home must host the ONE application card",
+            "Home must host the application carousel",
             home.contains("HomeApplicationHost("),
+        )
+        assertTrue(
+            "Home receives the ordered configured list, not a single id",
+            home.contains("homeAppIds: List<String>"),
         )
         val banned = listOf(
             "WidgetHeroRow", "WidgetSlotEntry", "WidgetRegistry",
             "WidgetSlotsCodec", "TerminalWidget", "LinuxWidget",
             "StorageWidget", "AgentsWidget", "weight(1.25f)",
+            "homeAppId: String",
         )
         val found = banned.filter { home.contains(it) }
-        assertTrue("two-slot remnants must be gone; found: $found", found.isEmpty())
+        assertTrue("two-slot and single-app remnants must be gone; found: $found", found.isEmpty())
     }
 
     @Test
-    fun `the host owns the card and resolves through the ONE registry`() {
+    fun `the carousel host swipes snaps and preserves per-application state`() {
         val host = stripCommentsAndStrings(
             mainSource("app/pocketshell/ui/home/HomeApplicationHost.kt"),
         )
+        assertTrue("a real pager backs the carousel", host.contains("HorizontalPager"))
+        assertTrue(
+            "page identity is the application ID (state never mixes apps)",
+            host.contains("key = appIds::get"),
+        )
+        assertTrue("page dots mark the current application", host.contains("CarouselDots"))
+        assertTrue(
+            "an empty configuration is stated, never silently defaulted",
+            host.contains("EmptyCarouselCard"),
+        )
         assertTrue(host.contains("HomeApplications.resolve"))
         assertTrue(host.contains("MissingApplicationCard"))
-        // The card dimensions come from the existing layout's derived
-        // token, never a hardcoded fake size.
         assertTrue(host.contains("HomeTokens.homeAppCardHeight"))
         val widgetDir = File("app/src/main/java/app/pocketshell/widget")
             .takeIf { it.isDirectory }
@@ -208,18 +221,55 @@ class HomeWidgetContractTest {
     // ------------------------------------- 5. slot/app persistence
 
     @Test
-    fun `application persistence is ONE key with an honest default`() {
+    fun `application persistence is an ordered list with M8_2 migration`() {
         val repo = widgetSource("HomeApplicationRepository.kt")
         assertTrue(repo.contains("preferencesDataStore(name = \"home_widgets\")"))
-        assertTrue(repo.contains("\"home_app_id\""))
+        assertTrue(
+            "the carousel order is the persisted truth",
+            repo.contains("\"home_app_ids\""),
+        )
+        assertTrue(
+            "the M8.2 single record is retained as the migration source",
+            repo.contains("\"home_app_id\""),
+        )
         assertTrue(
             "the two-slot record key must be gone",
             !repo.contains("slot_widget_ids"),
         )
-        assertTrue(repo.contains("HomeAppIdCodec.decode"))
+        assertTrue(repo.contains("HomeAppIdCodec.decodeList"))
         // Registry sanity at the contract level.
-        assertEquals(listOf("servers"), HomeApplications.all.map { it.spec.id })
-        assertEquals(HomeApplications.SERVERS_ID, HomeApplications.DEFAULT_ID)
+        assertTrue(HomeApplications.all.map { it.spec.id }.contains(HomeApplications.DEFAULT_ID))
+    }
+
+    @Test
+    fun `every registered Home application follows the theme and navigation contracts`() {
+        // Applies to Servers (reference), Git and SSH once the orchestrator
+        // integrates them: no private themes, no hardcoded colors, no
+        // vendor literals, actions only through WidgetNav.
+        val widgetDir = File("app/src/main/java/app/pocketshell/widget")
+            .takeIf { it.isDirectory }
+            ?: File("../app/src/main/java/app/pocketshell/widget")
+        assumeTrue("widget dir not found on this runner", widgetDir.isDirectory)
+        val appFiles = widgetDir.walkTopDown()
+            .filter { it.isFile && it.name.endsWith("App.kt") }
+            .toList()
+        assumeTrue("no application files on this runner", appFiles.isNotEmpty())
+        appFiles.forEach { file ->
+            val code = stripCommentsAndStrings(file.readText())
+            assertTrue(
+                "${file.name} must use the shared theme tokens",
+                code.contains("HomeTokens."),
+            )
+            assertFalse(
+                "${file.name} must not hardcode colors",
+                Regex("""Color\(0x""").containsMatchIn(code),
+            )
+            val literals = stringLiterals(file.readText())
+            assertFalse(
+                "${file.name} must not name a theme",
+                literals.any { it.contains("Aurora", ignoreCase = true) },
+            )
+        }
     }
 
     // --------------------------------- 6. the Agents summary's retained contract
@@ -305,8 +355,8 @@ class HomeWidgetContractTest {
             main.contains("\"homeWidgets\" -> app.pocketshell.ui.settings.HomeWidgetsScreen("),
         )
         assertTrue(
-            "Home must receive the persisted application id",
-            main.contains("homeAppId = homeAppId,"),
+            "Home must receive the persisted ordered application list",
+            main.contains("homeAppIds = homeAppIds,"),
         )
         assertFalse(
             "the two-slot parameter must be gone",

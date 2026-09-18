@@ -3347,3 +3347,61 @@ theme, never the visual system).
   dimensions; detail pages in a fixed-height card must budget their
   vertical space or scroll (buttons clipped twice before the compact
   layout fit).
+
+## Task 60 — M8.3: the Home Application carousel + Git & SSH applications (Agent L, orchestrator, 2026-09-19)
+
+Base = M8.2 tip. Three subagents ran in parallel under strict file
+ownership; the orchestrator built the multi-application architecture,
+reviewed and integrated their work, and ran the §67 device gate.
+
+- ORCHESTRATION: Git-app and SSH-app subagents dispatched first with
+  self-contained briefs (framework contract, file ownership limited to
+  widget/git|ssh + their tests, theme/truthfulness rules, reference
+  files, test discipline, report format); a third subagent was added
+  mid-flight for the owner-reported Diagnostics crash. Integration
+  reviews: GitProbe/GitApp/GitStatusParser read in full (batched
+  marker-protocol exec, porcelain v1 + C-quoted path decoding, honest
+  degradation — accepted); SshFiles/SshConfigParser security review
+  (fixed-name reads only — config/known_hosts, counts not contents,
+  identity NAMES never opened — accepted); Diagnostics root-cause named
+  with measured before/after (5112 ms → 772 ms on a 44k-file fixture)
+  — accepted, plus the orchestrator removed the dead unbounded
+  RuntimeDiagnostics.report()/directorySize() so the ANR path cannot be
+  reintroduced (formatBytes kept; subagent recommendation executed).
+- CAROUSEL (orchestrator): HomeApplicationHost rewritten as a
+  HorizontalPager — per-page identity = application id (key = appIds::get;
+  reorder/remove never mixes saved state), snap-per-page, accent page
+  dots (only when >1), honest empty card (Manage action). State: each
+  page's in-card state survives swipes (pager saveable holder) and
+  rotation (rememberSaveable). Persistence: home_app_ids (JSON list,
+  dedupe, 12-cap) + M8.2 migration from home_app_id (list key wins when
+  present); Control Center rewritten: On Home (reorder/remove) +
+  Available (add) + Restore default.
+- GIT APPLICATION (subagent): research-grounded porcelain v1 parser
+  (branch head shapes, XY entries, rename split, octal-escape UTF-8
+  decoding), ONE batched read-only guest exec (binary check + depth-3
+  discovery under $HOME/$HOME/Projects + per-repo status), idle gate
+  (20 s), honest states (git absent + apk add hint, per-repo errors,
+  no repos), in-card detail, TERMINAL/LINUX actions. Device: discovered
+  3 real guest repos live (§67).
+- SSH APPLICATION (subagent): ~/.ssh read app-side (guest home bound to
+  app storage — no proot), ssh_config subset parser (multi-pattern Host,
+  defaults inheritance approximated, Include/Match counted not followed),
+  known_hosts reduced to counts (hashed noted), connection evidence =
+  own-UID ssh argv processes only; security contract pinned (two fixed
+  file names, key NAMES never contents, nothing persisted, vocabulary
+  bans "connected/online"). Device: honest empty state (no ~/.ssh here).
+- DIAGNOSTICS FIX (subagent + orchestrator): root cause = main-thread
+  ANR from two unbounded symlink-following walkTopDown passes during
+  composition (device-proven scale: 180,615 files / 10.3 GB). Fix:
+  diagnostics/RuntimeStorageFacts.collect — single-pass NOFOLLOW
+  budget-walk (200k) on IO, honest truncation + loading states; screen
+  renders instantly then fills. Device-verified §67.
+- HEADER TERMINAL BUTTON (owner request): Home header gains a Terminal
+  action next to Diagnostics — tap opens the LINUX guest shell,
+  long-press opens the ANDROID native shell.
+- TESTS: full suite 1330/1330 (Git 47, SSH 54, Diagnostics 7, carousel/
+  persistence/contract suites updated for M8.3; M8.1 probe suites
+  untouched). APK M8.3-L
+  (14537bef80b9dc8499e2aca06f33ba22a79a294617887c760572a57e4f412d9f),
+  ledger ARTIFACT_NAMING §5. Device gate §67 recorded in TESTING.md.

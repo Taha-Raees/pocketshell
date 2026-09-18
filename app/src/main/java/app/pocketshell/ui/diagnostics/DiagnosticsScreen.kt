@@ -13,6 +13,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,8 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import app.pocketshell.diagnostics.Diagnostics
+import app.pocketshell.diagnostics.RuntimeStorageFacts
 import app.pocketshell.runtime.RuntimeDiagnostics
 import app.pocketshell.runtime.RuntimeManager
 import app.pocketshell.runtime.RuntimePin
@@ -60,8 +64,17 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val storage = remember {
         RuntimeStorage(context.applicationContext.noBackupFilesDir)
     }
-    val runtimeReport = remember(runtimeState) {
-        RuntimeDiagnostics.report(storage, runtimeState)
+    // Runtime storage facts are a full (budget-capped) walk of the runtime
+    // tree — heavy file I/O that grows with installed packages. Collecting it
+    // inline during composition blocked the main thread long enough to ANR on
+    // a grown rootfs (the "Diagnostics crashes as packages download" report).
+    // It now runs on Dispatchers.IO and the rows render an honest
+    // "measuring…" state until the facts arrive.
+    var runtimeFacts by remember { mutableStateOf<RuntimeStorageFacts?>(null) }
+    LaunchedEffect(runtimeState) {
+        runtimeFacts = withContext(Dispatchers.IO) {
+            RuntimeStorageFacts.collect(storage)
+        }
     }
     val scope = rememberCoroutineScope()
     var pkgReport by remember { mutableStateOf<app.pocketshell.packages.PackageEnvironmentReport?>(null) }
@@ -110,20 +123,31 @@ fun DiagnosticsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             MidnightFactRow(
                 label = "Distribution",
                 value = if (runtimeState.expectsRuntimeOnDisk) {
-                    runtimeReport.metadata
+                    runtimeFacts?.metadata
                         ?.let { "${it.distribution} ${it.distributionVersion} (${it.architecture})" }
-                        ?: "metadata unreadable"
+                        ?: if (runtimeFacts == null) "reading metadata…" else "metadata unreadable"
                 } else {
                     "${RuntimePin.DISTRIBUTION} ${RuntimePin.DISTRIBUTION_VERSION} (not installed)"
                 },
             )
             MidnightFactRow(
                 label = "Runtime size",
-                value = runtimeReport.runtimeSizeBytes?.let(RuntimeDiagnostics::formatBytes) ?: "—",
+                value = when {
+                    runtimeFacts == null && runtimeState.expectsRuntimeOnDisk -> "measuring…"
+                    else -> runtimeFacts?.runtimeSizeBytes
+                        ?.let(RuntimeDiagnostics::formatBytes) ?: "—"
+                },
             )
-            MidnightFactRow("Free space", RuntimeDiagnostics.formatBytes(runtimeReport.freeBytes))
-            runtimeReport.rootfsEntryCount?.let {
+            MidnightFactRow("Free space", runtimeFacts?.freeBytes?.let(RuntimeDiagnostics::formatBytes) ?: "—")
+            runtimeFacts?.rootfsFileCount?.let {
                 MidnightFactRow("Rootfs files", it.toString())
+            }
+            if (runtimeFacts?.truncated == true) {
+                MidnightNote(
+                    text = "Scan stopped at its ${RuntimeStorageFacts.DEFAULT_MAX_FILES}-file budget — " +
+                        "the runtime size and file counts above are floors, not exact totals.",
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
             }
             runtimeEvent?.let { event ->
                 MidnightFactRow(

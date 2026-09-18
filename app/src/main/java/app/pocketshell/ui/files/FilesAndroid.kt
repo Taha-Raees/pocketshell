@@ -129,16 +129,24 @@ fun FilesBridgeEffects(ops: FilesOpsSurface) {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             try {
-                context.startActivity(
-                    Intent.createChooser(viewIntent, "Open \"${ready.name}\" with"),
-                )
+                if (ready.install) {
+                    // M8.3 — apk install: the package installer IS the one
+                    // handler for this mime; launch it directly and let its
+                    // own confirmation screen run (never a silent install).
+                    context.startActivity(viewIntent)
+                } else {
+                    context.startActivity(
+                        Intent.createChooser(viewIntent, "Open \"${ready.name}\" with"),
+                    )
+                }
             } catch (e: android.content.ActivityNotFoundException) {
                 ops.openWithLaunchFailed(
-                    "No installed Android app can open \"${ready.name}\".",
+                    if (ready.install) "No package installer could handle \"${ready.name}\"."
+                    else "No installed Android app can open \"${ready.name}\".",
                 )
             } catch (e: Exception) {
                 ops.openWithLaunchFailed(
-                    "Could not open \"${ready.name}\" in an Android app: ${e.message ?: e.javaClass.simpleName}",
+                    "Could not hand \"${ready.name}\" to Android: ${e.message ?: e.javaClass.simpleName}",
                 )
             }
             ops.consumeOpenWithReady()

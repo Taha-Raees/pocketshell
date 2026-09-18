@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
@@ -177,6 +178,12 @@ data class EntryActionHandlers(
      * handler situation; the sheet only offers what is genuinely possible.
      */
     val onOpenWith: (() -> Unit)? = null,
+    /**
+     * M8.3: install this .apk via the SYSTEM package installer (files
+     * only; the caller offers it only for .apk names). The installer's
+     * own confirmation screen runs — nothing installs silently.
+     */
+    val onInstallApk: (() -> Unit)? = null,
     /** M7.2-A: compress this entry into a .zip (files and folders). */
     val onCompress: (() -> Unit)? = null,
     /** M7.2-A: extract this .zip into a folder of the current directory. */
@@ -270,6 +277,10 @@ fun EntryActionSheet(
                 val edit = handlers.onEdit
                 SheetAction("Open", Icons.Outlined.Description, onClick = { edit?.invoke() })
             }
+            if (entry.kind == EntryKind.FILE && handlers.onInstallApk != null) {
+                val installApk = handlers.onInstallApk
+                SheetAction("Install", Icons.Outlined.SystemUpdate, onClick = { installApk?.invoke() })
+            }
             if (entry.kind == EntryKind.FILE && handlers.onOpenWith != null) {
                 val openWith = handlers.onOpenWith
                 SheetAction("Open in Android app", Icons.Outlined.OpenInNew, onClick = { openWith?.invoke() })
@@ -306,6 +317,8 @@ fun EntryActionSheet(
                         TerminalLaunchSupport.ANDROID_BOUNDARY_MESSAGE
                     entry.kind == EntryKind.FILE && handlers.onExtract != null ->
                         "The archive is extracted into a folder of this directory; nothing is overwritten without your choice."
+                    entry.kind == EntryKind.FILE && handlers.onInstallApk != null ->
+                        "Android's installer opens and asks for your confirmation — the original stays here."
                     entry.kind == EntryKind.FILE && handlers.onOpenWith != null ->
                         "A copy is handed to the Android app you pick — the original stays here."
                     else ->
