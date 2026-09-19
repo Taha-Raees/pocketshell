@@ -181,6 +181,7 @@ fun HomeScreen(
     onHomeAppSelected: (String) -> Unit = {},
     homeStateStore: app.pocketshell.widget.HomeAppStateStore =
         androidx.compose.runtime.remember { app.pocketshell.widget.HomeAppStateStore() },
+    homeExternalApps: List<app.pocketshell.widget.HomeApplication> = emptyList(),
     onOpenGuestFiles: () -> Unit = {},
     onOpenWidgetSettings: () -> Unit = {},
     /** M8.1 — open a verified local server URL in the Companion browser. */
@@ -278,6 +279,7 @@ fun HomeScreen(
                     cardSize = cardSize,
                     runtimeState = runtimeState,
                     stateStore = homeStateStore,
+                    externalApps = homeExternalApps,
                     selectedAppId = homeSelectedAppId,
                     onSelectedAppChanged = onHomeAppSelected,
                     onOpenTerminal = onOpenTerminal,

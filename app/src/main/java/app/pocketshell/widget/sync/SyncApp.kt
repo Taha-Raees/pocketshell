@@ -222,6 +222,44 @@ object SyncApp : HomeApplication() {
             state.formOpen = false
             state.resetDraft()
         }
+
+        // M8.4.4 — ONE-TAP QUICK BACKUP: the presets need nothing from the
+        // user — no paths, no form. Everything that would have been typed
+        // into a terminal happens headless: the backend installs itself if
+        // missing, the profile is created, the destination folder is
+        // prepared (mkdir -p), and the copy runs — all shown in the GUI.
+        val quickBackup: (SyncQuickPreset) -> Unit = { preset ->
+            scope.launch {
+                var snapshot = (state.ui as? SyncUi.Ready)?.snapshot
+                if (snapshot?.rsync?.path == null) {
+                    // rsync absent → install it headless, then rescan.
+                    state.installUi = RunUi.Running
+                    val install = withContext(Dispatchers.IO) {
+                        state.probe.installBackend(SyncBackend.RSYNC)
+                    }
+                    state.installUi = RunUi.Done(install)
+                    runScan()
+                    snapshot = (state.ui as? SyncUi.Ready)?.snapshot
+                    if (snapshot?.rsync?.path == null) return@launch
+                }
+                val existing = state.profilesRef.value.firstOrNull {
+                    it.source == preset.source && it.destination == preset.destination
+                }
+                val profile = existing ?: SyncProfile(
+                    id = SyncRepository.newId(),
+                    backend = SyncBackend.RSYNC,
+                    source = preset.source,
+                    destination = preset.destination,
+                    createdAtMs = SyncRepository.now(),
+                ).also { created ->
+                    repository.add(created)
+                    state.profilesRef.value = SyncProfiles.upsert(state.profilesRef.value, created)
+                }
+                state.detailId = profile.id
+                state.runUi = RunUi.Idle
+                state.runTick++
+            }
+        }
         BackHandler(enabled = state.formOpen || selected != null) {
             if (state.formOpen) closeForm() else state.detailId = null
         }
@@ -249,8 +287,16 @@ object SyncApp : HomeApplication() {
             // A starting run invalidates the point-in-time VERIFY result.
             state.verifyUi = VerifyUi.Idle
             state.runUi = RunUi.Running
-            val result = withContext(Dispatchers.IO) {
-                state.probe.runNow(profile, snapshot.rsync.path, snapshot.rclone.path)
+            // M8.4.4 — the headless pre-step: the destination folder is
+            // created if missing (local dests only), so a one-tap backup
+            // never dies on "destination does not exist".
+            val prepared = withContext(Dispatchers.IO) { state.probe.prepare(profile) }
+            val result = if (prepared.exitCode != null && prepared.exitCode != 0) {
+                prepared
+            } else {
+                withContext(Dispatchers.IO) {
+                    state.probe.runNow(profile, snapshot.rsync.path, snapshot.rclone.path)
+                }
             }
             state.runUi = RunUi.Done(result)
             runRecord(profile, result, SyncRepository.now())?.let { record ->
@@ -372,6 +418,7 @@ object SyncApp : HomeApplication() {
                     snapshot = ready?.snapshot,
                     layout = layout,
                     nowMs = state.nowMs,
+                    onQuickBackup = quickBackup,
                     onOpenDetail = { state.detailId = it.id },
                     onOpenForm = {
                         // A freshly opened form starts with a clean slate —
@@ -583,6 +630,19 @@ internal enum class SyncLayout(
 
 // ------------------------------------------------------------- overview
 
+/** One one-tap backup preset: no typing anywhere in the flow. */
+internal data class SyncQuickPreset(
+    val id: String,
+    val label: String,
+    val source: String,
+    val destination: String,
+)
+
+internal val SYNC_QUICK_PRESETS = listOf(
+    SyncQuickPreset("projects", "Back up Projects", "/root/Projects", "/mnt/backup/Projects"),
+    SyncQuickPreset("home", "Back up home", "/root", "/mnt/backup/home"),
+)
+
 @Composable
 private fun SyncOverview(
     ui: SyncUi,
@@ -590,6 +650,7 @@ private fun SyncOverview(
     snapshot: SyncSnapshot?,
     layout: SyncLayout,
     nowMs: Long,
+    onQuickBackup: (SyncQuickPreset) -> Unit,
     onOpenDetail: (SyncProfile) -> Unit,
     onOpenForm: () -> Unit,
     onOpenLinuxShell: () -> Unit,
@@ -645,6 +706,62 @@ private fun SyncOverview(
             )
         }
         Spacer(Modifier.height(6.dp))
+
+        // M8.4.4 — QUICK BACKUP: one-tap presets. Everything the user
+        // would have typed (paths, apk add, mkdir, rsync) runs headless;
+        // the card shows the work and the result.
+        Column(modifier = Modifier.fillMaxWidth()) {
+            SYNC_QUICK_PRESETS.forEach { preset ->
+                val alreadyAProfile = profiles.any {
+                    it.source == preset.source && it.destination == preset.destination
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = preset.label,
+                        ) { onQuickBackup(preset) }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PlayArrow,
+                        contentDescription = preset.label,
+                        tint = HomeTokens.accent,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = preset.label,
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 12.sp,
+                            color = HomeTokens.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = SyncProfiles.displayPath(preset.source) + " → " +
+                                SyncProfiles.displayPath(preset.destination) +
+                                if (alreadyAProfile) " · profile exists" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = HomeTokens.textDim,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(
+                        text = "TAP TO " + if (alreadyAProfile) "RUN" else "CREATE + RUN",
+                        fontFamily = TerminalTheme.mono,
+                        fontSize = 9.sp,
+                        letterSpacing = 1.sp,
+                        color = HomeTokens.textDim,
+                    )
+                }
+                HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
+            }
+        }
 
         // Rows — the user's profiles; always scrolling, never capped.
         if (profiles.isNotEmpty()) {

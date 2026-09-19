@@ -87,6 +87,44 @@ class WidgetManifestValidatorTest {
     }
 
     @Test
+    fun `ssh guest manifests are a built-in primitive with their own capability`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(kind = WidgetManifestValidator.SSH_GUEST),
+                capabilities = listOf("guest.ready"),
+            ),
+        )
+        assertTrue(result is WidgetManifestValidator.Result.Valid)
+    }
+
+    @Test
+    fun `ssh guest manifests refuse without their capability`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(kind = WidgetManifestValidator.SSH_GUEST),
+                capabilities = listOf("proc.net"),
+            ),
+        )
+        val reasons = (result as WidgetManifestValidator.Result.Invalid).reasons
+        assertTrue(reasons.any { it.contains("requires capability 'guest.ready'") })
+    }
+
+    @Test
+    fun `ssh guest takes no probe params - no command surface`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(
+                    kind = WidgetManifestValidator.SSH_GUEST,
+                    params = mapOf("host" to "evil.example.com"),
+                ),
+                capabilities = listOf("guest.ready"),
+            ),
+        )
+        val reasons = (result as WidgetManifestValidator.Result.Invalid).reasons
+        assertTrue(reasons.any { it.contains("unknown probe params") })
+    }
+
+    @Test
     fun `unknown capabilities reject`() {
         val result = WidgetManifestValidator.validate(
             valid.copy(capabilities = listOf("proc.net", "root.shell")),

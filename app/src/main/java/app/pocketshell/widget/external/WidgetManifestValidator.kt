@@ -18,10 +18,17 @@ object WidgetManifestValidator {
     }
 
     /** The exact built-in probe primitives v1 understands. */
-    val probeKinds: Set<String> = setOf(PROC_NET_LISTEN, STORAGE_ROOTFS)
+    val probeKinds: Set<String> = setOf(PROC_NET_LISTEN, STORAGE_ROOTFS, SSH_GUEST)
 
     const val PROC_NET_LISTEN = "proc.net.listen"
     const val STORAGE_ROOTFS = "storage.rootfs"
+
+    /**
+     * M8.4.4 — the guest SSH surface as a primitive: own-UID `ssh` client
+     * argv + the guest's `~/.ssh/config` host aliases (fixed app code, the
+     * compiled SshApp's probe — nothing is connected, nothing is executed).
+     */
+    const val SSH_GUEST = "ssh.guest"
 
     /** The exact capability vocabulary a manifest may declare. */
     val capabilities: Set<String> = setOf(
@@ -72,6 +79,7 @@ object WidgetManifestValidator {
         } else {
             val requiredCap = when (manifest.probe.kind) {
                 PROC_NET_LISTEN -> "proc.net"
+                SSH_GUEST -> "guest.ready"
                 else -> "storage.rootfs"
             }
             if (requiredCap !in manifest.capabilities) {
@@ -96,6 +104,7 @@ object WidgetManifestValidator {
         val allowed: Set<String> = when (probe.kind) {
             PROC_NET_LISTEN -> emptySet()
             STORAGE_ROOTFS -> emptySet()
+            SSH_GUEST -> emptySet()
             else -> return reasons
         }
         val unknown = probe.params.keys.filter { it !in allowed }

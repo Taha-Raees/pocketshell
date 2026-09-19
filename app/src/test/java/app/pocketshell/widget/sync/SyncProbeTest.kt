@@ -339,6 +339,36 @@ class SyncProbeTest {
         assertTrue(failed.output.contains("rsync: change_dir"))
     }
 
+    // -------------------------------------------------- prepare (M8.4.4)
+
+    @Test
+    fun `prepare creates a local destination with mkdir -p`() {
+        val recorder = RecordingExec(exec())
+        val result = probe(recorder).prepare(sampleProfile(destination = "/mnt/backup/Projects"))
+        assertEquals(listOf("/bin/mkdir", "-p", "/mnt/backup/Projects"), recorder.argvs.single())
+        assertEquals(0, result.exitCode)
+        assertTrue(result.summary.contains("ready"))
+    }
+
+    @Test
+    fun `prepare skips remote destinations - no mkdir on a remote spec`() {
+        val recorder = RecordingExec(exec())
+        val result = probe(recorder).prepare(
+            sampleProfile(backend = SyncBackend.RCLONE, destination = "gdrive:backup"),
+        )
+        assertTrue(recorder.argvs.isEmpty())
+        assertEquals(0, result.exitCode)
+    }
+
+    @Test
+    fun `a failed mkdir is the honest failure`() {
+        val recorder = RecordingExec(exec(ok = false, stderr = "mkdir: bad path\n"))
+        val result = probe(recorder).prepare(sampleProfile())
+        assertEquals(1, result.exitCode)
+        assertTrue(result.summary.contains("mkdir failed"))
+        assertTrue(result.summary.contains("bad path"))
+    }
+
     // -------------------------------------------------- install (M8.4.1)
 
     @Test

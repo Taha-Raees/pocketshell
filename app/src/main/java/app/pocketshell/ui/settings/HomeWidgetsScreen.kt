@@ -23,6 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -46,6 +47,8 @@ fun HomeWidgetsScreen(
     modifier: Modifier = Modifier,
 ) {
     val appIds by viewModel.homeAppIds.collectAsStateWithLifecycle()
+    val externals by viewModel.externalApps.collectAsStateWithLifecycle()
+    val catalog by viewModel.catalog.collectAsStateWithLifecycle()
 
     MidnightPageScaffold(title = "Home applications", onBack = onBack, modifier = modifier) {
         Column(
@@ -68,9 +71,10 @@ fun HomeWidgetsScreen(
             Spacer(Modifier.height(4.dp))
             appIds.forEachIndexed { index, id ->
                 val spec = HomeApplications.byId(id)?.spec
+                    ?: externals.firstOrNull { it.spec.id == id }?.spec
                 ConfiguredAppRow(
                     name = spec?.name ?: "Missing application",
-                    summary = spec?.summary ?: "$id — no longer installed",
+                    summary = spec?.summary ?: "$id — install it from the widget catalog below",
                     missing = spec == null,
                     first = index == 0,
                     last = index == appIds.lastIndex,
@@ -118,15 +122,134 @@ fun HomeWidgetsScreen(
             ) {
                 Text("Restore default", color = HomeTokens.accent)
             }
+            MidnightSectionDivider()
+            Spacer(Modifier.height(10.dp))
+
+            // M8.4.4 — the DOWNLOADABLE catalog (ps-widget-repo). Widgets
+            // are data manifests (probe + template) rendered by fixed app
+            // code — never downloaded code.
+            MidnightSectionLabel("Widget catalog")
             Text(
-                text = "Future Home applications (Storage, Agents, …) will " +
-                    "appear here when they ship.",
+                text = "Downloadable Home Applications from " +
+                    "github.com/Taha-Raees/ps-widget-repo — data manifests " +
+                    "rendered by the app, never code.",
                 style = MaterialTheme.typography.bodySmall,
                 color = HomeTokens.textDim,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
             )
+            if (catalog.fetching) {
+                Text(
+                    text = "Fetching catalog…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+            } else if (catalog.entries.isEmpty()) {
+                TextButton(
+                    onClick = { viewModel.fetchCatalog() },
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                ) {
+                    Text(
+                        if (catalog.error == null) "Fetch catalog" else "Retry fetch",
+                        color = HomeTokens.accent,
+                    )
+                }
+            } else {
+                val installedIds = externals.map { it.spec.id }.toSet()
+                catalog.entries.forEach { entry ->
+                    CatalogRow(
+                        entry = entry,
+                        installed = entry.id in installedIds,
+                        installing = catalog.installingId == entry.id,
+                        busy = catalog.installingId != null,
+                        onInstall = { viewModel.install(entry) },
+                        onRemove = { viewModel.removeInstalled(entry.id) },
+                    )
+                }
+            }
+            catalog.error?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.danger,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                )
+            }
+            catalog.lastResult?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/** One catalog entry: install (downloads + validates the manifest) or remove. */
+@Composable
+private fun CatalogRow(
+    entry: app.pocketshell.widget.external.WidgetCatalogEntry,
+    installed: Boolean,
+    installing: Boolean,
+    busy: Boolean,
+    onInstall: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = entry.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = HomeTokens.textPrimary,
+                )
+                Text(
+                    text = "v" + entry.version + " · " + entry.author,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                )
+            }
+            when {
+                installing -> Text(
+                    text = "Installing…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                )
+                installed -> {
+                    Text(
+                        text = "Installed",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.accent,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    TextButton(onClick = onRemove, modifier = Modifier.height(32.dp)) {
+                        Text("Remove", color = HomeTokens.danger, fontSize = 11.sp)
+                    }
+                }
+                else -> TextButton(
+                    onClick = onInstall,
+                    enabled = !busy,
+                    modifier = Modifier.height(32.dp),
+                ) {
+                    Text("Install", color = if (busy) HomeTokens.textDim else HomeTokens.accent)
+                }
+            }
+        }
+        if (entry.summary.isNotBlank()) {
+            Text(
+                text = entry.summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
     }
 }

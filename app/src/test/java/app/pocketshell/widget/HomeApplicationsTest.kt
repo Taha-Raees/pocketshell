@@ -21,11 +21,11 @@ class HomeApplicationsTest {
     }
 
     @Test
-    fun `Servers is the first and default Home application`() {
-        assertEquals("servers", HomeApplications.DEFAULT_ID)
-        assertEquals("servers", HomeApplications.specs.first().id)
-        val resolved = HomeApplications.resolve(HomeApplications.DEFAULT_ID)
-        assertTrue(resolved is HomeApplications.Resolved.Found)
+    fun `Todo is the first and default Home application`() {
+        // M8.4.4: Servers and SSH moved to the downloadable catalog; the
+        // fresh-install default is the local-first application.
+        assertEquals("todo", HomeApplications.DEFAULT_ID)
+        assertTrue(HomeApplications.all.first().spec.id == "todo")
     }
 
     @Test
@@ -44,10 +44,14 @@ class HomeApplicationsTest {
     }
 
     @Test
-    fun `the Servers application copy is agent-vendor agnostic`() {
-        val summary = HomeApplications.specs.first { it.id == "servers" }.summary.lowercase()
-        listOf("claude", "codex", "zcode", "cline", "kilo").forEach { vendor ->
-            assertFalse("copy must not name a vendor: $vendor", summary.contains(vendor))
+    fun `every builtin application copy is agent-vendor agnostic`() {
+        HomeApplications.specs.forEach { spec ->
+            listOf("claude", "codex", "zcode", "cline", "kilo").forEach { vendor ->
+                assertFalse(
+                    "copy must not name a vendor: $vendor in ${spec.id}",
+                    spec.summary.lowercase().contains(vendor),
+                )
+            }
         }
     }
 
@@ -59,18 +63,20 @@ class HomeApplicationsTest {
 
     @Test
     fun `absent corrupt or empty list decodes to the default application`() {
-        assertEquals(listOf("servers"), HomeAppIdCodec.decodeList(raw = null, legacySingle = null))
-        assertEquals(listOf("servers"), HomeAppIdCodec.decodeList(raw = "", legacySingle = null))
-        assertEquals(listOf("servers"), HomeAppIdCodec.decodeList(raw = "not json", legacySingle = null))
-        assertEquals(listOf("servers"), HomeAppIdCodec.decodeList(raw = "[]", legacySingle = null))
+        assertEquals(listOf("todo"), HomeAppIdCodec.decodeList(raw = null, legacySingle = null))
+        assertEquals(listOf("todo"), HomeAppIdCodec.decodeList(raw = "", legacySingle = null))
+        assertEquals(listOf("todo"), HomeAppIdCodec.decodeList(raw = "not json", legacySingle = null))
+        assertEquals(listOf("todo"), HomeAppIdCodec.decodeList(raw = "[]", legacySingle = null))
         assertEquals(
-            listOf("servers"),
+            listOf("todo"),
             HomeAppIdCodec.decodeList(raw = "[\"DROP\",\"..\"]", legacySingle = null),
         )
     }
 
     @Test
     fun `the M8_2 single-application record migrates to a one-entry list`() {
+        // The legacy id is kept verbatim — a stored "servers" keeps its
+        // carousel slot (it resolves as an installed catalog widget).
         assertEquals(
             listOf("servers"),
             HomeAppIdCodec.decodeList(raw = null, legacySingle = "servers"),
@@ -79,14 +85,15 @@ class HomeApplicationsTest {
             listOf("git"),
             HomeAppIdCodec.decodeList(raw = null, legacySingle = "git"),
         )
-        // The list key wins whenever it exists — the legacy key is only a seed.
+        // The list key wins whenever it exists — the legacy key is only a
+        // seed, and the raw list passes through verbatim.
         assertEquals(
             listOf("servers"),
             HomeAppIdCodec.decodeList(raw = "[\"servers\"]", legacySingle = "git"),
         )
         // A corrupt legacy id still lands on the default, never on junk.
         assertEquals(
-            listOf("servers"),
+            listOf("todo"),
             HomeAppIdCodec.decodeList(raw = null, legacySingle = "DROP"),
         )
     }

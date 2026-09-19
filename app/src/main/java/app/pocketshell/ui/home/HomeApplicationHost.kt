@@ -43,6 +43,7 @@ import app.pocketshell.ui.theme.LocalAuroraPhase
 import app.pocketshell.ui.theme.TerminalTheme
 import app.pocketshell.ui.theme.auroraEdge
 import app.pocketshell.widget.HomeAppContext
+import app.pocketshell.widget.HomeApplication
 import app.pocketshell.widget.HomeApplications
 import app.pocketshell.widget.HomeAppStateStore
 import app.pocketshell.widget.WidgetNav
@@ -78,6 +79,7 @@ fun HomeApplicationHost(
     cardSize: CardSize,
     runtimeState: RuntimeState,
     stateStore: HomeAppStateStore,
+    externalApps: List<HomeApplication>,
     selectedAppId: String?,
     onSelectedAppChanged: (String) -> Unit,
     onOpenTerminal: () -> Unit,
@@ -140,7 +142,7 @@ fun HomeApplicationHost(
                 key = appIds::get,
                 pageSpacing = 12.dp,
             ) { page ->
-                when (val resolved = HomeApplications.resolve(appIds[page])) {
+                when (val resolved = HomeApplications.resolve(appIds[page], externalApps)) {
                     is HomeApplications.Resolved.Found ->
                         ApplicationCard(
                             heightDp = height,

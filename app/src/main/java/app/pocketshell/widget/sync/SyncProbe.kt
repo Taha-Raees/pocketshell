@@ -216,6 +216,32 @@ internal class SyncProbe(
      * back in [RunResult.output]; what gets RECORDED is [runRecord]'s
      * one decision (every finished run, OK and FAILED alike).
      */
+    /**
+     * M8.4.4 — the headless PRE-STEP of a run: a LOCAL destination folder
+     * is created if missing (`/bin/mkdir -p`), so a one-tap backup never
+     * fails on "destination does not exist". Remote specs (host:path /
+     * remote:path) are skipped — their backends create containers
+     * themselves. Additive-only is unaffected: mkdir -p creates, removes
+     * nothing.
+     */
+    fun prepare(
+        profile: SyncProfile,
+        timeoutMs: Long = PREPARE_TIMEOUT_MS,
+    ): RunResult {
+        if (SyncProfiles.isRemote(profile.destination)) {
+            return RunResult(exitCode = 0, summary = "remote destination — nothing to prepare")
+        }
+        val out = exec.exec(listOf("/bin/mkdir", "-p", profile.destination), timeoutMs)
+        return when {
+            out.exitCode == 0 -> RunResult(exitCode = 0, summary = "destination ready")
+            else -> RunResult(
+                exitCode = out.exitCode,
+                summary = ("mkdir failed: " + (out.stderr.lineSequence()
+                    .lastOrNull { it.isNotBlank() } ?: "exit ${out.exitCode}")).take(160),
+            )
+        }
+    }
+
     fun runNow(
         profile: SyncProfile,
         rsyncPath: String?,
@@ -300,6 +326,9 @@ internal class SyncProbe(
 
         /** apk add of one backend binary: bounded, network-bound. */
         const val INSTALL_TIMEOUT_MS = 180_000L
+
+        /** One mkdir -p: instant, but bounded like every exec. */
+        const val PREPARE_TIMEOUT_MS = 10_000L
 
         /** The lone "$" — the probe script is a shell script, not a template. */
         private const val D = "$"

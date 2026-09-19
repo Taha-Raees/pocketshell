@@ -3,13 +3,18 @@ package app.pocketshell.widget.external
 import app.pocketshell.widget.probe.ListeningSocket
 import app.pocketshell.widget.probe.StorageScan
 import app.pocketshell.widget.probe.StorageBreakdown
+import app.pocketshell.widget.ssh.SshClientProcess
+import app.pocketshell.widget.ssh.SshHostEntry
 
 /**
  * M8 — the data-only declarative renderer: manifest + probe result → card
  * lines. Pure substitution over FIXED app code — the one piece a future
  * catalog installer plugs validated manifests into. There is no expression
  * language and no command surface: a template can only re-arrange the
- * fields the built-in probe already produced.
+ * fields the built-in probe already produced. Nothing here executes,
+ * connects, opens a file, or reads a manifest-declared path: every branch
+ * consumes the output of its own built-in probe, and a new probe kind can
+ * only ever be added as fixed app code in THIS file.
  */
 object DeclarativeWidgetRenderer {
 
@@ -17,6 +22,21 @@ object DeclarativeWidgetRenderer {
     sealed interface ProbeResult {
         data class Listeners(val sockets: List<ListeningSocket>) : ProbeResult
         data class Storage(val breakdown: StorageBreakdown) : ProbeResult
+
+        /**
+         * M8.4.4 — the `ssh.guest` primitive's result: live own-UID `ssh`
+         * client processes (argv facts) plus the saved `~/.ssh/config`
+         * hosts. Template fields per row: `target` (destination as typed /
+         * the host alias), `name` (process name / resolved HostName when
+         * the config states one), and `text` (the canonical row: "→ target"
+         * for a running client, the alias for a saved host) — so the schema
+         * default template "{text}" and "{target}" both render honestly.
+         */
+        data class SshGuest(
+            val processes: List<SshClientProcess>,
+            val hosts: List<SshHostEntry>,
+        ) : ProbeResult
+
         data object Unavailable : ProbeResult
     }
 
@@ -65,6 +85,25 @@ object DeclarativeWidgetRenderer {
                     unavailable = false,
                 )
             }
+            is ProbeResult.SshGuest -> {
+                // Live clients first (the connection state), then saved
+                // hosts — the compiled SshApp overview's ordering, as data.
+                val total = result.processes.size + result.hosts.size
+                val rows = (
+                    result.processes.map { process ->
+                        substitute(manifest.card.itemTemplate, processFields(process))
+                    } + result.hosts.map { entry ->
+                        substitute(manifest.card.itemTemplate, hostFields(entry))
+                    }
+                    ).take(manifest.card.maxLines)
+                CardData(
+                    headline = headline,
+                    countLine = if (total == 0) null else "$total hosts",
+                    rows = rows,
+                    empty = total == 0,
+                    unavailable = false,
+                )
+            }
         }
     }
 
@@ -92,5 +131,23 @@ object DeclarativeWidgetRenderer {
             "size" to size,
             "text" to "$label  $size",
         )
+    }
+
+    /** What an ssh client's argv literally says — never enriched. */
+    private fun processFields(process: SshClientProcess): Map<String, String> = mapOf(
+        "target" to process.targetDisplay,
+        "name" to process.processName,
+        "text" to "→ ${process.targetDisplay}",
+    )
+
+    /**
+     * A saved host: `target` is the alias the user invokes ssh with;
+     * `name` (the resolved HostName) is present only when the config
+     * actually states one — an absent field renders as "—", not a guess.
+     */
+    private fun hostFields(entry: SshHostEntry): Map<String, String> = buildMap {
+        put("target", entry.displayName)
+        entry.hostName?.let { put("name", it) }
+        put("text", entry.displayName)
     }
 }

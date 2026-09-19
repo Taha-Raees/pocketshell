@@ -480,7 +480,7 @@ private fun GitOverview(
             // M8.4.3.1 — version + dirty live WITH the title (one line,
             // never a second status area below, never a second "git" word).
             val headerFacts = listOfNotNull(
-                ready?.snapshot?.gitVersion?.let { "git $it" },
+                ready?.snapshot?.gitVersion,
                 if (repos.isNotEmpty()) "${ready?.snapshot?.dirtyRepos ?: 0} DIRTY" else null,
             )
             if (headerFacts.isNotEmpty()) {

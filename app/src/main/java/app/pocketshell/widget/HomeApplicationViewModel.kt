@@ -3,8 +3,15 @@ package app.pocketshell.widget
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.pocketshell.widget.external.ExternalWidgetApplication
+import app.pocketshell.widget.external.WidgetCatalogDownloader
+import app.pocketshell.widget.external.WidgetCatalogEntry
+import app.pocketshell.widget.external.WidgetInstallStore
+import app.pocketshell.widget.external.currentAppVersion
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -81,6 +88,73 @@ class HomeApplicationViewModel(application: Application) : AndroidViewModel(appl
     /** The last application the user looked at (restores the carousel page). */
     val selectedAppId: StateFlow<String?> = repository.selectedAppId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ------------------------------------------------ M8.4.4 widget catalog
+
+    /**
+     * The downloadable-widget pipeline: installed external manifests (each
+     * becomes a HomeApplication) plus the explicit catalog fetch. The
+     * catalog itself is never cached — fetching is a user action in the
+     * Control Center; what IS persisted is the installed set.
+     */
+    private val installStore by lazy { WidgetInstallStore(getApplication()) }
+    private val downloader by lazy { WidgetCatalogDownloader() }
+
+    val externalApps: StateFlow<List<HomeApplication>> = installStore.installed
+        .map { list -> list.map { ExternalWidgetApplication(it) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    data class CatalogUi(
+        val fetching: Boolean = false,
+        val entries: List<WidgetCatalogEntry> = emptyList(),
+        val error: String? = null,
+        val installingId: String? = null,
+        val lastResult: String? = null,
+    )
+
+    private val _catalog = MutableStateFlow(CatalogUi())
+    val catalog: StateFlow<CatalogUi> = _catalog
+
+    fun fetchCatalog() {
+        if (_catalog.value.fetching) return
+        viewModelScope.launch {
+            _catalog.value = _catalog.value.copy(fetching = true, error = null)
+            when (val result = downloader.fetch()) {
+                is WidgetCatalogDownloader.CatalogResult.Done ->
+                    _catalog.value = _catalog.value.copy(fetching = false, entries = result.catalog.widgets)
+                is WidgetCatalogDownloader.CatalogResult.Failed ->
+                    _catalog.value = _catalog.value.copy(fetching = false, error = result.reason)
+            }
+        }
+    }
+
+    fun install(entry: WidgetCatalogEntry) {
+        if (_catalog.value.installingId != null) return
+        viewModelScope.launch {
+            _catalog.value = _catalog.value.copy(installingId = entry.id, lastResult = null)
+            when (
+                val result = downloader.fetchManifest(
+                    entry.file,
+                    entry.id,
+                    currentAppVersion(getApplication()),
+                )
+            ) {
+                is WidgetCatalogDownloader.ManifestResult.Done -> {
+                    installStore.install(result.manifest)
+                    _catalog.value = _catalog.value.copy(
+                        installingId = null,
+                        lastResult = "${result.manifest.name} ${result.manifest.version} installed",
+                    )
+                }
+                is WidgetCatalogDownloader.ManifestResult.Failed ->
+                    _catalog.value = _catalog.value.copy(installingId = null, lastResult = result.reason)
+            }
+        }
+    }
+
+    fun removeInstalled(id: String) {
+        viewModelScope.launch { installStore.remove(id) }
+    }
 
     fun select(id: String) {
         if (HomeApplications.byId(id) == null) return

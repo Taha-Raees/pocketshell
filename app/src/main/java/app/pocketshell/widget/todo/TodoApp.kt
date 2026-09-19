@@ -281,7 +281,9 @@ private fun TodoContent(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Header — the application's title bar, both densities.
+        // Header — the title and the section tabs share ONE row (user
+        // decision, M8.4.3.1): the tabs are the card's only counter and
+        // now they live with the title they count for.
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Text(
                 text = "Todo",
@@ -290,22 +292,6 @@ private fun TodoContent(
                 color = HomeTokens.textPrimary,
             )
             Spacer(Modifier.weight(1f))
-        }
-
-        // The inline add field — one tap + type + enter. Always on top,
-        // in every section, so adding never costs a navigation.
-        Spacer(Modifier.height(2.dp))
-        AddTaskField(
-            input = input,
-            onInput = onInput,
-            onSubmit = onSubmit,
-        )
-        HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
-
-        // Section tabs — counts are real, per section, always honest —
-        // and they are the ONE counter in the card (for the active list).
-        Spacer(Modifier.height(3.dp))
-        Row(modifier = Modifier.fillMaxWidth()) {
             TodoSection.entries.forEach { s ->
                 val count = when (s) {
                     TodoSection.TODAY -> today.size
@@ -321,10 +307,20 @@ private fun TodoContent(
                     color = if (active) HomeTokens.accent else HomeTokens.textDim,
                     modifier = Modifier
                         .clickable(role = Role.Tab) { onSection(s) }
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
                 )
             }
         }
+
+        // The inline add field — one tap + type + enter. Always on top,
+        // in every section, so adding never costs a navigation.
+        Spacer(Modifier.height(2.dp))
+        AddTaskField(
+            input = input,
+            onInput = onInput,
+            onSubmit = onSubmit,
+        )
+        HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
 
         // Rows — always scrolling, never capped: every task is reachable.
         // fill = false: a short list leaves NO dead middle — the content

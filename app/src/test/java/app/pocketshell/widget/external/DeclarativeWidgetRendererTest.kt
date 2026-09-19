@@ -3,6 +3,9 @@ package app.pocketshell.widget.external
 import app.pocketshell.widget.probe.ListeningSocket
 import app.pocketshell.widget.probe.StorageScan
 import app.pocketshell.widget.probe.StorageSubtree
+import app.pocketshell.widget.ssh.SshArgvTarget
+import app.pocketshell.widget.ssh.SshClientProcess
+import app.pocketshell.widget.ssh.SshHostEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -103,5 +106,98 @@ class DeclarativeWidgetRendererTest {
             ),
         )
         assertEquals(1, card.rows.size)
+    }
+
+    // ------------------------------------------------------- ssh.guest (M8.4.4)
+
+    private val ssh = WidgetManifest(
+        id = "ssh", name = "SSH", version = "1.0.0",
+        capabilities = listOf("guest.ready"),
+        probe = WidgetManifest.Probe("ssh.guest"),
+        card = WidgetManifest.Card(headline = "SSH", emptyLine = "No hosts yet", itemTemplate = "{text}", maxLines = 3),
+    )
+
+    private val client = SshClientProcess(
+        pid = 42,
+        processName = "ssh",
+        target = SshArgvTarget(user = "root", host = "web1", port = 2222, destinationRaw = "root@web1"),
+    )
+
+    private val host = SshHostEntry(
+        patterns = listOf("web"),
+        hostName = "web.example.com",
+        user = "root",
+        port = 22,
+        identityFiles = emptyList(),
+        wildcard = false,
+    )
+
+    private val hostWithoutName = SshHostEntry(
+        patterns = listOf("db"),
+        hostName = null,
+        user = null,
+        port = null,
+        identityFiles = emptyList(),
+        wildcard = false,
+    )
+
+    @Test
+    fun `ssh guest rows list running clients then saved hosts`() {
+        val card = DeclarativeWidgetRenderer.render(
+            ssh,
+            DeclarativeWidgetRenderer.ProbeResult.SshGuest(processes = listOf(client), hosts = listOf(host)),
+        )
+        assertEquals(listOf("→ root@web1", "web"), card.rows)
+        assertEquals("2 hosts", card.countLine)
+        assertTrue(!card.empty)
+        assertTrue(!card.unavailable)
+    }
+
+    @Test
+    fun `ssh guest templates substitute target and name fields`() {
+        val templated = ssh.copy(card = ssh.card.copy(itemTemplate = "{target} ({name})"))
+        val card = DeclarativeWidgetRenderer.render(
+            templated,
+            DeclarativeWidgetRenderer.ProbeResult.SshGuest(
+                processes = listOf(client),
+                hosts = listOf(host, hostWithoutName),
+            ),
+        )
+        // An absent HostName renders as the placeholder — never a guess.
+        assertEquals(listOf("root@web1 (ssh)", "web (web.example.com)", "db (—)"), card.rows)
+    }
+
+    @Test
+    fun `an empty ssh guest renders the manifest empty line`() {
+        val card = DeclarativeWidgetRenderer.render(
+            ssh,
+            DeclarativeWidgetRenderer.ProbeResult.SshGuest(processes = emptyList(), hosts = emptyList()),
+        )
+        assertTrue(card.empty)
+        assertEquals(null, card.countLine)
+        assertTrue(card.rows.isEmpty())
+    }
+
+    @Test
+    fun `ssh guest maxLines caps across processes and hosts`() {
+        val card = DeclarativeWidgetRenderer.render(
+            ssh,
+            DeclarativeWidgetRenderer.ProbeResult.SshGuest(
+                processes = listOf(client, client.copy(pid = 43)),
+                hosts = listOf(host, hostWithoutName),
+            ),
+        )
+        assertEquals(3, card.rows.size)
+        assertEquals("4 hosts", card.countLine)
+    }
+
+    @Test
+    fun `ssh guest unavailability is stated - never dressed up as data`() {
+        val card = DeclarativeWidgetRenderer.render(
+            ssh,
+            DeclarativeWidgetRenderer.ProbeResult.Unavailable,
+        )
+        assertTrue(card.unavailable)
+        assertTrue(card.rows.isEmpty())
     }
 }

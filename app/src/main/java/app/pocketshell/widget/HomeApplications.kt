@@ -4,7 +4,6 @@ import app.pocketshell.widget.git.GitApp
 import app.pocketshell.widget.notes.NotesApp
 import app.pocketshell.widget.storage.StorageApp
 import app.pocketshell.widget.sync.SyncApp
-import app.pocketshell.widget.ssh.SshApp
 import app.pocketshell.widget.todo.TodoApp
 
 /**
@@ -25,15 +24,23 @@ object HomeApplications {
     const val SSH_ID = "ssh"
     const val TODO_ID = "todo"
 
-    /** The card's default application on fresh install / restore. */
-    const val DEFAULT_ID: String = SERVERS_ID
+    /**
+     * M8.4.4 — the default application on fresh install / restore. Servers
+     * moved to the DOWNLOADABLE catalog (ps-widget-repo), so the default is
+     * the local-first app that never needs the guest or the network.
+     */
+    const val DEFAULT_ID: String = TODO_ID
 
+    /**
+     * The BUILT-IN applications. Servers and SSH are no longer here: they
+     * are the pilot DOWNLOADABLE widgets — installed from the widget
+     * repository (catalog.json) and resolved through the installed-external
+     * store before this builtin list is consulted.
+     */
     val all: List<HomeApplication> = listOf(
-        ServersApp,
-        GitApp,
-        SshApp,
         TodoApp,
         NotesApp,
+        GitApp,
         StorageApp,
         SyncApp,
     )
@@ -47,12 +54,19 @@ object HomeApplications {
      * The persisted application id → the application, or Missing (an id
      * that no longer resolves — stated, never substituted; identical
      * discipline to every persisted id in this codebase).
+     *
+     * Installed EXTERNAL widgets resolve first (M8.4.4): the host passes
+     * the installed-manifest applications it owns; a builtin id can never
+     * be shadowed by an external one because install ids outside the
+     * builtin vocabulary are rejected at install time.
      */
     sealed interface Resolved {
         data class Found(val application: HomeApplication) : Resolved
         data class Missing(val id: String) : Resolved
     }
 
-    fun resolve(id: String): Resolved =
-        byId(id)?.let { Resolved.Found(it) } ?: Resolved.Missing(id)
+    fun resolve(id: String, externals: List<HomeApplication> = emptyList()): Resolved =
+        (externals.firstOrNull { it.spec.id == id } ?: byId(id))
+            ?.let { Resolved.Found(it) }
+            ?: Resolved.Missing(id)
 }
