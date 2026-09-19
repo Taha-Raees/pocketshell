@@ -4652,3 +4652,76 @@ pass until then (no fake success).
 ### THEMES
 - [ ] Aurora + one edge theme across all seven apps — no hardcoded
       colors introduced (source-pinned).
+
+## §71 — M8.4.3 gate: functional expansion (Git inspection surface · Todo lists/edit/priority · Notes timestamps/sections · Storage analyzer copy · Sync result model)
+
+Build under gate: `agent-L/m8.4-home-apps`, M8.4.3-L.apk (sha256 in
+ARTIFACT_NAMING §5 at delivery). Principle under test: these are small
+SINGLE-PAGE APPLICATIONS, not status widgets — high density, scrolling,
+direct actions, no empty canvases. Device: SM-T870 only
+(`adb -s R52R30PEZDY`), UNLOCKED (the S7 lock blocked §70's capture; do
+not repeat that mistake — confirm `wm dismiss-keyguard` works or the
+user unlocks first).
+
+### GIT (inspection surface; mutations stay terminal)
+- [ ] Pane shows RECENT commits (≤5: hash, subject; author · relative
+      time subline) for the selected repo.
+- [ ] Tapping a commit opens COMMIT DETAIL (full hash, author, date,
+      subject, changed-file stats) via ONE manual exec; back caches it;
+      switching commits re-execs.
+- [ ] Tapping a changed file on the repo detail opens DIFF (staged →
+      `--cached` path, unstaged → worktree path), monospace, bounded at
+      400 lines with an honest "+N truncated" line.
+- [ ] BRANCHES section: current marked, locals with upstream + track;
+      REMOTES section: name + URL. Empty sections render nothing.
+- [ ] Conflicted entries get a CONFLICTS group above STAGED/UNSTAGED
+      with terminal guidance.
+- [ ] Probe stays ONE batched exec, bounded (5 commits/12 branches/6
+      remotes caps); 15s timeout holds; failures degrade per-section.
+- [ ] Read-only contract extended: show/diff argv pinned as read verbs.
+- [ ] Scroll through all sections: no refresh, no state reset.
+
+### TODO (task manager)
+- [ ] LIST chips row (default "My tasks"); + creates a list inline;
+      list delete asks ("Delete list 'X' and its N tasks?") and is
+      unreachable from the chip itself; default list undeletable.
+- [ ] Old store migrates: existing tasks land in the default list;
+      tasks missing/unknown listId decode to default.
+- [ ] Tap task text → inline edit (Done saves; emptied text deletes);
+      priority cycles H/N/L ("!" accent when HIGH); TODAY sorts
+      starred → HIGH → newest.
+- [ ] Per-tab counts remain the ONE count (per active list); delete/
+      star/archive still work; persistence across kill/relaunch.
+
+### NOTES
+- [ ] Relative timestamps on rows/editor ("now/5m/2h/3d/short date");
+      boundaries unit-pinned.
+- [ ] PINNED section label when pins exist; groups keep sort order.
+- [ ] Empty state is one title + one hint line (no paragraph).
+
+### STORAGE (analyzer)
+- [ ] Category pages carry WHY + CONSEQUENCE copy; guest-cache page
+      lists each tool cache sorted by size, per-row terminal guidance;
+      card still never deletes guest files.
+- [ ] Package-cache page shows "N files · largest: name (size)" from
+      the SAME walk (no second walk — pinned).
+- [ ] CLEAR shows "Freed X (N files) · cache now Y" with honest
+      re-measure gap; overview status line remains the one totals place.
+
+### SYNC (control surface)
+- [ ] Rows carry status markers: ○ never run / ✓ OK / ✕ FAILED — driven
+      by REAL exit codes; FAILED runs are persisted too (not just OK).
+- [ ] Detail: "Last run: <relative> · OK (exit 0)" + stats line where
+      parsed (rsync files/bytes; rclone when present; else nothing).
+- [ ] VERIFY action: zero-change dry run → "up to date (verified …)";
+      pending changes → count; no false "up to date" without evidence.
+- [ ] Empty state actionable + one short line; additive-only contract
+      pins still green (no --delete, rclone copy, never deletes).
+
+### SHARED
+- [ ] Shared HomeAppControls adopted where apps touch actions; sizes
+      consistent (28dp icon hits; labelled actions 11sp).
+- [ ] Last-used app restore + per-app state preservation unaffected
+      (M8.4.2 contract — regression check).
+- [ ] Theme sweep: Aurora + one edge theme on Git/Todo/Notes/Storage/
+      Sync — no hardcoded colors.

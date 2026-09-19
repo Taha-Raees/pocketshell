@@ -84,6 +84,9 @@ class HomeApplicationViewModel(application: Application) : AndroidViewModel(appl
 
     fun select(id: String) {
         if (HomeApplications.byId(id) == null) return
+        // The settled-page flow re-emits the current page on every Home
+        // entry — skip the DataStore write when nothing actually changed.
+        if (selectedAppId.value == id) return
         viewModelScope.launch { repository.setSelectedAppId(id) }
     }
 }
