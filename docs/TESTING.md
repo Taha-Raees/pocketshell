@@ -4524,3 +4524,57 @@ run on SM-T870 (Android 13) — every adb command pinned
       source-pinned).
 - [ ] Portrait + landscape; COMPACT vs ROOMY thresholds (inner
       420×200dp) per app's layout contract tests.
+
+## §69 — M8.4.1 gate: user-feedback iteration (Sync RUN NOW + backend install · always-scrollable cards · count dedupe)
+
+Build under gate: `agent-L/m8.4-home-apps`, M8.4.1-L.apk (sha256 in
+ARTIFACT_NAMING §5). Trigger: the user's own M8.4 device pass reported
+"sync not working", "clean not working", cards not vertically
+scrollable, and duplicated counts (Todo showed its total twice).
+Laptop-side: full JVM suite 1509/1509 green (6 new SyncProbe run/install
+tests; the v1 "no real run" contract REWRITTEN to the additive-only run
+contract). Device: SM-T870 only, `adb -s R52R30PEZDY`.
+
+### SYNC / BACKUP — "sync not working" fixes
+- [ ] Detail page shows an INSTALL button when the profile's backend is
+      absent; tapping runs `/sbin/apk add` in the guest (bounded 180 s)
+      and the real apk output (or its failure) is shown — then the scan
+      refreshes and shows the installed path/version.
+- [ ] Detail page shows RUN NOW when the backend is present; the run is
+      ADDITIVE-ONLY (rsync `-a --info=stats1 -- src dst`; rclone `copy`)
+      with the honest caption "Adds and updates at the destination —
+      never deletes."
+- [ ] RUN NOW executes a REAL copy into the guest (verify with a Linux
+      shell `ls` at the destination); on exit 0 the profile records
+      LAST RUN (timestamp + summary); a non-zero exit shows the tool's
+      real stderr; the run is bounded (10 min) and its UI ticks.
+- [ ] DRY RUN preview still works and never writes (destination mtimes
+      unchanged).
+
+### STORAGE — "clean not working" verification
+- [ ] Package cache CLEAR two-step flow actually reclaims (record before/
+      after bytes from the card's own numbers + `du` in the guest shell).
+- [ ] Re-measure after clear shows the reclaim; CLEAR on an empty cache
+      is honest (nothing to clear).
+
+### SCROLLABILITY (all 7 applications)
+- [ ] Every overview rows area scrolls in COMPACT and ROOMY (Servers ·
+      Git · SSH · Todo · Notes · Storage · Sync); no "+N more" label
+      exists anymore — every row is reachable inside the card.
+- [ ] Detail pages scroll (Servers/Git/SSH/Todo if present/Notes/
+      Storage/Sync detail; Sync form scrolls).
+
+### NO DUPLICATED COUNTS (all 7 applications)
+- [ ] Each application shows each number in exactly ONE place: Servers
+      (COMPACT header count XOR ROOMY status header), Git (same rule),
+      SSH (header hosts count; status header processes; footer only the
+      KNOWN-HOST entries + honesty note), Todo (per-section tab counts
+      only — the footer block is gone), Notes (header count only),
+      Storage (ROOMY status header USED/RECLAIMABLE; footer gone),
+      Sync (ROOMY status header; footer gone).
+
+### REGRESSION SPOT-CHECKS
+- [ ] Todo add/complete/star/archive/restore + persistence still work
+      after the layout changes; Notes create/pin/search unaffected.
+- [ ] Themes: Aurora + at least one edge theme (Nord) across the four
+      M8.4 apps — no hardcoded colors introduced.

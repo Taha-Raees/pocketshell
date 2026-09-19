@@ -201,10 +201,9 @@ object NotesApp : HomeApplication() {
  */
 internal enum class NotesLayout(
     val showsPreview: Boolean,
-    val showsFooter: Boolean,
 ) {
-    COMPACT(showsPreview = false, showsFooter = false),
-    ROOMY(showsPreview = true, showsFooter = true);
+    COMPACT(showsPreview = false),
+    ROOMY(showsPreview = true);
 
     companion object {
         const val ROOMY_MIN_WIDTH_DP = 420f
@@ -282,17 +281,7 @@ private fun NotesList(
         }
 
         // Footer statistics — roomy cards only.
-        if (layout.showsFooter && notes.isNotEmpty()) {
-            Text(
-                text = "${notes.size} NOTES · $pinnedCount PINNED",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 10.sp,
-                color = HomeTokens.textDim,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-
-        Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(4.dp))
         // The honest state line, every density, every theme.
         val stateLine = when {
             notes.isEmpty() -> "Nothing captured"

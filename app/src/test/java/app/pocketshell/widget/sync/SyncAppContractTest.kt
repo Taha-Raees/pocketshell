@@ -181,19 +181,26 @@ class SyncAppContractTest {
     }
 
     @Test
-    fun `the dry-run flags are structural - v1 cannot perform a real run`() {
+    fun `the run is additive-only - the destructive modes are unreachable`() {
         val raw = source("SyncProbe.kt")
+        // The dry-run preview flags are unchanged.
         assertTrue("rsync previews use -n", raw.contains("\"-n\""))
         assertTrue("rsync previews itemize", raw.contains("\"--itemize-changes\""))
         assertTrue("rclone previews dry-run", raw.contains("\"--dry-run\""))
         assertTrue("rclone previews report to stdout", raw.contains("\"--combined\""))
-        // And the UI names the action honestly.
+        // The RUN path (RUN NOW) is additive-only by construction:
+        // rsync archives with stats and gets no delete flag; rclone runs
+        // "copy", never "sync" (which deletes extraneous files).
+        assertTrue("rsync run reports stats1", raw.contains("\"--info=stats1\""))
+        assertFalse(
+            "--delete must never appear anywhere in the probe source",
+            raw.contains("--delete"),
+        )
+        // And the UI names the actions honestly.
         val app = source("SyncApp.kt")
         assertTrue(app.contains("DRY RUN"))
-        assertFalse(
-            "no Run-now control exists in v1",
-            app.contains("\"RUN NOW\""),
-        )
+        assertTrue("a RUN NOW control exists", app.contains("\"RUN NOW\""))
+        assertTrue(app.contains("never deletes"))
     }
 
     // ------------------------------------------------------ 4. secret safety

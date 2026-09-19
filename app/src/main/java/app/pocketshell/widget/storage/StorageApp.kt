@@ -329,14 +329,11 @@ private fun StorageOverview(
         }
         Spacer(Modifier.height(6.dp))
 
-        // Rows — the four real categories; scroll where useful.
+        // Rows — the four real categories; scrolling so nothing clips.
         Column(
             modifier = Modifier
                 .weight(1f)
-                .then(
-                    if (layout.scrollsRows) Modifier.verticalScroll(rememberScrollState())
-                    else Modifier,
-                ),
+                .verticalScroll(rememberScrollState()),
         ) {
             StorageCategory.entries.forEachIndexed { index, category ->
                 Column(
@@ -378,18 +375,6 @@ private fun StorageOverview(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-        }
-
-        // Footer statistics — roomy cards only.
-        if (layout.showsFooter && snapshot != null) {
-            Text(
-                text = "USED ${StorageScan.formatBytes(totalHostBytes(snapshot))} · " +
-                    "RECLAIMABLE ${StorageScan.formatBytes(reclaimable)}",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 10.sp,
-                color = HomeTokens.textDim,
-                modifier = Modifier.padding(top = 4.dp),
-            )
         }
 
         Spacer(Modifier.height(4.dp))

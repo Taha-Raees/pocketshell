@@ -170,6 +170,15 @@ labels is deferred to the integration layer; agent builds never touch it.
 - tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
 - device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §64 RESULTS recorded in docs/TESTING.md (A/B/D/E/F/G pass; C honest-degrade verified with the platform boundary proven closed: procfs app+guest EACCES, netlink sock_diag EACCES; aurora idle-draw cost attributed to pre-existing Control Center II)
 
+### M8.4.1-L.apk
+- date:        2026-09-19
+- git:         agent-L/m8.4-home-apps (iteration on top of the M8.4 commit; see worklog Task 62)
+- agent:       L — Agent L (ZCode)
+- workstream:  M8.4.1 — user-feedback iteration: Sync RUN NOW (additive-only) + backend install; always-scrollable cards (no row caps, "+N more" removed); count dedupe across all 7 Home Applications
+- apk sha256:  d6c9edabd061a2a731811b1eeed26644f3c91121a2b3782f32e629f36e4e0b83
+- tests:       full :app JVM suite 1509/1509 green (6 new SyncProbe run/install tests; v1 no-run contract rewritten to the additive-only contract); :app:assembleDebug green
+- device gate: PENDING — §69 checklist written (TESTING.md); awaiting the S7 on ADB.
+
 ### M8.4-L.apk
 - date:        2026-09-19
 - git:         agent-L/m8.4-home-apps (branch tip; see worklog Task 61)

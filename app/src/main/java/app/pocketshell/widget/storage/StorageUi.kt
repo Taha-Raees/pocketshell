@@ -28,16 +28,14 @@ internal enum class StorageCategory(
 /**
  * The responsive contract — the card geometry is identical to the Servers
  * and Git applications, so the device-derived thresholds carry over:
- * COMPACT keeps one-line rows; ROOMY adds the status header, the footer
- * statistics and scrolling rows. Pure + JVM-tested (StorageUiTest).
+ * COMPACT keeps one-line rows; ROOMY adds the status header. The four
+ * category rows scroll at both densities. Pure + JVM-tested (StorageUiTest).
  */
 internal enum class StorageLayout(
     val showsStatusHeader: Boolean,
-    val showsFooter: Boolean,
-    val scrollsRows: Boolean,
 ) {
-    COMPACT(showsStatusHeader = false, showsFooter = false, scrollsRows = false),
-    ROOMY(showsStatusHeader = true, showsFooter = true, scrollsRows = true);
+    COMPACT(showsStatusHeader = false),
+    ROOMY(showsStatusHeader = true);
 
     companion object {
         const val ROOMY_MIN_WIDTH_DP = 420f

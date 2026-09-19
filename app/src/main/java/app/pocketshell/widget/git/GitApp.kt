@@ -213,13 +213,9 @@ internal fun scanToUi(result: ScanResult): GitUi = when (result) {
 internal enum class GitLayout(
     val showsPath: Boolean,
     val showsStatusHeader: Boolean,
-    val showsFooter: Boolean,
-    val scrollsRows: Boolean,
 ) {
-    COMPACT(showsPath = false, showsStatusHeader = false, showsFooter = false, scrollsRows = false),
-    ROOMY(showsPath = true, showsStatusHeader = true, showsFooter = true, scrollsRows = true);
-
-    val maxRows: Int get() = if (this == ROOMY) Int.MAX_VALUE else 3
+    COMPACT(showsPath = false, showsStatusHeader = false),
+    ROOMY(showsPath = true, showsStatusHeader = true);
 
     companion object {
         const val ROOMY_MIN_WIDTH_DP = 420f
@@ -256,7 +252,7 @@ private fun GitOverview(
                 color = HomeTokens.textPrimary,
             )
             Spacer(Modifier.weight(1f))
-            if (repos.isNotEmpty()) {
+            if (repos.isNotEmpty() && layout == GitLayout.COMPACT) {
                 Text(
                     text = "${repos.size} repos",
                     fontFamily = TerminalTheme.mono,
@@ -280,18 +276,14 @@ private fun GitOverview(
         }
         Spacer(Modifier.height(6.dp))
 
-        // Rows — discovered repositories only; scroll where useful, cap where not.
-        val visible = repos.take(layout.maxRows)
-        if (visible.isNotEmpty()) {
+        // Rows — discovered repositories only; always scrolling, never capped.
+        if (repos.isNotEmpty()) {
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .then(
-                        if (layout.scrollsRows) Modifier.verticalScroll(rememberScrollState())
-                        else Modifier,
-                    ),
+                    .verticalScroll(rememberScrollState()),
             ) {
-                visible.forEachIndexed { index, repo ->
+                repos.forEachIndexed { index, repo ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -330,18 +322,9 @@ private fun GitOverview(
                             )
                         }
                     }
-                    if (index != visible.lastIndex) {
+                    if (index != repos.lastIndex) {
                         HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
                     }
-                }
-                if (repos.size > visible.size) {
-                    Text(
-                        text = "+${repos.size - visible.size} more",
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 11.sp,
-                        color = HomeTokens.textDim,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
                 }
             }
         } else {
@@ -349,17 +332,7 @@ private fun GitOverview(
         }
 
         // Footer statistics — roomy cards only.
-        if (layout.showsFooter && repos.isNotEmpty()) {
-            Text(
-                text = "${repos.size} REPOS · ${ready?.snapshot?.dirtyRepos ?: 0} DIRTY",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 10.sp,
-                color = HomeTokens.textDim,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-
-        Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(4.dp))
         // The honest state line, every density, every theme.
         val stateLine = when {
             ui is GitUi.Probing -> "Looking…"

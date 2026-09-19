@@ -126,6 +126,12 @@ object SyncApp : HomeApplication() {
         // Manual dry run: one tick = one bounded guest exec.
         var previewTick by remember { mutableStateOf(0) }
         var previewUi by remember { mutableStateOf<PreviewUi>(PreviewUi.Idle) }
+        // M8.4.1 — the REAL run (additive-only) and the backend install:
+        // one user tap = one bounded exec, result recorded as a fact.
+        var runTick by remember { mutableStateOf(0) }
+        var runUi by remember { mutableStateOf<RunUi>(RunUi.Idle) }
+        var installTick by remember { mutableStateOf(0) }
+        var installUi by remember { mutableStateOf<RunUi>(RunUi.Idle) }
         val scope = rememberCoroutineScope()
         val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -194,6 +200,45 @@ object SyncApp : HomeApplication() {
         LaunchedEffect(detailId) {
             previewUi = PreviewUi.Idle
             previewTick = 0
+            runUi = RunUi.Idle
+        }
+
+        // M8.4.1 — the REAL run: additive-only (rsync -a without --delete;
+        // rclone copy, never "sync"), bounded, then the run FACT is
+        // recorded into the profile (lastRunMs/lastRunSummary) — a run
+        // that happened is a fact the card keeps.
+        LaunchedEffect(runTick) {
+            if (runTick == 0) return@LaunchedEffect
+            val profile = detailId?.let { id -> profilesRef.value.firstOrNull { it.id == id } }
+                ?: return@LaunchedEffect
+            val snapshot = (ui as? SyncUi.Ready)?.snapshot ?: return@LaunchedEffect
+            runUi = RunUi.Running
+            val result = withContext(Dispatchers.IO) {
+                probe.runNow(profile, snapshot.rsync.path, snapshot.rclone.path)
+            }
+            runUi = RunUi.Done(result)
+            if (result.exitCode == 0) {
+                repository.add(
+                    profile.copy(
+                        lastRunMs = SyncRepository.now(),
+                        lastRunSummary = result.summary,
+                    ),
+                )
+            }
+        }
+
+        // M8.4.1 — install a missing backend with the guest's own apk
+        // (one bounded `apk add`), then re-probe so availability flips.
+        LaunchedEffect(installTick) {
+            if (installTick == 0) return@LaunchedEffect
+            val profile = detailId?.let { id -> profilesRef.value.firstOrNull { it.id == id } }
+                ?: return@LaunchedEffect
+            installUi = RunUi.Running
+            val result = withContext(Dispatchers.IO) {
+                probe.installBackend(profile.backend)
+            }
+            installUi = RunUi.Done(result)
+            runScan(profilesRef.value)
         }
 
         // The manual dry run — one tick, one bounded exec, result assigned
@@ -234,6 +279,10 @@ object SyncApp : HomeApplication() {
                     status = ready?.snapshot?.pairs?.getOrNull(profiles.indexOf(selected)),
                     snapshot = ready?.snapshot,
                     previewUi = previewUi,
+                    runUi = runUi,
+                    onRunNow = { runTick++ },
+                    installUi = installUi,
+                    onInstall = { installTick++ },
                     roomy = layout == SyncLayout.ROOMY,
                     maxEntries = if (layout == SyncLayout.ROOMY) {
                         SyncLayout.DETAIL_MAX_ENTRIES_ROOMY
@@ -309,6 +358,13 @@ internal sealed interface PreviewUi {
     data class Done(val result: DryRunResult) : PreviewUi
 }
 
+/** The REAL run's UI state (M8.4.1 — additive-only run, recorded facts). */
+internal sealed interface RunUi {
+    data object Idle : RunUi
+    data object Running : RunUi
+    data class Done(val result: RunResult) : RunUi
+}
+
 /**
  * The responsive contract — same geometry as GitLayout (the card
  * dimensions are identical, so the device-derived thresholds carry over):
@@ -318,13 +374,9 @@ internal sealed interface PreviewUi {
 internal enum class SyncLayout(
     val showsSubline: Boolean,
     val showsStatusHeader: Boolean,
-    val showsFooter: Boolean,
-    val scrollsRows: Boolean,
 ) {
-    COMPACT(showsSubline = false, showsStatusHeader = false, showsFooter = false, scrollsRows = false),
-    ROOMY(showsSubline = true, showsStatusHeader = true, showsFooter = true, scrollsRows = true);
-
-    val maxRows: Int get() = if (this == ROOMY) Int.MAX_VALUE else 3
+    COMPACT(showsSubline = false, showsStatusHeader = false),
+    ROOMY(showsSubline = true, showsStatusHeader = true);
 
     companion object {
         const val ROOMY_MIN_WIDTH_DP = 420f
@@ -384,18 +436,14 @@ private fun SyncOverview(
         }
         Spacer(Modifier.height(6.dp))
 
-        // Rows — the user's profiles; scroll where useful, cap where not.
-        val visible = profiles.take(layout.maxRows)
-        if (visible.isNotEmpty()) {
+        // Rows — the user's profiles; always scrolling, never capped.
+        if (profiles.isNotEmpty()) {
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .then(
-                        if (layout.scrollsRows) Modifier.verticalScroll(rememberScrollState())
-                        else Modifier,
-                    ),
+                    .verticalScroll(rememberScrollState()),
             ) {
-                visible.forEachIndexed { index, profile ->
+                profiles.forEachIndexed { index, profile ->
                     val status = ready?.snapshot?.pairs?.getOrNull(profiles.indexOf(profile))
                     Column(
                         modifier = Modifier
@@ -439,18 +487,9 @@ private fun SyncOverview(
                             )
                         }
                     }
-                    if (index != visible.lastIndex) {
+                    if (index != profiles.lastIndex) {
                         HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
                     }
-                }
-                if (profiles.size > visible.size) {
-                    Text(
-                        text = "+${profiles.size - visible.size} more",
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 11.sp,
-                        color = HomeTokens.textDim,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
                 }
             }
         } else {
@@ -458,17 +497,7 @@ private fun SyncOverview(
         }
 
         // Footer — roomy cards only.
-        if (layout.showsFooter && profiles.isNotEmpty()) {
-            Text(
-                text = "${profiles.size} PROFILES · NEVER RUN",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 10.sp,
-                color = HomeTokens.textDim,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-
-        Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(4.dp))
         // The honest state line, every density, every theme.
         val bothMissing = ready != null &&
             ready.snapshot.rsync.path == null &&
@@ -544,6 +573,10 @@ private fun SyncDetail(
     status: PathPairStatus?,
     snapshot: SyncSnapshot?,
     previewUi: PreviewUi,
+    runUi: RunUi,
+    onRunNow: () -> Unit,
+    installUi: RunUi,
+    onInstall: () -> Unit,
     roomy: Boolean,
     maxEntries: Int,
     onBack: () -> Unit,
@@ -624,18 +657,74 @@ private fun SyncDetail(
             Text(
                 text = when (profile.backend) {
                     SyncBackend.RSYNC ->
-                        "rsync is not installed in the guest — install it from the Linux Shell (apk add rsync)."
+                        "rsync is not installed in the guest."
                     SyncBackend.RCLONE ->
-                        "rclone is not installed in the guest — install it from the Linux Shell " +
-                            "(apk add rclone; it lives in the community repository)."
+                        "rclone is not installed in the guest (community repository)."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = HomeTokens.textDim,
                 modifier = Modifier.padding(top = 2.dp),
             )
+            when (val iu = installUi) {
+                RunUi.Running -> Text(
+                    text = "Installing ${profile.backend.name.lowercase()} (apk add)…",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 11.sp,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                is RunUi.Done -> Text(
+                    text = iu.result.summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (iu.result.exitCode == 0) HomeTokens.accent else HomeTokens.danger,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                else -> TextButton(onClick = onInstall, modifier = Modifier.height(34.dp)) {
+                    Text(
+                        "INSTALL ${profile.backend.name.lowercase().uppercase()}",
+                        fontFamily = TerminalTheme.mono,
+                        color = HomeTokens.accent,
+                    )
+                }
+            }
         }
 
-        // The dry-run preview area — the one action this card performs.
+        // M8.4.1 — RUN NOW: the real, additive-only copy (rsync -a without
+        // --delete; rclone copy, never "sync"). The dry-run preview above
+        // is how the user verifies first; this records the run FACT.
+        Spacer(Modifier.height(6.dp))
+        when (val ru = runUi) {
+            RunUi.Running -> Text(
+                text = "RUNNING — copying (additive only)…",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 11.sp,
+                color = HomeTokens.accent,
+            )
+            is RunUi.Done -> Text(
+                text = ru.result.summary,
+                fontFamily = TerminalTheme.mono,
+                fontSize = 10.sp,
+                color = if (ru.result.exitCode == 0) HomeTokens.runningGreen else HomeTokens.danger,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            else -> {}
+        }
+        if (backendStatus?.path != null && runUi !is RunUi.Running) {
+            TextButton(onClick = onRunNow, modifier = Modifier.height(34.dp)) {
+                Text("RUN NOW", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
+            }
+        }
+        if (backendStatus?.path != null) {
+            Text(
+                text = "Adds and updates at the destination — never deletes.",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+            )
+        }
+
+        // The dry-run preview area — verify before you run.
         Spacer(Modifier.height(4.dp))
         when (val p = previewUi) {
             PreviewUi.Idle -> if (backendStatus?.path != null) {
@@ -992,7 +1081,7 @@ private fun pathStateText(remote: Boolean, exists: Boolean?): String = when {
 }
 
 private fun lastRunText(profile: SyncProfile): String {
-    val ms = profile.lastRunMs ?: return "never run (this card only previews)"
+    val ms = profile.lastRunMs ?: return "never run"
     val summary = profile.lastRunSummary ?: return "ran at $ms"
     return "ran at $ms · $summary"
 }

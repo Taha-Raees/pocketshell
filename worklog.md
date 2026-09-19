@@ -3460,3 +3460,46 @@ Control Center, and carousel host already scale (M8.2/M8.3 design paid off).
   (c22de450b68a56a3f9cbdeeb88b2cccfe0edbe2f81a5bae5dbdb20c9c0d4ee68).
   Device gate §68 written (TESTING.md); DEVICE PENDING — the S7 dropped
   off ADB before the gate; §68 is ready to execute on reconnect.
+
+## Task 62 — M8.4.1: user-feedback iteration on the four M8.4 applications (Agent L, 2026-09-19)
+
+Trigger: the user device-tested M8.4-L and reported: "sync not working,
+clean not working, widget app should be vertically scrollable for all
+widget … make sure on widget nothing duplicates like on Todo I see two
+places where I see no of total item in list." One-by-one rework, test at
+the end.
+
+- SYNC "not working" — root cause: v1 shipped DRY-RUN-ONLY (the run was
+  deliberately deferred in Task 61 as "a Home card has no safe progress/
+  confirm UX"); to a user that is "sync does not sync". Fix (additive-
+  only, contract-pinned): SyncProbe.runNow — rsync
+  `-a --info=stats1 -- src dst` and rclone `copy src dst` (NEVER
+  `sync`, which deletes; no `--delete` anywhere — pinned by
+  SyncAppContractTest over the raw source). Specs ride as direct argv.
+  SyncApp: RUN NOW (bounded 10 min, ticking UI, honest exit/stderr
+  summary, LAST RUN persisted on exit 0) + INSTALL button when the
+  backend is absent (`/sbin/apk add`, bounded 3 min, real apk output
+  shown, scan refresh after). 6 new SyncProbe tests; the old "v1 cannot
+  run" contract test rewritten to the additive-only contract.
+- STORAGE "clean not working" — the clear flow itself was sound; the
+  user-visible failure was no scroll + no feedback inside the fixed
+  card. Rows now always scroll (below); clear flow to be re-verified on
+  device in §69 with before/after numbers.
+- SCROLLABILITY — real defect found: COMPACT cards hard-capped rows
+  (maxRows 2–3) behind a NON-clickable "+N more" label — rows beyond
+  the cap were unreachable, i.e. "not scrollable". Fix: every overview
+  rows area now verticalScroll at BOTH densities with no cap (Servers,
+  Git, SSH, Todo, Storage, Sync; Notes was already a LazyColumn);
+  scrollsRows/maxRows deleted from all six layout enums + tests. Detail
+  pages already scrolled; Sync form scrolls.
+- NO-DUPLICATE COUNTS — removed every second rendering of a number:
+  Todo footer block (the user's exact report), Sync footer, Notes
+  footer, Git footer, Servers footer ("N PORTS · M PROCESSES" dup'd the
+  header/status count), Storage footer (dup'd the ROOMY USED/RECLAIMABLE
+  header line); Servers/Git header counts now COMPACT-only (ROOMY has
+  the status header). SSH footer keeps only what nothing else says
+  (KNOWN-HOST entries + Include/Match honesty note). showsFooter
+  deleted from all enums except SSH.
+- FULL SUITE 1509/1509 green. APK M8.4.1-L
+  (d6c9edabd061a2a731811b1eeed26644f3c91121a2b3782f32e629f36e4e0b83).
+  Device gate §69 written; DEVICE PENDING the S7 on ADB.

@@ -160,20 +160,17 @@ internal sealed interface SshUi {
 
 /**
  * The responsive contract — the same shape (and the same inner-dp
- * thresholds) as the reference ServersLayout: COMPACT keeps one-line rows
- * capped at three; ROOMY adds sublines, the status header, footer
- * statistics and scrolling.
+ * thresholds) as the reference ServersLayout: COMPACT hides sublines;
+ * ROOMY adds sublines, the status header and the footer statistics.
+ * The rows area scrolls at BOTH densities with no row cap.
  */
 internal enum class SshLayout(
     val showsSublines: Boolean,
     val showsStatusHeader: Boolean,
     val showsFooter: Boolean,
-    val scrollsRows: Boolean,
 ) {
-    COMPACT(showsSublines = false, showsStatusHeader = false, showsFooter = false, scrollsRows = false),
-    ROOMY(showsSublines = true, showsStatusHeader = true, showsFooter = true, scrollsRows = true);
-
-    val maxRows: Int get() = if (this == ROOMY) Int.MAX_VALUE else 3
+    COMPACT(showsSublines = false, showsStatusHeader = false, showsFooter = false),
+    ROOMY(showsSublines = true, showsStatusHeader = true, showsFooter = true);
 
     companion object {
         const val ROOMY_MIN_WIDTH_DP = 420f
@@ -242,18 +239,13 @@ private fun SshOverview(
         // Rows — active clients first (the live state), then saved hosts.
         val total = processes.size + hosts.size
         if (total > 0) {
-            val activeShown = processes.take(layout.maxRows)
-            val hostShown = hosts.take((layout.maxRows - activeShown.size).coerceAtLeast(0))
-            val shown = activeShown.size + hostShown.size
+            val hostShown = hosts
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .then(
-                        if (layout.scrollsRows) Modifier.verticalScroll(rememberScrollState())
-                        else Modifier,
-                    ),
+                    .verticalScroll(rememberScrollState()),
             ) {
-                activeShown.forEach { proc ->
+                processes.forEach { proc ->
                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
@@ -316,37 +308,28 @@ private fun SshOverview(
                         HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
                     }
                 }
-                if (total > shown) {
-                    Text(
-                        text = "+${total - shown} more",
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 11.sp,
-                        color = HomeTokens.textDim,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
             }
         } else {
             Spacer(Modifier.weight(1f))
         }
 
-        // Footer statistics — roomy cards only.
+        // Footer — only what no other line already says: the known-hosts
+        // count and the parser's honesty note. Host and process counts live
+        // in the header/status header alone.
         if (layout.showsFooter && total > 0) {
             val parts = mutableListOf<String>()
-            if (hosts.isNotEmpty()) parts += "${hosts.size} HOSTS"
             snapshot?.knownHosts?.let {
                 parts += it.entries.let { n -> "$n KNOWN-HOST ${if (n == 1) "ENTRY" else "ENTRIES"}" }
             }
-            if (processes.isNotEmpty()) {
-                parts += processes.size.let { if (it == 1) "1 PROCESS" else "$it PROCESSES" }
+            if (parts.isNotEmpty()) {
+                Text(
+                    text = parts.joinToString(" · "),
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 10.sp,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
-            Text(
-                text = parts.joinToString(" · "),
-                fontFamily = TerminalTheme.mono,
-                fontSize = 10.sp,
-                color = HomeTokens.textDim,
-                modifier = Modifier.padding(top = 4.dp),
-            )
             if (snapshot != null && (snapshot.includesIgnored > 0 || snapshot.matchBlocksIgnored > 0)) {
                 Text(
                     text = "Include/Match directives are not followed",

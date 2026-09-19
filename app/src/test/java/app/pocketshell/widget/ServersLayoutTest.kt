@@ -21,22 +21,16 @@ class ServersLayoutTest {
         val layout = ServersLayout.from(320f, 240f)
         assertFalse(layout.showsCwd)
         assertFalse(layout.showsStatusHeader)
-        assertFalse(layout.showsFooter)
-        assertFalse(layout.scrollsRows)
-        assertEquals(3, layout.maxRows)
     }
 
     @Test
-    fun `a tablet card is ROOMY - status header, directories, footer, scroll`() {
+    fun `a tablet card is ROOMY - status header, directories, scroll`() {
         // Tablet content width up to 720−40dp; INNER height 240dp·1.0−32.
         assertEquals(ServersLayout.ROOMY, ServersLayout.from(680f, 208f))
         assertEquals(ServersLayout.ROOMY, ServersLayout.from(420f, 251f)) // LARGE card size
         val layout = ServersLayout.ROOMY
         assertTrue(layout.showsCwd)
         assertTrue(layout.showsStatusHeader)
-        assertTrue(layout.showsFooter)
-        assertTrue(layout.scrollsRows)
-        assertEquals(Int.MAX_VALUE, layout.maxRows)
     }
 
     @Test

@@ -22,22 +22,16 @@ class GitLayoutTest {
         val layout = GitLayout.from(320f, 240f)
         assertFalse(layout.showsPath)
         assertFalse(layout.showsStatusHeader)
-        assertFalse(layout.showsFooter)
-        assertFalse(layout.scrollsRows)
-        assertEquals(3, layout.maxRows)
     }
 
     @Test
-    fun `a tablet card is ROOMY - status header, paths, footer, scroll`() {
+    fun `a tablet card is ROOMY - status header, paths, scroll`() {
         // Tablet content width up to 720−40dp; INNER height 240dp·1.0−32.
         assertEquals(GitLayout.ROOMY, GitLayout.from(680f, 208f))
         assertEquals(GitLayout.ROOMY, GitLayout.from(420f, 251f)) // LARGE card size
         val layout = GitLayout.ROOMY
         assertTrue(layout.showsPath)
         assertTrue(layout.showsStatusHeader)
-        assertTrue(layout.showsFooter)
-        assertTrue(layout.scrollsRows)
-        assertEquals(Int.MAX_VALUE, layout.maxRows)
     }
 
     @Test

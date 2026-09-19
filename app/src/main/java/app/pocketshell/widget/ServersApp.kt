@@ -172,13 +172,9 @@ internal sealed interface ServersUi {
 internal enum class ServersLayout(
     val showsCwd: Boolean,
     val showsStatusHeader: Boolean,
-    val showsFooter: Boolean,
-    val scrollsRows: Boolean,
 ) {
-    COMPACT(showsCwd = false, showsStatusHeader = false, showsFooter = false, scrollsRows = false),
-    ROOMY(showsCwd = true, showsStatusHeader = true, showsFooter = true, scrollsRows = true);
-
-    val maxRows: Int get() = if (this == ROOMY) Int.MAX_VALUE else 3
+    COMPACT(showsCwd = false, showsStatusHeader = false),
+    ROOMY(showsCwd = true, showsStatusHeader = true);
 
     companion object {
         const val ROOMY_MIN_WIDTH_DP = 420f
@@ -211,7 +207,7 @@ private fun ServersOverview(
                 color = HomeTokens.textPrimary,
             )
             Spacer(Modifier.weight(1f))
-            if (servers.isNotEmpty()) {
+            if (servers.isNotEmpty() && layout == ServersLayout.COMPACT) {
                 Text(
                     text = "${servers.size} running",
                     fontFamily = TerminalTheme.mono,
@@ -241,18 +237,14 @@ private fun ServersOverview(
         }
         Spacer(Modifier.height(6.dp))
 
-        // Rows — verified servers only; scroll where useful, cap where not.
-        val visible = servers.take(layout.maxRows)
-        if (visible.isNotEmpty()) {
+        // Rows — verified servers only; always scrolling, never capped.
+        if (servers.isNotEmpty()) {
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .then(
-                        if (layout.scrollsRows) Modifier.verticalScroll(rememberScrollState())
-                        else Modifier,
-                    ),
+                    .verticalScroll(rememberScrollState()),
             ) {
-                visible.forEachIndexed { index, server ->
+                servers.forEachIndexed { index, server ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -289,33 +281,13 @@ private fun ServersOverview(
                             )
                         }
                     }
-                    if (index != visible.lastIndex) {
+                    if (index != servers.lastIndex) {
                         HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
                     }
-                }
-                if (servers.size > visible.size) {
-                    Text(
-                        text = "+${servers.size - visible.size} more",
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 11.sp,
-                        color = HomeTokens.textDim,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
                 }
             }
         } else {
             Spacer(Modifier.weight(1f))
-        }
-
-        // Footer statistics — roomy cards only.
-        if (layout.showsFooter && servers.isNotEmpty()) {
-            Text(
-                text = "${servers.size} PORTS · ${servers.count { it.pid != null }} PROCESSES",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 10.sp,
-                color = HomeTokens.textDim,
-                modifier = Modifier.padding(top = 4.dp),
-            )
         }
 
         Spacer(Modifier.height(4.dp))

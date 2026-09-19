@@ -68,18 +68,14 @@ class StorageUiTest {
         assertEquals(StorageLayout.COMPACT, StorageLayout.from(390f, 172f))
         val layout = StorageLayout.COMPACT
         assertFalse(layout.showsStatusHeader)
-        assertFalse(layout.showsFooter)
-        assertFalse(layout.scrollsRows)
     }
 
     @Test
-    fun `a tablet card is ROOMY - status header, footer, scroll`() {
+    fun `a tablet card is ROOMY - status header, scroll`() {
         assertEquals(StorageLayout.ROOMY, StorageLayout.from(680f, 208f))
         assertEquals(StorageLayout.ROOMY, StorageLayout.from(420f, 251f))
         val layout = StorageLayout.ROOMY
         assertTrue(layout.showsStatusHeader)
-        assertTrue(layout.showsFooter)
-        assertTrue(layout.scrollsRows)
     }
 
     @Test

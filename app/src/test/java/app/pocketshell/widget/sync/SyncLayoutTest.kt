@@ -18,20 +18,14 @@ class SyncLayoutTest {
         assertEquals(SyncLayout.COMPACT, layout)
         assertFalse(layout.showsSubline)
         assertFalse(layout.showsStatusHeader)
-        assertFalse(layout.showsFooter)
-        assertFalse(layout.scrollsRows)
-        assertEquals(3, layout.maxRows)
     }
 
     @Test
-    fun `tablet-sized cards are ROOMY - sublines, header, footer, scrolling`() {
+    fun `tablet-sized cards are ROOMY - sublines, header, scrolling`() {
         val layout = SyncLayout.from(widthDp = 720f, heightDp = 208f)
         assertEquals(SyncLayout.ROOMY, layout)
         assertTrue(layout.showsSubline)
         assertTrue(layout.showsStatusHeader)
-        assertTrue(layout.showsFooter)
-        assertTrue(layout.scrollsRows)
-        assertEquals(Int.MAX_VALUE, layout.maxRows)
     }
 
     @Test

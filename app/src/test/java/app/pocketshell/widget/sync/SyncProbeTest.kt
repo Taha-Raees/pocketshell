@@ -257,4 +257,87 @@ class SyncProbeTest {
         assertTrue(result is DryRunResult.Failed)
         assertEquals("NOTICE: Config file not found", (result as DryRunResult.Failed).reason)
     }
+
+    // ------------------------------------------------------- run now (M8.4.1)
+
+    @Test
+    fun `run now rsync - additive archive argv, no delete flag, bounded`() {
+        val recorder = RecordingExec(
+            exec(stdout = "sending incremental file list\ntotal size is 1,234  speedup is 1.00\n"),
+        )
+        val result = probe(recorder).runNow(
+            sampleProfile(source = "/root/my dir", destination = "/mnt/backup"),
+            rsyncPath = "/usr/bin/rsync",
+            rclonePath = null,
+        )
+        assertEquals(
+            listOf("/usr/bin/rsync", "-a", "--info=stats1", "--", "/root/my dir", "/mnt/backup"),
+            recorder.argvs.single(),
+        )
+        assertEquals(SyncProbe.RUN_TIMEOUT_MS, recorder.timeouts.single())
+        assertEquals(0, result.exitCode)
+        assertTrue(result.summary.contains("exit 0"))
+        // The summary's fact line is the tool's last real output line — the
+        // busywork header is skipped, the number is not.
+        assertTrue(result.summary.contains("total size is 1,234"))
+        assertFalse(result.summary.contains("sending incremental"))
+        // The additive contract, pinned at the argv level too.
+        assertTrue(recorder.argvs.single().none { it.contains("delete") })
+    }
+
+    @Test
+    fun `run now rclone - copy, never sync`() {
+        val recorder = RecordingExec(exec(stdout = "Transferred: 0 B\n"))
+        val result = probe(recorder).runNow(
+            sampleProfile(backend = SyncBackend.RCLONE, destination = "gdrive:backup"),
+            rsyncPath = null,
+            rclonePath = "/usr/bin/rclone",
+        )
+        assertEquals(
+            listOf("/usr/bin/rclone", "copy", "/root/project", "gdrive:backup"),
+            recorder.argvs.single(),
+        )
+        assertEquals(0, result.exitCode)
+    }
+
+    @Test
+    fun `run now with an absent backend fails honestly - nothing is spawned`() {
+        val recorder = RecordingExec(exec())
+        val result = probe(recorder).runNow(sampleProfile(), rsyncPath = null, rclonePath = null)
+        assertNull(result.exitCode)
+        assertTrue(result.summary.contains("not installed"))
+        assertTrue(recorder.argvs.isEmpty())
+    }
+
+    @Test
+    fun `a non-zero run reports the exit and the tool's stderr`() {
+        val recorder = RecordingExec(exec(ok = false, stderr = "rsync: change_dir \"/mnt\" failed\n"))
+        val result = probe(recorder).runNow(sampleProfile(), rsyncPath = "/usr/bin/rsync", rclonePath = null)
+        assertEquals(1, result.exitCode)
+        assertTrue(result.summary.contains("exit 1"))
+        assertTrue(result.summary.contains("rsync: change_dir"))
+    }
+
+    // -------------------------------------------------- install (M8.4.1)
+
+    @Test
+    fun `install backend - apk add exact argv and honest success`() {
+        val recorder = RecordingExec(exec(stdout = "OK: 42 packages upgraded, 3 newly installed\n"))
+        val result = probe(recorder).installBackend(SyncBackend.RSYNC)
+        assertEquals(listOf("/sbin/apk", "add", "rsync"), recorder.argvs.single())
+        assertEquals(SyncProbe.INSTALL_TIMEOUT_MS, recorder.timeouts.single())
+        assertEquals(0, result.exitCode)
+        assertTrue(result.summary.contains("installed"))
+        assertTrue(result.summary.contains("OK: 42 packages"))
+    }
+
+    @Test
+    fun `a failed install reports apk's real stderr`() {
+        val recorder = RecordingExec(exec(ok = false, stderr = "ERROR: unable to select packages\n"))
+        val result = probe(recorder).installBackend(SyncBackend.RCLONE)
+        assertEquals(listOf("/sbin/apk", "add", "rclone"), recorder.argvs.single())
+        assertEquals(1, result.exitCode)
+        assertTrue(result.summary.contains("rclone install failed"))
+        assertTrue(result.summary.contains("ERROR: unable to select packages"))
+    }
 }

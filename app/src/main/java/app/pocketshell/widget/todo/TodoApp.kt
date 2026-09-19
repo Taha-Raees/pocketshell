@@ -140,19 +140,13 @@ internal enum class TodoSection(val label: String) {
 
 /**
  * The responsive contract — the same shape and inner-dp thresholds as
- * the reference ServersLayout: COMPACT caps rows at two plus "+N more"
- * (the card carries an input + tab row its siblings lack, so the honest
- * row budget is two); ROOMY adds the footer statistics and scrolling.
+ * the reference ServersLayout. The rows area scrolls at BOTH densities
+ * with no row cap — a row must never be unreachable inside the card.
  * Pure + JVM-tested (TodoLayoutTest).
  */
-internal enum class TodoLayout(
-    val showsFooter: Boolean,
-    val scrollsRows: Boolean,
-) {
-    COMPACT(showsFooter = false, scrollsRows = false),
-    ROOMY(showsFooter = true, scrollsRows = true);
-
-    val maxRows: Int get() = if (this == ROOMY) Int.MAX_VALUE else 2
+internal enum class TodoLayout {
+    COMPACT,
+    ROOMY;
 
     companion object {
         const val ROOMY_MIN_WIDTH_DP = 420f
@@ -239,18 +233,14 @@ private fun TodoContent(
             }
         }
 
-        // Rows — capped + "+N more" in COMPACT, scrolling in ROOMY.
-        val visible = list.take(layout.maxRows)
-        if (visible.isNotEmpty()) {
+        // Rows — always scrolling, never capped: every task is reachable.
+        if (list.isNotEmpty()) {
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .then(
-                        if (layout.scrollsRows) Modifier.verticalScroll(rememberScrollState())
-                        else Modifier,
-                    ),
+                    .verticalScroll(rememberScrollState()),
             ) {
-                visible.forEach { task ->
+                list.forEach { task ->
                     TodoRow(
                         task = task,
                         section = section,
@@ -260,32 +250,13 @@ private fun TodoContent(
                         onRestore = { onRestore(task.id) },
                     )
                 }
-                if (list.size > visible.size) {
-                    Text(
-                        text = "+${list.size - visible.size} more",
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 11.sp,
-                        color = HomeTokens.textDim,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
             }
         } else {
             Spacer(Modifier.weight(1f))
         }
 
         // Footer statistics — roomy cards only.
-        if (layout.showsFooter && tasks != null) {
-            Text(
-                text = "${today.size} OPEN · ${done.size} DONE · ${archived.size} ARCHIVED",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 10.sp,
-                color = HomeTokens.textDim,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-
-        Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(2.dp))
         // The honest state line, every density, every theme.
         Text(
             text = when {

@@ -61,6 +61,12 @@ internal sealed interface DryRunResult {
     data class Failed(val reason: String) : DryRunResult
 }
 
+/** One REAL run's recorded truth: the exit code plus one honest stats line. */
+internal data class RunResult(
+    val exitCode: Int?,
+    val summary: String,
+)
+
 /**
  * The stateful snapshotter — the GitProbe shape exactly: it owns no
  * lifecycle truth; the application's lifecycle-aware collect decides WHEN
@@ -187,6 +193,75 @@ internal class SyncProbe(
         else -> DryRunResult.Done(parse(out.stdout))
     }
 
+    /**
+     * M8.4.1 — a REAL run of one profile. ADDITIVE-ONLY by contract:
+     *
+     *   rsync  -a --info=stats1 -- <src> <dst>   (no delete flag: adds and
+     *            updates at the destination; never removes)
+     *   rclone  copy <src> <dst>                  (rclone "sync" DELETES
+     *            extraneous destination files — "copy" is the additive
+     *            shape and is what this action uses)
+     *
+     * The specs ride as direct argv elements — no shell, nothing to
+     * escape. Bounded by [RUN_TIMEOUT_MS]; a timeout destroys the process
+     * and is reported as the failure it is.
+     */
+    fun runNow(
+        profile: SyncProfile,
+        rsyncPath: String?,
+        rclonePath: String?,
+        timeoutMs: Long = RUN_TIMEOUT_MS,
+    ): RunResult {
+        val backendPath = when (profile.backend) {
+            SyncBackend.RSYNC -> rsyncPath
+            SyncBackend.RCLONE -> rclonePath
+        } ?: return RunResult(
+            exitCode = null,
+            summary = when (profile.backend) {
+                SyncBackend.RSYNC -> "rsync is not installed (apk add rsync)"
+                SyncBackend.RCLONE -> "rclone is not installed (apk add rclone)"
+            },
+        )
+        val argv = when (profile.backend) {
+            SyncBackend.RSYNC -> listOf(
+                backendPath, "-a", "--info=stats1", "--", profile.source, profile.destination,
+            )
+            SyncBackend.RCLONE -> listOf(
+                backendPath, "copy", profile.source, profile.destination,
+            )
+        }
+        val out = exec.exec(argv, timeoutMs)
+        val fact = (out.stdout.lineSequence() + out.stderr.lineSequence())
+            .filter { it.isNotBlank() }
+            .lastOrNull { !it.startsWith("sending incremental") }
+            ?.take(120)
+        return RunResult(
+            exitCode = out.exitCode,
+            summary = "exit ${out.exitCode}" + (fact?.let { " · $it" } ?: ""),
+        )
+    }
+
+    /**
+     * M8.4.1 — install a missing backend with the guest's own apk (one
+     * bounded exec; needs the guest's network — the real apk output is
+     * the honest result, whatever it is).
+     */
+    fun installBackend(backend: SyncBackend, timeoutMs: Long = INSTALL_TIMEOUT_MS): RunResult {
+        val pkg = when (backend) {
+            SyncBackend.RSYNC -> "rsync"
+            SyncBackend.RCLONE -> "rclone"
+        }
+        val out = exec.exec(listOf("/sbin/apk", "add", pkg), timeoutMs)
+        val lastLine = (out.stdout.lineSequence() + out.stderr.lineSequence())
+            .lastOrNull { it.isNotBlank() } ?: ""
+        val detail = when {
+            out.exitCode == 0 -> "installed · ${lastLine.take(120)}"
+            else -> "${pkg} install failed: " +
+                (out.stderr.lineSequence().lastOrNull { it.isNotBlank() } ?: "exit ${out.exitCode}")
+        }.take(160)
+        return RunResult(exitCode = out.exitCode, summary = detail)
+    }
+
     companion object {
 
         /** Bounded: a full guest round-trip (proot + version calls + N stats). */
@@ -204,6 +279,12 @@ internal class SyncProbe(
 
         /** Minimum space between full guest execs on an open, watched card. */
         const val AUTO_RESCAN_MS = 20_000L
+
+        /** A real run walks/copies the real tree — the most generous bound. */
+        const val RUN_TIMEOUT_MS = 600_000L
+
+        /** apk add of one backend binary: bounded, network-bound. */
+        const val INSTALL_TIMEOUT_MS = 180_000L
 
         /** The lone "$" — the probe script is a shell script, not a template. */
         private const val D = "$"
