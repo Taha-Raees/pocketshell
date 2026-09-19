@@ -3595,3 +3595,68 @@ FULL SUITE 1532/1532 green (23 new/updated tests across todo/notes/
 storage/sync/git + registry + repository pins). APK M8.4.2-L
 (eb6eaf63c27b8df604187349e56717e10b6990c6d0ea0e2d763fe512a7b5872d).
 Device gate §70 written; DEVICE PENDING (no device on adb at delivery).
+
+## Task 64 — M8.4.3: functional expansion — "stop under-scoping the Home Applications" (Agent L, orchestrator, 2026-09-19)
+
+Trigger: the user's M8.4.3 brief over the installed M8.4.2 video — Git/Notes/
+Sync were status widgets, not applications. "Limited space = density +
+hierarchy + scrolling + direct actions." New orchestration law from the
+user mid-round: SUBAGENTS NEVER RUN GRADLE — the orchestrator owns every
+build/test (see memory subagents-no-gradle; the four agents had been
+contending for the shared daemon).
+
+T0 dispatch (all four in parallel, concrete plans, strict ownership):
+- GIT (subagent): probe extended in the SAME batched exec with bounded
+  @@LOG (5 commits), @@BRANCHES (12), @@REMOTES (6) sections; pure
+  parsers with defensive caps; manual-only `git show --stat` (commit
+  page) and `git diff [--cached]` (diff page, 400-line/200-char cap with
+  honest "+N truncated"), hash regex-gated, paths as argv after `--`,
+  serial-guarded so stale execs never overwrite newer requests; pane
+  gains RECENT / BRANCHES / REMOTES sections and a CONFLICTS group above
+  staged/unstaged (conflicts render exactly once); detail rows tap into
+  diffs; read-only contract extended + pinned. Verified marker protocol
+  against a real scratch repo.
+- TODO+NOTES (subagent): Todo = real task manager — multiple lists
+  (todo_lists key; default "My tasks" undeletable; delete confirms with
+  task count), chip picker, inline task edit (emptied edit = delete),
+  H/N/L priority ("!" accent when HIGH; starred→HIGH→newest sort), per-
+  list 200-task cap; old stores migrate (missing/unknown listId →
+  default; priority → "N"). Notes: relativeTime pure helper + row/editor
+  timestamps, PINNED/NOTES sections, one-line actionable empty state.
+- STORAGE (subagent): category pages carry WHY + CONSEQUENCE copy
+  (single-sourced); guest caches break down per tool, size-sorted;
+  apk-cache census (file count + largest file) collected by the SAME
+  NOFOLLOW walk; clear flow now renders the whole arc "Freed X (N files)
+  · cache now Y / re-measuring…".
+- SYNC (subagent): run history recorded from REAL exits (OK and FAILED
+  both; exit-less interruption records nothing); profile gains
+  lastResult/lastExit/lastStats with safe migration (M8.4.1's
+  run-without-result shape = recorded success); status glyphs ○✓✕;
+  STATUS row + relative time; stats parsed from rsync stats1/rclone
+  output (pure parsers, realistic fixtures); VERIFY = dry-run verdict
+  (zero-change error-free ⇒ "up to date", pending ⇒ count, errors ⇒
+  inconclusive — never a false "up to date"); actionable empty state.
+
+ORCHESTRATOR LANE (in parallel): shared HomeAppControls
+(IconAction/LabelledAction/SectionLabel — adopted by Todo/Notes);
+select() no-op-write skip; §71 checklist; house appearance defaults
+(small text, small icons, large card, 4 icons/row; columns 2–8 in
+Settings; explicit stored choices still win).
+
+REVIEW + CORRECTIONS (orchestrator-run tests, per the new law):
+- Storage: diff-ACCEPTED; suite run blocked at the time by siblings'
+  transient test-file errors (new playbook lesson: test compile is
+  module-wide).
+- Git: diff-ACCEPTED (argv guards + serial guard verified in review);
+  capLines dropped a trailing newline-terminated empty line → 2 test
+  failures; fixed by the orchestrator (drop-one-trailing-empty in
+  capLines — inside-lines preserved).
+- Todo+Notes: suites green after the agent's self-caught `const val`
+  fixes; adopted the shared primitives unprompted.
+- Sync: one backtick-name with dots (compile) fixed by orchestrator;
+  its own migration contract collided with an older byte-for-byte
+  round-trip test — updated to assert the migration explicitly.
+
+FULL SUITE 1641/1641 (orchestrator). APK M8.4.3-L
+(359511959289df429ac8c875f82cd47001298ca7893030c0818e6e162399c62c),
+installed on SM-T870 + cold-started; §71 user-led pass in progress.

@@ -4656,7 +4656,8 @@ pass until then (no fake success).
 ## §71 — M8.4.3 gate: functional expansion (Git inspection surface · Todo lists/edit/priority · Notes timestamps/sections · Storage analyzer copy · Sync result model)
 
 Build under gate: `agent-L/m8.4-home-apps`, M8.4.3-L.apk (sha256 in
-ARTIFACT_NAMING §5 at delivery). Principle under test: these are small
+ARTIFACT_NAMING §5: 35951195…). Full suite at delivery: 1641/1641
+(orchestrator-run — M8.4.3 rule: subagents never run gradle). Principle under test: these are small
 SINGLE-PAGE APPLICATIONS, not status widgets — high density, scrolling,
 direct actions, no empty canvases. Device: SM-T870 only
 (`adb -s R52R30PEZDY`), UNLOCKED (the S7 lock blocked §70's capture; do
