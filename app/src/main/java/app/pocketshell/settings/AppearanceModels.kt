@@ -56,6 +56,8 @@ enum class IconColumns(val label: String, val requested: Int) {
     FOUR("4", 4),
     FIVE("5", 5),
     SIX("6", 6),
+    SEVEN("7", 7),
+    EIGHT("8", 8),
 }
 
 object HomeGridDensity {
@@ -76,9 +78,9 @@ object HomeGridDensity {
     /** AUTO's comfort target on top of the icon (≈110dp cells at default 52dp icons). */
     const val AUTO_CELL_COMFORT_DP = 58f
 
-    /** Column bounds — brief §5: 2..6, whatever the width genuinely fits. */
+    /** Column bounds — whatever the width genuinely fits (M8.4.3: 8 max). */
     const val MIN_COLUMNS = 2
-    const val MAX_COLUMNS = 6
+    const val MAX_COLUMNS = 8
 
     /** Cell width a column of [iconTileDp] icons needs at minimum. */
     fun minCellWidthDp(iconTileDp: Int): Float = iconTileDp + CELL_PADDING_DP
@@ -185,15 +187,21 @@ fun themeModeIsDark(mode: ThemeMode, systemInDark: Boolean): Boolean = when (mod
     ThemeMode.DARK -> true
 }
 
-/** Parser helpers for the discrete appearance enums (unknown → default). */
+/** Parser helpers for the discrete appearance enums.
+ *
+ * M8.4.3 — the ABSENT-key (or unknown-value) fallback is the HOUSE
+ * DEFAULT APPEARANCE: small text, small icons, large cards, 4 icons per
+ * row. An explicitly stored value is returned verbatim, never
+ * overwritten — the user's own choice always wins.
+ */
 fun parseTextScale(raw: String?): TextScale =
-    TextScale.entries.firstOrNull { it.name == raw } ?: TextScale.DEFAULT
+    TextScale.entries.firstOrNull { it.name == raw } ?: TextScale.SMALL
 
 fun parseIconSize(raw: String?): IconSize =
-    IconSize.entries.firstOrNull { it.name == raw } ?: IconSize.DEFAULT
+    IconSize.entries.firstOrNull { it.name == raw } ?: IconSize.SMALL
 
 fun parseCardSize(raw: String?): CardSize =
-    CardSize.entries.firstOrNull { it.name == raw } ?: CardSize.DEFAULT
+    CardSize.entries.firstOrNull { it.name == raw } ?: CardSize.LARGE
 
 fun parseIconColumns(raw: String?): IconColumns =
-    IconColumns.entries.firstOrNull { it.name == raw } ?: IconColumns.AUTO
+    IconColumns.entries.firstOrNull { it.name == raw } ?: IconColumns.FOUR

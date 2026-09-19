@@ -219,6 +219,47 @@ class NotesAppContractTest {
     // ------------------------------------------------------------ 6. honesty
 
     @Test
+    fun `pinned notes read as a labeled group - not just invisible sorting`() {
+        val raw = source("NotesApp.kt")
+        val literals = stringLiterals(raw)
+        assertTrue(
+            "the pinned group must be labeled (the shared SectionLabel primitive)",
+            literals.contains("PINNED") && literals.contains("NOTES"),
+        )
+        assertTrue(
+            "the group labels come from the shared primitive, not a hand-rolled Text",
+            stripCommentsAndStrings(raw).contains("SectionLabel("),
+        )
+    }
+
+    @Test
+    fun `notes show how long ago they were touched - rows and editor`() {
+        val raw = source("NotesApp.kt")
+        assertTrue(
+            "rows and editor read the pure relativeTime op",
+            stripCommentsAndStrings(raw).contains("NoteOps.relativeTime("),
+        )
+        assertTrue(
+            "the badge lives on the row's right edge and beside the editor's pin/delete controls",
+            stripCommentsAndStrings(source("NotesModel.kt")).contains("fun relativeTime("),
+        )
+    }
+
+    @Test
+    fun `the empty state is short and actionable - no paragraph, no dead middle`() {
+        val literals = stringLiterals(source("NotesApp.kt"))
+        assertTrue(
+            "the empty state names the action",
+            literals.contains("No notes yet") &&
+                literals.contains("Tap + to capture a command, a path, an idea."),
+        )
+        assertFalse(
+            "the old two-line paragraph is gone — the empty state is two short lines",
+            literals.any { it.contains("Jot a command") || it == "Nothing captured" },
+        )
+    }
+
+    @Test
     fun `the card never claims markdown or rich rendering`() {
         val literals = stringLiterals(source("NotesApp.kt"))
         val banned = listOf("markdown", "rich text", "formatted", "syntax")

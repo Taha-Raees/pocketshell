@@ -1,5 +1,7 @@
 package app.pocketshell.widget.notes
 
+import java.util.Calendar
+import java.util.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -7,9 +9,18 @@ import org.junit.Test
 
 /**
  * M8.4 — the pure notes core: pin-first display ordering, search
- * filtering, and the list mutations. Deterministic: no clock, no IO.
+ * filtering, the list mutations and (M8.4.3) the relative-time badge.
+ * Deterministic: no clock, no IO — time arrives as parameters.
  */
 class NotesOpsTest {
+
+    private val utc: TimeZone = TimeZone.getTimeZone("UTC")
+
+    private fun utcEpoch(year: Int, month: Int, day: Int, hour: Int = 12): Long =
+        Calendar.getInstance(utc).apply {
+            clear()
+            set(year, month - 1, day, hour, 0, 0)
+        }.timeInMillis
 
     private fun note(
         id: String,
@@ -145,5 +156,76 @@ class NotesOpsTest {
         assertEquals("first", NoteOps.previewLine("\n  first  \nsecond\n"))
         assertEquals("", NoteOps.previewLine("   \n\t\n"))
         assertEquals("", NoteOps.previewLine(""))
+    }
+
+    // -------------------------------------------- relative time (M8.4.3)
+
+    private val SECOND = 1_000L
+    private val MINUTE = 60L * SECOND
+    private val HOUR = 60L * MINUTE
+    private val DAY = 24L * HOUR
+    private val WEEK = 7L * DAY
+
+    @Test
+    fun `under a minute reads as now - including clock skew into the future`() {
+        val now = utcEpoch(2025, 9, 19)
+        assertEquals("now", NoteOps.relativeTime(now, now, utc))
+        assertEquals("now", NoteOps.relativeTime(now, now - 59 * SECOND, utc))
+        assertEquals("now", NoteOps.relativeTime(now, now + 5 * MINUTE, utc))
+    }
+
+    @Test
+    fun `the minute boundary - 60s is 1m through 59m`() {
+        val now = utcEpoch(2025, 9, 19)
+        assertEquals("1m", NoteOps.relativeTime(now, now - MINUTE, utc))
+        assertEquals("1m", NoteOps.relativeTime(now, now - 119 * SECOND, utc))
+        assertEquals("59m", NoteOps.relativeTime(now, now - 59 * MINUTE, utc))
+    }
+
+    @Test
+    fun `the hour boundary - 60m is 1h through 23h`() {
+        val now = utcEpoch(2025, 9, 19)
+        assertEquals("1h", NoteOps.relativeTime(now, now - HOUR, utc))
+        assertEquals("23h", NoteOps.relativeTime(now, now - 23 * HOUR, utc))
+    }
+
+    @Test
+    fun `the day boundary - 24h is 1d through 6d`() {
+        val now = utcEpoch(2025, 9, 19)
+        assertEquals("1d", NoteOps.relativeTime(now, now - DAY, utc))
+        assertEquals("6d", NoteOps.relativeTime(now, now - 6 * DAY, utc))
+    }
+
+    @Test
+    fun `the week boundary - 7d is 1w through 3w`() {
+        val now = utcEpoch(2025, 9, 19)
+        assertEquals("1w", NoteOps.relativeTime(now, now - WEEK, utc))
+        assertEquals("3w", NoteOps.relativeTime(now, now - 3 * WEEK, utc))
+    }
+
+    @Test
+    fun `four weeks minus one millisecond is the last relative bucket`() {
+        val now = utcEpoch(2025, 9, 19)
+        assertEquals("3w", NoteOps.relativeTime(now, now - (4 * WEEK - 1), utc))
+    }
+
+    @Test
+    fun `at four weeks the badge becomes a short date of the current year`() {
+        // Sep 19 2025 - 28d = Aug 22 2025 — same year, so no year suffix.
+        val now = utcEpoch(2025, 9, 19)
+        assertEquals("Aug 22", NoteOps.relativeTime(now, now - 4 * WEEK, utc))
+    }
+
+    @Test
+    fun `a note from another year carries the two-digit year`() {
+        val now = utcEpoch(2025, 9, 19)
+        assertEquals("Jul 15", NoteOps.relativeTime(now, utcEpoch(2025, 7, 15), utc))
+        assertEquals("Mar 15 '24", NoteOps.relativeTime(now, utcEpoch(2024, 3, 15), utc))
+    }
+
+    @Test
+    fun `the new-year edge - a note from the old year still names its own year`() {
+        val now = utcEpoch(2025, 1, 2)
+        assertEquals("Dec 1 '24", NoteOps.relativeTime(now, utcEpoch(2024, 12, 1), utc))
     }
 }

@@ -6,11 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The overview pane's pure presentation rules: the STAGED / UNSTAGED
- * grouping of porcelain entries (the parser's XY columns, git's own
- * index/worktree split) and the tracking + worktree glyphs. Every fixture
- * is a literal `git status --porcelain=v1 -b` block, so the grouping is
- * tested against the exact bytes git prints.
+ * The overview pane's pure presentation rules: the CONFLICTS / STAGED /
+ * UNSTAGED grouping of porcelain entries (the parser's XY columns, git's
+ * own index/worktree split), the tracking + worktree glyphs, the render
+ * caps of the bounded inspection pages and the remote URL shortening.
+ * Every grouping fixture is a literal `git status --porcelain=v1 -b`
+ * block, so the grouping is tested against the exact bytes git prints.
  */
 class GitPresentationTest {
 
@@ -55,10 +56,34 @@ class GitPresentationTest {
     }
 
     @Test
-    fun `a conflicted entry needs attention on both sides`() {
-        val status = GitStatusParser.parse("## main\nUU both.txt\n")
-        assertEquals('U', GitPresentation.stagedRows(status.entries).single().letter)
-        assertEquals('U', GitPresentation.unstagedRows(status.entries).single().letter)
+    fun `a conflicted entry is shown once - in CONFLICTS - never as staging noise`() {
+        // conflicts sit ABOVE staged/unstaged with one guidance line, so a
+        // conflicted path renders exactly once
+        val status = GitStatusParser.parse("## main\nUU both.txt\n M other.txt\n")
+        val conflicts = GitPresentation.conflictRows(status.entries)
+        assertEquals(listOf("both.txt"), conflicts.map { it.label })
+        assertEquals('U', conflicts.single().letter)
+        // " M other.txt" is a worktree-side change: unstaged only
+        assertTrue(GitPresentation.stagedRows(status.entries).isEmpty())
+        assertEquals(listOf("other.txt"), GitPresentation.unstagedRows(status.entries).map { it.label })
+    }
+
+    @Test
+    fun `every unmerged shape lands in CONFLICTS with its unmerged side first`() {
+        val status = GitStatusParser.parse("## main\nUU u.txt\nAA a.txt\nDD d.txt\nUA ua.txt\nAU au.txt\n")
+        val rows = GitPresentation.conflictRows(status.entries)
+        assertEquals(listOf("u.txt", "a.txt", "d.txt", "ua.txt", "au.txt"), rows.map { it.label })
+        // the unmerged 'U' wins; AA stays 'A', DD stays 'D'
+        assertEquals(listOf('U', 'A', 'D', 'U', 'U'), rows.map { it.letter })
+    }
+
+    @Test
+    fun `a conflicted rename renders the arrow form in CONFLICTS`() {
+        val status = GitStatusParser.parse("## main\nUU \"old name.txt\" -> \"new name.txt\"\n")
+        assertEquals(
+            listOf("old name.txt -> new name.txt"),
+            GitPresentation.conflictRows(status.entries).map { it.label },
+        )
     }
 
     @Test
@@ -80,10 +105,11 @@ class GitPresentationTest {
     }
 
     @Test
-    fun `an empty worktree renders no rows in either section`() {
+    fun `an empty worktree renders no rows in any section`() {
         val status = GitStatusParser.parse("## main\n")
         assertTrue(GitPresentation.stagedRows(status.entries).isEmpty())
         assertTrue(GitPresentation.unstagedRows(status.entries).isEmpty())
+        assertTrue(GitPresentation.conflictRows(status.entries).isEmpty())
     }
 
     // --------------------------------------------------- tracking glyphs
@@ -119,5 +145,60 @@ class GitPresentationTest {
         assertFalse(clean)
         assertEquals('●', GitPresentation.worktreeGlyph(dirty))
         assertEquals('○', GitPresentation.worktreeGlyph(clean))
+    }
+
+    // --------------------------------------------------- render caps
+
+    @Test
+    fun `capLines keeps everything when under the cap`() {
+        val capped = GitPresentation.capLines(listOf("+a", " b", "-c"), maxLines = 10)
+        assertEquals(listOf("+a", " b", "-c"), capped.lines)
+        assertEquals(0, capped.hidden)
+    }
+
+    @Test
+    fun `capLines cuts at the cap with the real hidden count`() {
+        val raw = (1..405).map { "line $it" }
+        val capped = GitPresentation.capLines(raw, maxLines = 400)
+        assertEquals(400, capped.lines.size)
+        assertEquals(5, capped.hidden)
+        assertEquals("line 1", capped.lines.first())
+        assertEquals("line 400", capped.lines.last())
+    }
+
+    @Test
+    fun `capLines ellipsises overlong lines at two hundred characters`() {
+        val long = "x".repeat(300)
+        val capped = GitPresentation.capLines(listOf(long, "short"), maxLines = 10)
+        assertEquals("x".repeat(GitPresentation.MAX_LINE_CHARS) + "…", capped.lines[0])
+        assertEquals("short", capped.lines[1])
+        assertEquals(0, capped.hidden)
+    }
+
+    @Test
+    fun `capLines on empty input renders nothing and hides nothing`() {
+        val capped = GitPresentation.capLines(emptyList(), maxLines = 400)
+        assertTrue(capped.lines.isEmpty())
+        assertEquals(0, capped.hidden)
+    }
+
+    // ------------------------------------------------------- short URLs
+
+    @Test
+    fun `https urls drop scheme and git suffix`() {
+        assertEquals("github.com/user/repo", GitPresentation.shortUrl("https://github.com/user/repo.git"))
+        assertEquals("example.org/x", GitPresentation.shortUrl("http://example.org/x.git"))
+    }
+
+    @Test
+    fun `scp-form and ssh urls shorten to host and path`() {
+        assertEquals("github.com/other/repo", GitPresentation.shortUrl("git@github.com:other/repo.git"))
+        assertEquals("gitlab.com/a/b", GitPresentation.shortUrl("ssh://gitlab.com/a/b.git"))
+    }
+
+    @Test
+    fun `local paths pass through verbatim apart from the git suffix`() {
+        assertEquals("/srv/git/repo", GitPresentation.shortUrl("/srv/git/repo"))
+        assertEquals("../bare", GitPresentation.shortUrl("../bare.git"))
     }
 }

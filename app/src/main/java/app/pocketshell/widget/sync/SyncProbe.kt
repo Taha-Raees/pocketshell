@@ -63,10 +63,16 @@ internal sealed interface DryRunResult {
     data class Failed(val reason: String) : DryRunResult
 }
 
-/** One REAL run's recorded truth: the exit code plus one honest stats line. */
+/**
+ * One REAL run's recorded truth: the exit code plus one honest stats line,
+ * and (M8.4.3) the tool's FULL combined output — the raw evidence the
+ * stats parsers mine for [SyncProfile.lastStats] on a successful run.
+ * Empty when nothing was spawned (backend absent).
+ */
 internal data class RunResult(
     val exitCode: Int?,
     val summary: String,
+    val output: String = "",
 )
 
 /**
@@ -206,7 +212,9 @@ internal class SyncProbe(
      *
      * The specs ride as direct argv elements — no shell, nothing to
      * escape. Bounded by [RUN_TIMEOUT_MS]; a timeout destroys the process
-     * and is reported as the failure it is.
+     * and is reported as the failure it is. The full tool output rides
+     * back in [RunResult.output]; what gets RECORDED is [runRecord]'s
+     * one decision (every finished run, OK and FAILED alike).
      */
     fun runNow(
         profile: SyncProfile,
@@ -233,13 +241,18 @@ internal class SyncProbe(
             )
         }
         val out = exec.exec(argv, timeoutMs)
-        val fact = (out.stdout.lineSequence() + out.stderr.lineSequence())
+        // M8.4.3 — the tool's FULL output rides along (rsync prints its
+        // stats1 block to stdout; rclone prints its stats to stderr): the
+        // raw evidence the stats parsers mine on a successful run.
+        val output = out.stdout + "\n" + out.stderr
+        val fact = output.lineSequence()
             .filter { it.isNotBlank() }
             .lastOrNull { !it.startsWith("sending incremental") }
             ?.take(120)
         return RunResult(
             exitCode = out.exitCode,
             summary = "exit ${out.exitCode}" + (fact?.let { " · $it" } ?: ""),
+            output = output,
         )
     }
 

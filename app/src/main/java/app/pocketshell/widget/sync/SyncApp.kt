@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -96,8 +97,14 @@ import kotlinx.coroutines.withContext
  *   - RUN NOW (M8.4.1) is the one REAL action, and it is ADDITIVE-ONLY
  *     by construction: `rsync -a` carries no removing flag, and rclone
  *     runs "copy", never its deleting mode — it adds and updates at
- *     the destination and removes nothing; exit 0 records the run FACT
- *     (lastRunMs/lastRunSummary), a failure reports the real stderr;
+ *     the destination and removes nothing. M8.4.3: EVERY finished run
+ *     is recorded from the REAL process exit (0 = OK, anything else =
+ *     FAILED), so failure history is visible; a run that never exited
+ *     records nothing;
+ *   - VERIFY (M8.4.3) is the dry-run plumbing re-labeled: "up to date"
+ *     is claimed ONLY on a clean zero-change dry run, the verdict is
+ *     holder-only (never stored — a check is not a run), and a result
+ *     with errors verifies nothing;
  *   - runs the user starts OUTSIDE this card are invisible here — the
  *     card records only runs it performed itself;
  *   - backends are probed with `command -v` — an absent rsync/rclone is
@@ -179,6 +186,9 @@ object SyncApp : HomeApplication() {
                     if (state.probe.shouldFullScan(System.currentTimeMillis())) runScan()
                     while (true) {
                         delay(SyncProbe.TICK_MS)
+                        // M8.4.3 — the render clock for relative times
+                        // ("2h ago · OK"): a pure state write, no exec.
+                        state.nowMs = System.currentTimeMillis()
                         // The idle gate: a tick that fires too soon after
                         // the last scan does NOTHING — no guest exec while
                         // the card sits open and idle.
@@ -216,34 +226,64 @@ object SyncApp : HomeApplication() {
             if (state.formOpen) closeForm() else state.detailId = null
         }
 
-        // A fresh detail page starts with a clean preview slate.
+        // A fresh detail page starts with a clean preview/verify/run slate.
         LaunchedEffect(state.detailId) {
             state.previewUi = PreviewUi.Idle
             state.previewTick = 0
             state.runUi = RunUi.Idle
+            state.verifyUi = VerifyUi.Idle
+            state.verifyTick = 0
         }
 
         // M8.4.1 — the REAL run: additive-only (rsync -a with no removing
-        // flag; rclone copy, never its deleting mode), bounded, then the
-        // run FACT is recorded into the profile (lastRunMs/lastRunSummary)
-        // — a run that happened is a fact the card keeps.
+        // flag; rclone copy, never its deleting mode), bounded. M8.4.3 —
+        // EVERY finished run is recorded via [runRecord]: exit 0 = OK,
+        // any other exit = FAILED, both visible in the profile's history;
+        // a run with no exit (timeout, destroyed process) records nothing
+        // — a run that happened is a fact, and so is a failure.
         LaunchedEffect(state.runTick) {
             if (state.runTick == 0) return@LaunchedEffect
             val profile = state.detailId?.let { id -> state.profilesRef.value.firstOrNull { it.id == id } }
                 ?: return@LaunchedEffect
             val snapshot = (state.ui as? SyncUi.Ready)?.snapshot ?: return@LaunchedEffect
+            // A starting run invalidates the point-in-time VERIFY result.
+            state.verifyUi = VerifyUi.Idle
             state.runUi = RunUi.Running
             val result = withContext(Dispatchers.IO) {
                 state.probe.runNow(profile, snapshot.rsync.path, snapshot.rclone.path)
             }
             state.runUi = RunUi.Done(result)
-            if (result.exitCode == 0) {
-                repository.add(
-                    profile.copy(
-                        lastRunMs = SyncRepository.now(),
-                        lastRunSummary = result.summary,
-                    ),
-                )
+            runRecord(profile, result, SyncRepository.now())?.let { record ->
+                repository.add(record)
+                // No rescan fires for a recorded run (the profile ids are
+                // unchanged), so the ui state's list is refreshed HERE —
+                // the STATUS row and the overview glyph show the real
+                // record now, not one AUTO_RESCAN_MS from now.
+                val refreshed = SyncProfiles.upsert(state.profilesRef.value, record)
+                state.profilesRef.value = refreshed
+                (state.ui as? SyncUi.Ready)?.let { ready ->
+                    state.ui = SyncUi.Ready(ready.snapshot, refreshed)
+                }
+            }
+        }
+
+        // M8.4.3 — VERIFY: the existing zero-write dry-run plumbing,
+        // interpreted as a point-in-time destination check. "Up to date"
+        // is claimed ONLY on a clean zero-change dry run; the verdict is
+        // HOLDER-ONLY — a check is not a run, and the store records runs.
+        LaunchedEffect(state.verifyTick) {
+            if (state.verifyTick == 0) return@LaunchedEffect
+            val profile = state.detailId?.let { id -> state.profilesRef.value.firstOrNull { it.id == id } }
+                ?: return@LaunchedEffect
+            val snapshot = (state.ui as? SyncUi.Ready)?.snapshot ?: return@LaunchedEffect
+            state.verifyUi = VerifyUi.Running
+            val result = withContext(Dispatchers.IO) {
+                state.probe.dryRun(profile, snapshot.rsync.path, snapshot.rclone.path)
+            }
+            state.verifyUi = when (result) {
+                is DryRunResult.Done ->
+                    VerifyUi.Done(interpretVerify(result.preview, System.currentTimeMillis()))
+                is DryRunResult.Failed -> VerifyUi.Failed(result.reason)
             }
         }
 
@@ -306,6 +346,9 @@ object SyncApp : HomeApplication() {
                     onRunNow = { state.runTick++ },
                     installUi = state.installUi,
                     onInstall = { state.installTick++ },
+                    verifyUi = state.verifyUi,
+                    onVerify = { state.verifyTick++ },
+                    nowMs = state.nowMs,
                     roomy = layout == SyncLayout.ROOMY,
                     maxEntries = if (layout == SyncLayout.ROOMY) {
                         SyncLayout.DETAIL_MAX_ENTRIES_ROOMY
@@ -328,6 +371,7 @@ object SyncApp : HomeApplication() {
                     profiles = profiles,
                     snapshot = ready?.snapshot,
                     layout = layout,
+                    nowMs = state.nowMs,
                     onOpenDetail = { state.detailId = it.id },
                     onOpenForm = { state.formOpen = true },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
@@ -406,6 +450,18 @@ internal class SyncState(val probe: SyncProbe) {
     var installUi by mutableStateOf<RunUi>(RunUi.Idle)
     var installTick by mutableStateOf(0)
 
+    /**
+     * M8.4.3 — VERIFY: the dry-run plumbing interpreted as a point-in-time
+     * destination check. Deliberately HOLDER-ONLY, never persisted: a
+     * check is not a run, and the store's run history stays exit-code
+     * facts. A starting run clears it (reality changed under the verdict).
+     */
+    var verifyUi by mutableStateOf<VerifyUi>(VerifyUi.Idle)
+    var verifyTick by mutableStateOf(0)
+
+    /** The render clock for relative times — ticked by the card's loop. */
+    var nowMs by mutableStateOf(System.currentTimeMillis())
+
     /** A live mirror the lifecycle loop reads at scan time (a captured
      *  parameter would go stale between ticks). */
     val profilesRef = mutableStateOf<List<SyncProfile>>(emptyList())
@@ -451,6 +507,49 @@ internal sealed interface RunUi {
     data class Done(val result: RunResult) : RunUi
 }
 
+/** The VERIFY control's UI state (M8.4.3 — holder-only, never stored). */
+internal sealed interface VerifyUi {
+    data object Idle : VerifyUi
+    data object Running : VerifyUi
+    data class Done(val verdict: VerifyVerdict) : VerifyUi
+    data class Failed(val reason: String) : VerifyUi
+}
+
+/**
+ * The point-in-time answer a dry run gives about the destination. UpToDate
+ * is claimed ONLY on a clean run — entries an ADDITIVE run would transfer
+ * become [Pending]; a dry run that reported errors verifies nothing.
+ */
+internal sealed interface VerifyVerdict {
+    /** Nothing to transfer at check time — [verifiedAtMs] stamps when. */
+    data class UpToDate(val verifiedAtMs: Long) : VerifyVerdict
+
+    /** [count] entries (new/changed/attr — what the additive run copies). */
+    data class Pending(val count: Int) : VerifyVerdict
+
+    /** The check itself was incomplete (read errors) — no claim either way. */
+    data object Inconclusive : VerifyVerdict
+}
+
+/**
+ * The pure verify interpretation: NEW/CHANGED/ATTR/HARDLINK entries are
+ * what an additive-only run (rsync -a, rclone copy) would transfer;
+ * DELETED entries are not (no removing mode is ever run) and ERROR entries
+ * mean the check could not see everything — an error-containing result
+ * never produces an "up to date" claim.
+ */
+internal fun interpretVerify(preview: SyncPreview, verifiedAtMs: Long): VerifyVerdict {
+    if (preview.errorCount > 0) return VerifyVerdict.Inconclusive
+    val wouldTransfer = preview.entries.count {
+        it.kind != PreviewKind.DELETED && it.kind != PreviewKind.ERROR
+    }
+    return if (wouldTransfer == 0) {
+        VerifyVerdict.UpToDate(verifiedAtMs)
+    } else {
+        VerifyVerdict.Pending(wouldTransfer)
+    }
+}
+
 /**
  * The responsive contract — same geometry as GitLayout (the card
  * dimensions are identical, so the device-derived thresholds carry over):
@@ -484,6 +583,7 @@ private fun SyncOverview(
     profiles: List<SyncProfile>,
     snapshot: SyncSnapshot?,
     layout: SyncLayout,
+    nowMs: Long,
     onOpenDetail: (SyncProfile) -> Unit,
     onOpenForm: () -> Unit,
     onOpenLinuxShell: () -> Unit,
@@ -558,15 +658,19 @@ private fun SyncOverview(
                             ) { onOpenDetail(profile) }
                             .padding(vertical = 6.dp),
                     ) {
+                        // M8.4.3 — the leading marker is the profile's run
+                        // status (○ never run / ✓ OK / ✕ FAILED): the one
+                        // glyph that separates configured from succeeded
+                        // from failed at a glance.
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = if (status?.sourceExists == false) "!" else "·",
+                                text = SyncProfiles.statusGlyph(profile),
                                 fontFamily = TerminalTheme.mono,
                                 fontSize = 11.sp,
-                                color = if (status?.sourceExists == false) {
-                                    HomeTokens.danger
-                                } else {
-                                    HomeTokens.textDim
+                                color = when (SyncProfiles.runOutcome(profile)) {
+                                    RunOutcome.NEVER_RUN -> HomeTokens.textDim
+                                    RunOutcome.OK -> HomeTokens.accent
+                                    RunOutcome.FAILED -> HomeTokens.danger
                                 },
                             )
                             Spacer(Modifier.width(8.dp))
@@ -579,10 +683,21 @@ private fun SyncOverview(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f),
                             )
+                            // The probe's source-missing flag keeps a slot:
+                            // trailing, danger, COMPACT-only (the roomy
+                            // subline states "missing" in words).
+                            if (!layout.showsSubline && status?.sourceExists == false) {
+                                Text(
+                                    text = "!",
+                                    fontFamily = TerminalTheme.mono,
+                                    fontSize = 11.sp,
+                                    color = HomeTokens.danger,
+                                )
+                            }
                         }
                         if (layout.showsSubline) {
                             Text(
-                                text = profileSubline(profile, status),
+                                text = profileSubline(profile, status, nowMs),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = HomeTokens.textDim,
                                 maxLines = 1,
@@ -602,25 +717,32 @@ private fun SyncOverview(
 
         // Footer — roomy cards only.
                 Spacer(Modifier.height(4.dp))
-        // The honest state line, every density, every theme.
+        // The honest state line, every density, every theme. Null when the
+        // empty-state block below already carries the card's only fact.
         val bothMissing = ready != null &&
             ready.snapshot.rsync.path == null &&
             ready.snapshot.rclone.path == null
-        val stateLine = when {
+        val anyRun = profiles.any { it.lastRunMs != null }
+        val stateLine: String? = when {
             ui is SyncUi.Loading -> "…"
             ui is SyncUi.Unavailable -> "Linux not ready"
             ui is SyncUi.ProbeFailed -> "Could not probe"
-            ready != null && profiles.isEmpty() -> "No profiles yet"
             ready != null && bothMissing -> "No sync backend installed"
+            ready != null && profiles.isEmpty() -> null
+            // M8.4.3 — failures are recorded too, so this line derives
+            // from the real history instead of asserting "no runs".
+            ready != null && anyRun -> "Runs recorded"
             ready != null -> "Profiles only — no runs recorded"
             else -> "…"
         }
-        Text(
-            text = stateLine,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (profiles.isNotEmpty() && ready != null) HomeTokens.accent else HomeTokens.textDim,
-            maxLines = 1,
-        )
+        stateLine?.let { line ->
+            Text(
+                text = line,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (profiles.isNotEmpty() && ready != null) HomeTokens.accent else HomeTokens.textDim,
+                maxLines = 1,
+            )
+        }
         when {
             ui is SyncUi.Unavailable -> {
                 TextButton(onClick = onOpenDiagnostics, modifier = Modifier.padding(top = 2.dp)) {
@@ -638,8 +760,37 @@ private fun SyncOverview(
                 )
             }
             ready != null && profiles.isEmpty() -> {
+                // M8.4.3 — the actionable empty state: the fact, the
+                // affordance inline (the header "+" stays too), one
+                // supporting line that says what RUN NOW actually does.
+                Row(
+                    modifier = Modifier.padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "No backup profiles",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = HomeTokens.textPrimary,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable(role = Role.Button, onClickLabel = "New profile") { onOpenForm() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = "New profile",
+                            tint = HomeTokens.accent,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
                 Text(
-                    text = "A profile records a source, a destination and a backend — it is a plan, not a backup.",
+                    text = "A profile pairs a source with a destination; " +
+                        "RUN NOW copies new and updated files — it never deletes.",
                     style = MaterialTheme.typography.bodySmall,
                     color = HomeTokens.textDim,
                     maxLines = 2,
@@ -676,6 +827,9 @@ private fun SyncDetail(
     onRunNow: () -> Unit,
     installUi: RunUi,
     onInstall: () -> Unit,
+    verifyUi: VerifyUi,
+    onVerify: () -> Unit,
+    nowMs: Long,
     roomy: Boolean,
     maxEntries: Int,
     onBack: () -> Unit,
@@ -744,7 +898,33 @@ private fun SyncDetail(
             "DEST STATE",
             pathStateText(remote = status?.destinationRemote ?: SyncProfiles.isRemote(profile.destination), exists = status?.destinationExists),
         )
-        SyncRow("LAST RUN", lastRunText(profile))
+        // M8.4.3 — the STATUS line: relative time · result · real exit,
+        // e.g. "2h ago · OK (exit 0)" / "3d ago · FAILED (exit 1)" — the
+        // difference between configured, succeeded and failed, in words.
+        SyncRow("STATUS", SyncProfiles.statusLine(profile, nowMs))
+        // The run's own one-line summary (the tool's last real output).
+        profile.lastRunSummary?.let { summary ->
+            Text(
+                text = summary,
+                fontFamily = TerminalTheme.mono,
+                fontSize = 10.sp,
+                color = HomeTokens.textDim,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        // Successful-run transfer stats, parsed from the tool's output —
+        // real process evidence, or nothing.
+        profile.lastStats?.let { stats ->
+            Text(
+                text = stats,
+                fontFamily = TerminalTheme.mono,
+                fontSize = 10.sp,
+                color = HomeTokens.accent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
 
         // Backend availability — probed, never assumed.
         val backendStatus = when (profile.backend) {
@@ -835,18 +1015,87 @@ private fun SyncDetail(
             )
         }
 
+        // M8.4.3 — the DRY RUN and VERIFY controls share one line: the
+        // same zero-write dry-run plumbing, two readings. DRY RUN shows
+        // the per-file preview; VERIFY interprets the run as a point-in-
+        // time destination check (verdict below, holder-only, never
+        // stored — a check is not a run).
+        if (backendStatus?.path != null) {
+            Spacer(Modifier.height(4.dp))
+            Row {
+                if (previewUi == PreviewUi.Idle) {
+                    CompactAction(
+                        label = "DRY RUN",
+                        icon = Icons.Outlined.Search,
+                        contentDescription = "Preview dry run",
+                        tint = HomeTokens.accent,
+                        onClick = onPreview,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
+                if (verifyUi !is VerifyUi.Running) {
+                    CompactAction(
+                        label = "VERIFY",
+                        icon = Icons.Outlined.Verified,
+                        contentDescription = "Verify destination",
+                        tint = HomeTokens.accent,
+                        onClick = onVerify,
+                    )
+                }
+            }
+            when (val v = verifyUi) {
+                VerifyUi.Idle -> {}
+                VerifyUi.Running -> Text(
+                    text = "Verifying — dry run, nothing is copied…",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 11.sp,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                is VerifyUi.Failed -> Text(
+                    text = v.reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.danger,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                is VerifyUi.Done -> when (val verdict = v.verdict) {
+                    is VerifyVerdict.UpToDate -> Text(
+                        text = "Destination up to date (verified " +
+                            SyncProfiles.agoText(nowMs, verdict.verifiedAtMs) + ")",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.accent,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                    is VerifyVerdict.Pending -> Text(
+                        text = if (verdict.count == 1) {
+                            "1 new/changed file would transfer"
+                        } else {
+                            "${verdict.count} new/changed files would transfer"
+                        },
+                        fontFamily = TerminalTheme.mono,
+                        fontSize = 11.sp,
+                        color = HomeTokens.accent,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                    VerifyVerdict.Inconclusive -> Text(
+                        text = "Verify inconclusive — the dry run reported errors",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.danger,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
+        }
+
         // The dry-run preview area — verify before you run.
         Spacer(Modifier.height(4.dp))
         when (val p = previewUi) {
-            PreviewUi.Idle -> if (backendStatus?.path != null) {
-                CompactAction(
-                    label = "DRY RUN",
-                    icon = Icons.Outlined.Search,
-                    contentDescription = "Preview dry run",
-                    tint = HomeTokens.accent,
-                    onClick = onPreview,
-                )
-            }
+            // Idle: the DRY RUN control lives in the VERIFY row above.
+            PreviewUi.Idle -> {}
             PreviewUi.Running -> Text(
                 text = "Running dry run — nothing is copied…",
                 fontFamily = TerminalTheme.mono,
@@ -1232,8 +1481,12 @@ private fun backendHeaderText(snapshot: SyncSnapshot): String = listOf(
     snapshot.rclone.path?.let { "rclone ${snapshot.rclone.version ?: ""}".trim() } ?: "rclone missing",
 ).joinToString(" · ")
 
-/** The overview subline: path facts + the honest run fact, in one line. */
-private fun profileSubline(profile: SyncProfile, status: PathPairStatus?): String {
+/**
+ * The overview subline: backend · path facts · the REAL run status
+ * ([SyncProfiles.statusLine] — "never run" until a run was recorded,
+ * then "2h ago · OK (exit 0)" or the failure) in one line.
+ */
+private fun profileSubline(profile: SyncProfile, status: PathPairStatus?, nowMs: Long): String {
     val src = pathStateText(
         remote = status?.sourceRemote ?: SyncProfiles.isRemote(profile.source),
         exists = status?.sourceExists,
@@ -1242,7 +1495,8 @@ private fun profileSubline(profile: SyncProfile, status: PathPairStatus?): Strin
         remote = status?.destinationRemote ?: SyncProfiles.isRemote(profile.destination),
         exists = status?.destinationExists,
     )
-    return "$src · $dst · never run"
+    return "${profile.backend.name.lowercase()} · $src · $dst · " +
+        SyncProfiles.statusLine(profile, nowMs)
 }
 
 private fun pathStateText(remote: Boolean, exists: Boolean?): String = when {
@@ -1250,12 +1504,6 @@ private fun pathStateText(remote: Boolean, exists: Boolean?): String = when {
     exists == null -> "unchecked"
     exists -> "visible"
     else -> "missing"
-}
-
-private fun lastRunText(profile: SyncProfile): String {
-    val ms = profile.lastRunMs ?: return "never run"
-    val summary = profile.lastRunSummary ?: return "ran at $ms"
-    return "ran at $ms · $summary"
 }
 
 internal fun previewCountsLine(preview: SyncPreview): String {

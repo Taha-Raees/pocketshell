@@ -131,7 +131,7 @@ class TodoAppContractTest {
     // --------------------------------------------------- 2. own DataStore
 
     @Test
-    fun `the task list persists in the todo_store DataStore under one key`() {
+    fun `the store persists tasks and lists in the todo_store DataStore under two keys`() {
         val raw = source("TodoRepository.kt")
         assertTrue(
             "the store is its own per-domain DataStore file",
@@ -141,8 +141,12 @@ class TodoAppContractTest {
             "one key holds the JSON task list",
             raw.contains("""stringPreferencesKey("todo_tasks")"""),
         )
+        assertTrue(
+            "the second key holds the JSON list-of-lists (M8.4.3)",
+            raw.contains("""stringPreferencesKey("todo_lists")"""),
+        )
         val code = stripCommentsAndStrings(raw)
-        assertTrue("the list is kotlinx-serialization JSON", code.contains("ListSerializer"))
+        assertTrue("the records are kotlinx-serialization JSON", code.contains("ListSerializer"))
         assertTrue("writes go through DataStore edit", code.contains(".edit {"))
     }
 
@@ -152,6 +156,14 @@ class TodoAppContractTest {
         assertTrue(
             "section + draft must live in the HomeAppStateStore holder (survives Home disposal)",
             code.contains("stateStore.forApp"),
+        )
+        assertTrue(
+            "the selected list belongs in the holder too — the whole card follows it (M8.4.3)",
+            code.contains("var selectedListId by"),
+        )
+        assertTrue(
+            "the task being edited in place belongs in the holder (M8.4.3)",
+            code.contains("var editingTaskId by"),
         )
         assertFalse(
             "the task list must come from the DataStore flow, not a remember { mutableStateListOf }",
@@ -234,6 +246,95 @@ class TodoAppContractTest {
         assertTrue(
             "a task count must appear ONLY on its tab; found: $violations",
             violations.isEmpty(),
+        )
+    }
+
+    // ------------------------------------------- lists + edit (M8.4.3)
+
+    @Test
+    fun `the list picker is a chip row - switch by tap, edit only through the active chip`() {
+        val raw = source("TodoApp.kt")
+        val literals = stringLiterals(raw)
+        assertTrue(
+            "switching lists must be named for accessibility",
+            literals.any { it.startsWith("Switch to list ") },
+        )
+        assertTrue(
+            "the new-list affordance must be named for accessibility",
+            literals.contains("New list"),
+        )
+        // The trash lives on the list form ONLY, never on a chip.
+        val chipRowStart = raw.indexOf("private fun ListChipRow")
+        val nextSection = raw.indexOf("private fun ListFormCard")
+        assumeTrue("ListChipRow/ListFormCard not found on this runner", chipRowStart >= 0 && nextSection > chipRowStart)
+        val chipRow = raw.substring(chipRowStart, nextSection)
+        assertTrue(
+            "the chips are tabs, not buttons — the card switches in place",
+            chipRow.contains("Role.Tab"),
+        )
+        assertTrue(
+            "the ACTIVE chip is the door to the edit form",
+            chipRow.contains("if (active) onEdit(list) else onSelect(list.id)"),
+        )
+        assertFalse(
+            "a delete affordance must never sit on a list chip — deletion lives on the form",
+            chipRow.contains("Icons.Outlined.Delete"),
+        )
+    }
+
+    @Test
+    fun `deleting a list is a named confirm that states the damage`() {
+        val raw = source("TodoApp.kt")
+        val literals = stringLiterals(raw)
+        assertTrue(
+            "the confirm must name the list and its task count",
+            literals.any { it.startsWith("Delete list '") && it.contains("and its ") },
+        )
+        assertTrue(
+            "Delete and Cancel are text buttons, named",
+            literals.contains("Delete") && literals.contains("Cancel"),
+        )
+        assertTrue(
+            "the pure layer refuses to remove the default list",
+            stripCommentsAndStrings(source("TodoTasks.kt")).contains("TodoList.DEFAULT_LIST_ID) lists"),
+        )
+    }
+
+    @Test
+    fun `priority is coarse and HIGH wears the accent glyph`() {
+        val model = source("TodoTask.kt")
+        assertTrue(
+            "the three letters are the whole model — no numeric priority",
+            model.contains("PRIORITY_HIGH = \"H\"") &&
+                model.contains("PRIORITY_NORMAL = \"N\"") &&
+                model.contains("PRIORITY_LOW = \"L\""),
+        )
+        val app = stringLiterals(source("TodoApp.kt"))
+        assertTrue(
+            "the row shows '!' for HIGH (and only the edit control cycles)",
+            app.contains("!")
+        )
+        val code = stripCommentsAndStrings(source("TodoApp.kt"))
+        assertTrue(
+            "the glyph is conditional on HIGH — not decoration",
+            code.contains("PRIORITY_HIGH) {"),
+        )
+        assertTrue(
+            "the cycle is a pure model op, testable without Android",
+            stripCommentsAndStrings(source("TodoTask.kt")).contains("fun cycled("),
+        )
+    }
+
+    @Test
+    fun `tapping the task text opens the in-place edit - blank edit deletes`() {
+        val literals = stringLiterals(source("TodoApp.kt"))
+        assertTrue(
+            "the row's text is the edit affordance, named for accessibility",
+            literals.contains("Edit task"),
+        )
+        assertTrue(
+            "an emptied edit deletes — the pure op owns the rule",
+            stripCommentsAndStrings(source("TodoTasks.kt")).contains("fun setText"),
         )
     }
 

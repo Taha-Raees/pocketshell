@@ -1,5 +1,9 @@
 package app.pocketshell.widget.notes
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import kotlinx.serialization.Serializable
 
 /**
@@ -91,4 +95,48 @@ object NoteOps {
             .firstOrNull { it.isNotEmpty() }
             ?.take(160)
             .orEmpty()
+
+    // ------------------------------------------------- relative time (M8.4.3)
+
+    /**
+     * How long ago a note was last touched, as the row/editor badge shows
+     * it: "now", then minutes/hours/days/weeks, then a short date —
+     * "Sep 2", with the year appended ("Sep 2 '25") once the note's year
+     * differs from `nowMs`'s. Terminal-short by design: one glance, no
+     * full timestamps. A future `updatedAtMs` (clock skew) reads as "now",
+     * never negative.
+     *
+     * Pure: `zone` is a parameter (default = device zone) so the date
+     * branch is deterministic under test.
+     */
+    fun relativeTime(nowMs: Long, updatedAtMs: Long, zone: TimeZone = TimeZone.getDefault()): String {
+        val diff = (nowMs - updatedAtMs).coerceAtLeast(0L)
+        return when {
+            diff < MINUTE_MS -> "now"
+            diff < HOUR_MS -> "${diff / MINUTE_MS}m"
+            diff < DAY_MS -> "${diff / HOUR_MS}h"
+            diff < WEEK_MS -> "${diff / DAY_MS}d"
+            diff < MAX_RELATIVE_MS -> "${diff / WEEK_MS}w"
+            else -> shortDate(updatedAtMs, nowMs, zone)
+        }
+    }
+
+    /** "MMM d" in the given zone; " 'yy" appended when the year differs. */
+    private fun shortDate(updatedAtMs: Long, nowMs: Long, zone: TimeZone): String {
+        val dayFormat = SimpleDateFormat("MMM d", Locale.US).apply { timeZone = zone }
+        val yearFormat = SimpleDateFormat("yyyy", Locale.US).apply { timeZone = zone }
+        val year = yearFormat.format(Date(updatedAtMs))
+        return if (year == yearFormat.format(Date(nowMs))) {
+            dayFormat.format(Date(updatedAtMs))
+        } else {
+            "${dayFormat.format(Date(updatedAtMs))} '${year.substring(2)}"
+        }
+    }
 }
+
+/** Relative-time boundaries — deliberately round; weeks stop at four. */
+private const val MINUTE_MS = 60_000L
+private const val HOUR_MS = 60L * MINUTE_MS
+private const val DAY_MS = 24L * HOUR_MS
+private const val WEEK_MS = 7L * DAY_MS
+private const val MAX_RELATIVE_MS = 4L * WEEK_MS

@@ -59,6 +59,102 @@ class TodoStoreCodecTest {
         assertFalse(tasks[0].starred)
     }
 
+    // ------------------------------------------- list migration (M8.4.3)
+
+    @Test
+    fun `a task missing listId belongs to the default list - old stores keep working`() {
+        val raw = """[{"id":"a","text":"legacy","createdAt":5}]"""
+        val tasks = TodoStoreCodec.decode(raw, setOf(TodoList.DEFAULT_LIST_ID))
+        assertEquals(listOf(TodoList.DEFAULT_LIST_ID), tasks.map { it.listId })
+    }
+
+    @Test
+    fun `a task with an unknown listId belongs to the default list`() {
+        val raw = """[{"id":"a","text":"home","createdAt":1,"listId":"main"},{"id":"b","text":"ghost","createdAt":2,"listId":"gone"}]"""
+        val tasks = TodoStoreCodec.decode(raw, knownListIds = setOf("main", "work"))
+        assertEquals(listOf("main", "main"), tasks.map { it.listId })
+    }
+
+    @Test
+    fun `an unknown listId is also migrated when no known ids are supplied`() {
+        val raw = """[{"id":"a","text":"ghost","createdAt":1,"listId":"gone"}]"""
+        assertEquals(listOf(TodoList.DEFAULT_LIST_ID), TodoStoreCodec.decode(raw).map { it.listId })
+    }
+
+    @Test
+    fun `an unknown priority decodes as NORMAL - only H N L are valid`() {
+        val raw = """[
+            {"id":"a","text":"high","createdAt":1,"priority":"H"},
+            {"id":"b","text":"weird","createdAt":2,"priority":"urgent"},
+            {"id":"c","text":"low","createdAt":3,"priority":"L"}
+        ]""".trimIndent()
+        val tasks = TodoStoreCodec.decode(raw)
+        assertEquals(
+            listOf(TodoTask.PRIORITY_HIGH, TodoTask.PRIORITY_NORMAL, TodoTask.PRIORITY_LOW),
+            tasks.map { it.priority },
+        )
+    }
+
+    @Test
+    fun `lists round-trip field for field`() {
+        val lists = listOf(
+            TodoList.defaultList(),
+            TodoList(id = "work", name = "Work", createdAt = 7),
+        )
+        assertEquals(lists, TodoStoreCodec.decodeLists(TodoStoreCodec.encodeLists(lists)))
+    }
+
+    @Test
+    fun `absent or corrupt list record decodes to just the default list`() {
+        val lists = TodoStoreCodec.decodeLists(null)
+        assertEquals(listOf(TodoList.DEFAULT_LIST_ID), lists.map { it.id })
+        assertEquals(TodoList.DEFAULT_LIST_NAME, lists.single().name)
+        assertEquals(lists, TodoStoreCodec.decodeLists("not json"))
+    }
+
+    @Test
+    fun `the default list is synthesized at the front when the record lacks it`() {
+        val raw = """[{"id":"work","name":"Work","createdAt":1}]"""
+        val lists = TodoStoreCodec.decodeLists(raw)
+        assertEquals(listOf(TodoList.DEFAULT_LIST_ID, "work"), lists.map { it.id })
+    }
+
+    @Test
+    fun `list names are trimmed and capped - blank ids and names are dropped`() {
+        val raw = """
+            [
+              {"id":"a","name":"  spaced  ","createdAt":1},
+              {"id":"b","name":"${"x".repeat(99)}","createdAt":2},
+              {"id":"","name":"no id","createdAt":3},
+              {"id":"c","name":"   ","createdAt":4},
+              {"id":"a","name":"duplicate","createdAt":5}
+            ]
+        """.trimIndent()
+        val lists = TodoStoreCodec.decodeLists(raw)
+        assertEquals(listOf(TodoList.DEFAULT_LIST_ID, "a", "b"), lists.map { it.id })
+        assertEquals("spaced", lists.first { it.id == "a" }.name) // duplicate collapsed, first wins
+        assertEquals(TodoList.MAX_NAME, lists.first { it.id == "b" }.name.length)
+    }
+
+    @Test
+    fun `the list cap holds and never evicts the default list`() {
+        val custom = (1..TodoList.MAX_LISTS).map { TodoList("l$it", "L$it", createdAt = it.toLong()) }
+        val decoded = TodoStoreCodec.decodeLists(TodoStoreCodec.encodeLists(custom))
+        assertEquals(TodoList.MAX_LISTS, decoded.size)
+        assertEquals(TodoList.DEFAULT_LIST_ID, decoded.first().id)
+    }
+
+    @Test
+    fun `the task cap is per list - one full list never retires another's tasks`() {
+        val listA = (1..TodoTasks.MAX_TASKS + 10).map {
+            TodoTask("a$it", "task a$it", createdAt = it.toLong(), listId = "a")
+        }
+        val listB = listOf(TodoTask("b1", "task b1", createdAt = 1L, listId = "b"))
+        val decoded = TodoStoreCodec.decode(TodoStoreCodec.encode(listA + listB), setOf("a", "b"))
+        assertEquals(TodoTasks.MAX_TASKS, decoded.count { it.listId == "a" })
+        assertEquals(1, decoded.count { it.listId == "b" })
+    }
+
     // --------------------------------------------------------------- honesty
 
     @Test

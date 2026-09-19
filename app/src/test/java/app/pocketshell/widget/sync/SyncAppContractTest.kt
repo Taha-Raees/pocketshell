@@ -311,6 +311,41 @@ class SyncAppContractTest {
         val p = SyncProfile("id", SyncBackend.RSYNC, "/a", "/b", createdAtMs = 1L)
         assertNull(p.lastRunMs)
         assertNull(p.lastRunSummary)
+        assertNull(p.lastResult)
+        assertNull(p.lastExit)
+        assertNull(p.lastStats)
+    }
+
+    @Test
+    fun `every finished run is recorded and verify is a holder-only check`() {
+        val app = source("SyncApp.kt")
+        assertTrue(
+            "the record decision is the one pure function, fed the real exit",
+            app.contains("runRecord(profile, result, SyncRepository.now())"),
+        )
+        assertTrue(
+            "VERIFY is a named, announced control",
+            app.contains("contentDescription = \"Verify destination\""),
+        )
+        val model = source("SyncProfile.kt")
+        assertTrue("the record carries the result word", model.contains("val lastResult"))
+        assertTrue("the record carries the real exit code", model.contains("val lastExit"))
+        assertTrue("the record carries the parsed stats", model.contains("val lastStats"))
+        assertFalse(
+            "the store model has no verify surface — a check is not a run",
+            model.contains("verify"),
+        )
+    }
+
+    @Test
+    fun `the empty state is actionable and states the additive contract`() {
+        val app = source("SyncApp.kt")
+        assertTrue("the empty state names the fact at title weight", app.contains("No backup profiles"))
+        assertTrue(
+            "the one supporting line says what RUN NOW does",
+            app.contains("RUN NOW copies new and updated files"),
+        )
+        assertTrue(app.contains("never deletes"))
     }
 
     // -------------------------------------------------------------- spec

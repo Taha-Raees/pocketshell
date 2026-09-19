@@ -318,6 +318,27 @@ class SyncProbeTest {
         assertTrue(result.summary.contains("rsync: change_dir"))
     }
 
+    @Test
+    fun `run now captures the tool's full output for the stats parsers`() {
+        val recorder = RecordingExec(
+            exec(
+                stdout = "sending incremental file list\n" +
+                    "Number of regular files transferred: 3\n" +
+                    "Total transferred file size: 1,234,567 bytes\n" +
+                    "total size is 26,354,124  speedup is 21.33\n",
+            ),
+        )
+        val result = probe(recorder).runNow(sampleProfile(), rsyncPath = "/usr/bin/rsync", rclonePath = null)
+        assertEquals(0, result.exitCode)
+        assertTrue(result.output.contains("Number of regular files transferred: 3"))
+        assertTrue(result.output.contains("Total transferred file size: 1,234,567 bytes"))
+        // A failed run's stderr rides along too — the raw evidence, always.
+        val failed = probe(
+            RecordingExec(exec(ok = false, stderr = "rsync: change_dir \"/mnt\" failed\n")),
+        ).runNow(sampleProfile(), rsyncPath = "/usr/bin/rsync", rclonePath = null)
+        assertTrue(failed.output.contains("rsync: change_dir"))
+    }
+
     // -------------------------------------------------- install (M8.4.1)
 
     @Test

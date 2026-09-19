@@ -18,7 +18,18 @@ class TodoTasksTest {
         archived: Boolean = false,
         starred: Boolean = false,
         createdAt: Long = id.hashCode().toLong(),
-    ) = TodoTask(id = id, text = text, done = done, archived = archived, starred = starred, createdAt = createdAt)
+        listId: String = TodoList.DEFAULT_LIST_ID,
+        priority: String = TodoTask.PRIORITY_NORMAL,
+    ) = TodoTask(
+        id = id,
+        text = text,
+        done = done,
+        archived = archived,
+        starred = starred,
+        createdAt = createdAt,
+        listId = listId,
+        priority = priority,
+    )
 
     // ---------------------------------------------------------------- add
 
@@ -159,5 +170,161 @@ class TodoTasksTest {
         )
         assertEquals(listOf("d2", "d3", "d1"), TodoTasks.done(tasks).map { it.id })
         assertEquals(listOf("d2", "d3", "d1"), TodoTasks.archived(tasks.map { it.copy(archived = true, done = false) }).map { it.id })
+    }
+
+    // ------------------------------------------------ priority (M8.4.3)
+
+    @Test
+    fun `today sorts starred first then HIGH priority then newest first`() {
+        val tasks = listOf(
+            task("new", createdAt = 5),
+            task("high", createdAt = 4, priority = TodoTask.PRIORITY_HIGH),
+            task("star", createdAt = 3, starred = true),
+            task("low", createdAt = 2, priority = TodoTask.PRIORITY_LOW),
+            task("old", createdAt = 1),
+        )
+        assertEquals(
+            listOf("star", "high", "new", "low", "old"),
+            TodoTasks.today(tasks).map { it.id },
+        )
+    }
+
+    @Test
+    fun `only HIGH outranks recency - LOW sorts as normal`() {
+        val tasks = listOf(
+            task("old", createdAt = 1),
+            task("freshLow", createdAt = 9, priority = TodoTask.PRIORITY_LOW),
+        )
+        assertEquals(listOf("freshLow", "old"), TodoTasks.today(tasks).map { it.id })
+        val withHigh = listOf(
+            task("old", createdAt = 1),
+            task("freshLow", createdAt = 9, priority = TodoTask.PRIORITY_LOW),
+            task("oldHigh", createdAt = 2, priority = TodoTask.PRIORITY_HIGH),
+        )
+        assertEquals(listOf("oldHigh", "freshLow", "old"), TodoTasks.today(withHigh).map { it.id })
+    }
+
+    @Test
+    fun `cyclePriority walks HIGH to NORMAL to LOW to HIGH`() {
+        var tasks = listOf(task("a", priority = TodoTask.PRIORITY_HIGH))
+        tasks = TodoTasks.cyclePriority(tasks, "a")
+        assertEquals(TodoTask.PRIORITY_NORMAL, tasks.single().priority)
+        tasks = TodoTasks.cyclePriority(tasks, "a")
+        assertEquals(TodoTask.PRIORITY_LOW, tasks.single().priority)
+        tasks = TodoTasks.cyclePriority(tasks, "a")
+        assertEquals(TodoTask.PRIORITY_HIGH, tasks.single().priority)
+    }
+
+    @Test
+    fun `setPriority sanitizes and touches only the named task`() {
+        val tasks = listOf(task("a", priority = TodoTask.PRIORITY_NORMAL), task("b"))
+        val out = TodoTasks.setPriority(tasks, "a", TodoTask.PRIORITY_HIGH)
+        assertEquals(TodoTask.PRIORITY_HIGH, out.first { it.id == "a" }.priority)
+        assertEquals(TodoTask.PRIORITY_NORMAL, out.first { it.id == "b" }.priority)
+        assertEquals(TodoTask.PRIORITY_NORMAL, TodoTasks.setPriority(tasks, "a", "urgent").first { it.id == "a" }.priority)
+    }
+
+    // -------------------------------------------------- text edit (M8.4.3)
+
+    @Test
+    fun `setText trims and replaces the text of exactly the named task`() {
+        val tasks = listOf(task("a", text = "old"), task("b", text = "keep"))
+        val out = TodoTasks.setText(tasks, "a", "  new  ")
+        assertEquals("new", out.first { it.id == "a" }.text)
+        assertEquals("keep", out.first { it.id == "b" }.text)
+    }
+
+    @Test
+    fun `an emptied edit deletes the task`() {
+        val tasks = listOf(task("a"), task("b"))
+        assertEquals(listOf("b"), TodoTasks.setText(tasks, "a", "   ").map { it.id })
+        assertEquals(emptyList<String>(), TodoTasks.setText(listOf(task("only")), "only", "").map { it.id })
+    }
+
+    @Test
+    fun `setText on an unknown id with blank text changes nothing`() {
+        val tasks = listOf(task("a"))
+        assertEquals(tasks, TodoTasks.setText(tasks, "zz", ""))
+    }
+
+    // ------------------------------------------------- list scoping (M8.4.3)
+
+    @Test
+    fun `inList scopes the tasks to one list`() {
+        val tasks = listOf(
+            task("a", listId = TodoList.DEFAULT_LIST_ID),
+            task("b", listId = "work"),
+            task("c", listId = "work"),
+        )
+        assertEquals(listOf("a"), TodoTasks.inList(tasks, TodoList.DEFAULT_LIST_ID).map { it.id })
+        assertEquals(listOf("b", "c"), TodoTasks.inList(tasks, "work").map { it.id })
+        assertEquals(emptyList<String>(), TodoTasks.inList(tasks, "missing").map { it.id })
+    }
+
+    @Test
+    fun `add lands in the named list and the per-list cap retires only its own oldest`() {
+        val out = TodoTasks.add(emptyList(), "new", id = "n", now = 10, listId = "work")
+        assertEquals("work", out.single().listId)
+
+        val work = (TodoTasks.MAX_TASKS downTo 1).map {
+            task("w$it", createdAt = it.toLong(), listId = "work")
+        }
+        val main = listOf(task("m1", createdAt = 1, listId = TodoList.DEFAULT_LIST_ID))
+        val after = TodoTasks.add(work + main, "newest", id = "new", now = 10_000, listId = "work")
+        assertEquals(TodoTasks.MAX_TASKS, after.count { it.listId == "work" })
+        assertFalse(after.any { it.id == "w1" }) // work's own oldest retired
+        assertTrue(after.any { it.id == "m1" }) // the other list is untouched
+    }
+
+    // ----------------------------------------------------- list ops (M8.4.3)
+
+    @Test
+    fun `addList appends a trimmed capped name and ignores blanks`() {
+        var lists = listOf(TodoList.defaultList())
+        lists = TodoTasks.addList(lists, "  Work  ", id = "work", now = 5)
+        assertEquals(listOf(TodoList.DEFAULT_LIST_ID, "work"), lists.map { it.id })
+        assertEquals("Work", lists.last().name)
+        assertEquals(5L, lists.last().createdAt)
+        assertEquals(lists, TodoTasks.addList(lists, "   ", id = "blank", now = 6))
+    }
+
+    @Test
+    fun `addList respects the cap of eight lists`() {
+        var lists = listOf(TodoList.defaultList())
+        (1..TodoList.MAX_LISTS).forEach { i ->
+            lists = TodoTasks.addList(lists, "L$i", id = "l$i", now = i.toLong())
+        }
+        assertEquals(TodoList.MAX_LISTS, lists.size)
+        val capped = TodoTasks.addList(lists, "one too many", id = "extra", now = 99)
+        assertEquals(lists, capped)
+    }
+
+    @Test
+    fun `renameList trims and caps - a blank name changes nothing`() {
+        val lists = listOf(TodoList.defaultList(), TodoList("work", "Work", createdAt = 1))
+        val renamed = TodoTasks.renameList(lists, "work", "  Deep ${"x".repeat(60)}  ")
+        assertEquals(TodoList.MAX_NAME, renamed.first { it.id == "work" }.name.length)
+        assertTrue(renamed.first { it.id == "work" }.name.startsWith("Deep"))
+        assertEquals(lists, TodoTasks.renameList(lists, "work", "   "))
+        assertEquals(lists, TodoTasks.renameList(lists, "missing", "whatever"))
+    }
+
+    @Test
+    fun `removeList deletes a named list but never the default`() {
+        val lists = listOf(TodoList.defaultList(), TodoList("work", "Work", createdAt = 1))
+        val kept = TodoTasks.removeList(lists, "work")
+        assertEquals(listOf(TodoList.DEFAULT_LIST_ID), kept.map { it.id })
+        assertEquals(lists, TodoTasks.removeList(lists, TodoList.DEFAULT_LIST_ID))
+        assertEquals(lists, TodoTasks.removeList(lists, "missing"))
+    }
+
+    @Test
+    fun `removing a list takes its tasks and only its tasks`() {
+        val tasks = listOf(
+            task("a", listId = "work"),
+            task("b", listId = TodoList.DEFAULT_LIST_ID),
+            task("c", listId = "work"),
+        )
+        assertEquals(listOf("b"), TodoTasks.removeTasksOfList(tasks, "work").map { it.id })
     }
 }

@@ -251,7 +251,7 @@ fun AppearanceScreen(
             ) {
                 Text(
                     text = "Icons per row — Auto fills your screen comfortably; " +
-                        "a chosen 2–6 is used whenever it fits and clamped when " +
+                        "a chosen 2–8 is used whenever it fits and clamped when " +
                         "it can't.",
                     style = MaterialTheme.typography.bodySmall,
                     color = HomeTokens.textDim,

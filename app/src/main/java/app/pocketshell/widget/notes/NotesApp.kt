@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,6 +52,8 @@ import app.pocketshell.ui.theme.TerminalTheme
 import app.pocketshell.widget.HomeAppContext
 import app.pocketshell.widget.HomeApplication
 import app.pocketshell.widget.HomeAppSpec
+import app.pocketshell.widget.IconAction
+import app.pocketshell.widget.SectionLabel
 import java.util.UUID
 import kotlinx.coroutines.launch
 
@@ -61,9 +61,12 @@ import kotlinx.coroutines.launch
  * M8.4 — NOTES: the quick-capture Home Application. The card IS the app
  * (the reference ServersApp pattern):
  *
- *   list ("N notes" + search + rows — pinned ★ first, newest touched first)
+ *   list ("N notes" + search + rows — pinned ★ first, newest touched first,
+ *         PINNED/NOTES groups when a pin exists, a right-edge touched-time
+ *         per row)
  *     ↓ tap a row / + NEW
- *   editor (optional title + monospace body; going back COMMITS the draft)
+ *   editor (optional title + monospace body; going back COMMITS the draft;
+ *         the touched-time sits beside the pin/delete controls)
  *     ↓ back (the card's OWN back handler — only from the list does back
  *       reach the rest of Home)
  *
@@ -108,6 +111,10 @@ object NotesApp : HomeApplication() {
         // back, or rotating never resets what the user was editing.
         val state = remember { context.stateStore.forApp(NotesApp.ID) { NotesState() } }
 
+        // The clock for the relative-time badges — read once per entry
+        // into the card (never polled; badges age on the next recompose).
+        val nowMs = remember { System.currentTimeMillis() }
+
         val editorNote = state.editorId.takeIf { it.isNotEmpty() }
             ?.let { id -> notes.firstOrNull { it.id == id } }
 
@@ -151,6 +158,8 @@ object NotesApp : HomeApplication() {
                     title = state.draftTitle,
                     body = state.draftBody,
                     pinned = state.draftPinned,
+                    updatedAtMs = editorNote?.updatedAtMs?.takeIf { it > 0 },
+                    nowMs = nowMs,
                     canDelete = editorNote != null,
                     onTitle = { state.draftTitle = it },
                     onBody = { state.draftBody = it },
@@ -171,6 +180,7 @@ object NotesApp : HomeApplication() {
                 NotesList(
                     notes = notes,
                     query = state.query,
+                    nowMs = nowMs,
                     layout = layout,
                     onQuery = { state.query = it },
                     onNew = {
@@ -237,6 +247,7 @@ internal enum class NotesLayout(
 private fun NotesList(
     notes: List<StickyNote>,
     query: String,
+    nowMs: Long,
     layout: NotesLayout,
     onQuery: (String) -> Unit,
     onNew: () -> Unit,
@@ -245,7 +256,15 @@ private fun NotesList(
     val visible = remember(notes, query) {
         NoteOps.filtered(NoteOps.sortedForDisplay(notes), query)
     }
-    val pinnedCount = remember(notes) { notes.count { it.pinned } }
+    // The PINNED split (M8.4.3): when at least one VISIBLE note is pinned,
+    // the list reads as a PINNED group and a NOTES group (the shared
+    // section-label primitive). Order inside each group is untouched —
+    // the display sort already puts pinned first; this only names the
+    // seam. No pinned note, no labels: a flat list stays one fact short
+    // of noise.
+    val pinned = remember(visible) { visible.filter { it.pinned } }
+    val unpinned = remember(visible) { visible.filterNot { it.pinned } }
+    val grouped = pinned.isNotEmpty()
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Header — the application's title bar + the one creation action.
@@ -267,79 +286,111 @@ private fun NotesList(
                 )
                 Spacer(Modifier.width(10.dp))
             }
-            NewButton(onNew = onNew)
+            IconAction(
+                icon = Icons.Outlined.Add,
+                label = "New note",
+                onClick = onNew,
+            )
         }
 
-        // Search — filter-as-you-type, only when there is something to filter.
-        if (notes.isNotEmpty()) {
-            NoteSearchField(query = query, onQuery = onQuery)
-            Spacer(Modifier.height(4.dp))
-        }
-
-        // Rows — pinned first (the display sort is the store's order policy),
-        // keyed by id so pin/reorder/edit never re-compose the wrong row.
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            itemsIndexed(
-                visible,
-                key = { _, note -> note.id },
-                contentType = { _, _ -> "note" },
-            ) { index, note ->
-                NoteRow(
-                    note = note,
-                    showsPreview = layout.showsPreview,
-                    onOpen = { onOpen(note) },
-                )
-                if (index != visible.lastIndex) {
-                    HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
-                }
-            }
-        }
-
-        // Footer statistics — roomy cards only.
-                Spacer(Modifier.height(4.dp))
-        // The honest state line, every density, every theme.
-        val stateLine = when {
-            notes.isEmpty() -> "Nothing captured"
-            visible.isEmpty() -> "No note matches \"$query\""
-            else -> "Local notes — stored on this device"
-        }
-        Text(
-            text = stateLine,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (visible.isNotEmpty()) HomeTokens.accent else HomeTokens.textDim,
-            maxLines = 1,
-        )
         if (notes.isEmpty()) {
+            // The honest empty state — two short lines right under the
+            // title. No dead middle, no paragraph: the card is a
+            // quick-capture, and the + is one glance away.
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = "Jot a command, a reminder, an idea — it stays in this card.",
+                text = "No notes yet",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textPrimary,
+                maxLines = 1,
+            )
+            Text(
+                text = "Tap + to capture a command, a path, an idea.",
                 style = MaterialTheme.typography.bodySmall,
                 color = HomeTokens.textDim,
-                modifier = Modifier.padding(top = 2.dp),
+                maxLines = 1,
+            )
+        } else {
+            // Search — filter-as-you-type, only when there is something to filter.
+            NoteSearchField(query = query, onQuery = onQuery)
+            Spacer(Modifier.height(4.dp))
+
+            // Rows — keyed by id so pin/reorder/edit never re-compose the
+            // wrong row; pinned/unpinned labeled groups when a pin exists.
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                if (grouped) {
+                    item(key = "label-pinned", contentType = "label") { SectionLabel("PINNED") }
+                    itemsIndexed(
+                        pinned,
+                        key = { _, note -> note.id },
+                        contentType = { _, _ -> "note" },
+                    ) { index, note ->
+                        NoteRow(
+                            note = note,
+                            showsPreview = layout.showsPreview,
+                            nowMs = nowMs,
+                            onOpen = { onOpen(note) },
+                        )
+                        if (index != pinned.lastIndex) {
+                            HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
+                        }
+                    }
+                    item(key = "label-notes", contentType = "label") { SectionLabel("NOTES") }
+                    itemsIndexed(
+                        unpinned,
+                        key = { _, note -> note.id },
+                        contentType = { _, _ -> "note" },
+                    ) { index, note ->
+                        NoteRow(
+                            note = note,
+                            showsPreview = layout.showsPreview,
+                            nowMs = nowMs,
+                            onOpen = { onOpen(note) },
+                        )
+                        if (index != unpinned.lastIndex) {
+                            HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
+                        }
+                    }
+                } else {
+                    itemsIndexed(
+                        visible,
+                        key = { _, note -> note.id },
+                        contentType = { _, _ -> "note" },
+                    ) { index, note ->
+                        NoteRow(
+                            note = note,
+                            showsPreview = layout.showsPreview,
+                            nowMs = nowMs,
+                            onOpen = { onOpen(note) },
+                        )
+                        if (index != visible.lastIndex) {
+                            HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
+                        }
+                    }
+                }
+            }
+
+            // The honest state line, every density, every theme — and the
+            // only footer fact (the header already owns the count).
+            Spacer(Modifier.height(4.dp))
+            val stateLine = if (visible.isEmpty()) "No note matches \"$query\"" else "Local notes — stored on this device"
+            Text(
+                text = stateLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (visible.isNotEmpty()) HomeTokens.accent else HomeTokens.textDim,
+                maxLines = 1,
             )
         }
     }
 }
 
-/** The one creation action: compact icon-first, named for accessibility. */
 @Composable
-private fun NewButton(onNew: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(28.dp)
-            .clickable(role = Role.Button, onClickLabel = "New note") { onNew() },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Add,
-            contentDescription = null,
-            tint = HomeTokens.accent,
-            modifier = Modifier.size(18.dp),
-        )
-    }
-}
-
-@Composable
-private fun NoteRow(note: StickyNote, showsPreview: Boolean, onOpen: () -> Unit) {
+private fun NoteRow(
+    note: StickyNote,
+    showsPreview: Boolean,
+    nowMs: Long,
+    onOpen: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -365,7 +416,22 @@ private fun NoteRow(note: StickyNote, showsPreview: Boolean, onOpen: () -> Unit)
                 color = HomeTokens.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
+            // The right-edge touched-time (M8.4.3): shown at BOTH densities
+            // — it is 10sp and the title ellipsizes, so the row stays
+            // single-line-clean. An unstamped legacy note (updatedAtMs 0)
+            // shows nothing rather than an invented date.
+            if (note.updatedAtMs > 0) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = NoteOps.relativeTime(nowMs, note.updatedAtMs),
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 10.sp,
+                    color = HomeTokens.textDim,
+                    maxLines = 1,
+                )
+            }
         }
         if (showsPreview) {
             val preview = NoteOps.previewLine(note.body)
@@ -381,25 +447,6 @@ private fun NoteRow(note: StickyNote, showsPreview: Boolean, onOpen: () -> Unit)
             }
         }
     }
-}
-
-/** Compact editor action: icon-first, named for accessibility. */
-@Composable
-private fun EditorAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    tint: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit,
-) {
-    Icon(
-        imageVector = icon,
-        contentDescription = label,
-        tint = tint,
-        modifier = Modifier
-            .size(28.dp)
-            .clickable(role = Role.Button, onClickLabel = label) { onClick() }
-            .padding(5.dp),
-    )
 }
 
 @Composable
@@ -448,6 +495,8 @@ private fun NotesEditor(
     title: String,
     body: String,
     pinned: Boolean,
+    updatedAtMs: Long?,
+    nowMs: Long,
     canDelete: Boolean,
     onTitle: (String) -> Unit,
     onBody: (String) -> Unit,
@@ -513,16 +562,31 @@ private fun NotesEditor(
                 .padding(top = 4.dp),
         )
 
-        Row(modifier = Modifier.padding(top = 4.dp)) {
-            EditorAction(
+        Row(
+            modifier = Modifier.padding(top = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconAction(
                 icon = Icons.Outlined.PushPin,
                 label = if (pinned) "Unpin note" else "Pin note",
                 tint = if (pinned) HomeTokens.accent else HomeTokens.textDim,
                 onClick = onTogglePin,
             )
+            // The touched-time sits right beside the pin/delete controls —
+            // small, dim, never a full timestamp (M8.4.3).
+            if (updatedAtMs != null) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = NoteOps.relativeTime(nowMs, updatedAtMs),
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 10.sp,
+                    color = HomeTokens.textDim,
+                    maxLines = 1,
+                )
+            }
             Spacer(Modifier.weight(1f))
             if (canDelete) {
-                EditorAction(
+                IconAction(
                     icon = Icons.Outlined.Delete,
                     label = "Delete note",
                     tint = HomeTokens.danger,

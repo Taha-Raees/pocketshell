@@ -124,6 +124,74 @@ internal fun guestTotalBytes(guest: GuestCaches): Long? {
     return if (known.isEmpty()) null else known.sumOf { it.kilobytes!! } * 1024L
 }
 
+// ------------------------------------------------------------- M8.4.3 copy
+
+/**
+ * The analyzer copy every category page carries: WHY the category exists
+ * (first line) and WHAT clearing it means (second line). Static explanatory
+ * text — one place per category, written honestly, JVM-pinned by
+ * StorageUiTest.
+ */
+internal data class CategoryCopy(
+    val why: String,
+    val consequence: String,
+)
+
+internal fun categoryCopy(category: StorageCategory): CategoryCopy = when (category) {
+    StorageCategory.RUNTIME -> CategoryCopy(
+        why = "The installed Linux guest itself — every package, tool and " +
+            "guest cache lives inside this tree.",
+        consequence = "Do NOT clear from outside the app — removing it by hand " +
+            "is an uninstall; install, repair and remove live in Diagnostics.",
+    )
+    StorageCategory.PACKAGE_CACHE -> CategoryCopy(
+        why = "Downloaded apk archives kept so package installs do not " +
+            "re-download them every time.",
+        consequence = "Safe to clear — apk re-downloads whatever it needs on " +
+            "the next install; installed packages are not touched.",
+    )
+    StorageCategory.SHARE_STAGING -> CategoryCopy(
+        why = "Short-lived staged copies of files shared out of this card, " +
+            "kept inside the app's own cache.",
+        consequence = "Safe to clear — the area refills on the next share and " +
+            "cleans itself before each one.",
+    )
+    StorageCategory.GUEST_CACHES -> CategoryCopy(
+        why = "Build-tool caches inside the guest (~/.npm, ~/.gradle, " +
+            "~/.cargo, /tmp) — a breakdown of the runtime total, not extra space.",
+        consequence = "Clear from a terminal — this card never deletes guest " +
+            "files (for example: npm cache clean --force, or rm -rf ~/.cache/…).",
+    )
+}
+
+/**
+ * The guest-cache breakdown's row order: largest measured size first; an
+ * entry du could not size sorts last (an honest unknown is not a zero to
+ * be ranked). Stable for equal sizes. Pure — JVM-tested.
+ */
+internal fun sortedGuestCaches(entries: List<GuestCacheEntry>): List<GuestCacheEntry> =
+    entries.sortedWith(compareByDescending<GuestCacheEntry> { it.kilobytes ?: Long.MIN_VALUE })
+
+/**
+ * The overview row's secondary fact — only numbers the snapshot already
+ * holds (file counts from the existing walks, the guest entry count). No
+ * new scanning, no invented numbers: null when the snapshot cannot say.
+ */
+internal fun categoryDetail(category: StorageCategory, snapshot: StorageSnapshot): String? =
+    when (category) {
+        StorageCategory.RUNTIME -> snapshot.runtime.fileCount?.let { files(it) }
+        StorageCategory.PACKAGE_CACHE ->
+            snapshot.apkCache.takeIf { it.exists }?.let { files(it.files) }
+        StorageCategory.SHARE_STAGING ->
+            snapshot.staging.takeIf { it.exists }?.let { files(it.files) }
+        StorageCategory.GUEST_CACHES ->
+            (snapshot.guest as? GuestCaches.Sizes)
+                ?.takeIf { it.entries.isNotEmpty() }
+                ?.let { "${it.entries.size} caches" }
+    }
+
+private fun files(count: Int): String = "${count} file${if (count == 1) "" else "s"}"
+
 /** The overview's honest one-line state (Servers/Git state-line discipline). */
 internal fun overviewStateLine(ui: StorageUi): String {
     val ready = ui as? StorageUi.Ready
@@ -157,20 +225,48 @@ internal fun categoryValue(category: StorageCategory, snapshot: StorageSnapshot)
     }
 }
 
-/** The preview page's headline: what will be removed, with its approx size. */
+/**
+ * The preview page's headline: what will be removed, with its approx size —
+ * plus the census (largest single file) when the walk saw one. A lone file
+ * IS the total, so the largest is stated only when it adds information
+ * (never the same number twice).
+ */
 internal fun previewHeadline(size: CategoryScan.SizeResult): String = when {
     !size.exists || size.files == 0 -> "Empty — nothing to clear."
-    else -> "${size.files} file${if (size.files == 1) "" else "s"} · about " +
-        app.pocketshell.widget.probe.StorageScan.formatBytes(size.bytes)
+    else -> buildString {
+        append("${size.files} file${if (size.files == 1) "" else "s"} · about ")
+        append(app.pocketshell.widget.probe.StorageScan.formatBytes(size.bytes))
+        val largest = size.largestFileName?.takeIf { size.files > 1 }
+        if (largest != null) {
+            append(" · largest: $largest (")
+            append(app.pocketshell.widget.probe.StorageScan.formatBytes(size.largestFileBytes))
+            append(")")
+        }
+    }
 }
 
-/** The clear flow's honest line, per state. */
-internal fun clearStateLine(state: ClearState): String = when (state) {
+/**
+ * The clear flow's honest line, per state — and for [ClearState.Done] the
+ * whole BEFORE → OPERATION → AFTER arc in one line: what was freed, then
+ * the cache's re-measured size once it arrives ("cache now Y"), or an
+ * explicit "re-measuring…" while that measurement is still in flight.
+ */
+internal fun clearStateLine(
+    state: ClearState,
+    current: CategoryScan.SizeResult,
+    measuring: Boolean,
+): String = when (state) {
     is ClearState.Idle -> ""
     is ClearState.Running -> "Clearing…"
-    is ClearState.Done ->
-        "Cleared ${state.filesDeleted} file${if (state.filesDeleted == 1) "" else "s"} · " +
-            "freed ${app.pocketshell.widget.probe.StorageScan.formatBytes(state.bytesFreed)}"
+    is ClearState.Done -> {
+        val freed = "Freed ${app.pocketshell.widget.probe.StorageScan.formatBytes(state.bytesFreed)} " +
+            "(${state.filesDeleted} file${if (state.filesDeleted == 1) "" else "s"})"
+        if (measuring) {
+            "$freed · re-measuring…"
+        } else {
+            "$freed · cache now ${app.pocketshell.widget.probe.StorageScan.formatBytes(current.bytes)}"
+        }
+    }
     is ClearState.Stopped -> "Stopped early — remaining sizes re-measured."
     is ClearState.Failed -> "Could not clear: ${state.reason}"
 }

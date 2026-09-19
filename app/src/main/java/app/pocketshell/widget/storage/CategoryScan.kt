@@ -40,18 +40,36 @@ object CategoryScan {
     /** Cancellation is polled every this-many walked entries. */
     private const val CANCEL_POLL_ENTRIES = 128L
 
-    /** One category's measured size. [truncated] ⇒ bytes/files are floors. */
+    /**
+     * The census name is capped — a longer path is identified by its
+     * truncated prefix (with an ellipsis), never silently rewritten.
+     */
+    const val MAX_CENSUS_NAME_CHARS = 48
+
+    /**
+     * One category's measured size. [truncated] ⇒ bytes/files are floors.
+     *
+     * M8.4.3 census, collected by the SAME walk (never a second pass): the
+     * count of regular files ([files]) and the single largest regular file
+     * ([largestFileBytes] / [largestFileName], path relative to the scanned
+     * dir, name capped at [MAX_CENSUS_NAME_CHARS]). A truncated walk's
+     * census is a floor like every other number; a symlink node is never
+     * the largest file (links are never sized).
+     */
     data class SizeResult(
         val bytes: Long,
         val files: Int,
         val truncated: Boolean,
         val exists: Boolean,
+        val largestFileBytes: Long = 0L,
+        val largestFileName: String? = null,
     )
 
     /**
      * Size [dir] with one budgeted NOFOLLOW walk. Blocking I/O — call from
      * Dispatchers.IO. [isCancelled] is polled during the walk; a cancelled
      * walk reports truncated = true (whatever was measured is a floor).
+     * The census accumulator (largest regular file) rides the same pass.
      */
     fun size(
         dir: File,
@@ -59,13 +77,16 @@ object CategoryScan {
         isCancelled: () -> Boolean = { false },
     ): SizeResult {
         if (!dir.isDirectory) return SizeResult(bytes = 0L, files = 0, truncated = false, exists = false)
+        val root: Path = dir.toPath()
         var counted = 0L
         var bytes = 0L
         var files = 0
+        var largestBytes = 0L
+        var largestName: String? = null
         var stoppedEarly = false
         try {
             Files.walkFileTree(
-                dir.toPath(),
+                root,
                 java.util.EnumSet.noneOf(FileVisitOption::class.java),
                 Int.MAX_VALUE,
                 object : SimpleFileVisitor<Path>() {
@@ -83,6 +104,12 @@ object CategoryScan {
                         if (attrs.isRegularFile) {
                             bytes += attrs.size()
                             files++
+                            // Census: strictly-greater keeps the FIRST largest
+                            // on ties — deterministic for a fixed walk order.
+                            if (attrs.size() > largestBytes) {
+                                largestBytes = attrs.size()
+                                largestName = censusName(root, file)
+                            }
                         }
                         return if (counted > maxFiles) {
                             stoppedEarly = true
@@ -106,7 +133,23 @@ object CategoryScan {
             files = files,
             truncated = stoppedEarly,
             exists = true,
+            largestFileBytes = largestBytes,
+            largestFileName = largestName,
         )
+    }
+
+    /** The walked file's path relative to the scanned root, name capped. */
+    private fun censusName(root: Path, file: Path): String {
+        val relative = try {
+            root.relativize(file).toString()
+        } catch (_: Exception) {
+            file.fileName.toString()
+        }
+        return if (relative.length <= MAX_CENSUS_NAME_CHARS) {
+            relative
+        } else {
+            relative.take(MAX_CENSUS_NAME_CHARS - 1) + "…"
+        }
     }
 
     /** Outcome of a clear — honest counts, never a silent partial. */

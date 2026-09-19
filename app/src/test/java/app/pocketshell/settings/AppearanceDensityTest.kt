@@ -59,8 +59,8 @@ class AppearanceDensityTest {
     }
 
     @Test
-    fun `tablet width carries every explicit request up to six`() {
-        for (pref in listOf(IconColumns.TWO, IconColumns.THREE, IconColumns.FOUR, IconColumns.FIVE, IconColumns.SIX)) {
+    fun `tablet width carries every explicit request up to eight`() {
+        for (pref in listOf(IconColumns.TWO, IconColumns.THREE, IconColumns.FOUR, IconColumns.FIVE, IconColumns.SIX, IconColumns.SEVEN, IconColumns.EIGHT)) {
             assertEquals(
                 pref.requested,
                 HomeGridDensity.effectiveColumns(pref, 840f, 52),
@@ -110,21 +110,21 @@ class AppearanceDensityTest {
     }
 
     @Test
-    fun `appearance parsers fall back to the defaults on junk`() {
-        assertEquals(TextScale.DEFAULT, parseTextScale(null))
-        assertEquals(TextScale.DEFAULT, parseTextScale("HUGE"))
-        assertEquals(IconSize.DEFAULT, parseIconSize(null))
-        assertEquals(IconSize.DEFAULT, parseIconSize("GIGANTIC"))
-        assertEquals(CardSize.DEFAULT, parseCardSize(null))
-        assertEquals(CardSize.DEFAULT, parseCardSize("massive"))
-        assertEquals(IconColumns.AUTO, parseIconColumns(null))
-        assertEquals(IconColumns.AUTO, parseIconColumns("ELEVEN"))
+    fun `appearance parsers fall back to the house defaults on junk (M8_4_3)`() {
+        assertEquals(TextScale.SMALL, parseTextScale(null))
+        assertEquals(TextScale.SMALL, parseTextScale("HUGE"))
+        assertEquals(IconSize.SMALL, parseIconSize(null))
+        assertEquals(IconSize.SMALL, parseIconSize("GIGANTIC"))
+        assertEquals(CardSize.LARGE, parseCardSize(null))
+        assertEquals(CardSize.LARGE, parseCardSize("massive"))
+        assertEquals(IconColumns.FOUR, parseIconColumns(null))
+        assertEquals(IconColumns.FOUR, parseIconColumns("ELEVEN"))
     }
 
     @Test
-    fun `icon columns vocabulary carries exactly auto and two through six`() {
+    fun `icon columns vocabulary carries exactly auto and two through eight`() {
         assertEquals(
-            listOf(0, 2, 3, 4, 5, 6),
+            listOf(0, 2, 3, 4, 5, 6, 7, 8),
             IconColumns.entries.map { it.requested },
         )
     }

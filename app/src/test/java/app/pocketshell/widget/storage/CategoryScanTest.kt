@@ -19,6 +19,9 @@ import java.nio.file.Files
  *     symlink nodes survive with their targets untouched; emptied
  *     subdirectories go; the cache root itself always survives; nothing
  *     outside the cache dir is ever touched.
+ *   - CENSUS (M8.4.3): the SAME walk records the regular-file count and
+ *     the largest file (name capped) — a floor under truncation, and a
+ *     symlink node is never the largest.
  *   - measured cost on a >=20k-file fixture (printed for the record).
  */
 class CategoryScanTest {
@@ -109,6 +112,93 @@ class CategoryScanTest {
         assertFalse(result.truncated)
         root.deleteRecursively()
         outside.deleteRecursively()
+    }
+
+    // -------------------------------------------------- census (M8.4.3)
+
+    @Test
+    fun `the census accumulator records the count and the largest file in one walk`() {
+        val root = Files.createTempDirectory("apk-cache").toFile()
+        val sub = File(root, "sub").apply { mkdirs() }
+        writeFile(root, "small.apk", 10)
+        writeFile(sub, "big.apk", 500)
+        writeFile(root, "tiny", 1)
+
+        val result = CategoryScan.size(root)
+
+        assertEquals(3, result.files)
+        assertEquals(511L, result.bytes)
+        assertEquals(500L, result.largestFileBytes)
+        assertEquals("sub/big.apk", result.largestFileName)
+        root.deleteRecursively()
+    }
+
+    @Test
+    fun `a symlink node is never the largest file - census is regular files only`() {
+        val root = Files.createTempDirectory("apk-cache").toFile()
+        val outside = Files.createTempDirectory("outside").toFile()
+        writeFile(outside, "big.bin", 5000)
+        writeFile(root, "inner.apk", 50)
+        Files.createSymbolicLink(
+            File(root, "link.apk").toPath(),
+            File(outside, "big.bin").toPath(),
+        )
+
+        val result = CategoryScan.size(root)
+
+        // The 5000-byte TARGET is invisible to the NOFOLLOW walk — the
+        // census names a real regular file inside the cache, not a link.
+        assertEquals(50L, result.largestFileBytes)
+        assertEquals("inner.apk", result.largestFileName)
+        root.deleteRecursively()
+        outside.deleteRecursively()
+    }
+
+    @Test
+    fun `a truncated walk reports a census floor - only what was seen`() {
+        val root = Files.createTempDirectory("apk-cache").toFile()
+        repeat(10) { writeFile(root, "f$it", 1) }
+
+        val result = CategoryScan.size(root, maxFiles = 3)
+
+        assertTrue(result.truncated)
+        assertTrue(result.files < 10)
+        // Whatever the truncated walk saw is a floor: here only 1-byte files.
+        assertTrue(result.largestFileBytes <= 1L)
+        assertNotNull(result.largestFileName)
+        root.deleteRecursively()
+    }
+
+    @Test
+    fun `the census name is capped - a long path is truncated with an ellipsis`() {
+        val root = Files.createTempDirectory("apk-cache").toFile()
+        writeFile(root, "x".repeat(80) + ".apk", 12)
+
+        val result = CategoryScan.size(root)
+
+        assertEquals(12L, result.largestFileBytes)
+        val name = requireNotNull(result.largestFileName)
+        assertTrue(
+            "capped at MAX_CENSUS_NAME_CHARS",
+            name.length <= CategoryScan.MAX_CENSUS_NAME_CHARS,
+        )
+        assertTrue(name.endsWith("…"))
+        root.deleteRecursively()
+    }
+
+    @Test
+    fun `equal-size files resolve the census deterministically to one of them`() {
+        val root = Files.createTempDirectory("apk-cache").toFile()
+        writeFile(root, "a.apk", 10)
+        writeFile(root, "b.apk", 10)
+
+        val result = CategoryScan.size(root)
+
+        assertEquals(10L, result.largestFileBytes)
+        // Walk order is the filesystem's, so WHICH name wins on a tie is not
+        // pinned — but exactly one real name is, never null, never invented.
+        assertTrue(result.largestFileName == "a.apk" || result.largestFileName == "b.apk")
+        root.deleteRecursively()
     }
 
     // ---------------------------------------------------------- clearing

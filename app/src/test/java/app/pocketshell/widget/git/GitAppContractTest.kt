@@ -181,12 +181,49 @@ class GitAppContractTest {
             "status is the stable porcelain form (asked per discovered repo)",
             script.contains("status --porcelain=v1 -b"),
         )
+        // M8.4.3 inspection sections — read-only listing verbs, bounded.
+        assertTrue("recent history is a bounded log", script.contains("log -5"))
+        assertTrue("branches are listed read-only", script.contains("branch --format"))
+        assertTrue("remotes are listed read-only", script.contains("remote -v"))
+        assertTrue(
+            "branch and remote listings are head-capped in the script",
+            Regex("head -n 12").findAll(script).count() == 2,
+        )
         val banned = listOf(
             " add", " rm ", "commit", "push", "pull", "merge", "rebase",
             "checkout", "reset", "stash", "clean", "clone", "init", "config", " mv ",
         )
         val found = banned.filter { script.contains(it) }
         assertTrue("the card never mutates a repository; found: $found", found.isEmpty())
+    }
+
+    /**
+     * M8.4.3 — the manual commit/diff pages exec OUTSIDE the probe script,
+     * as direct argv (no shell). Their argv lists are pinned literally:
+     * exactly two read-only git verbs may ever leave this card by hand.
+     */
+    @Test
+    fun `the manual inspection execs are read-only verbs with pinned argv`() {
+        val literals = stringLiterals(gitSource("GitProbe.kt"))
+        assertTrue(
+            "the commit page asks for show --stat with the four-line header format",
+            literals.contains("show") &&
+                literals.contains("--stat") &&
+                literals.contains("--pretty=format:%H%n%an <%ae>%n%ar%n%s"),
+        )
+        assertTrue(
+            "the diff page asks for git diff with an explicit -- separator",
+            literals.contains("diff") && literals.contains("--") && literals.contains("--cached"),
+        )
+        val bannedVerbs = setOf(
+            "add", "rm", "mv", "commit", "push", "pull", "merge", "rebase",
+            "checkout", "reset", "stash", "clean", "clone", "init", "config",
+        )
+        val found = literals.filter { it in bannedVerbs }
+        assertTrue(
+            "no state-changing git verb may appear as an argv element; found: $found",
+            found.isEmpty(),
+        )
     }
 
     // -------------------------------------- 4. in-card navigation
@@ -199,8 +236,11 @@ class GitAppContractTest {
             code.contains("stateStore.forApp"),
         )
         assertTrue(
-            "back inside the card returns to the overview before leaving Home",
-            code.contains("BackHandler(enabled = selected != null)"),
+            "back inside the card closes the innermost inspection page before " +
+                "the detail page, and only the overview's back leaves Home",
+            code.contains(
+                "BackHandler(enabled = selected != null || state.commitReq != null || state.diffReq != null)",
+            ),
         )
         // Actions ride ONLY the one navigation seam.
         assertTrue(code.contains("nav.openTerminal()"))
@@ -209,6 +249,38 @@ class GitAppContractTest {
         val banned = listOf("startActivity", "Intent(")
         val found = banned.filter { code.contains(it) }
         assertTrue("no second navigation mechanism; found: $found", found.isEmpty())
+    }
+
+    /**
+     * M8.4.3 — the commit/diff pages are MANUAL execs outside the probe's
+     * idle gate: one tap = one bounded exec, served from the last-viewed
+     * cache when the target is unchanged, and a result may only land while
+     * its request is still the newest (the serial guard) — a stale guest
+     * answer abandoned by navigation can never overwrite the page.
+     */
+    @Test
+    fun `manual inspection is one tap one exec and guarded against stale results`() {
+        val code = stripCommentsAndStrings(gitSource("GitApp.kt"))
+        assertTrue(
+            "the commit exec rides the probe's manual show path",
+            code.contains("state.probe.showCommit"),
+        )
+        assertTrue(
+            "the diff exec rides the probe's manual diff path",
+            code.contains("state.probe.diffFile"),
+        )
+        assertTrue(
+            "results land only under the request serial guard",
+            Regex("""state\.reqSerial == gen""").containsMatchIn(code),
+        )
+        assertTrue(
+            "the last-viewed commit cache gates re-exec on back-and-return",
+            code.contains("state.commitServed") && code.contains("state.diffServed"),
+        )
+        assertTrue(
+            "leaving a page abandons any in-flight exec's write-back",
+            code.contains("fun closeCommit") && code.contains("fun closeDiff"),
+        )
     }
 
     // -------------------------------------- 5. the probe layer stays pure

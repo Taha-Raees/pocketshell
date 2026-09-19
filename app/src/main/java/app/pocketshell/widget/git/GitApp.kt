@@ -69,30 +69,41 @@ import kotlinx.coroutines.withContext
  *
  *   overview (repo chips when several — selection swaps the pane IN
  *     PLACE; the selected repo's pane: branch + tracking glyphs + worktree
- *     marker, then the changed files grouped STAGED / UNSTAGED)
- *     ↓ tap the pane
- *   detail (branch/upstream/diverge table, the full porcelain rows,
- *     TERMINAL / LINUX / REFRESH as compact TEXT buttons)
+ *     marker, then CONFLICTS / STAGED / UNSTAGED groups, then the RECENT
+ *     commit list, the BRANCHES survey and the REMOTES list)
+ *     ↓ tap the pane / a commit / a file in the detail page
+ *   detail (branch/upstream/diverge table, the full porcelain rows — each
+ *     row opens the file's DIFF — and TERMINAL / LINUX / REFRESH)
+ *   commit page (one bounded read-only `git show --stat`: full hash,
+ *     author, date, subject, the stat list)
  *     ↓ back (the card's OWN back handler — only from the overview does
  *       back reach the rest of Home)
  *
- * The one question the card answers: "what is happening in my repositories
- * right now?" — answered with REAL guest data only. One batched read-only
- * guest exec per refresh ([GitProbe]) reports the git binary, repositories
- * under the guest home and each repo's `status --porcelain=v1 -b`. There
- * are deliberately NO staging/commit/push/checkout controls: the app does
- * not own the repositories, a terminal is where git work happens, and the
- * only actions offered are the existing navigation seams (open the
- * terminal, enter the Linux guest) plus refresh.
+ * The questions the card answers: "what is happening in my repositories
+ * right now, and what has been happening in them?" — answered with REAL
+ * guest data only. One batched read-only guest exec per refresh
+ * ([GitProbe]) reports the git binary, repositories under the guest home,
+ * each repo's `status --porcelain=v1 -b`, its last 5 commits, its local
+ * branches and its remotes. There are still NO staging/commit/push/
+ * checkout controls: the app does not own the repositories, a terminal is
+ * where git work happens, and the only manual execs are read-only
+ * inspection (`git show --stat` for one commit, `git diff` for one file —
+ * one tap = one bounded exec, the Sync dry-run discipline) plus the
+ * existing navigation seams (open the terminal, enter the Linux guest)
+ * and refresh.
  *
  * Honest degradation everywhere: runtime not READY → "Linux not ready";
  * git absent in the guest → "Git unavailable" + how to get it; no repos
  * → "No repositories" + where they would appear; a failed exec → the real
- * reason, never "no repositories"; one unreadable repo degrades alone.
- * M8.4.2: the probe instance, the last scan's ui, the detail page and the
- * selected repo live in the process-scoped holder ([GitState] via
- * stateStore.forApp) — returning to the card renders the cached snapshot
- * instantly, and the probe's idle gate stays the only periodic scan path.
+ * reason, never "no repositories"; one unreadable repo degrades alone; a
+ * failed inspection shows the tool's real stderr tail. M8.4.2: the probe
+ * instance, the last scan's ui, the detail page and the selected repo
+ * live in the process-scoped holder ([GitState] via stateStore.forApp) —
+ * returning to the card renders the cached snapshot instantly, and the
+ * probe's idle gate stays the only periodic scan path. M8.4.3: the commit
+ * and diff pages live there too, with a last-viewed cache so back-and-
+ * return does not re-exec unless the target changed, and a serial guard
+ * so a stale exec can never overwrite a newer one.
  */
 object GitApp : HomeApplication() {
 
@@ -151,6 +162,74 @@ object GitApp : HomeApplication() {
             state.ui = scanToUi(withContext(Dispatchers.IO) { state.probe.snapshot() })
         }
 
+        // M8.4.3 — the commit page: one tap = one bounded, read-only
+        // `git show --stat`. A request whose repo+hash already rendered a
+        // DONE page is served from the last-viewed cache (back-and-return
+        // re-executes nothing); anything else execs once, and the result
+        // lands only if its request is still the newest — a stale exec
+        // (superseded by another tap, or abandoned by navigation) can
+        // never overwrite the page.
+        LaunchedEffect(state.commitReq) {
+            val req = state.commitReq ?: return@LaunchedEffect
+            val served = state.commitServed
+            if (state.commitUi is CommitUi.Done &&
+                served != null &&
+                served.repoPath == req.repoPath &&
+                served.hash == req.hash
+            ) {
+                return@LaunchedEffect
+            }
+            val gen = req.serial
+            state.commitUi = CommitUi.Loading
+            val result = withContext(Dispatchers.IO) {
+                state.probe.showCommit(req.repoPath, req.hash)
+            }
+            if (state.reqSerial == gen) {
+                when (result) {
+                    is CommitResult.Done -> {
+                        state.commitUi = CommitUi.Done(result.detail)
+                        state.commitServed = req
+                    }
+                    is CommitResult.Failed -> state.commitUi = CommitUi.Failed(result.reason)
+                }
+            }
+        }
+
+        // M8.4.3 — the diff page: the same one-tap-one-exec shape for
+        // `git diff [--cached] -- <path>`. An untracked path needs no exec
+        // at all: git has no diff for it, and the page says so honestly.
+        LaunchedEffect(state.diffReq) {
+            val req = state.diffReq ?: return@LaunchedEffect
+            val served = state.diffServed
+            val servedSame = served != null &&
+                served.repoPath == req.repoPath &&
+                served.path == req.path &&
+                served.staged == req.staged &&
+                served.untracked == req.untracked
+            if (servedSame && (state.diffUi is DiffUi.Done || state.diffUi is DiffUi.Untracked)) {
+                return@LaunchedEffect
+            }
+            if (req.untracked) {
+                state.diffUi = DiffUi.Untracked
+                state.diffServed = req
+                return@LaunchedEffect
+            }
+            val gen = req.serial
+            state.diffUi = DiffUi.Loading
+            val result = withContext(Dispatchers.IO) {
+                state.probe.diffFile(req.repoPath, req.path, req.staged)
+            }
+            if (state.reqSerial == gen) {
+                when (result) {
+                    is DiffResult.Done -> {
+                        state.diffUi = DiffUi.Done(result.text)
+                        state.diffServed = req
+                    }
+                    is DiffResult.Failed -> state.diffUi = DiffUi.Failed(result.reason)
+                }
+            }
+        }
+
         val repos = (state.ui as? GitUi.Ready)?.snapshot?.repos.orEmpty()
         // The pane's repository: the chip selection, defaulting to — and
         // degrading to — the first repo; a vanished selection never leaves
@@ -159,21 +238,40 @@ object GitApp : HomeApplication() {
         // A detail selection whose repo vanished degrades to the overview —
         // never a stale detail page for a deleted directory.
         val selected = state.detailPath?.let { path -> repos.firstOrNull { it.path == path } }
-        BackHandler(enabled = selected != null) { state.detailPath = null }
+        // The innermost open page closes first: commit page → diff page →
+        // repo detail; only from the overview does back leave the card.
+        BackHandler(enabled = selected != null || state.commitReq != null || state.diffReq != null) {
+            when {
+                state.commitReq != null -> state.closeCommit()
+                state.diffReq != null -> state.closeDiff()
+                else -> state.detailPath = null
+            }
+        }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = GitLayout.from(maxWidth.value, maxHeight.value)
-            if (selected != null) {
-                GitDetail(
+            val commitReq = state.commitReq
+            val diffReq = state.diffReq
+            when {
+                commitReq != null -> GitCommitPage(
+                    ui = state.commitUi,
+                    onBack = { state.closeCommit() },
+                )
+                diffReq != null -> GitDiffPage(
+                    req = diffReq,
+                    ui = state.diffUi,
+                    onBack = { state.closeDiff() },
+                )
+                selected != null -> GitDetail(
                     repo = selected,
                     roomy = layout == GitLayout.ROOMY,
                     onBack = { state.detailPath = null },
                     onRefresh = { state.refreshTick++ },
+                    onOpenDiff = { entry -> state.openDiff(selected.path, entry) },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                 )
-            } else {
-                GitOverview(
+                else -> GitOverview(
                     ui = state.ui,
                     repos = repos,
                     paneRepo = paneRepo,
@@ -181,6 +279,7 @@ object GitApp : HomeApplication() {
                     onRefresh = { state.refreshTick++ },
                     onSelectRepo = { state.selectedPath = it.path },
                     onOpenDetail = { state.detailPath = it.path },
+                    onOpenCommit = { repo, entry -> state.openCommit(repo.path, entry.hash) },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                     onOpenDiagnostics = { context.nav.openDiagnostics() },
@@ -198,7 +297,7 @@ object GitApp : HomeApplication() {
      * DNS/workspace repair: this probe is read-only and never mutates the
      * rootfs from Home.
      */
-    private fun guestExec(appContext: Context): GitProbe.GuestExec = GitProbe.GuestExec { argv ->
+    private fun guestExec(appContext: Context): GitProbe.GuestExec = GitProbe.GuestExec { argv, timeoutMs ->
         val storage = RuntimeStorage(appContext.noBackupFilesDir)
         val spec = RuntimeProcessLauncher.buildLaunchSpec(
             nativeLibraryDir = appContext.applicationInfo.nativeLibraryDir,
@@ -210,7 +309,7 @@ object GitApp : HomeApplication() {
         )
         val process = ProcessBuilderGuestCommandRunner().start(spec)
         try {
-            process.waitFor(GitProbe.SCAN_TIMEOUT_MS)
+            process.waitFor(timeoutMs)
         } catch (t: Throwable) {
             process.destroy()
             throw t
@@ -224,13 +323,91 @@ object GitApp : HomeApplication() {
  * ARE the cache — the last scan's ui, the open detail page, the selected
  * repository and the manual-refresh counter. Nothing here needs to
  * survive process death (a fresh process re-probes honestly), so no
- * DataStore is involved.
+ * DataStore is involved. M8.4.3 adds the inspection pages (commit detail,
+ * file diff) with their requests, loading/failed states, last-viewed
+ * caches and the one serial guard both pages share.
  */
 internal class GitState(val probe: GitProbe) {
     var ui by mutableStateOf<GitUi>(GitUi.Probing)
     var detailPath by mutableStateOf<String?>(null)
     var selectedPath by mutableStateOf<String?>(null)
     var refreshTick by mutableStateOf(0)
+
+    // The open inspection requests. Every request (open OR close) bumps
+    // [reqSerial]; an exec captures the serial it was started under and
+    // its result is applied only if the serial is still current — the
+    // stale-result guard that makes one tap = one exec honest even when
+    // navigation abandons an in-flight guest command.
+    var commitReq by mutableStateOf<CommitReq?>(null)
+    var commitUi by mutableStateOf<CommitUi>(CommitUi.Idle)
+    var commitServed by mutableStateOf<CommitReq?>(null)
+    var diffReq by mutableStateOf<DiffReq?>(null)
+    var diffUi by mutableStateOf<DiffUi>(DiffUi.Idle)
+    var diffServed by mutableStateOf<DiffReq?>(null)
+    var reqSerial by mutableStateOf(0)
+
+    fun openCommit(repoPath: String, hash: String) {
+        commitReq = CommitReq(repoPath = repoPath, hash = hash, serial = ++reqSerial)
+    }
+
+    /** Routes one porcelain entry to its diff: index side → `--cached`. */
+    fun openDiff(repoPath: String, entry: GitStatusParser.PorcelainEntry) {
+        diffReq = DiffReq(
+            repoPath = repoPath,
+            path = entry.path,
+            staged = entry.x != ' ' && entry.x != '?',
+            untracked = entry.untracked,
+            serial = ++reqSerial,
+        )
+    }
+
+    /** Leaving a page abandons any in-flight exec's write-back. */
+    fun closeCommit() {
+        commitReq = null
+        reqSerial++
+    }
+
+    fun closeDiff() {
+        diffReq = null
+        reqSerial++
+    }
+}
+
+/** One open commit page: repo + hash + the serial that guards its exec. */
+internal data class CommitReq(
+    val repoPath: String,
+    val hash: String,
+    val serial: Int,
+)
+
+/** One open diff page: repo + path + which side of the change to show. */
+internal data class DiffReq(
+    val repoPath: String,
+    val path: String,
+    /** True = the index side (`git diff --cached`); false = worktree. */
+    val staged: Boolean,
+    /** Untracked paths have no diff — the page states that, no exec. */
+    val untracked: Boolean,
+    val serial: Int,
+)
+
+/** The commit page's state: loading, the parsed facts, or the real error. */
+internal sealed interface CommitUi {
+    data object Idle : CommitUi
+    data object Loading : CommitUi
+    data class Done(val detail: CommitDetail) : CommitUi
+    data class Failed(val reason: String) : CommitUi
+}
+
+/** The diff page's state: loading, the capped text, or an honest absence. */
+internal sealed interface DiffUi {
+    data object Idle : DiffUi
+    data object Loading : DiffUi
+    data class Done(val text: DiffText) : DiffUi
+
+    /** An untracked file has no diff — stated, never faked with output. */
+    data object Untracked : DiffUi
+    data class Failed(val reason: String) : DiffUi
 }
 
 /** The application's screen state (probe-driven, never invented). */
@@ -250,7 +427,8 @@ internal fun scanToUi(result: ScanResult): GitUi = when (result) {
  * The responsive contract — same geometry as ServersLayout (the card
  * dimensions are identical, so the device-derived thresholds carry over):
  * COMPACT keeps one-line rows; ROOMY adds the status header, per-repo path
- * sublines, the footer statistics and scrolling rows. Pure + JVM-tested.
+ * sublines, the commit sublines, the footer statistics and scrolling rows.
+ * Pure + JVM-tested.
  */
 internal enum class GitLayout(
     val showsPath: Boolean,
@@ -281,6 +459,7 @@ private fun GitOverview(
     onRefresh: () -> Unit,
     onSelectRepo: (RepoSnapshot) -> Unit,
     onOpenDetail: (RepoSnapshot) -> Unit,
+    onOpenCommit: (RepoSnapshot, LogEntry) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
     onOpenDiagnostics: () -> Unit,
@@ -368,8 +547,10 @@ private fun GitOverview(
         // The selected repository's pane — the one-glance answer: branch +
         // tracking glyphs + worktree marker on the first line, the mapped
         // path under it (roomy cards), then the changed files grouped the
-        // way git's index/worktree split sees them. Tapping the pane opens
-        // the repo's detail page.
+        // way git's index/worktree split sees them (conflicts above all),
+        // the recent commits, the local branches and the remotes — one
+        // scrolling column, no tabs hiding anything. Tapping the pane
+        // opens the repo's detail page; tapping a commit opens its page.
         if (paneRepo != null) {
             Column(
                 modifier = Modifier
@@ -440,13 +621,16 @@ private fun GitOverview(
                 }
 
                 // The changed files, grouped. Empty groups render nothing;
-                // both empty → the one honest line. Rows stay parser-faithful:
-                // the single status letter + the path (renames arrowed).
+                // all three empty → the one honest line. Rows stay parser-
+                // faithful: the single status letter + the path (renames
+                // arrowed). Conflicted paths render ONCE, in CONFLICTS —
+                // above staged/unstaged, with the one guidance line.
                 val status = paneRepo.status
                 if (status != null) {
+                    val conflicts = GitPresentation.conflictRows(status.entries)
                     val staged = GitPresentation.stagedRows(status.entries)
                     val unstaged = GitPresentation.unstagedRows(status.entries)
-                    if (staged.isEmpty() && unstaged.isEmpty()) {
+                    if (conflicts.isEmpty() && staged.isEmpty() && unstaged.isEmpty()) {
                         Text(
                             text = "Working tree clean",
                             fontFamily = TerminalTheme.mono,
@@ -455,6 +639,16 @@ private fun GitOverview(
                             modifier = Modifier.padding(top = 6.dp),
                         )
                     } else {
+                        if (conflicts.isNotEmpty()) {
+                            GitSection("CONFLICTS")
+                            conflicts.forEach { GitFileRow(it) }
+                            Text(
+                                text = "Resolve in a terminal (git status)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = HomeTokens.textDim,
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                        }
                         if (staged.isNotEmpty()) {
                             GitSection("STAGED")
                             staged.forEach { GitFileRow(it) }
@@ -464,6 +658,42 @@ private fun GitOverview(
                             unstaged.forEach { GitFileRow(it) }
                         }
                     }
+                }
+
+                // RECENT — the repository's last commits (newest first).
+                // `hash  subject` on one line; author · time as the
+                // ROOMY-only subline. A tap opens the commit page.
+                if (paneRepo.log.isNotEmpty()) {
+                    GitSection("RECENT")
+                    paneRepo.log.forEach { entry ->
+                        GitCommitRow(
+                            entry = entry,
+                            roomy = layout.showsPath,
+                            onOpen = { onOpenCommit(paneRepo, entry) },
+                        )
+                    }
+                }
+
+                // BRANCHES — the local branches: the checked-out one first
+                // (git's own "*" marker), each with its upstream and the
+                // ahead/behind its track string carries. Empty → nothing.
+                if (paneRepo.branches.isNotEmpty()) {
+                    GitSection("BRANCHES")
+                    val current = paneRepo.status?.branch
+                    paneRepo.branches
+                        .sortedByDescending { current != null && it.name == current }
+                        .forEach { branch ->
+                            GitBranchRow(
+                                branch = branch,
+                                isCurrent = current != null && branch.name == current,
+                            )
+                        }
+                }
+
+                // REMOTES — name + shortened URL. Empty → nothing.
+                if (paneRepo.remotes.isNotEmpty()) {
+                    GitSection("REMOTES")
+                    paneRepo.remotes.forEach { remote -> GitRemoteRow(remote) }
                 }
             }
         } else {
@@ -567,6 +797,123 @@ private fun GitFileRow(row: GitPresentation.EntryRow) {
     }
 }
 
+/** One recent commit: `hash  subject`, author · time as the ROOMY subline. */
+@Composable
+private fun GitCommitRow(entry: LogEntry, roomy: Boolean, onOpen: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                role = Role.Button,
+                onClickLabel = "Show commit ${entry.hash}",
+            ) { onOpen() }
+            .padding(vertical = 1.dp),
+    ) {
+        Text(
+            text = entry.hash,
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.textDim,
+        )
+        Spacer(Modifier.width(6.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = entry.subject,
+                fontFamily = TerminalTheme.mono,
+                fontSize = 11.sp,
+                color = HomeTokens.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (roomy) {
+                Text(
+                    text = "${entry.author} · ${entry.relativeTime}",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 10.sp,
+                    color = HomeTokens.textDim,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** One local branch: git's "*" marker for the checked-out one, then facts. */
+@Composable
+private fun GitBranchRow(branch: Branch, isCurrent: Boolean) {
+    Row(
+        modifier = Modifier.padding(vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (isCurrent) "*" else "",
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.accent,
+            modifier = Modifier.width(12.dp),
+        )
+        Text(
+            text = branch.name,
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (branch.upstream != null) {
+            Spacer(Modifier.width(6.dp))
+            val gone = if (branch.gone) " (gone)" else ""
+            Text(
+                text = "→ ${branch.upstream}$gone",
+                fontFamily = TerminalTheme.mono,
+                fontSize = 10.sp,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
+        val glyphs = GitPresentation.trackingGlyphs(ahead = branch.ahead, behind = branch.behind)
+        if (glyphs.isNotEmpty()) {
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = glyphs,
+                fontFamily = TerminalTheme.mono,
+                fontSize = 10.sp,
+                // rendered only when nonzero — see trackingGlyphs
+                color = HomeTokens.accent,
+            )
+        }
+    }
+}
+
+/** One remote: the name + its URL, shortened for the row, full in git. */
+@Composable
+private fun GitRemoteRow(remote: Remote) {
+    Row(modifier = Modifier.padding(vertical = 1.dp)) {
+        Text(
+            text = remote.name,
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.textPrimary,
+            maxLines = 1,
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = GitPresentation.shortUrl(remote.url),
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.textDim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
 /** The one refresh control: compact icon-first, named for accessibility. */
 @Composable
 private fun RefreshButton(onRefresh: () -> Unit) {
@@ -593,6 +940,7 @@ private fun GitDetail(
     roomy: Boolean,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
+    onOpenDiff: (GitStatusParser.PorcelainEntry) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
 ) {
@@ -601,28 +949,7 @@ private fun GitDetail(
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        // In-card back header: the ONLY back is the application's own.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(role = Role.Button, onClickLabel = "Back to Git") { onBack() },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "←",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 14.sp,
-                color = HomeTokens.accent,
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = "Git",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 11.sp,
-                letterSpacing = 1.6.sp,
-                color = HomeTokens.textDim,
-            )
-        }
+        InCardBackHeader(onBack = onBack)
         Text(
             text = repo.name,
             fontFamily = TerminalTheme.mono,
@@ -657,12 +984,22 @@ private fun GitDetail(
         }
 
         // The porcelain rows — the real `git status` facts, XY and all.
+        // Each row opens that path's diff: a staged change shows the index
+        // side (`--cached`), everything else the worktree side.
         if (status != null && status.entries.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
             val cap = if (roomy) GitLayout.DETAIL_MAX_ENTRIES_ROOMY else GitLayout.DETAIL_MAX_ENTRIES_COMPACT
             val shown = status.entries.take(cap)
             shown.forEach { entry ->
-                Row(modifier = Modifier.padding(vertical = 1.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = "Show diff for ${entry.path}",
+                        ) { onOpenDiff(entry) }
+                        .padding(vertical = 1.dp),
+                ) {
                     Text(
                         text = "${entry.x}${entry.y}",
                         fontFamily = TerminalTheme.mono,
@@ -701,6 +1038,207 @@ private fun GitDetail(
             Spacer(Modifier.width(8.dp))
             DetailAction("REFRESH", onRefresh)
         }
+    }
+}
+
+// --------------------------------------------------------- commit page
+
+/** The commit page: one read-only `git show --stat`, rendered bounded. */
+@Composable
+private fun GitCommitPage(ui: CommitUi, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        InCardBackHeader(onBack = onBack)
+        when (ui) {
+            CommitUi.Idle, CommitUi.Loading -> {
+                Text(
+                    text = "Loading commit…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            is CommitUi.Failed -> {
+                Text(
+                    text = "git show failed",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.danger,
+                )
+                Text(
+                    text = ui.reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            is CommitUi.Done -> {
+                val detail = ui.detail
+                GitRow("HASH", detail.fullHash)
+                GitRow(
+                    "AUTHOR",
+                    if (detail.email != null) "${detail.author} <${detail.email}>" else detail.author,
+                )
+                GitRow("DATE", detail.relativeDate)
+                Text(
+                    text = detail.subject,
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 12.sp,
+                    color = HomeTokens.textPrimary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                if (detail.statLines.isNotEmpty()) {
+                    GitSection("FILES")
+                    detail.statLines.forEach { line ->
+                        Text(
+                            text = line,
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 10.sp,
+                            color = HomeTokens.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(vertical = 1.dp),
+                        )
+                    }
+                    if (detail.hiddenStatLines > 0) {
+                        Text(
+                            text = "+${detail.hiddenStatLines} more lines truncated",
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 10.sp,
+                            color = HomeTokens.textDim,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------- diff page
+
+/** The diff page: one read-only `git diff [--cached]`, rendered bounded. */
+@Composable
+private fun GitDiffPage(req: DiffReq, ui: DiffUi, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        InCardBackHeader(onBack = onBack)
+        Text(
+            text = req.path,
+            fontFamily = TerminalTheme.mono,
+            fontSize = 12.sp,
+            color = HomeTokens.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = if (req.staged) "STAGED" else "WORKTREE",
+            fontFamily = TerminalTheme.mono,
+            fontSize = 10.sp,
+            letterSpacing = 1.sp,
+            color = HomeTokens.textDim,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+        when (ui) {
+            DiffUi.Idle, DiffUi.Loading -> {
+                Text(
+                    text = "Loading diff…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            DiffUi.Untracked -> {
+                Text(
+                    text = "Untracked file — nothing to diff until it is staged in a terminal.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            is DiffUi.Failed -> {
+                Text(
+                    text = "git diff failed",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.danger,
+                )
+                Text(
+                    text = ui.reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HomeTokens.textDim,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            is DiffUi.Done -> {
+                if (ui.text.lines.isEmpty()) {
+                    Text(
+                        text = "(no textual diff)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HomeTokens.textDim,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                } else {
+                    Column(modifier = Modifier.padding(top = 4.dp)) {
+                        ui.text.lines.forEach { line ->
+                            Text(
+                                text = line,
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 10.sp,
+                                color = HomeTokens.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (ui.text.hidden > 0) {
+                            Text(
+                                text = "+${ui.text.hidden} more lines truncated",
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 10.sp,
+                                color = HomeTokens.textDim,
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The in-card back header — the ONLY back is the application's own. */
+@Composable
+private fun InCardBackHeader(onBack: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClickLabel = "Back to Git") { onBack() },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "←",
+            fontFamily = TerminalTheme.mono,
+            fontSize = 14.sp,
+            color = HomeTokens.accent,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "Git",
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            letterSpacing = 1.6.sp,
+            color = HomeTokens.textDim,
+        )
     }
 }
 

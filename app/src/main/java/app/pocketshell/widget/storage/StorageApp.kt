@@ -102,6 +102,12 @@ import kotlinx.coroutines.withContext
  * re-renders its snapshot instantly; the only automatic scans are the
  * first load and the runtime arriving READY without a usable snapshot.
  * Refresh is the explicit header action.
+ *
+ * M8.4.3: the card reads as a STORAGE ANALYZER — every category page
+ * states WHY it exists and the CONSEQUENCE of clearing it ([categoryCopy]);
+ * guest caches list per tool, largest first, each row marked terminal-work;
+ * the clear preview carries the walk's census (count + largest file); and
+ * the clear flow shows its whole arc: freed → re-measuring → cache now.
  */
 object StorageApp : HomeApplication() {
 
@@ -132,33 +138,42 @@ object StorageApp : HomeApplication() {
         // The ONE host measurement: RuntimeStorageFacts (reused verbatim)
         // plus the two app-owned cache walks — all on Dispatchers.IO,
         // budgeted, and cancelled with the composition that asked for them.
-        suspend fun measure(guest: GuestCaches): StorageUi = withContext(Dispatchers.IO) {
-            val storage = RuntimeStorage(appContext.noBackupFilesDir)
-            val facts = RuntimeStorageFacts.collect(storage)
-            val apkCache = CategoryScan.size(
-                PackageGateway.apkCacheDir(storage),
-                isCancelled = { !isActive },
-            )
-            val staging = CategoryScan.size(
-                File(appContext.cacheDir, FileShareOps.STAGING_DIR_NAME),
-                isCancelled = { !isActive },
-            )
-            StorageUi.Ready(
-                StorageSnapshot(
-                    runtime = RuntimeFacts(
-                        present = facts.runtimeSizeBytes != null,
-                        bytes = facts.runtimeSizeBytes,
-                        fileCount = facts.rootfsFileCount,
-                        truncated = facts.truncated,
-                    ),
-                    apkCache = apkCache,
-                    staging = staging,
-                    guest = guest,
-                    freeBytes = facts.freeBytes,
-                    hostTruncated = facts.truncated || apkCache.truncated || staging.truncated,
-                    scannedAtMillis = System.currentTimeMillis(),
-                ),
-            )
+        // The measuring flag brackets the scan so the clear arc can say
+        // "re-measuring…" honestly instead of showing a stale size.
+        suspend fun measure(guest: GuestCaches): StorageUi {
+            state.measuring = true
+            try {
+                return withContext(Dispatchers.IO) {
+                    val storage = RuntimeStorage(appContext.noBackupFilesDir)
+                    val facts = RuntimeStorageFacts.collect(storage)
+                    val apkCache = CategoryScan.size(
+                        PackageGateway.apkCacheDir(storage),
+                        isCancelled = { !isActive },
+                    )
+                    val staging = CategoryScan.size(
+                        File(appContext.cacheDir, FileShareOps.STAGING_DIR_NAME),
+                        isCancelled = { !isActive },
+                    )
+                    StorageUi.Ready(
+                        StorageSnapshot(
+                            runtime = RuntimeFacts(
+                                present = facts.runtimeSizeBytes != null,
+                                bytes = facts.runtimeSizeBytes,
+                                fileCount = facts.rootfsFileCount,
+                                truncated = facts.truncated,
+                            ),
+                            apkCache = apkCache,
+                            staging = staging,
+                            guest = guest,
+                            freeBytes = facts.freeBytes,
+                            hostTruncated = facts.truncated || apkCache.truncated || staging.truncated,
+                            scannedAtMillis = System.currentTimeMillis(),
+                        ),
+                    )
+                }
+            } finally {
+                state.measuring = false
+            }
         }
 
         // The guest probe, gated (at most one exec per AUTO_RESCAN_MS unless
@@ -242,6 +257,11 @@ object StorageApp : HomeApplication() {
                         ClearState.Failed("${result.failures} item(s) could not be removed")
                     else -> ClearState.Done(result.filesDeleted, result.bytesFreed)
                 }
+                if (state.clearState is ClearState.Done || state.clearState is ClearState.Stopped) {
+                    // The AFTER number is pending until the re-measure lands —
+                    // never render the stale pre-clear size as "cache now".
+                    state.measuring = true
+                }
                 // Sizes update from a fresh honest measurement, never a guess.
                 state.refreshTick++
             }
@@ -261,6 +281,7 @@ object StorageApp : HomeApplication() {
                     category = page,
                     snapshot = snapshot,
                     clearState = state.clearState,
+                    measuring = state.measuring,
                     roomy = layout == StorageLayout.ROOMY,
                     onBack = { state.pageId = null },
                     onClear = { clear(page) },
@@ -328,6 +349,13 @@ internal class StorageState(val probe: GuestCacheProbe) {
     var pageId by mutableStateOf<String?>(null)
     var refreshTick by mutableStateOf(0)
     var clearState by mutableStateOf<ClearState>(ClearState.Idle)
+
+    /**
+     * True while a measurement is in flight or pending — the AFTER half of
+     * the clear arc renders "re-measuring…" instead of a stale size until
+     * the fresh snapshot lands.
+     */
+    var measuring by mutableStateOf(false)
 }
 
 // ------------------------------------------------------------- overview
@@ -412,6 +440,20 @@ private fun StorageOverview(
                             color = HomeTokens.textDim,
                         )
                     }
+                    // M8.4.3: the row's secondary fact — a count the snapshot
+                    // already holds. No new scanning, no invented numbers.
+                    snapshot?.let { current ->
+                        categoryDetail(category, current)?.let { detail ->
+                            Text(
+                                text = detail,
+                                fontFamily = TerminalTheme.mono,
+                                fontSize = 10.sp,
+                                color = HomeTokens.textDim,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
                 if (index != StorageCategory.entries.lastIndex) {
                     HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
@@ -485,6 +527,7 @@ private fun CategoryPage(
     category: StorageCategory,
     snapshot: StorageSnapshot,
     clearState: ClearState,
+    measuring: Boolean,
     roomy: Boolean,
     onBack: () -> Unit,
     onClear: () -> Unit,
@@ -532,13 +575,33 @@ private fun CategoryPage(
         when (category) {
             StorageCategory.RUNTIME -> RuntimePage(snapshot, roomy, onOpenDiagnostics)
             StorageCategory.PACKAGE_CACHE ->
-                ClearablePage(category, snapshot.apkCache, clearState, onClear)
+                ClearablePage(category, snapshot.apkCache, clearState, measuring, onClear)
             StorageCategory.SHARE_STAGING ->
-                ClearablePage(category, snapshot.staging, clearState, onClear)
+                ClearablePage(category, snapshot.staging, clearState, measuring, onClear)
             StorageCategory.GUEST_CACHES ->
-                GuestCachesPage(snapshot.guest, roomy, onOpenLinuxShell)
+                GuestCachesPage(snapshot.guest, onOpenLinuxShell)
         }
     }
+}
+
+/**
+ * The analyzer block every category page carries: WHY the category exists,
+ * then the CONSEQUENCE of clearing it. Two dim lines, one place.
+ */
+@Composable
+private fun CategoryCopyBlock(category: StorageCategory) {
+    val copy = categoryCopy(category)
+    Text(
+        text = copy.why,
+        style = MaterialTheme.typography.bodySmall,
+        color = HomeTokens.textDim,
+    )
+    Spacer(Modifier.height(2.dp))
+    Text(
+        text = copy.consequence,
+        style = MaterialTheme.typography.bodySmall,
+        color = HomeTokens.textDim,
+    )
 }
 
 // ------------------------------------------------------ runtime page
@@ -564,12 +627,7 @@ private fun RuntimePage(
         )
     }
     Spacer(Modifier.height(4.dp))
-    Text(
-        text = "This card only measures the runtime. Installing, repairing and " +
-            "removing it live in Diagnostics.",
-        style = MaterialTheme.typography.bodySmall,
-        color = HomeTokens.textDim,
-    )
+    CategoryCopyBlock(StorageCategory.RUNTIME)
     TextButton(onClick = onOpenDiagnostics, modifier = Modifier.padding(top = 2.dp)) {
         Text("Diagnostics", color = HomeTokens.accent)
     }
@@ -582,10 +640,12 @@ private fun ClearablePage(
     category: StorageCategory,
     size: CategoryScan.SizeResult,
     clearState: ClearState,
+    measuring: Boolean,
     onClear: () -> Unit,
 ) {
     // THE PREVIEW: exactly what Clear removes and roughly how much — before
-    // any button can do anything.
+    // any button can do anything. The census (largest single file) rides the
+    // headline when the walk saw one.
     Text(
         text = previewHeadline(size),
         fontFamily = TerminalTheme.mono,
@@ -593,21 +653,8 @@ private fun ClearablePage(
         color = HomeTokens.textPrimary,
     )
     Spacer(Modifier.height(4.dp))
-    Text(
-        text = when (category) {
-            StorageCategory.PACKAGE_CACHE ->
-                "Clearing removes downloaded package archives (and emptied cache " +
-                    "folders) inside the app's own cache. apk re-downloads whatever " +
-                    "it needs next time; installed packages are not touched."
-            StorageCategory.SHARE_STAGING ->
-                "Clearing removes staged share copies inside the app's own cache. " +
-                    "The staging area refills on the next share and cleans itself " +
-                    "before each one."
-            else -> ""
-        },
-        style = MaterialTheme.typography.bodySmall,
-        color = HomeTokens.textDim,
-    )
+    // The analyzer copy: WHY the category exists + the CONSEQUENCE of clearing.
+    CategoryCopyBlock(category)
     if (size.truncated) {
         Spacer(Modifier.height(4.dp))
         Text(
@@ -616,7 +663,7 @@ private fun ClearablePage(
             color = HomeTokens.textDim,
         )
     }
-    val stateLine = clearStateLine(clearState)
+    val stateLine = clearStateLine(clearState, size, measuring)
     if (stateLine.isNotEmpty()) {
         Spacer(Modifier.height(4.dp))
         Text(
@@ -649,10 +696,15 @@ private fun ClearablePage(
 
 // ------------------------------------------------------ guest caches page
 
+/**
+ * The guest caches BREAKDOWN: one row per probed tool cache, largest first
+ * ([sortedGuestCaches]), each row honestly stating its measured size (or
+ * "unknown" when du could not say) and that clearing it is terminal work —
+ * this card never deletes guest files.
+ */
 @Composable
 private fun GuestCachesPage(
     guest: GuestCaches,
-    roomy: Boolean,
     onOpenLinuxShell: () -> Unit,
 ) {
     Text(
@@ -671,50 +723,44 @@ private fun GuestCachesPage(
             overflow = TextOverflow.Ellipsis,
         )
         is GuestCaches.Sizes -> {
-            guest.entries.forEach { entry ->
-                Row(
+            sortedGuestCaches(guest.entries).forEach { entry ->
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = guestCacheLabel(entry.name),
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 12.sp,
+                            color = HomeTokens.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = entry.kilobytes?.let { StorageScan.formatBytes(it * 1024) }
+                                ?: "unknown",
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 12.sp,
+                            color = HomeTokens.textDim,
+                        )
+                    }
+                    // The per-row note: clearing this cache is terminal work.
                     Text(
-                        text = guestCacheLabel(entry.name),
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 12.sp,
-                        color = HomeTokens.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = entry.kilobytes?.let { StorageScan.formatBytes(it * 1024) }
-                            ?: "unknown",
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 12.sp,
+                        text = "cleared from a terminal",
+                        style = MaterialTheme.typography.bodySmall,
                         color = HomeTokens.textDim,
                     )
                 }
-            }
-            if (roomy) {
-                Text(
-                    text = "These live inside the runtime total above — this is a " +
-                        "breakdown, not extra space.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = HomeTokens.textDim,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
             }
         }
         else -> Unit
     }
     Spacer(Modifier.height(4.dp))
-    Text(
-        text = "This card only measures guest caches — clearing them is terminal " +
-            "work (for example: npm cache clean --force, or rm -rf ~/.cache/…).",
-        style = MaterialTheme.typography.bodySmall,
-        color = HomeTokens.textDim,
-    )
+    // The analyzer copy: WHY the section exists + the clearing consequence.
+    CategoryCopyBlock(StorageCategory.GUEST_CACHES)
     if (guest !is GuestCaches.Unavailable) {
         TextButton(onClick = onOpenLinuxShell, modifier = Modifier.padding(top = 2.dp)) {
             Text("Open Linux", color = HomeTokens.accent)

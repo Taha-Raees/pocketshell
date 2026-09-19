@@ -34,6 +34,10 @@ import java.io.File
  *      probe state live in the HomeAppStateStore holder (re-entry renders
  *      the cache — no refresh-on-navigation); refresh is the explicit,
  *      named header action.
+ *   7. M8.4.3 ANALYZER SURFACE: every category page renders the pure
+ *      WHY/CONSEQUENCE copy block; guest rows ride the pure largest-first
+ *      sorter; overview rows carry the snapshot's secondary facts; the
+ *      clear arc says "re-measuring" while the AFTER size is pending.
  */
 class StorageAppContractTest {
 
@@ -323,6 +327,35 @@ class StorageAppContractTest {
         assertTrue(
             "the refresh icon is the outlined Refresh glyph",
             code.contains("Icons.Outlined.Refresh"),
+        )
+    }
+
+    // ------------------------------ 8. M8.4.3 analyzer surface
+
+    @Test
+    fun `every category page carries the why-consequence copy - guest rows sorted - arc honest`() {
+        val app = stripCommentsAndStrings(storageSource("StorageApp.kt"))
+        val uiRaw = storageSource("StorageUi.kt")
+        val ui = stripCommentsAndStrings(uiRaw)
+        assertTrue(
+            "the pure copy model must exist (one place per category)",
+            ui.contains("fun categoryCopy(") && ui.contains("data class CategoryCopy"),
+        )
+        assertTrue(
+            "the runtime, clearable and guest pages must each render the copy block",
+            Regex("CategoryCopyBlock\\(").findAll(app).count() >= 3,
+        )
+        assertTrue(
+            "guest rows must be ordered by the pure sorter (largest first)",
+            app.contains("sortedGuestCaches("),
+        )
+        assertTrue(
+            "overview rows must carry the snapshot's secondary facts (no new scanning)",
+            app.contains("categoryDetail("),
+        )
+        assertTrue(
+            "the clear arc must say re-measuring while the AFTER size is pending",
+            uiRaw.contains("re-measuring"),
         )
     }
 }
