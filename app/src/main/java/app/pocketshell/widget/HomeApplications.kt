@@ -1,7 +1,11 @@
 package app.pocketshell.widget
 
 import app.pocketshell.widget.git.GitApp
+import app.pocketshell.widget.notes.NotesApp
+import app.pocketshell.widget.storage.StorageApp
+import app.pocketshell.widget.sync.SyncApp
 import app.pocketshell.widget.ssh.SshApp
+import app.pocketshell.widget.todo.TodoApp
 
 /**
  * M8.3 — the ONE registry of Home applications. The Home Application
@@ -19,6 +23,7 @@ object HomeApplications {
     const val SERVERS_ID = "servers"
     const val GIT_ID = "git"
     const val SSH_ID = "ssh"
+    const val TODO_ID = "todo"
 
     /** The card's default application on fresh install / restore. */
     const val DEFAULT_ID: String = SERVERS_ID
@@ -27,6 +32,10 @@ object HomeApplications {
         ServersApp,
         GitApp,
         SshApp,
+        TodoApp,
+        NotesApp,
+        StorageApp,
+        SyncApp,
     )
 
     /** The Control Center picker listing (registry order = display order). */

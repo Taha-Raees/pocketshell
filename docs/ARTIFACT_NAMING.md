@@ -170,6 +170,15 @@ labels is deferred to the integration layer; agent builds never touch it.
 - tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
 - device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §64 RESULTS recorded in docs/TESTING.md (A/B/D/E/F/G pass; C honest-degrade verified with the platform boundary proven closed: procfs app+guest EACCES, netlink sock_diag EACCES; aurora idle-draw cost attributed to pre-existing Control Center II)
 
+### M8.4-L.apk
+- date:        2026-09-19
+- git:         agent-L/m8.4-home-apps (branch tip; see worklog Task 61)
+- agent:       L — Agent L (ZCode)
+- workstream:  M8.4 — four new Home Applications (Storage/Cleanup · Sync/Backup · Todo · Notes) on the M8.3 carousel; orchestrated via 4 subagents
+- apk sha256:  c22de450b68a56a3f9cbdeeb88b2cccfe0edbe2f81a5bae5dbdb20c9c0d4ee68
+- tests:       full :app JVM suite 1503/1503 green (Storage 53, Sync 54, Todo 32, Notes 34 new; all M8.3 suites retained); :app:assembleDebug green
+- device gate: PENDING — §68 checklist written (TESTING.md); the S7 dropped off ADB before the gate. Ready to execute on reconnect.
+
 ### M8.3-L.apk
 - date:        2026-09-19
 - git:         agent-L/m8.3-home-carousel (see worklog Task 60 for the implementation commit)

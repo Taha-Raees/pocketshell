@@ -3405,3 +3405,58 @@ reviewed and integrated their work, and ran the §67 device gate.
   untouched). APK M8.3-L
   (14537bef80b9dc8499e2aca06f33ba22a79a294617887c760572a57e4f412d9f),
   ledger ARTIFACT_NAMING §5. Device gate §67 recorded in TESTING.md.
+
+## Task 61 — M8.4: four new Home Applications — Storage/Cleanup · Sync/Backup · Todo · Notes (Agent L, orchestrator, 2026-09-19)
+
+Base = M8.3 tip (a6fe8bd). Four parallel subagents under the same strict
+ownership discipline as Task 60; orchestrator reviewed each delivery and
+integrated. No M8.3 architecture changes were needed — the registry,
+Control Center, and carousel host already scale (M8.2/M8.3 design paid off).
+
+- STORAGE/CLEANUP (subagent A): reuses RuntimeStorageFacts (no second
+  whole-tree scanner — the §67 ANR lesson enforced in the brief); adds a
+  budgeted NOFOLLOW CategoryScan + a ONE-batched `du -sk` guest cache
+  probe (GitProbe pattern) + a pure UI state machine. Categories: Linux
+  runtime, package cache (app-owned, safe), share staging (app-owned),
+  guest caches (MEASURED ONLY — "clear from a terminal"; the card never
+  deletes guest files). Two-step cleanup (Preview → explicit CLEAR) for
+  app-owned caches; deletion safety pinned by tests: regular-files-only
+  via NOFOLLOW walkFileTree, symlink targets outside the cache untouched
+  (byte-identical after clear), cache root survives, sibling files
+  untouched, cancellable with honest stoppedEarly. Measured: 20k-file
+  fixture sizing 185 ms; clear 20k files 3.1 s (off-thread).
+- SYNC/BACKUP (subagent B): backend research VERIFIED (rsync in Alpine
+  main aarch64, rclone in community; restic deferred) with runtime
+  probing (honest "not installed" + apk add hint); profile store (own
+  DataStore, JSON); dry-run PREVIEW parsing rsync `--itemize-changes` /
+  rclone `--combined`; destinations are guest paths or remote strings
+  (OBSERVED: no Android-shared-storage bind exists in any
+  GuestExecutionProfile — the "shared storage destination" was
+  documented as not-a-v1-reality instead of faked). REAL "Run now"
+  deliberately deferred (a Home card has no safe progress/confirm UX —
+  documented in-code, not silently missing). Security: no credential
+  fields exist; leading-dash specs refused at creation AND decode
+  (option-injection); user paths ride as execve argv, never shell
+  strings; "never run" until a real run record exists.
+- TODO (subagent C): local-only (works before Linux READY — no fake
+  Unavailable state), own todo_store DataStore (JSON array — future
+  CLI/agent readable), ARCHIVE-not-delete pinned (history survives,
+  restore included), in-card TODAY/DONE/ARCHIVED tabs (no depth — the
+  BackHandler ABSENCE is pinned so back keeps belonging to Home),
+  COMPACT 2-row budget measured, 200-task cap, corrupt → honest empty.
+- STICKY NOTES (subagent D): notes_store DataStore (JSON), commit-on-
+  back quick-capture (blank never stored, backing out never destroys —
+  DELETE is the only destructive action), pin-first sort, search filter,
+  markdown EVALUATED AND REJECTED for v1 (typed-vs-stored divergence in
+  a tiny card; monospace IS the fidelity) — pinned that UI copy never
+  promises markdown; caps 100 notes/200 title/10k body.
+- INTEGRATION (orchestrator): registry now Servers · Git · SSH · Todo ·
+  Notes · Storage · Sync (7/12 cap); review findings — all four passed
+  the theme/perf/security/ownership checklist; no duplicated
+  infrastructure (Storage reuses RuntimeStorageFacts + StorageScan
+  patterns; Sync reuses the GitProbe exec shape; Todo/Notes use the
+  established per-domain DataStore pattern).
+- FULL SUITE 1503/1503 green. APK M8.4-L
+  (c22de450b68a56a3f9cbdeeb88b2cccfe0edbe2f81a5bae5dbdb20c9c0d4ee68).
+  Device gate §68 written (TESTING.md); DEVICE PENDING — the S7 dropped
+  off ADB before the gate; §68 is ready to execute on reconnect.

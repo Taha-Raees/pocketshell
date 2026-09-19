@@ -4465,3 +4465,62 @@ SSH 54, Diagnostics 7, carousel/persistence suites). Device: SM-T870
   one idle python :8080 loopback server in session #1 (from the §65 gate;
   stop with Ctrl+C). The Antigravity session seen mid-gate belonged to
   the parallel agent — untouched.
+
+## §68 — M8.4 gate: four new Home Applications (Storage/Cleanup · Sync/Backup · Todo · Notes)
+
+Build under gate: `agent-L/m8.4-home-apps`, M8.4-L.apk (sha256 in
+ARTIFACT_NAMING §5). Laptop-side: full JVM suite 1503/1503 green (Storage
+53, Sync 54, Todo 32, Notes 34 new tests + all M8.3 suites). Device: to be
+run on SM-T870 (Android 13) — every adb command pinned
+`adb -s R52R30PEZDY`.
+
+### HOME (carousel with 7 registered applications)
+- [ ] Control Center → Home applications: Servers/Git/SSH/Todo/Notes/
+      Storage/Sync all listed; Available = registry minus configured;
+      add each of the four new apps; reorder with ↑↓; remove with ✕;
+      Restore default returns ["servers"].
+- [ ] Carousel: swipe across all configured pages; page dots track and
+      tap-through works; state does not leak between applications.
+- [ ] Home stays the persistent surface: no app opens a second Activity.
+
+### STORAGE / CLEANUP
+- [ ] Card loads instantly on the grown runtime (180k+ files — the
+      bounded-NOFOLLOW collector, no ANR; honest "measuring…" while the
+      ONE IO walk runs, then real values).
+- [ ] Category rows: Linux runtime · Package cache · Share staging ·
+      Guest caches (existence-gated); free space in header.
+- [ ] Two-step cleanup on Package cache: Preview (what/size) → CLEAR →
+      honest done/stopped/failed → automatic re-measure shows the
+      reclaim. Apk cache clear is regular-files-only, NOFOLLOW, cache
+      root survives (fixture-pinned).
+- [ ] Guest caches (npm/gradle/… if present): measured via the batched
+      du probe, labeled "clear from a terminal" — the card NEVER deletes
+      guest files.
+- [ ] Share staging row appears only when a staged file exists.
+
+### SYNC / BACKUP
+- [ ] First open: honest "no profiles" + backend availability probe
+      (rsync/rclone absent until `apk add` — stated, not faked).
+- [ ] Profile creation in-card (source → destination, backend), leading-
+      dash specs refused (option-injection guard), profile survives
+      process death.
+- [ ] Dry-run preview renders rsync itemize / rclone combined lines when
+      the backend is installed; no profile is ever claimed "backed up".
+- [ ] No credential fields exist anywhere in the app.
+
+### TODO
+- [ ] Add task inline; complete; star; archive (DONE section); restore
+      from ARCHIVED; kill + relaunch → list survives; swipe away/back →
+      survives; corrupt store → honest empty (fixture-pinned).
+
+### NOTES
+- [ ] Create note (commit-on-back); edit; pin (sorts first); delete;
+      search filter; kill + relaunch → notes survive; swipe away/back →
+      survives.
+
+### THEMES + LAYOUT
+- [ ] Spot-check the four new apps under at least: Aurora, Nord,
+      Solarized, Rosé Pine (card follows palette; no hardcoded colors —
+      source-pinned).
+- [ ] Portrait + landscape; COMPACT vs ROOMY thresholds (inner
+      420×200dp) per app's layout contract tests.
