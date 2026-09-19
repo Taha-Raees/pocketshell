@@ -158,10 +158,6 @@ class TodoAppContractTest {
             code.contains("stateStore.forApp"),
         )
         assertTrue(
-            "the selected list belongs in the holder too — the whole card follows it (M8.4.3)",
-            code.contains("var selectedListId by"),
-        )
-        assertTrue(
             "the task being edited in place belongs in the holder (M8.4.3)",
             code.contains("var editingTaskId by"),
         )
@@ -249,55 +245,35 @@ class TodoAppContractTest {
         )
     }
 
-    // ------------------------------------------- lists + edit (M8.4.3)
+    // ------------------------------------------- lists withdrawn (M8.4.3.1)
 
     @Test
-    fun `the list picker is a chip row - switch by tap, edit only through the active chip`() {
+    fun `the multi-list picker is withdrawn - one list, no chips, no forms`() {
+        // M8.4.3.1 (user decision): the M8.4.3 list feature is not needed.
+        // The card is ONE list again; the store keeps its compatible
+        // listId/todo_lists shapes but the UI surface is gone.
         val raw = source("TodoApp.kt")
-        val literals = stringLiterals(raw)
-        assertTrue(
-            "switching lists must be named for accessibility",
-            literals.any { it.startsWith("Switch to list ") },
-        )
-        assertTrue(
-            "the new-list affordance must be named for accessibility",
-            literals.contains("New list"),
-        )
-        // The trash lives on the list form ONLY, never on a chip.
-        val chipRowStart = raw.indexOf("private fun ListChipRow")
-        val nextSection = raw.indexOf("private fun ListFormCard")
-        assumeTrue("ListChipRow/ListFormCard not found on this runner", chipRowStart >= 0 && nextSection > chipRowStart)
-        val chipRow = raw.substring(chipRowStart, nextSection)
-        assertTrue(
-            "the chips are tabs, not buttons — the card switches in place",
-            chipRow.contains("Role.Tab"),
-        )
-        assertTrue(
-            "the ACTIVE chip is the door to the edit form",
-            chipRow.contains("if (active) onEdit(list) else onSelect(list.id)"),
+        val code = stripCommentsAndStrings(raw)
+        assertFalse(
+            "no list chip row may exist",
+            code.contains("ListChipRow"),
         )
         assertFalse(
-            "a delete affordance must never sit on a list chip — deletion lives on the form",
-            chipRow.contains("Icons.Outlined.Delete"),
+            "no inline list form may exist",
+            code.contains("ListFormCard"),
         )
-    }
-
-    @Test
-    fun `deleting a list is a named confirm that states the damage`() {
-        val raw = source("TodoApp.kt")
-        val literals = stringLiterals(raw)
-        assertTrue(
-            "the confirm must name the list and its task count",
-            literals.any { it.startsWith("Delete list '") && it.contains("and its ") },
+        assertFalse(
+            "no list-switch affordance may exist",
+            stringLiterals(raw).any { it.startsWith("Switch to list ") },
         )
-        assertTrue(
-            "Delete and Cancel are text buttons, named",
-            literals.contains("Delete") && literals.contains("Cancel"),
+        assertFalse(
+            "no new-list affordance may exist",
+            stringLiterals(raw).contains("New list"),
         )
-        assertTrue(
-            "the pure layer refuses to remove the default list",
-            stripCommentsAndStrings(source("TodoTasks.kt")).contains("TodoList.DEFAULT_LIST_ID) lists"),
-        )
+        // The store layer stays compatible: tasks decode with the default
+        // listId even though no UI names lists any more.
+        val model = stripCommentsAndStrings(source("TodoTask.kt"))
+        assertTrue(model.contains("DEFAULT_LIST_ID"))
     }
 
     @Test

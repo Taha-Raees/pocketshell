@@ -373,7 +373,13 @@ object SyncApp : HomeApplication() {
                     layout = layout,
                     nowMs = state.nowMs,
                     onOpenDetail = { state.detailId = it.id },
-                    onOpenForm = { state.formOpen = true },
+                    onOpenForm = {
+                        // A freshly opened form starts with a clean slate —
+                        // a SAVE attempt from an earlier visit must not
+                        // haunt it ("source is required" on first paint).
+                        state.formSubmitted = false
+                        state.formOpen = true
+                    },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                     onOpenDiagnostics = { context.nav.openDiagnostics() },
                 )

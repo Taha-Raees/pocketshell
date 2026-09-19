@@ -2,6 +2,7 @@ package app.pocketshell.widget.git
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -476,6 +477,21 @@ private fun GitOverview(
                 fontWeight = FontWeight.SemiBold,
                 color = HomeTokens.textPrimary,
             )
+            // M8.4.3.1 — version + dirty live WITH the title (one line,
+            // never a second status area below, never a second "git" word).
+            val headerFacts = listOfNotNull(
+                ready?.snapshot?.gitVersion?.let { "git $it" },
+                if (repos.isNotEmpty()) "${ready?.snapshot?.dirtyRepos ?: 0} DIRTY" else null,
+            )
+            if (headerFacts.isNotEmpty()) {
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = headerFacts.joinToString(" · "),
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 12.sp,
+                    color = HomeTokens.textDim,
+                )
+            }
             Spacer(Modifier.weight(1f))
             if (repos.isNotEmpty() && layout == GitLayout.COMPACT) {
                 Text(
@@ -502,47 +518,33 @@ private fun GitOverview(
             ) {
                 repos.forEach { repo ->
                     val active = repo.path == paneRepo?.path
-                    Text(
-                        text = repo.name,
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 11.sp,
-                        color = if (active) HomeTokens.accent else HomeTokens.textDim,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .border(
-                                1.dp,
-                                if (active) HomeTokens.accent else HomeTokens.hairline,
-                                RoundedCornerShape(HomeTokens.chipRadius),
-                            )
-                            .clickable(
-                                role = Role.Tab,
-                                onClickLabel = "Show repository ${repo.name}",
-                            ) { onSelectRepo(repo) }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    )
+                    // Folder-tab look (M8.4.3.1): no box border — the
+                    // ACTIVE tab alone carries a bottom rule.
+                    Column(modifier = Modifier) {
+                        Text(
+                            text = repo.name,
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 11.sp,
+                            color = if (active) HomeTokens.accent else HomeTokens.textDim,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .clickable(
+                                    role = Role.Tab,
+                                    onClickLabel = "Show repository ${repo.name}",
+                                ) { onSelectRepo(repo) }
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 8.dp)
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .background(if (active) HomeTokens.accent else HomeTokens.hairline),
+                        )
+                    }
                 }
             }
         }
-
-        // Status area — ROOMY cards only, and deliberately NOT the repo
-        // count (the header owns counts in COMPACT, and the chips already
-        // show the set): the git binary's real version + the dirty-repo
-        // count — facts shown nowhere else.
-        if (layout.showsStatusHeader && repos.isNotEmpty()) {
-            Spacer(Modifier.height(6.dp))
-            val version = ready?.snapshot?.gitVersion
-            val dirtyRepos = ready?.snapshot?.dirtyRepos ?: 0
-            Text(
-                text = listOfNotNull(
-                    version?.let { "git $it" },
-                    "$dirtyRepos DIRTY",
-                ).joinToString(" · "),
-                fontFamily = TerminalTheme.mono,
-                fontSize = 11.sp,
-                color = HomeTokens.accent,
-            )
-        }
-        Spacer(Modifier.height(6.dp))
 
         // The selected repository's pane — the one-glance answer: branch +
         // tracking glyphs + worktree marker on the first line, the mapped
@@ -700,22 +702,26 @@ private fun GitOverview(
             Spacer(Modifier.weight(1f))
         }
 
-        // The honest state line, every density, every theme.
-        Spacer(Modifier.height(4.dp))
+        // The honest state line — ONLY for the states that need it
+        // (M8.4.3.1: a working card says nothing; "Live from the guest"
+        // was noise). Probing/unavailable/empty keep their lines.
         val stateLine = when {
             ui is GitUi.Probing -> "Looking…"
             ui is GitUi.Unavailable -> "Linux not ready"
             ui is GitUi.ProbeFailed -> "Could not probe git"
             ready != null && !ready.snapshot.hasGit -> "Git unavailable"
             ready != null && repos.isEmpty() -> "No repositories"
-            else -> "Live from the guest"
+            else -> null
         }
-        Text(
-            text = stateLine,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (repos.isNotEmpty()) HomeTokens.accent else HomeTokens.textDim,
-            maxLines = 1,
-        )
+        if (stateLine != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stateLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+            )
+        }
         when {
             ui is GitUi.Unavailable -> {
                 TextButton(onClick = onOpenDiagnostics, modifier = Modifier.padding(top = 2.dp)) {

@@ -77,13 +77,10 @@ import kotlinx.coroutines.launch
  *   good (M8.4.2: the explicit delete the archive was never allowed to
  *   replace).
  *
- * M8.4.3 — LISTS: one store, several named lists. A chip row under the
- * header picks the list (the Git card's repo-chip pattern); the whole
- * card — tabs, counts, rows — shows the selected list only. The "+"
- * chip opens an inline form (never a dialog); tapping the ACTIVE chip
- * opens the same form for renaming, and only THERE carries the trash —
- * deleting a list deletes its tasks too, behind an explicit confirm.
- * The default list ("My tasks") is never deletable.
+ * M8.4.3 added multiple lists; M8.4.3.1 WITHDREW the picker by user
+ * decision ("not needed") — the card is one list again, and the store's
+ * list fields stay only as harmless, defaulted data (old and new stores
+ * decode identically; no list UI exists).
  *
  * Design decisions (pinned by the todo test suite):
  *   - LOCAL-FIRST: the store is the app's own "todo_store" DataStore on
@@ -92,9 +89,9 @@ import kotlinx.coroutines.launch
  *     navigation and polls nothing: reads are a DataStore flow (emits on
  *     change only), writes are DataStore `edit` transactions on its IO
  *     executor.
- *   - The store is a plain JSON array of [TodoTask] under one key plus a
- *     JSON array of [TodoList] under a second key — a future CLI/agent
- *     integration reads and writes the same shape.
+ *   - The store is a plain JSON array of [TodoTask] under one key (the
+ *     M8.4.3 "todo_lists" key is still tolerated/kept for store
+ *     compatibility, but nothing in the UI reads or writes it).
  *   - Sections are IN-CARD TABS (Today / Done / Archived), not depth —
  *     there is no detail page, so the card adds no BackHandler (system
  *     back keeps belonging to Home). Counts appear exactly once: on the
@@ -121,11 +118,10 @@ object TodoApp : HomeApplication() {
         val appContext = LocalContext.current.applicationContext
         val repository = remember { TodoRepository(appContext) }
         // null until DataStore's first emission — the honest loading state.
-        val listsState by repository.lists.collectAsState(initial = null)
         val tasksState by repository.tasks.collectAsState(initial = null)
-        // Section, draft text, selected list, task edit and the list form
-        // live in the process-scoped holder: they outlive Home's
-        // composition, so returning to this card never resets what the
+        // Section, draft text and the task edit live in the process-scoped
+        // holder: they outlive Home's composition, so returning to this
+        // card never resets what the
         // user was doing.
         val state = remember { context.stateStore.forApp(TodoApp.ID) { TodoState() } }
         val scope = rememberCoroutineScope()
@@ -160,14 +156,11 @@ object TodoApp : HomeApplication() {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = TodoLayout.from(maxWidth.value, maxHeight.value)
             TodoContent(
-                lists = listsState,
                 tasks = tasksState,
                 section = state.section,
                 input = state.input,
-                selectedListId = state.selectedListId,
                 editingTaskId = state.editingTaskId,
                 editingText = state.editingText,
-                listForm = state.listForm,
                 layout = layout,
                 onSection = { s ->
                     stopEditing()
@@ -178,49 +171,7 @@ object TodoApp : HomeApplication() {
                     val text = state.input.trim()
                     if (text.isNotEmpty()) {
                         state.input = ""
-                        scope.launch { repository.add(text, state.selectedListId) }
-                    }
-                },
-                onSelectList = { id ->
-                    stopEditing()
-                    state.listForm = null
-                    state.selectedListId = id
-                },
-                onEditList = { list ->
-                    stopEditing()
-                    state.listForm = ListForm(targetId = list.id, name = list.name)
-                },
-                onNewList = {
-                    stopEditing()
-                    state.listForm = ListForm(targetId = null, name = "")
-                },
-                onListFormName = { name -> state.listForm = state.listForm?.copy(name = name) },
-                onListFormSubmit = {
-                    state.listForm?.let { form ->
-                        if (form.targetId == null) {
-                            scope.launch { repository.addList(form.name) }
-                        } else {
-                            scope.launch { repository.renameList(form.targetId, form.name) }
-                        }
-                    }
-                    state.listForm = null
-                },
-                onListFormCancel = { state.listForm = null },
-                onListFormDeleteRequest = {
-                    state.listForm = state.listForm?.copy(confirmingDelete = true)
-                },
-                onListFormDeleteCancel = {
-                    state.listForm = state.listForm?.copy(confirmingDelete = false)
-                },
-                onListFormDeleteConfirm = {
-                    val targetId = state.listForm?.targetId
-                    state.listForm = null
-                    stopEditing()
-                    if (targetId != null) {
-                        scope.launch { repository.deleteList(targetId) }
-                        if (state.selectedListId == targetId) {
-                            state.selectedListId = TodoList.DEFAULT_LIST_ID
-                        }
+                        scope.launch { repository.add(text) }
                     }
                 },
                 onToggleDone = { id -> scope.launch { repository.toggleDone(id) } },
@@ -261,18 +212,9 @@ object TodoApp : HomeApplication() {
 internal class TodoState {
     var section by mutableStateOf(TodoSection.TODAY)
     var input by mutableStateOf("")
-    var selectedListId by mutableStateOf(TodoList.DEFAULT_LIST_ID)
     var editingTaskId by mutableStateOf("")
     var editingText by mutableStateOf("")
-    var listForm by mutableStateOf<ListForm?>(null)
 }
-
-/** The inline list form's snapshot: [targetId] null = creating a new list. */
-internal data class ListForm(
-    val targetId: String?,
-    val name: String,
-    val confirmingDelete: Boolean = false,
-)
 
 /** The card's sections — in-card tabs, never navigation depth. */
 internal enum class TodoSection(val label: String) {
@@ -307,27 +249,15 @@ internal enum class TodoLayout {
 
 @Composable
 private fun TodoContent(
-    lists: List<TodoList>?,
     tasks: List<TodoTask>?,
     section: TodoSection,
     input: String,
-    selectedListId: String,
     editingTaskId: String,
     editingText: String,
-    listForm: ListForm?,
     layout: TodoLayout,
     onSection: (TodoSection) -> Unit,
     onInput: (String) -> Unit,
     onSubmit: () -> Unit,
-    onSelectList: (String) -> Unit,
-    onEditList: (TodoList) -> Unit,
-    onNewList: () -> Unit,
-    onListFormName: (String) -> Unit,
-    onListFormSubmit: () -> Unit,
-    onListFormCancel: () -> Unit,
-    onListFormDeleteRequest: () -> Unit,
-    onListFormDeleteCancel: () -> Unit,
-    onListFormDeleteConfirm: () -> Unit,
     onToggleDone: (String) -> Unit,
     onToggleStar: (String) -> Unit,
     onArchive: (String) -> Unit,
@@ -339,12 +269,11 @@ private fun TodoContent(
     onEditDone: (TodoTask) -> Unit,
     onCyclePriority: (String) -> Unit,
 ) {
-    // One list at a time: scope FIRST, then section — the tabs and their
-    // counts describe the selected list only.
-    val scoped = tasks?.let { TodoTasks.inList(it, selectedListId) }.orEmpty()
-    val today = TodoTasks.today(scoped)
-    val done = TodoTasks.done(scoped)
-    val archived = TodoTasks.archived(scoped)
+    // The card is ONE list (the multi-list picker was withdrawn by user
+    // decision, M8.4.3): the tabs and their counts describe the store.
+    val today = TodoTasks.today(tasks.orEmpty())
+    val done = TodoTasks.done(tasks.orEmpty())
+    val archived = TodoTasks.archived(tasks.orEmpty())
     val visible = when (section) {
         TodoSection.TODAY -> today
         TodoSection.DONE -> done
@@ -361,41 +290,6 @@ private fun TodoContent(
                 color = HomeTokens.textPrimary,
             )
             Spacer(Modifier.weight(1f))
-        }
-
-        // The list picker — ONE horizontally-scrollable chip row (the Git
-        // card's repo-chip pattern). The active list wears the accent; the
-        // "+" chip opens the inline create form. The row always exists
-        // once the store has spoken: with one list it is still the only
-        // way to reach "+" and (via the active chip) the edit form.
-        if (lists != null) {
-            Spacer(Modifier.height(4.dp))
-            ListChipRow(
-                lists = lists,
-                selectedId = selectedListId,
-                canAdd = lists.size < TodoList.MAX_LISTS,
-                onSelect = onSelectList,
-                onEdit = onEditList,
-                onNew = onNewList,
-            )
-        }
-
-        // The inline list form — create or rename, never a dialog; the
-        // trash lives ONLY here (never on a chip), behind an explicit
-        // confirm because deleting a list deletes its tasks.
-        if (listForm != null) {
-            val target = listForm.targetId
-            ListFormCard(
-                form = listForm,
-                isDefaultTarget = target == TodoList.DEFAULT_LIST_ID,
-                taskCount = if (target == null) 0 else tasks?.count { it.listId == target } ?: 0,
-                onName = onListFormName,
-                onSubmit = onListFormSubmit,
-                onCancel = onListFormCancel,
-                onDeleteRequest = onListFormDeleteRequest,
-                onDeleteCancel = onListFormDeleteCancel,
-                onDeleteConfirm = onListFormDeleteConfirm,
-            )
         }
 
         // The inline add field — one tap + type + enter. Always on top,
@@ -496,179 +390,6 @@ private fun TodoContent(
 }
 
 // ----------------------------------------------------------- list chips
-
-/**
- * The list picker chips: active = accent text + accent border, others =
- * dim text + hairline border (the Git repo-chip pattern). Tapping a chip
- * switches the whole card; tapping the ACTIVE chip opens its edit form.
- */
-@Composable
-private fun ListChipRow(
-    lists: List<TodoList>,
-    selectedId: String,
-    canAdd: Boolean,
-    onSelect: (String) -> Unit,
-    onEdit: (TodoList) -> Unit,
-    onNew: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        lists.forEach { list ->
-            val active = list.id == selectedId
-            Text(
-                text = list.name,
-                fontFamily = TerminalTheme.mono,
-                fontSize = 11.sp,
-                color = if (active) HomeTokens.accent else HomeTokens.textDim,
-                maxLines = 1,
-                modifier = Modifier
-                    .border(
-                        1.dp,
-                        if (active) HomeTokens.accent else HomeTokens.hairline,
-                        RoundedCornerShape(HomeTokens.chipRadius),
-                    )
-                    .clickable(
-                        role = Role.Tab,
-                        onClickLabel = if (active) "Edit list ${list.name}" else "Switch to list ${list.name}",
-                    ) {
-                        if (active) onEdit(list) else onSelect(list.id)
-                    }
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-            )
-        }
-        // The "+" chip — hidden at the cap (no affordance that lies).
-        if (canAdd) {
-            Box(
-                modifier = Modifier
-                    .border(1.dp, HomeTokens.hairline, RoundedCornerShape(HomeTokens.chipRadius))
-                    .clickable(role = Role.Button, onClickLabel = "New list") { onNew() }
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Add,
-                    contentDescription = "New list",
-                    tint = HomeTokens.textDim,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-    }
-}
-
-/**
- * The inline list form: one field, IME Done = save. Create mode starts
- * blank; edit mode is prefilled and — for every list EXCEPT the default
- * — carries the trash that asks before deleting.
- */
-@Composable
-private fun ListFormCard(
-    form: ListForm,
-    isDefaultTarget: Boolean,
-    taskCount: Int,
-    onName: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onCancel: () -> Unit,
-    onDeleteRequest: () -> Unit,
-    onDeleteCancel: () -> Unit,
-    onDeleteConfirm: () -> Unit,
-) {
-    if (form.confirmingDelete && form.targetId != null) {
-        // The confirm step: the count is the point — this is the moment
-        // the user learns exactly how much one tap removes.
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Delete list '${form.name}' and its $taskCount tasks?",
-                style = MaterialTheme.typography.bodySmall,
-                color = HomeTokens.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onDeleteConfirm, contentPadding = paddingXs()) {
-                Text(
-                    text = "Delete",
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 11.sp,
-                    color = HomeTokens.danger,
-                )
-            }
-            TextButton(onClick = onDeleteCancel, contentPadding = paddingXs()) {
-                Text(
-                    text = "Cancel",
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 11.sp,
-                    color = HomeTokens.textDim,
-                )
-            }
-        }
-    } else {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (form.targetId == null) {
-                Text(
-                    text = "+",
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 14.sp,
-                    color = HomeTokens.accent,
-                )
-            }
-            BasicTextField(
-                value = form.name,
-                onValueChange = onName,
-                singleLine = true,
-                textStyle = TextStyle(
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 12.sp,
-                    color = HomeTokens.textPrimary,
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-                cursorBrush = SolidColor(HomeTokens.accent),
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp, top = 5.dp, bottom = 5.dp),
-                decorationBox = { inner ->
-                    Box {
-                        if (form.name.isEmpty()) {
-                            Text(
-                                text = if (form.targetId == null) "New list name…" else "Rename list…",
-                                fontFamily = TerminalTheme.mono,
-                                fontSize = 12.sp,
-                                color = HomeTokens.textDim,
-                            )
-                        }
-                        inner()
-                    }
-                },
-            )
-            // The trash lives ONLY on the edit form, never on a chip — and
-            // never on the default list, which is not deletable.
-            if (form.targetId != null && !isDefaultTarget) {
-                IconAction(
-                    icon = Icons.Outlined.Delete,
-                    label = "Delete list",
-                    tint = HomeTokens.textDim,
-                    onClick = onDeleteRequest,
-                )
-            }
-            Text(
-                text = "×",
-                fontFamily = TerminalTheme.mono,
-                fontSize = 14.sp,
-                color = HomeTokens.textDim,
-                modifier = Modifier
-                    .clickable(role = Role.Button, onClickLabel = "Cancel") { onCancel() }
-                    .padding(4.dp),
-            )
-        }
-    }
-}
-
-/** TextButton content padding — the Material default is too wide for the card. */
-private fun paddingXs() = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
 
 // ---------------------------------------------------------------- rows
 
