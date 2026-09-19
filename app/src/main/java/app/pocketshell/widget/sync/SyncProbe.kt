@@ -259,12 +259,12 @@ internal class SyncProbe(
             },
         )
         val argv = when (profile.backend) {
-            SyncBackend.RSYNC -> listOf(
-                backendPath, "-a", "--info=stats1", "--", profile.source, profile.destination,
-            )
-            SyncBackend.RCLONE -> listOf(
-                backendPath, "copy", profile.source, profile.destination,
-            )
+            SyncBackend.RSYNC -> listOf(backendPath, "-a", "--info=stats1") +
+                profile.excludes.flatMap { listOf("--exclude=$it") } +
+                listOf("--", profile.source, profile.destination)
+            SyncBackend.RCLONE -> listOf(backendPath, "copy") +
+                profile.excludes.flatMap { listOf("--exclude", it) } +
+                listOf(profile.source, profile.destination)
         }
         val out = exec.exec(argv, timeoutMs)
         // M8.4.3 — the tool's FULL output rides along (rsync prints its

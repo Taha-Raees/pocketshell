@@ -9,6 +9,7 @@ import app.pocketshell.widget.external.WidgetCatalogEntry
 import app.pocketshell.widget.external.WidgetInstallStore
 import app.pocketshell.widget.external.currentAppVersion
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -33,10 +34,12 @@ class HomeApplicationViewModel(application: Application) : AndroidViewModel(appl
             listOf(HomeApplications.DEFAULT_ID),
         )
 
-    /** Add an application to the end of the carousel (registry members only). */
+    /** Add an application to the end of the carousel (builtin or installed). */
     fun add(id: String) {
-        if (HomeApplications.byId(id) == null) return
         viewModelScope.launch {
+            val known = HomeApplications.byId(id) != null ||
+                installStore.installed.first().any { it.id == id }
+            if (!known) return@launch
             val current = homeAppIds.value
             if (!current.contains(id) && current.size < HomeAppIdCodec.MAX_APPS) {
                 repository.setHomeAppIds(current + id)

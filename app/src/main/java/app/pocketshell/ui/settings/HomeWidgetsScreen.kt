@@ -96,7 +96,9 @@ fun HomeWidgetsScreen(
 
             MidnightSectionLabel("Available")
             Spacer(Modifier.height(4.dp))
-            val available = HomeApplications.specs.filter { spec -> spec.id !in appIds }
+            val available = (HomeApplications.specs + externals.map { it.spec })
+                .filter { spec -> spec.id !in appIds }
+                .distinctBy { it.id }
             if (available.isEmpty()) {
                 Text(
                     text = "Every installed application is already on Home.",

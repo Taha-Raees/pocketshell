@@ -245,15 +245,30 @@ object SyncApp : HomeApplication() {
                 val existing = state.profilesRef.value.firstOrNull {
                     it.source == preset.source && it.destination == preset.destination
                 }
-                val profile = existing ?: SyncProfile(
+                val profile = (existing ?: SyncProfile(
                     id = SyncRepository.newId(),
                     backend = SyncBackend.RSYNC,
                     source = preset.source,
                     destination = preset.destination,
                     createdAtMs = SyncRepository.now(),
-                ).also { created ->
-                    repository.add(created)
-                    state.profilesRef.value = SyncProfiles.upsert(state.profilesRef.value, created)
+                    excludes = preset.excludes,
+                )).let { p ->
+                    if (p.excludes.isEmpty() && preset.excludes.isNotEmpty()) {
+                        // An older profile from before excludes shipped:
+                        // upgrade it so re-runs stay fast.
+                        val upgraded = p.copy(excludes = preset.excludes)
+                        repository.add(upgraded)
+                        state.profilesRef.value =
+                            SyncProfiles.upsert(state.profilesRef.value, upgraded)
+                        upgraded
+                    } else {
+                        if (existing == null) {
+                            repository.add(p)
+                            state.profilesRef.value =
+                                SyncProfiles.upsert(state.profilesRef.value, p)
+                        }
+                        p
+                    }
                 }
                 state.detailId = profile.id
                 state.runUi = RunUi.Idle
@@ -636,11 +651,30 @@ internal data class SyncQuickPreset(
     val label: String,
     val source: String,
     val destination: String,
+    val excludes: List<String>,
 )
 
 internal val SYNC_QUICK_PRESETS = listOf(
-    SyncQuickPreset("projects", "Back up Projects", "/root/Projects", "/mnt/backup/Projects"),
-    SyncQuickPreset("home", "Back up home", "/root", "/mnt/backup/home"),
+    SyncQuickPreset(
+        id = "projects",
+        label = "Back up Projects",
+        source = "/root/Projects",
+        destination = "/mnt/backup/Projects",
+        // Regenerable build output — not user data, not backup material.
+        excludes = listOf("node_modules", ".gradle", "build", ".cache"),
+    ),
+    SyncQuickPreset(
+        id = "home",
+        label = "Back up home",
+        source = "/root",
+        destination = "/mnt/backup/home",
+        // The re-downloadable toolchains (android-sdk, tools) and caches
+        // dwarf the actual data — without these the first copy takes
+        // hours; with them it takes minutes.
+        excludes = listOf(
+            "android-sdk", "tools", ".cache", ".npm", ".gradle", ".cargo", ".rustup",
+        ),
+    ),
 )
 
 @Composable
@@ -1105,7 +1139,8 @@ private fun SyncDetail(
         Spacer(Modifier.height(6.dp))
         when (val ru = runUi) {
             RunUi.Running -> Text(
-                text = "RUNNING — copying (additive only)…",
+                text = "RUNNING — copying (additive only)… the first run " +
+                    "copies everything and can take several minutes",
                 fontFamily = TerminalTheme.mono,
                 fontSize = 11.sp,
                 color = HomeTokens.accent,

@@ -37,7 +37,8 @@ class SyncProbeTest {
         backend: SyncBackend = SyncBackend.RSYNC,
         source: String = "/root/project",
         destination: String = "/mnt/backup",
-    ) = SyncProfile(id, backend, source, destination, createdAtMs = 1L)
+        excludes: List<String> = emptyList(),
+    ) = SyncProfile(id, backend, source, destination, createdAtMs = 1L, excludes = excludes)
 
     // ------------------------------------------------------- parse: backends
 
@@ -259,6 +260,41 @@ class SyncProbeTest {
     }
 
     // ------------------------------------------------------- run now (M8.4.1)
+
+    @Test
+    fun `run now carries profile excludes - rsync and rclone shapes`() {
+        val recorder = RecordingExec(exec(stdout = "x\n"))
+        probe(recorder).runNow(
+            sampleProfile(
+                excludes = listOf(".cache", "node_modules"),
+                destination = "/mnt/backup/Projects",
+            ),
+            rsyncPath = "/usr/bin/rsync",
+            rclonePath = null,
+        )
+        assertEquals(
+            listOf(
+                "/usr/bin/rsync", "-a", "--info=stats1",
+                "--exclude=.cache", "--exclude=node_modules",
+                "--", "/root/project", "/mnt/backup/Projects",
+            ),
+            recorder.argvs.single(),
+        )
+        val rcloneRecorder = RecordingExec(exec(stdout = "Transferred: 0 B\n"))
+        probe(rcloneRecorder).runNow(
+            sampleProfile(
+                backend = SyncBackend.RCLONE,
+                destination = "gdrive:backup",
+                excludes = listOf(".cache"),
+            ),
+            rsyncPath = null,
+            rclonePath = "/usr/bin/rclone",
+        )
+        assertEquals(
+            listOf("/usr/bin/rclone", "copy", "--exclude", ".cache", "/root/project", "gdrive:backup"),
+            rcloneRecorder.argvs.single(),
+        )
+    }
 
     @Test
     fun `run now rsync - additive archive argv, no delete flag, bounded`() {

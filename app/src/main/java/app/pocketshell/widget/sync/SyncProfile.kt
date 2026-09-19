@@ -48,6 +48,13 @@ data class SyncProfile(
      * nothing parsable — never invented.
      */
     val lastStats: String? = null,
+    /**
+     * M8.4.4.1 — path patterns the run SKIPS (regenerable toolchains and
+     * caches, not user data). Defaults to empty: old stores and manual
+     * profiles copy everything; the quick presets carry the heavy
+     * excludes so a first backup takes minutes, not hours.
+     */
+    val excludes: List<String> = emptyList(),
 )
 
 /** The v1 backends — both exist in Alpine 3.24 aarch64 (verified). */
