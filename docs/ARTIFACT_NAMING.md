@@ -170,6 +170,15 @@ labels is deferred to the integration layer; agent builds never touch it.
 - tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
 - device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §64 RESULTS recorded in docs/TESTING.md (A/B/D/E/F/G pass; C honest-degrade verified with the platform boundary proven closed: procfs app+guest EACCES, netlink sock_diag EACCES; aurora idle-draw cost attributed to pre-existing Control Center II)
 
+### M8.4.5-L.apk
+- date:        2026-09-19
+- git:         agent-L/m8.4-home-apps (754d346; M8.4.5; see worklog Task 66)
+- agent:       L — Agent L (ZCode)
+- workstream:  M8.4.5 — builtin = Todo + Notes; Git/Sync/Storage downloadable via ps-widget-repo (new git.overview + sync.overview fixed primitives); Android-storage backup destinations (/mnt/android bind); profile-form path completion; catalog Update flow
+- apk sha256:  c9a9b622f03b08a92d90204aaef420c3dd9699c6298ab36057f02301b070a70c
+- tests:       full :app JVM suite 1703/1703 green (orchestrator-run); :app:assembleDebug green
+- device gate: INSTALLED on SM-T870 + cold-started; user pass in progress.
+
 ### M8.4.4-L.apk
 - date:        2026-09-19
 - git:         agent-L/m8.4-home-apps (af3f920; M8.4.4 widget catalog + one-tap sync; see worklog Task 65)

@@ -3697,3 +3697,41 @@ command run them in headless mode and work should be displayed in gui").
 - FULL SUITE 1676/1676. APK M8.4.4-L (7ea8630e…) installed on SM-T870;
   user-led §72 pass in progress (orchestrator hands off the device while
   the user tests).
+
+
+## Task 66 — M8.4.5: Android-storage destinations, path completion, catalog end-state (Agent L, orchestrator, 2026-09-19)
+
+User direction: remove the hardcoded backup presets; backup destinations
+must reach Android storage; path completion in the profile form ("type /
+and see my files"); Storage joins the repo; then Git and Sync too —
+"builtin = Todo and Notes only … instead of updating the whole app we
+should be able to update widget from the repo when an update is
+available."
+
+- SYNC: quick presets withdrawn (their destination knowledge is now
+  native); RUN flow gained a headless prepare (mkdir -p local dest);
+  RuntimeProcessLauncher.buildLaunchSpec gained extraBinds — Sync binds
+  the app's external-files dir at /mnt/android so destinations land on
+  Android shared storage (Android/data/app.pocketshell/files —
+  USB-reachable, permission-free); new-profile form gained PATH
+  COMPLETION: typing "/" or "~" lists the guest directory (one bounded
+  /bin/ls -1Ap exec, folders first, 24 cap) and picking an entry
+  assembles the path a folder at a time.
+- CATALOG END-STATE: builtin registry = Todo + Notes only. Servers, SSH,
+  Storage, Git, Sync are downloadable widgets (ps-widget-repo catalog
+  b9b18cf: five manifests). Two new fixed primitives: git.overview and
+  sync.overview (validator + renderer branches + dispatch + 23 tests,
+  subagent G); storage.rootfs dispatch wired (subagent F). Catalog rows
+  show UPDATE (accent) when the repo version is newer than the installed
+  manifest — same one-tap flow; updates change widget presentation/
+  data-binding; new capabilities still require an app release (security
+  model).
+- HONEST TRADEOFF stated to the user: downloadable cards render live
+  probe data through fixed templates; the compiled rich flows (RUN NOW
+  forms, cleanup two-step) remain app-side capabilities.
+- FULL SUITE 1703/1703 (orchestrator-run). APK M8.4.5-L
+  (c9a9b622f03b08a92d90204aaef420c3dd9699c6298ab36057f02301b070a70c)
+  installed on SM-T870 + cold-started. Subagents used: F (storage
+  primitive), G (git/sync primitives) — both accepted after review;
+  orchestrator fixed G's invalid `internal` on a sealed-interface member
+  and F/G call-shape mismatches during integration.
