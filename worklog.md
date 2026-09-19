@@ -3660,3 +3660,40 @@ REVIEW + CORRECTIONS (orchestrator-run tests, per the new law):
 FULL SUITE 1641/1641 (orchestrator). APK M8.4.3-L
 (359511959289df429ac8c875f82cd47001298ca7893030c0818e6e162399c62c),
 installed on SM-T870 + cold-started; §71 user-led pass in progress.
+
+## Task 65 — M8.4.4: widget catalog pipeline + one-tap Sync (Agent L, orchestrator, 2026-09-19)
+
+User direction: publish SSH + Servers to github.com/Taha-Raees/ps-widget-repo
+and make them installable from the app ("we can test with these two, other
+come with builtin"); Sync must be one-tap ("if they need to run terminal
+command run them in headless mode and work should be displayed in gui").
+
+- REPO: catalog.json + widgets/servers.json + widgets/ssh.json pushed
+  (main, 4dc26fa); raw.githubusercontent fetch verified. Manifests aligned
+  to the M8 validator (capability vocabulary proc.net/guest.ready,
+  maxLines 1-6, emptyLine ≤40).
+- APP (subagent E, widget/external/**): WidgetCatalog models + codec;
+  WidgetCatalogDownloader (HTTPS-only, 10s bounds, 256 KiB cap, traversal/
+  id-mismatch/version-gate refusals — pure logic JVM-tested, thin network
+  wrapper); WidgetInstallStore ("widget_catalog" DataStore, validator-
+  checked manifests, cap 12, never silent eviction); ExternalWidgetApplication
+  (ServersApp lifecycle pattern; stateStore holder; M8.1 ServerProbe for
+  proc.net.listen with its pid-set gate; NEW fixed primitive ssh.guest
+  wrapping SshFiles — renderer extended, data-only contract preserved).
+  No gradle per the standing rule; orchestrator ran everything.
+- ORCHESTRATOR LANE: registry split (Servers+SSH out of builtin; DEFAULT
+  now Todo; legacy ids resolve via installed externals, Missing card
+  otherwise — stated, never substituted); HomeApplicationViewModel
+  (externalApps flow, CatalogUi, fetch/install/remove); Host/HomeScreen/
+  MainActivity pass-throughs; Control Center "Widget catalog" section
+  (fetch, install with per-entry state, remove); Sync prepare() headless
+  mkdir -p pre-step + QUICK BACKUP presets (auto-install rsync, create
+  profile, run — GUI shows all of it); Todo tabs into the title row;
+  Git header trims the duplicate "git" prefix.
+- REVIEW fixes by orchestrator: BuildConfig does not exist under this
+  AGP config (replaced with the subagent's currentAppVersion); FQN fix
+  for WidgetCatalogEntry; registry test updates (default todo; legacy
+  M8.2 id kept verbatim; list-key-wins assertion restored).
+- FULL SUITE 1676/1676. APK M8.4.4-L (7ea8630e…) installed on SM-T870;
+  user-led §72 pass in progress (orchestrator hands off the device while
+  the user tests).

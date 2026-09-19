@@ -4726,3 +4726,27 @@ user unlocks first).
       (M8.4.2 contract — regression check).
 - [ ] Theme sweep: Aurora + one edge theme on Git/Todo/Notes/Storage/
       Sync — no hardcoded colors.
+
+
+## §72 — M8.4.4 gate: widget catalog pipeline + one-tap Sync (results pending user pass)
+
+Build: M8.4.4-L.apk (7ea8630e…), suite 1676/1676 at delivery. The two
+pilot widgets ship as DATA manifests from
+github.com/Taha-Raees/ps-widget-repo (catalog.json + widgets/*.json);
+the app fetches over HTTPS (raw.githubusercontent), validates (strict
+schema, capability vocabulary, version gate), stores in the
+widget_catalog DataStore, and renders through the fixed declarative
+layer — never downloaded code.
+
+- [ ] Control Center → Widget catalog: Fetch lists Servers + SSH;
+      Install downloads + registers; the widget appears in Available →
+      can be added to the carousel; Remove uninstalls.
+- [ ] Downloaded Servers card shows live listeners (M8.1 pipeline);
+      SSH card shows live clients + config hosts; offline/manifest
+      failures state their cause.
+- [ ] Sync Quick Backup: one tap on "Back up Projects"/"Back up home"
+      installs rsync if needed (headless), creates the destination
+      (mkdir -p headless), runs the additive copy, shows the result,
+      records LAST RUN; the profile then exists for re-runs.
+- [ ] Todo tabs sit in the title row; Git header reads
+      "Git <version> · N DIRTY"; no "Live from the guest" line.
