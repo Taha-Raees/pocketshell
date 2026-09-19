@@ -130,6 +130,20 @@ object SyncProfiles {
      * answer anyway (this classification only picks which honesty the
      * overview line shows; [SyncProbe] never trusts it).
      */
+    /**
+     * M8.4.5 — expand a user-typed path for LISTING/completion: "~" and
+     * "~/" resolve to the guest home; anything else passes verbatim.
+     * The result always ends with "/" when the input meant a directory
+     * (typed or picked), so appending an entry stays natural.
+     */
+    fun expandGuestPath(text: String, home: String = "/root"): String = when {
+        text.isEmpty() -> "/"
+        text == "~" -> "$home/"
+        text.startsWith("~/") -> home + "/" + text.drop(2)
+        text.endsWith("/") -> text
+        else -> text
+    }
+
     fun isRemote(spec: String): Boolean {
         val firstSlash = spec.indexOf('/')
         val head = if (firstSlash < 0) spec else spec.substring(0, firstSlash)

@@ -2,6 +2,7 @@ package app.pocketshell.widget.sync
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -213,6 +214,33 @@ object SyncApp : HomeApplication() {
         val ready = state.ui as? SyncUi.Ready
         val profiles = ready?.profiles.orEmpty()
 
+        // M8.4.5 — PATH COMPLETION: typing "/" (or "~") in the form lists
+        // the guest directory at that path — ONE bounded headless ls per
+        // request, entries capped; picking an entry appends it, and a
+        // directory entry (trailing "/") lists the next level. No shell,
+        // the path rides as argv.
+        LaunchedEffect(state.listRequest) {
+            val dir = state.listRequest ?: return@LaunchedEffect
+            kotlinx.coroutines.delay(250) // debounce rapid typing
+            val target = state.listTarget ?: return@LaunchedEffect
+            val out = withContext(Dispatchers.IO) {
+                guestExec(appContext).exec(listOf("/bin/ls", "-1Ap", dir), 5_000L)
+            }
+            val names = if (out.error != null || out.exitCode != 0) {
+                emptyList()
+            } else {
+                out.stdout.lines()
+                    .map { it.trimEnd('\r') }
+                    .filter { it.isNotBlank() && it != "." && it != ".." }
+                    .sortedWith(compareByDescending<String> { it.endsWith("/") })
+                    .take(24)
+            }
+            if (state.listRequest == dir) {
+                if (target == "source") state.sourceSuggestions = names
+                else state.destSuggestions = names
+            }
+        }
+
         // A selection whose profile was deleted degrades to the overview —
         // never a stale detail page.
         val selected = state.detailId?.let { id -> profiles.firstOrNull { it.id == id } }
@@ -223,58 +251,6 @@ object SyncApp : HomeApplication() {
             state.resetDraft()
         }
 
-        // M8.4.4 — ONE-TAP QUICK BACKUP: the presets need nothing from the
-        // user — no paths, no form. Everything that would have been typed
-        // into a terminal happens headless: the backend installs itself if
-        // missing, the profile is created, the destination folder is
-        // prepared (mkdir -p), and the copy runs — all shown in the GUI.
-        val quickBackup: (SyncQuickPreset) -> Unit = { preset ->
-            scope.launch {
-                var snapshot = (state.ui as? SyncUi.Ready)?.snapshot
-                if (snapshot?.rsync?.path == null) {
-                    // rsync absent → install it headless, then rescan.
-                    state.installUi = RunUi.Running
-                    val install = withContext(Dispatchers.IO) {
-                        state.probe.installBackend(SyncBackend.RSYNC)
-                    }
-                    state.installUi = RunUi.Done(install)
-                    runScan()
-                    snapshot = (state.ui as? SyncUi.Ready)?.snapshot
-                    if (snapshot?.rsync?.path == null) return@launch
-                }
-                val existing = state.profilesRef.value.firstOrNull {
-                    it.source == preset.source && it.destination == preset.destination
-                }
-                val profile = (existing ?: SyncProfile(
-                    id = SyncRepository.newId(),
-                    backend = SyncBackend.RSYNC,
-                    source = preset.source,
-                    destination = preset.destination,
-                    createdAtMs = SyncRepository.now(),
-                    excludes = preset.excludes,
-                )).let { p ->
-                    if (p.excludes.isEmpty() && preset.excludes.isNotEmpty()) {
-                        // An older profile from before excludes shipped:
-                        // upgrade it so re-runs stay fast.
-                        val upgraded = p.copy(excludes = preset.excludes)
-                        repository.add(upgraded)
-                        state.profilesRef.value =
-                            SyncProfiles.upsert(state.profilesRef.value, upgraded)
-                        upgraded
-                    } else {
-                        if (existing == null) {
-                            repository.add(p)
-                            state.profilesRef.value =
-                                SyncProfiles.upsert(state.profilesRef.value, p)
-                        }
-                        p
-                    }
-                }
-                state.detailId = profile.id
-                state.runUi = RunUi.Idle
-                state.runTick++
-            }
-        }
         BackHandler(enabled = state.formOpen || selected != null) {
             if (state.formOpen) closeForm() else state.detailId = null
         }
@@ -433,13 +409,14 @@ object SyncApp : HomeApplication() {
                     snapshot = ready?.snapshot,
                     layout = layout,
                     nowMs = state.nowMs,
-                    onQuickBackup = quickBackup,
                     onOpenDetail = { state.detailId = it.id },
                     onOpenForm = {
                         // A freshly opened form starts with a clean slate —
                         // a SAVE attempt from an earlier visit must not
                         // haunt it ("source is required" on first paint).
                         state.formSubmitted = false
+                        state.sourceSuggestions = emptyList()
+                        state.destSuggestions = emptyList()
                         state.formOpen = true
                     },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
@@ -467,6 +444,15 @@ object SyncApp : HomeApplication() {
                 prootTmpDir = File(appContext.cacheDir, "proot-tmp").apply { mkdirs() },
                 guestCommand = argv,
                 profile = GuestExecutionProfile.PACKAGE_OPERATION,
+                // M8.4.5 — Android storage as a backup DESTINATION: the
+                // app's external-files dir is bound read-write at
+                // /mnt/android, so "/mnt/android/backup" lands on shared
+                // storage (Android/data/app.pocketshell/files/backup —
+                // reachable from a computer over USB; no permissions
+                // needed; the app owns it).
+                extraBinds = listOf(
+                    "${appContext.getExternalFilesDir(null)!!.absolutePath}:/mnt/android",
+                ),
             )
             val process = ProcessBuilderGuestCommandRunner().start(spec)
             try {
@@ -498,6 +484,12 @@ object SyncApp : HomeApplication() {
  * profile RECORDS live in the DataStore, as before.
  */
 internal class SyncState(val probe: SyncProbe) {
+
+    /** M8.4.5 — path-completion state for the new-profile form. */
+    var sourceSuggestions by mutableStateOf<List<String>>(emptyList())
+    var destSuggestions by mutableStateOf<List<String>>(emptyList())
+    var listTarget by mutableStateOf<String?>(null)
+    var listRequest by mutableStateOf<String?>(null)
 
     /** The screen state (probe-driven, never invented). */
     var ui by mutableStateOf<SyncUi>(SyncUi.Loading)
@@ -550,6 +542,8 @@ internal class SyncState(val probe: SyncProbe) {
         draftSource = ""
         draftDestination = ""
         formSubmitted = false
+        sourceSuggestions = emptyList()
+        destSuggestions = emptyList()
     }
 }
 
@@ -645,38 +639,6 @@ internal enum class SyncLayout(
 
 // ------------------------------------------------------------- overview
 
-/** One one-tap backup preset: no typing anywhere in the flow. */
-internal data class SyncQuickPreset(
-    val id: String,
-    val label: String,
-    val source: String,
-    val destination: String,
-    val excludes: List<String>,
-)
-
-internal val SYNC_QUICK_PRESETS = listOf(
-    SyncQuickPreset(
-        id = "projects",
-        label = "Back up Projects",
-        source = "/root/Projects",
-        destination = "/mnt/backup/Projects",
-        // Regenerable build output — not user data, not backup material.
-        excludes = listOf("node_modules", ".gradle", "build", ".cache"),
-    ),
-    SyncQuickPreset(
-        id = "home",
-        label = "Back up home",
-        source = "/root",
-        destination = "/mnt/backup/home",
-        // The re-downloadable toolchains (android-sdk, tools) and caches
-        // dwarf the actual data — without these the first copy takes
-        // hours; with them it takes minutes.
-        excludes = listOf(
-            "android-sdk", "tools", ".cache", ".npm", ".gradle", ".cargo", ".rustup",
-        ),
-    ),
-)
-
 @Composable
 private fun SyncOverview(
     ui: SyncUi,
@@ -684,7 +646,6 @@ private fun SyncOverview(
     snapshot: SyncSnapshot?,
     layout: SyncLayout,
     nowMs: Long,
-    onQuickBackup: (SyncQuickPreset) -> Unit,
     onOpenDetail: (SyncProfile) -> Unit,
     onOpenForm: () -> Unit,
     onOpenLinuxShell: () -> Unit,
@@ -740,62 +701,6 @@ private fun SyncOverview(
             )
         }
         Spacer(Modifier.height(6.dp))
-
-        // M8.4.4 — QUICK BACKUP: one-tap presets. Everything the user
-        // would have typed (paths, apk add, mkdir, rsync) runs headless;
-        // the card shows the work and the result.
-        Column(modifier = Modifier.fillMaxWidth()) {
-            SYNC_QUICK_PRESETS.forEach { preset ->
-                val alreadyAProfile = profiles.any {
-                    it.source == preset.source && it.destination == preset.destination
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            role = Role.Button,
-                            onClickLabel = preset.label,
-                        ) { onQuickBackup(preset) }
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.PlayArrow,
-                        contentDescription = preset.label,
-                        tint = HomeTokens.accent,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = preset.label,
-                            fontFamily = TerminalTheme.mono,
-                            fontSize = 12.sp,
-                            color = HomeTokens.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = SyncProfiles.displayPath(preset.source) + " → " +
-                                SyncProfiles.displayPath(preset.destination) +
-                                if (alreadyAProfile) " · profile exists" else "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = HomeTokens.textDim,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Text(
-                        text = "TAP TO " + if (alreadyAProfile) "RUN" else "CREATE + RUN",
-                        fontFamily = TerminalTheme.mono,
-                        fontSize = 9.sp,
-                        letterSpacing = 1.sp,
-                        color = HomeTokens.textDim,
-                    )
-                }
-                HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
-            }
-        }
 
         // Rows — the user's profiles; always scrolling, never capped.
         if (profiles.isNotEmpty()) {
@@ -1455,26 +1360,46 @@ private fun SyncForm(
                 }
             }
         }
+        fun sourceChanged(text: String) {
+            state.draftSource = text
+            state.formSubmitted = false
+            if (text.endsWith("/") || text == "~") {
+                state.listTarget = "source"
+                state.listRequest = SyncProfiles.expandGuestPath(text)
+            } else {
+                state.sourceSuggestions = emptyList()
+            }
+        }
+
+        fun destChanged(text: String) {
+            state.draftDestination = text
+            state.formSubmitted = false
+            if (text.endsWith("/") || text == "~") {
+                state.listTarget = "dest"
+                state.listRequest = SyncProfiles.expandGuestPath(text)
+            } else {
+                state.destSuggestions = emptyList()
+            }
+        }
+
         FormField(
             label = "SOURCE",
             value = state.draftSource,
-            onValue = {
-                state.draftSource = it
-                state.formSubmitted = false
-            },
-            placeholder = "guest path, e.g. /root/project",
+            onValue = ::sourceChanged,
+            placeholder = "guest path, e.g. /root/project — type / to browse",
+            suggestions = state.sourceSuggestions,
+            onPickSuggestion = { name -> sourceChanged(state.draftSource + name) },
         )
         FormField(
             label = "DEST",
             value = state.draftDestination,
-            onValue = {
-                state.draftDestination = it
-                state.formSubmitted = false
-            },
+            onValue = ::destChanged,
             placeholder = when (backend) {
-                SyncBackend.RSYNC -> "/mnt/backup or user@host:/path"
-                SyncBackend.RCLONE -> "/mnt/backup or remote:path"
+                SyncBackend.RSYNC -> "/mnt/backup, /mnt/android/backup or user@host:/path"
+                SyncBackend.RCLONE -> "/mnt/backup, /mnt/android/backup or remote:path"
             },
+            suggestions = state.destSuggestions,
+            onPickSuggestion = { name -> destChanged(state.draftDestination + name) },
         )
         // NO premature validation: the problem renders only after the
         // first SAVE attempt, and any input change clears it again — a
@@ -1528,6 +1453,8 @@ private fun FormField(
     value: String,
     onValue: (String) -> Unit,
     placeholder: String,
+    suggestions: List<String> = emptyList(),
+    onPickSuggestion: (String) -> Unit = {},
 ) {
     Row(
         modifier = Modifier
@@ -1571,6 +1498,36 @@ private fun FormField(
                 }
             },
         )
+    }
+    // M8.4.5 — the path dropdown: typing a "/" lists the guest directory
+    // (headless, bounded); picking an entry appends it, so a path is
+    // assembled a folder at a time without a keyboard marathon.
+    if (suggestions.isNotEmpty()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .verticalScroll(rememberScrollState())
+                .border(1.dp, HomeTokens.hairline),
+        ) {
+            suggestions.forEach { name ->
+                Text(
+                    text = name,
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 12.sp,
+                    color = if (name.endsWith("/")) HomeTokens.accent else HomeTokens.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = "Choose $name",
+                        ) { onPickSuggestion(name) }
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                )
+            }
+        }
     }
 }
 

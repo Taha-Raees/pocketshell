@@ -1,10 +1,13 @@
 package app.pocketshell.widget.external
 
+import app.pocketshell.widget.git.RepoSnapshot
 import app.pocketshell.widget.probe.ListeningSocket
 import app.pocketshell.widget.probe.StorageScan
 import app.pocketshell.widget.probe.StorageBreakdown
 import app.pocketshell.widget.ssh.SshClientProcess
 import app.pocketshell.widget.ssh.SshHostEntry
+import app.pocketshell.widget.sync.SyncProfile
+import app.pocketshell.widget.sync.SyncProfiles
 
 /**
  * M8 — the data-only declarative renderer: manifest + probe result → card
@@ -19,7 +22,7 @@ import app.pocketshell.widget.ssh.SshHostEntry
 object DeclarativeWidgetRenderer {
 
     /** The probe results a manifest-rendered card can receive. */
-    sealed interface ProbeResult {
+    internal sealed interface ProbeResult {
         data class Listeners(val sockets: List<ListeningSocket>) : ProbeResult
         data class Storage(val breakdown: StorageBreakdown) : ProbeResult
 
@@ -37,6 +40,36 @@ object DeclarativeWidgetRenderer {
             val hosts: List<SshHostEntry>,
         ) : ProbeResult
 
+        /**
+         * M8.4.4 — the `git.overview` primitive's result: the compiled
+         * GitApp probe's repository snapshots, one row each. Template
+         * fields per row: `name`, `branch` (the porcelain head line's
+         * branch — "detached"/"unknown" when git said nothing), `status`
+         * ("OK"/"DIRTY", "ERROR" for a repository git could not read —
+         * the compiled card's dirty derivation, mirrored), `dirty`
+         * ("dirty"/"clean"), and `ahead`/`behind` (integers as strings,
+         * present only when the head line carries a real divergence — an
+         * absent field renders as "—", never a guessed 0). Internal
+         * because [RepoSnapshot] is the git package's own type.
+         */
+        data class GitOverview(
+            val repos: List<RepoSnapshot>,
+        ) : ProbeResult
+
+        /**
+         * M8.4.4 — the `sync.overview` primitive's result: the user's own
+         * sync profiles (the SyncRepository flow), one row each, with the
+         * render clock so [SyncProfiles.statusLine] stays a pure call.
+         * Template fields per row: `source` and `destination` (guest-home
+         * paths as "~"-displayed, the compiled card's rule), `backend`
+         * ("rsync"/"rclone"), and `status` (the profile's real run facts:
+         * "never run" or "2h ago · OK (exit 0)").
+         */
+        data class SyncOverview(
+            val profiles: List<SyncProfile>,
+            val nowMs: Long,
+        ) : ProbeResult
+
         data object Unavailable : ProbeResult
     }
 
@@ -49,7 +82,7 @@ object DeclarativeWidgetRenderer {
         val unavailable: Boolean,
     )
 
-    fun render(manifest: WidgetManifest, result: ProbeResult): CardData {
+    internal fun render(manifest: WidgetManifest, result: ProbeResult): CardData {
         val headline = manifest.card.headline.ifEmpty { manifest.name }
         return when (result) {
             is ProbeResult.Unavailable -> CardData(
@@ -104,6 +137,37 @@ object DeclarativeWidgetRenderer {
                     unavailable = false,
                 )
             }
+            is ProbeResult.GitOverview -> {
+                // One row per discovered repository, discovery order (the
+                // probe's deterministic sort). A git-less guest scans Done
+                // with NO repositories — the manifest's empty line, never
+                // a fabricated row.
+                val rows = result.repos
+                    .take(manifest.card.maxLines)
+                    .map { substitute(manifest.card.itemTemplate, gitFields(it)) }
+                CardData(
+                    headline = headline,
+                    countLine = if (result.repos.isEmpty()) null else "${result.repos.size} repos",
+                    rows = rows,
+                    empty = result.repos.isEmpty(),
+                    unavailable = false,
+                )
+            }
+            is ProbeResult.SyncOverview -> {
+                // One row per profile, the repository's own order (the
+                // store's insertion order). An empty profile store is the
+                // manifest's empty line.
+                val rows = result.profiles
+                    .take(manifest.card.maxLines)
+                    .map { substitute(manifest.card.itemTemplate, syncFields(it, result.nowMs)) }
+                CardData(
+                    headline = headline,
+                    countLine = if (result.profiles.isEmpty()) null else "${result.profiles.size} profiles",
+                    rows = rows,
+                    empty = result.profiles.isEmpty(),
+                    unavailable = false,
+                )
+            }
         }
     }
 
@@ -150,4 +214,53 @@ object DeclarativeWidgetRenderer {
         entry.hostName?.let { put("name", it) }
         put("text", entry.displayName)
     }
+
+    // ------------------------------------------------ git.overview fields
+
+    /**
+     * One repository's row fields. The branch and dirty derivations mirror
+     * the compiled GitApp's pure helpers (the porcelain head line, never a
+     * guess): a repository git could not read keeps its name and reports
+     * the ERROR status — it degrades alone, it does not silently pose as
+     * clean. ahead/behind ride only when git reported a real divergence
+     * (the ssh host `name` rule: an absent field renders as "—").
+     */
+    private fun gitFields(repo: RepoSnapshot): Map<String, String> = buildMap {
+        put("name", repo.name)
+        put("branch", gitBranchText(repo.status))
+        put("status", gitStatusText(repo))
+        put("dirty", if (repo.status?.dirty == true) "dirty" else "clean")
+        repo.status?.ahead?.let { put("ahead", it.toString()) }
+        repo.status?.behind?.let { put("behind", it.toString()) }
+    }
+
+    /** The porcelain head line's branch, the compiled card's vocabulary. */
+    private fun gitBranchText(status: app.pocketshell.widget.git.GitStatusParser.RepoStatus?): String =
+        when {
+            status == null -> "unknown"
+            status.detached -> "detached"
+            else -> status.branch ?: "unknown"
+        }
+
+    /** The row's verdict: "OK", "DIRTY", or "ERROR" when git gave nothing. */
+    private fun gitStatusText(repo: RepoSnapshot): String = when {
+        repo.error != null || repo.status == null -> "ERROR"
+        repo.status.dirty -> "DIRTY"
+        else -> "OK"
+    }
+
+    // ------------------------------------------------ sync.overview fields
+
+    /**
+     * One profile's row fields — the profile's own facts, displayed the
+     * way the compiled SyncApp displays them: "~"-mapped paths and the
+     * run-status line ("never run" / "2h ago · OK (exit 0)"). Nothing is
+     * enriched: a profile that never ran says exactly that.
+     */
+    private fun syncFields(profile: SyncProfile, nowMs: Long): Map<String, String> = mapOf(
+        "source" to SyncProfiles.displayPath(profile.source),
+        "destination" to SyncProfiles.displayPath(profile.destination),
+        "backend" to profile.backend.name.lowercase(),
+        "status" to SyncProfiles.statusLine(profile, nowMs),
+    )
 }

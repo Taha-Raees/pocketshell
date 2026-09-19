@@ -125,6 +125,82 @@ class WidgetManifestValidatorTest {
     }
 
     @Test
+    fun `git overview is a built-in primitive with its own capability`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(kind = WidgetManifestValidator.GIT_OVERVIEW),
+                capabilities = listOf("guest.ready"),
+            ),
+        )
+        assertTrue(result is WidgetManifestValidator.Result.Valid)
+    }
+
+    @Test
+    fun `git overview refuses without guest ready`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(kind = WidgetManifestValidator.GIT_OVERVIEW),
+                capabilities = listOf("proc.net"),
+            ),
+        )
+        val reasons = (result as WidgetManifestValidator.Result.Invalid).reasons
+        assertTrue(reasons.any { it.contains("requires capability 'guest.ready'") })
+    }
+
+    @Test
+    fun `git overview takes no probe params - no command surface`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(
+                    kind = WidgetManifestValidator.GIT_OVERVIEW,
+                    params = mapOf("repo" to "/etc"),
+                ),
+                capabilities = listOf("guest.ready"),
+            ),
+        )
+        val reasons = (result as WidgetManifestValidator.Result.Invalid).reasons
+        assertTrue(reasons.any { it.contains("unknown probe params") })
+    }
+
+    @Test
+    fun `sync overview is a built-in primitive with its own capability`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(kind = WidgetManifestValidator.SYNC_OVERVIEW),
+                capabilities = listOf("guest.ready"),
+            ),
+        )
+        assertTrue(result is WidgetManifestValidator.Result.Valid)
+    }
+
+    @Test
+    fun `sync overview refuses without guest ready`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(kind = WidgetManifestValidator.SYNC_OVERVIEW),
+                capabilities = listOf("storage.rootfs"),
+            ),
+        )
+        val reasons = (result as WidgetManifestValidator.Result.Invalid).reasons
+        assertTrue(reasons.any { it.contains("requires capability 'guest.ready'") })
+    }
+
+    @Test
+    fun `sync overview takes no probe params - no command surface`() {
+        val result = WidgetManifestValidator.validate(
+            valid.copy(
+                probe = WidgetManifest.Probe(
+                    kind = WidgetManifestValidator.SYNC_OVERVIEW,
+                    params = mapOf("profile" to "home"),
+                ),
+                capabilities = listOf("guest.ready"),
+            ),
+        )
+        val reasons = (result as WidgetManifestValidator.Result.Invalid).reasons
+        assertTrue(reasons.any { it.contains("unknown probe params") })
+    }
+
+    @Test
     fun `unknown capabilities reject`() {
         val result = WidgetManifestValidator.validate(
             valid.copy(capabilities = listOf("proc.net", "root.shell")),

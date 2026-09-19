@@ -48,6 +48,7 @@ fun HomeWidgetsScreen(
 ) {
     val appIds by viewModel.homeAppIds.collectAsStateWithLifecycle()
     val externals by viewModel.externalApps.collectAsStateWithLifecycle()
+    val installedManifests by viewModel.installedManifests.collectAsStateWithLifecycle(initialValue = emptyList())
     val catalog by viewModel.catalog.collectAsStateWithLifecycle()
 
     MidnightPageScaffold(title = "Home applications", onBack = onBack, modifier = modifier) {
@@ -157,11 +158,28 @@ fun HomeWidgetsScreen(
                     )
                 }
             } else {
-                val installedIds = externals.map { it.spec.id }.toSet()
                 catalog.entries.forEach { entry ->
+                    val installedVersion = installedManifests
+                        .firstOrNull { it.id == entry.id }?.version
+                    // An entry whose repo version is NEWER than the
+                    // installed one is an UPDATE — same one-tap flow,
+                    // a different verb so the user knows there is
+                    // something new to take.
+                    val updateAvailable = installedVersion != null && run {
+                        val newT = app.pocketshell.widget.external.versionTriple(entry.version)
+                        val oldT = app.pocketshell.widget.external.versionTriple(installedVersion)
+                        if (newT != null && oldT != null) {
+                            (0..2).any { index ->
+                                val nv = newT.getOrElse(index) { 0 }
+                                val ov = oldT.getOrElse(index) { 0 }
+                                if (nv != ov) nv > ov else false
+                            }
+                        } else false
+                    }
                     CatalogRow(
                         entry = entry,
-                        installed = entry.id in installedIds,
+                        installed = installedVersion != null,
+                        updateAvailable = updateAvailable,
                         installing = catalog.installingId == entry.id,
                         busy = catalog.installingId != null,
                         onInstall = { viewModel.install(entry) },
@@ -196,6 +214,7 @@ fun HomeWidgetsScreen(
 private fun CatalogRow(
     entry: app.pocketshell.widget.external.WidgetCatalogEntry,
     installed: Boolean,
+    updateAvailable: Boolean,
     installing: Boolean,
     busy: Boolean,
     onInstall: () -> Unit,
@@ -227,11 +246,16 @@ private fun CatalogRow(
                 )
                 installed -> {
                     Text(
-                        text = "Installed",
+                        text = if (updateAvailable) "v" + entry.version else "Installed",
                         style = MaterialTheme.typography.bodySmall,
-                        color = HomeTokens.accent,
+                        color = if (updateAvailable) HomeTokens.accent else HomeTokens.textDim,
                     )
                     Spacer(Modifier.width(12.dp))
+                    if (updateAvailable) {
+                        TextButton(onClick = onInstall, modifier = Modifier.height(32.dp)) {
+                            Text("Update", color = HomeTokens.accent, fontSize = 11.sp)
+                        }
+                    }
                     TextButton(onClick = onRemove, modifier = Modifier.height(32.dp)) {
                         Text("Remove", color = HomeTokens.danger, fontSize = 11.sp)
                     }

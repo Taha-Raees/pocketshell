@@ -28,20 +28,36 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
+import app.pocketshell.packages.ExecResult
+import app.pocketshell.packages.PackageGateway
+import app.pocketshell.packages.ProcessBuilderGuestCommandRunner
+import app.pocketshell.runtime.GuestExecutionProfile
+import app.pocketshell.runtime.RuntimeProcessLauncher
 import app.pocketshell.runtime.RuntimeState
+import app.pocketshell.runtime.RuntimeStorage
+import app.pocketshell.terminal.ShellEnvironment
 import app.pocketshell.ui.home.HomeTokens
 import app.pocketshell.ui.theme.TerminalTheme
 import app.pocketshell.widget.HomeAppContext
 import app.pocketshell.widget.HomeAppSpec
 import app.pocketshell.widget.HomeApplication
+import app.pocketshell.widget.git.GitProbe
+import app.pocketshell.widget.git.ScanResult
 import app.pocketshell.widget.probe.ListeningSocket
 import app.pocketshell.widget.probe.ServerInfo
 import app.pocketshell.widget.probe.ServerProbe
+import app.pocketshell.widget.probe.StorageScan
 import app.pocketshell.widget.ssh.SshFiles
+import app.pocketshell.widget.sync.ProbeResult as SyncProbeResult
+import app.pocketshell.widget.sync.SyncProfile
+import app.pocketshell.widget.sync.SyncProbe
+import app.pocketshell.widget.sync.SyncRepository
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -230,7 +246,8 @@ class ExternalWidgetApplication(private val manifest: WidgetManifest) : HomeAppl
 /**
  * The application's process-scoped state (M8.4.2): the last rendered card,
  * the in-flight flag, and the probe plumbing (the Servers probe instance —
- * its pid-set idle gate IS its cache).
+ * its pid-set idle gate IS the cache — plus the git and sync probes, whose
+ * time-based idle gates are THEIR caches).
  */
 internal class ExternalWidgetState {
 
@@ -239,13 +256,65 @@ internal class ExternalWidgetState {
 
     private val serverProbe = ServerProbe()
 
+    // M8.4.4 — the git/sync primitives' probe instances, holder-owned
+    // exactly like serverProbe: at most one guest exec per the probe's
+    // AUTO_RESCAN_MS while the card is open, the first tick always scans.
+    // Built lazily on first need — the appContext arrives with each probe
+    // pass — and kept here so the gate memory survives navigation.
+    private var gitProbe: GitProbe? = null
+    private var syncProbe: SyncProbe? = null
+    private var syncRepo: SyncRepository? = null
+
+    private fun git(appContext: Context): GitProbe =
+        gitProbe ?: GitProbe(
+            GitProbe.GuestExec { argv, timeoutMs -> execGuest(appContext, argv, timeoutMs) },
+        ).also { gitProbe = it }
+
+    private fun sync(appContext: Context): SyncProbe =
+        syncProbe ?: SyncProbe(
+            SyncProbe.GuestExec { argv, timeoutMs -> execGuest(appContext, argv, timeoutMs) },
+        ).also { syncProbe = it }
+
+    private fun syncRepository(appContext: Context): SyncRepository =
+        syncRepo ?: SyncRepository(appContext).also { syncRepo = it }
+
+    /**
+     * The sanctioned non-PTY guest exec — the exact closure the compiled
+     * GitApp/SyncApp hand their probes (buildLaunchSpec + background
+     * runner, the minimal PACKAGE_OPERATION profile for an offline
+     * read-only probe). No new exec surface: this only REACHES the two
+     * probes' own read-only scripts.
+     */
+    private fun execGuest(appContext: Context, guestCommand: List<String>, timeoutMs: Long): ExecResult {
+        val storage = RuntimeStorage(appContext.noBackupFilesDir)
+        val spec = RuntimeProcessLauncher.buildLaunchSpec(
+            nativeLibraryDir = appContext.applicationInfo.nativeLibraryDir,
+            rootfsDir = storage.rootfsDir,
+            hostCwd = ShellEnvironment.homeDir(appContext),
+            prootTmpDir = File(appContext.cacheDir, "proot-tmp").apply { mkdirs() },
+            guestCommand = guestCommand,
+            profile = GuestExecutionProfile.PACKAGE_OPERATION,
+        )
+        val process = ProcessBuilderGuestCommandRunner().start(spec)
+        return try {
+            process.waitFor(timeoutMs)
+        } catch (t: Throwable) {
+            process.destroy()
+            throw t
+        }
+    }
+
     /**
      * One probe pass for the manifest's built-in primitive, or null when
      * the idle gate says the last snapshot still stands (nothing changed
      * in /proc and nothing was listening): the caller keeps the cached
-     * card — refresh-on-purpose, never refresh-for-show.
+     * card — refresh-on-purpose, never refresh-for-show. The storage walk
+     * has no such gate (a filesystem offers no cheap change signal): it
+     * runs once per tick, bounded, and the card re-renders each tick. The
+     * git/sync primitives gate on their probes' time-based idle gate
+     * (one guest exec per AUTO_RESCAN_MS; the first tick always scans).
      */
-    fun probe(
+    suspend fun probe(
         manifest: WidgetManifest,
         appContext: Context,
     ): DeclarativeWidgetRenderer.ProbeResult? = when (manifest.probe.kind) {
@@ -267,6 +336,51 @@ internal class ExternalWidgetState {
                     hosts = snapshot.hosts,
                 )
             }
+        WidgetManifestValidator.STORAGE_ROOTFS -> {
+            // The M8 storage widget's exact scan, byte for byte the same
+            // tree: the app-owned guest rootfs (`<noBackupFilesDir>/runtime/
+            // rootfs`, RuntimeStorage's rootfsDir) plus the bound apk cache
+            // (`<noBackupFilesDir>/apk-cache`, PackageGateway.apkCacheDir).
+            // Every byte there belongs to this app (docs/PROCFS-CONTRACT.md
+            // §1), so the NOFOLLOW walk is permission-free and honest — and
+            // bounded by StorageScan's own file budget. No idle gate exists
+            // for a filesystem (no cheap change signal): ONE scan per tick,
+            // on the caller's Dispatchers.IO context, and the card
+            // re-renders from the fresh numbers.
+            val storage = RuntimeStorage(appContext.noBackupFilesDir)
+            DeclarativeWidgetRenderer.ProbeResult.Storage(
+                StorageScan.scanGuestStorage(
+                    storage.rootfsDir,
+                    PackageGateway.apkCacheDir(storage),
+                ),
+            )
+        }
+        WidgetManifestValidator.GIT_OVERVIEW -> {
+            // The compiled GitApp's probe, holder-owned: its time-based
+            // idle gate decides — a too-soon pass costs nothing and the
+            // cached card stands. The mapping to the renderer's rows is
+            // [gitOverviewResult] (pure, JVM-tested).
+            val probe = git(appContext)
+            if (!probe.shouldFullScan(System.currentTimeMillis())) {
+                null
+            } else {
+                gitOverviewResult(probe.snapshot())
+            }
+        }
+        WidgetManifestValidator.SYNC_OVERVIEW -> {
+            // The compiled SyncApp's probe over the user's OWN profiles:
+            // the profiles come from the public SyncRepository flow (one
+            // DataStore read per gated pass — the gate is checked first,
+            // so an idle card reads nothing and execs nothing). Mapping:
+            // [syncOverviewResult] (pure, JVM-tested).
+            val probe = sync(appContext)
+            if (!probe.shouldFullScan(System.currentTimeMillis())) {
+                null
+            } else {
+                val profiles = syncRepository(appContext).profiles.first()
+                syncOverviewResult(profiles, System.currentTimeMillis(), probe.snapshot(profiles))
+            }
+        }
         // The validator admits nothing else; a kind this build predates
         // renders as the honest unavailable state.
         else -> DeclarativeWidgetRenderer.ProbeResult.Unavailable
@@ -286,4 +400,33 @@ internal class ExternalWidgetState {
         pid = pid,
         processName = displayName,
     )
+}
+
+/**
+ * M8.4.4 — one git probe pass → the `git.overview` primitive's result.
+ * The dispatch's whole mapping, pure and JVM-tested: a Done scan maps its
+ * repository snapshots (a git-less guest is a Done scan with NO
+ * repositories → the manifest's empty line); a FAILED exec is the honest
+ * Unavailable — never dressed up as "no repositories" (the compiled
+ * GitApp's rule). The unavailable line the card shows is coarse ("Linux
+ * not ready"), but it invents nothing.
+ */
+internal fun gitOverviewResult(scan: ScanResult): DeclarativeWidgetRenderer.ProbeResult = when (scan) {
+    is ScanResult.Done -> DeclarativeWidgetRenderer.ProbeResult.GitOverview(scan.snapshot.repos)
+    is ScanResult.Failed -> DeclarativeWidgetRenderer.ProbeResult.Unavailable
+}
+
+/**
+ * M8.4.4 — one sync probe pass → the `sync.overview` primitive's result:
+ * the profiles as given (the repository flow's own order) plus the render
+ * clock for the run facts; a failed exec is the honest Unavailable, never
+ * "no profiles".
+ */
+internal fun syncOverviewResult(
+    profiles: List<SyncProfile>,
+    nowMs: Long,
+    scan: SyncProbeResult,
+): DeclarativeWidgetRenderer.ProbeResult = when (scan) {
+    is SyncProbeResult.Done -> DeclarativeWidgetRenderer.ProbeResult.SyncOverview(profiles, nowMs)
+    is SyncProbeResult.Failed -> DeclarativeWidgetRenderer.ProbeResult.Unavailable
 }

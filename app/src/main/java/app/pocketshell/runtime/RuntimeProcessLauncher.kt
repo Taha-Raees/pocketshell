@@ -294,6 +294,7 @@ object RuntimeProcessLauncher {
         profile: GuestExecutionProfile = GuestExecutionProfile.INTERACTIVE_TERMINAL,
         sysDataBinds: List<String> = emptyList(),
         guestCwd: String? = null,
+        extraBinds: List<String> = emptyList(),
     ): LaunchSpec {
         // The /proc policy is DERIVED, never caller-chosen (m3.6): interactive
         // sessions always bind it, package operations never do. There is no
@@ -380,6 +381,16 @@ object RuntimeProcessLauncher {
             val varCache = File(apkCacheDir, "var").apply { mkdirs() }
             arguments.add("--bind=${etcCache.absolutePath}:${GUEST_APK_CACHE_ETC}")
             arguments.add("--bind=${varCache.absolutePath}:${GUEST_APK_CACHE_VAR}")
+        }
+        // M8.4.5 — caller-supplied extra binds ("host:guest" pairs), e.g. the
+        // app's external-files dir so backup destinations can land on
+        // Android storage. Entries are appended verbatim after the fixed
+        // binds; callers own their existence checks.
+        extraBinds.forEach { bind ->
+            require(bind.isNotBlank() && !bind.any { it.isWhitespace() }) {
+                "extraBind must be a single whitespace-free host:guest pair"
+            }
+            arguments.add("--bind=$bind")
         }
         arguments.addAll(guestCommand)
 

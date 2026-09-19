@@ -1,11 +1,17 @@
 package app.pocketshell.widget.external
 
+import app.pocketshell.widget.git.GitStatusParser
+import app.pocketshell.widget.git.RepoSnapshot
 import app.pocketshell.widget.probe.ListeningSocket
+import app.pocketshell.widget.probe.StorageBreakdown
 import app.pocketshell.widget.probe.StorageScan
 import app.pocketshell.widget.probe.StorageSubtree
 import app.pocketshell.widget.ssh.SshArgvTarget
 import app.pocketshell.widget.ssh.SshClientProcess
 import app.pocketshell.widget.ssh.SshHostEntry
+import app.pocketshell.widget.sync.SyncBackend
+import app.pocketshell.widget.sync.SyncProfile
+import app.pocketshell.widget.sync.SyncProfiles
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -195,6 +201,313 @@ class DeclarativeWidgetRendererTest {
     fun `ssh guest unavailability is stated - never dressed up as data`() {
         val card = DeclarativeWidgetRenderer.render(
             ssh,
+            DeclarativeWidgetRenderer.ProbeResult.Unavailable,
+        )
+        assertTrue(card.unavailable)
+        assertTrue(card.rows.isEmpty())
+    }
+
+    // ---------------------------------------------------- storage.rootfs
+
+    private val storage = WidgetManifest(
+        id = "storage", name = "Storage", version = "1.0.0",
+        capabilities = listOf("storage.rootfs"),
+        probe = WidgetManifest.Probe("storage.rootfs"),
+        card = WidgetManifest.Card(headline = "Storage", emptyLine = "Empty", itemTemplate = "{text}", maxLines = 3),
+    )
+
+    private fun breakdown(
+        vararg subtrees: StorageSubtree,
+        total: Long = subtrees.sumOf { it.bytes },
+    ) = StorageBreakdown(
+        totalBytes = total,
+        subtrees = subtrees.toList(),
+        truncated = false,
+        scannedAtMillis = 0L,
+    )
+
+    @Test
+    fun `storage rows map the breakdown's subtrees in its own order`() {
+        // StorageScan hands the renderer its subtrees already sorted
+        // descending; the renderer maps them verbatim — one row per
+        // subtree, no re-sorting, no invented rows.
+        val card = DeclarativeWidgetRenderer.render(
+            storage,
+            DeclarativeWidgetRenderer.ProbeResult.Storage(
+                breakdown(StorageSubtree("usr", 50L), StorageSubtree("etc", 10L)),
+            ),
+        )
+        assertEquals(listOf("usr  50 B", "etc  10 B"), card.rows)
+        assertEquals("60 B", card.countLine)
+        assertTrue(!card.empty)
+        assertTrue(!card.unavailable)
+    }
+
+    @Test
+    fun `a zero-byte storage scan renders the empty line with no count`() {
+        val card = DeclarativeWidgetRenderer.render(
+            storage,
+            DeclarativeWidgetRenderer.ProbeResult.Storage(breakdown()),
+        )
+        assertTrue(card.empty)
+        assertEquals(null, card.countLine)
+        assertTrue(card.rows.isEmpty())
+    }
+
+    @Test
+    fun `storage unavailability is stated - never dressed up as data`() {
+        val card = DeclarativeWidgetRenderer.render(
+            storage,
+            DeclarativeWidgetRenderer.ProbeResult.Unavailable,
+        )
+        assertTrue(card.unavailable)
+        assertTrue(card.rows.isEmpty())
+        assertTrue(!card.empty)
+    }
+
+    @Test
+    fun `storage maxLines caps the subtree rows`() {
+        val card = DeclarativeWidgetRenderer.render(
+            storage,
+            DeclarativeWidgetRenderer.ProbeResult.Storage(
+                breakdown(
+                    StorageSubtree("usr", 40L),
+                    StorageSubtree("var", 30L),
+                    StorageSubtree("etc", 20L),
+                    StorageSubtree("opt", 10L),
+                ),
+            ),
+        )
+        assertEquals(3, card.rows.size)
+        assertEquals("100 B", card.countLine)
+    }
+
+    // ---------------------------------------------------- git.overview (M8.4.4)
+
+    private val git = WidgetManifest(
+        id = "git", name = "Git", version = "1.0.0",
+        capabilities = listOf("guest.ready"),
+        probe = WidgetManifest.Probe("git.overview"),
+        card = WidgetManifest.Card(
+            headline = "Git",
+            emptyLine = "No repositories",
+            itemTemplate = "{name} · {branch} · {dirty}",
+            maxLines = 6,
+        ),
+    )
+
+    private fun repo(
+        name: String,
+        statusText: String?,
+        error: String? = null,
+    ) = RepoSnapshot(
+        path = "/root/$name",
+        name = name,
+        status = statusText?.let { GitStatusParser.parse(it) },
+        error = error,
+    )
+
+    @Test
+    fun `git overview rows map one repository per row with the real facts`() {
+        val card = DeclarativeWidgetRenderer.render(
+            git,
+            DeclarativeWidgetRenderer.ProbeResult.GitOverview(
+                listOf(
+                    repo("api", "## main\n M app.kt\n?? note.txt"),
+                    repo("dotfiles", "## main"),
+                ),
+            ),
+        )
+        assertEquals(listOf("api · main · dirty", "dotfiles · main · clean"), card.rows)
+        assertEquals("2 repos", card.countLine)
+        assertTrue(!card.empty)
+        assertTrue(!card.unavailable)
+    }
+
+    @Test
+    fun `git overview ahead and behind render only what git reported`() {
+        val templated = git.copy(card = git.card.copy(itemTemplate = "{name} ↑{ahead} ↓{behind}"))
+        val card = DeclarativeWidgetRenderer.render(
+            templated,
+            DeclarativeWidgetRenderer.ProbeResult.GitOverview(
+                listOf(
+                    repo("diverged", "## main...origin/main [ahead 1, behind 2]"),
+                    repo("insync", "## main...origin/main"),
+                ),
+            ),
+        )
+        // An absent divergence is the placeholder — never a guessed zero.
+        assertEquals(listOf("diverged ↑1 ↓2", "insync ↑— ↓—"), card.rows)
+    }
+
+    @Test
+    fun `git overview states the branch verdict including detached and error`() {
+        val templated = git.copy(card = git.card.copy(itemTemplate = "{name} {branch} {status}"))
+        val card = DeclarativeWidgetRenderer.render(
+            templated,
+            DeclarativeWidgetRenderer.ProbeResult.GitOverview(
+                listOf(
+                    repo("clean", "## main"),
+                    repo("hooked", "## HEAD (no branch)"),
+                    // git could not read this one — it degrades ALONE.
+                    RepoSnapshot(path = "/root/broken", name = "broken", status = null, error = "git exited with 128"),
+                ),
+            ),
+        )
+        assertEquals(listOf("clean main OK", "hooked detached OK", "broken unknown ERROR"), card.rows)
+    }
+
+    @Test
+    fun `an empty git overview renders the manifest empty line`() {
+        val card = DeclarativeWidgetRenderer.render(
+            git,
+            DeclarativeWidgetRenderer.ProbeResult.GitOverview(emptyList()),
+        )
+        assertTrue(card.empty)
+        assertEquals(null, card.countLine)
+        assertTrue(card.rows.isEmpty())
+    }
+
+    @Test
+    fun `git overview maxLines caps the repository rows`() {
+        val card = DeclarativeWidgetRenderer.render(
+            git,
+            DeclarativeWidgetRenderer.ProbeResult.GitOverview(
+                List(4) { repo("r$it", "## main") },
+            ),
+        )
+        assertEquals(4, card.rows.size)
+        val capped = git.copy(card = git.card.copy(maxLines = 2))
+        val cappedCard = DeclarativeWidgetRenderer.render(
+            capped,
+            DeclarativeWidgetRenderer.ProbeResult.GitOverview(
+                List(4) { repo("r$it", "## main") },
+            ),
+        )
+        assertEquals(2, cappedCard.rows.size)
+        assertEquals("4 repos", card.countLine)
+    }
+
+    @Test
+    fun `git overview unavailability is stated - never dressed up as data`() {
+        val card = DeclarativeWidgetRenderer.render(
+            git,
+            DeclarativeWidgetRenderer.ProbeResult.Unavailable,
+        )
+        assertTrue(card.unavailable)
+        assertTrue(card.rows.isEmpty())
+    }
+
+    // --------------------------------------------------- sync.overview (M8.4.4)
+
+    private val sync = WidgetManifest(
+        id = "sync", name = "Sync", version = "1.0.0",
+        capabilities = listOf("guest.ready"),
+        probe = WidgetManifest.Probe("sync.overview"),
+        card = WidgetManifest.Card(
+            headline = "Sync",
+            emptyLine = "No profiles",
+            itemTemplate = "{source} → {destination} · {status}",
+            maxLines = 6,
+        ),
+    )
+
+    private val nowMs = 3_600_000L
+
+    private fun profile(
+        id: String,
+        source: String,
+        destination: String,
+        backend: SyncBackend = SyncBackend.RSYNC,
+        lastRunMs: Long? = null,
+        lastResult: String? = null,
+        lastExit: Int? = null,
+    ) = SyncProfile(
+        id = id,
+        backend = backend,
+        source = source,
+        destination = destination,
+        createdAtMs = 0L,
+        lastRunMs = lastRunMs,
+        lastResult = lastResult,
+        lastExit = lastExit,
+    )
+
+    @Test
+    fun `sync overview rows map source destination backend and the run facts`() {
+        val card = DeclarativeWidgetRenderer.render(
+            sync,
+            DeclarativeWidgetRenderer.ProbeResult.SyncOverview(
+                profiles = listOf(
+                    profile(
+                        "home",
+                        source = "/root/docs",
+                        destination = "box:/mnt/backup",
+                        lastRunMs = 0L,
+                        lastResult = SyncProfiles.RESULT_OK,
+                        lastExit = 0,
+                    ),
+                    profile("pics", source = "/root/pics", destination = "/root/backup"),
+                ),
+                nowMs = nowMs,
+            ),
+        )
+        assertEquals(
+            listOf(
+                "~/docs → box:/mnt/backup · 1h ago · OK (exit 0)",
+                "~/pics → ~/backup · never run",
+            ),
+            card.rows,
+        )
+        assertEquals("2 profiles", card.countLine)
+        assertTrue(!card.empty)
+        assertTrue(!card.unavailable)
+    }
+
+    @Test
+    fun `sync overview carries the backend name as a template field`() {
+        val templated = sync.copy(card = sync.card.copy(itemTemplate = "{backend}: {source}"))
+        val card = DeclarativeWidgetRenderer.render(
+            templated,
+            DeclarativeWidgetRenderer.ProbeResult.SyncOverview(
+                profiles = listOf(
+                    profile("r", source = "/root/a", destination = "/root/b", backend = SyncBackend.RCLONE),
+                    profile("s", source = "/root/c", destination = "/root/d"),
+                ),
+                nowMs = nowMs,
+            ),
+        )
+        assertEquals(listOf("rclone: ~/a", "rsync: ~/c"), card.rows)
+    }
+
+    @Test
+    fun `an empty sync overview renders the manifest empty line`() {
+        val card = DeclarativeWidgetRenderer.render(
+            sync,
+            DeclarativeWidgetRenderer.ProbeResult.SyncOverview(profiles = emptyList(), nowMs = nowMs),
+        )
+        assertTrue(card.empty)
+        assertEquals(null, card.countLine)
+        assertTrue(card.rows.isEmpty())
+    }
+
+    @Test
+    fun `sync overview maxLines caps the profile rows`() {
+        val card = DeclarativeWidgetRenderer.render(
+            sync.copy(card = sync.card.copy(maxLines = 2)),
+            DeclarativeWidgetRenderer.ProbeResult.SyncOverview(
+                profiles = List(4) { profile("p$it", source = "/root/s", destination = "/root/d") },
+                nowMs = nowMs,
+            ),
+        )
+        assertEquals(2, card.rows.size)
+        assertEquals("4 profiles", card.countLine)
+    }
+
+    @Test
+    fun `sync overview unavailability is stated - never dressed up as data`() {
+        val card = DeclarativeWidgetRenderer.render(
+            sync,
             DeclarativeWidgetRenderer.ProbeResult.Unavailable,
         )
         assertTrue(card.unavailable)

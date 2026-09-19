@@ -1,9 +1,6 @@
 package app.pocketshell.widget
 
-import app.pocketshell.widget.git.GitApp
 import app.pocketshell.widget.notes.NotesApp
-import app.pocketshell.widget.storage.StorageApp
-import app.pocketshell.widget.sync.SyncApp
 import app.pocketshell.widget.todo.TodoApp
 
 /**
@@ -35,14 +32,13 @@ object HomeApplications {
      * The BUILT-IN applications. Servers and SSH are no longer here: they
      * are the pilot DOWNLOADABLE widgets — installed from the widget
      * repository (catalog.json) and resolved through the installed-external
-     * store before this builtin list is consulted.
+     * store before this builtin list is consulted. M8.4.5 — Git, Sync and
+     * Storage joined them: BUILTIN = Todo + Notes only; everything
+     * guest-side is a catalog widget, updatable from the repo.
      */
     val all: List<HomeApplication> = listOf(
         TodoApp,
         NotesApp,
-        GitApp,
-        StorageApp,
-        SyncApp,
     )
 
     /** The Control Center picker listing (registry order = display order). */

@@ -18,7 +18,7 @@ object WidgetManifestValidator {
     }
 
     /** The exact built-in probe primitives v1 understands. */
-    val probeKinds: Set<String> = setOf(PROC_NET_LISTEN, STORAGE_ROOTFS, SSH_GUEST)
+    val probeKinds: Set<String> = setOf(PROC_NET_LISTEN, STORAGE_ROOTFS, SSH_GUEST, GIT_OVERVIEW, SYNC_OVERVIEW)
 
     const val PROC_NET_LISTEN = "proc.net.listen"
     const val STORAGE_ROOTFS = "storage.rootfs"
@@ -29,6 +29,22 @@ object WidgetManifestValidator {
      * compiled SshApp's probe — nothing is connected, nothing is executed).
      */
     const val SSH_GUEST = "ssh.guest"
+
+    /**
+     * M8.4.4 — the guest git surface as a primitive: the compiled GitApp's
+     * ONE batched read-only probe (binary presence, repository discovery,
+     * per-repo porcelain status) — nothing is staged, committed or checked
+     * out, and the exec surface is the probe's own.
+     */
+    const val GIT_OVERVIEW = "git.overview"
+
+    /**
+     * M8.4.4 — the sync profile surface as a primitive: the compiled
+     * SyncApp's ONE batched read-only probe (backend presence, per-profile
+     * source/destination visibility) over the user's own profiles — no dry
+     * run, no run, no install; those stay manual actions of the full card.
+     */
+    const val SYNC_OVERVIEW = "sync.overview"
 
     /** The exact capability vocabulary a manifest may declare. */
     val capabilities: Set<String> = setOf(
@@ -79,7 +95,7 @@ object WidgetManifestValidator {
         } else {
             val requiredCap = when (manifest.probe.kind) {
                 PROC_NET_LISTEN -> "proc.net"
-                SSH_GUEST -> "guest.ready"
+                SSH_GUEST, GIT_OVERVIEW, SYNC_OVERVIEW -> "guest.ready"
                 else -> "storage.rootfs"
             }
             if (requiredCap !in manifest.capabilities) {
@@ -105,6 +121,8 @@ object WidgetManifestValidator {
             PROC_NET_LISTEN -> emptySet()
             STORAGE_ROOTFS -> emptySet()
             SSH_GUEST -> emptySet()
+            GIT_OVERVIEW -> emptySet()
+            SYNC_OVERVIEW -> emptySet()
             else -> return reasons
         }
         val unknown = probe.params.keys.filter { it !in allowed }

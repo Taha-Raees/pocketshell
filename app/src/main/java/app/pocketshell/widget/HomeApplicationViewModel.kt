@@ -107,6 +107,10 @@ class HomeApplicationViewModel(application: Application) : AndroidViewModel(appl
         .map { list -> list.map { ExternalWidgetApplication(it) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** The installed manifests themselves — the catalog row compares
+     *  versions against these to decide Install vs Update. */
+    val installedManifests = installStore.installed
+
     data class CatalogUi(
         val fetching: Boolean = false,
         val entries: List<WidgetCatalogEntry> = emptyList(),
