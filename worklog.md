@@ -3503,3 +3503,95 @@ the end.
 - FULL SUITE 1509/1509 green. APK M8.4.1-L
   (d6c9edabd061a2a731811b1eeed26644f3c91121a2b3782f32e629f36e4e0b83).
   Device gate §69 written; DEVICE PENDING the S7 on ADB.
+
+## Task 63 — M8.4.2: deep UX/state iteration on the Home Applications (Agent L, orchestrator, 2026-09-19)
+
+Trigger: the user's M8.4.1 screen recording (phone, portrait) + the M8.4.2
+brief: "not a small bug-fix pass"; the four new applications must feel
+like polished PocketShell Home Applications, and the whole ecosystem must
+stop refreshing/losing state on navigation and scrolling.
+
+AUDIT (orchestrator, before any code): screens switch by composition
+(`when (screen)` in MainActivity — no NavHost), so leaving Home DISPOSES
+the entire carousel; the pager disposes far pages. Every probe instance
+and every `remember`-held snapshot/selection died with it → Storage
+re-measured and Git re-probed ("Measuring…"/"Looking…") on every visit,
+drafts/sections/detail selections reset, and the carousel always
+reopened at page 0. Also: COMPACT row caps (2–3 + non-clickable
+"+N more") had made rows unreachable (fixed in M8.4.1), and count
+duplication persisted in Todo (header + state line "3 open").
+
+FRAMEWORK (orchestrator):
+- HomeAppStateStore (new, widget/HomeAppStateStore.kt): process-scoped
+  keyed holder store; ONE holder per application id; owned by
+  HomeApplicationViewModel (survives Home disposal + config change).
+- HomeAppContext gained `stateStore`; all 7 applications migrated to
+  per-app holders (TodoState, NotesState, SshState, ServersState,
+  StorageState, SyncState, GitState — each owning its probe/scanner
+  instance so the idle-gate memory IS the cache).
+- Carousel restore: `home_app_selected` persisted in the home_widgets
+  DataStore (repository flow + setter); the Host restores the last-used
+  page one-shot per Home visit and records the settled page
+  (snapshotFlow on settledPage) as the user swipes.
+- Scan discipline everywhere: cached snapshot renders instantly on
+  re-entry; rescan only on first load, runtime READY transition without
+  a usable snapshot, the probe's own AUTO_RESCAN staleness gate, or the
+  explicit refresh control. Scrolling never triggers anything.
+
+APPLICATION WORK (orchestrator-owned plan; subagents EDITED under the
+new discipline; orchestrator reviewed every diff and either accepted or
+sent back one precise correction):
+- TODO (orchestrator): the user-overdue DELETE — TodoTasks.delete +
+  repository.delete + trash icon on every row (named "Delete task");
+  header count and footer count REMOVED (tab counts are the one place);
+  state line now only for loading/empty hints; rows weight(fill=false)
+  so short lists leave no dead middle; archive/restore became icons
+  (Archive/Unarchive) beside the trash. The old "the card never deletes"
+  contract was REWRITTEN to "delete is explicit and named; archive
+  remains the soft path" + a count-appears-exactly-once pin.
+- NOTES (orchestrator): editor/draft/search state → NotesState holder;
+  "+ NEW" → Add icon (named); PIN/UNPIN/DELETE → PushPin/Trash icons
+  (named, danger tint); body keeps the canvas majority; commit-on-back
+  untouched.
+- SSH + SERVERS (orchestrator): SshState/ServersState holders (Servers'
+  probe instance now persists — its pid-set gate survives navigation);
+  contract pins updated from rememberSaveable to the store.
+- STORAGE (subagent A): StorageState(probe) holder; READY path no-ops
+  when a present-runtime snapshot is cached (no "Measuring…" on
+  re-entry); header Refresh icon (Icons.Outlined.Refresh, "Refresh
+  storage") replaced the footer REFRESH; CLEAR compacted to 32dp;
+  refresh tick consumed after completion so re-entry never re-fires.
+  Review: ACCEPTED. Corrections round: none needed; flagged stale
+  HomeApplication KDoc + dead Todo RowAction (fixed by orchestrator).
+- SYNC (subagent B): SyncState(probe) holder incl. the half-filled
+  profile draft + formSubmitted flag — "source is required" now appears
+  only after a SAVE attempt and clears on edit; resume scan now gated by
+  the probe's AUTO_RESCAN gate; "+" icon (New profile); RUN NOW compact
+  (PlayArrow + word, named); dry-run compact (Search + "DRY RUN");
+  INSTALL a slim text line; STALE COPY KILLED ("The card previews; it
+  never copies." → "RUN NOW copies new and updated files — it never
+  deletes."; SyncProbe/SyncProfile KDocs updated; zero "--delete"
+  literals in the package). Review: ACCEPTED with one orchestrator fix —
+  the new spec.summary exceeded the 80-char registry metadata cap.
+- GIT (subagent C): GitState(probe) holder; overview redesigned on the
+  lazygit/tig hierarchy: repo CHIP SELECTOR (>1 repo; Role.Tab, accent
+  selection; pane swaps IN PLACE), selected-repo pane (branch + ↑N/↓N
+  tracking glyphs + ●/○ worktree marker, then changed files grouped
+  STAGED/UNSTAGED with single-letter rows, renames arrowed; both empty →
+  "Working tree clean"); tap pane → the existing detail page; new pure
+  GitPresentation (grouping + glyphs, 12 JVM tests); header Refresh icon
+  ("Refresh repositories"). Review: ONE CORRECTION REQUIRED AND APPLIED —
+  the subagent's resume edge scanned unconditionally (every Home re-entry
+  = a guest exec, the exact anti-pattern); now gated by hasCache ||
+  probe.shouldFullScan, pinned by a new structural test.
+
+SUBAGENT RECORD: A/B/C = implementer agents with concrete orchestrator
+plans, file ownership widget/{storage,sync,git}/** + tests; A delivered
+accept-quality; B accept-quality minus the summary-length slip;
+C needed one gating correction (delivered). Review method: full git diff
+reading + focused suites, then the integrated suite.
+
+FULL SUITE 1532/1532 green (23 new/updated tests across todo/notes/
+storage/sync/git + registry + repository pins). APK M8.4.2-L
+(eb6eaf63c27b8df604187349e56717e10b6990c6d0ea0e2d763fe512a7b5872d).
+Device gate §70 written; DEVICE PENDING (no device on adb at delivery).

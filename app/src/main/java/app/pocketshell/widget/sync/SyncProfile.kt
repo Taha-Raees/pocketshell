@@ -8,10 +8,12 @@ import kotlinx.serialization.json.Json
  * M8.4 — the SYNC/BACKUP application's data model (pure, JVM-tested).
  *
  * A profile is a RECORD of an intent: "copy [source] to [destination]
- * with [backend]". It is NOT a backup — nothing here, or anywhere in this
- * package, ever claims that data was copied. v1 performs dry-run previews
- * only; the run fields ([lastRunMs], [lastRunSummary]) exist so a future
- * real-run can record FACTS, and stay null until then ("never run").
+ * with [backend]". It is NOT a backup — nothing here, or anywhere in
+ * this package, claims that user data is safe or protected. v1 previews
+ * with dry runs; RUN NOW (M8.4.1) is the one real action, and it is
+ * ADDITIVE-ONLY by construction (rsync -a / rclone copy — never a
+ * removing mode), recording FACTS into [lastRunMs] and [lastRunSummary]
+ * when it exits 0. The fields stay null until then ("never run").
  *
  * Secrets are structurally absent: a destination may be an ssh remote
  * STRING ("user@host:/path") that references the user's existing guest

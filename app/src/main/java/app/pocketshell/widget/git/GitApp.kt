@@ -2,7 +2,11 @@ package app.pocketshell.widget.git
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,10 +15,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,7 +31,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,11 +63,16 @@ import kotlinx.coroutines.withContext
 
 /**
  * M8.3 — GIT: the second PocketShell Home Application (ServersApp is the
- * reference; this file copies its discipline). The card IS the screen:
+ * reference; this file copies its discipline). The card IS the screen,
+ * with the information hierarchy of the mature terminal TUIs (lazygit,
+ * tig) borrowed, not their UI:
  *
- *   overview ("N repos" + repository rows: name, branch, dirty badge)
- *     ↓ tap a row
- *   detail (branch/upstream/diverge table, porcelain rows, TERMINAL / LINUX)
+ *   overview (repo chips when several — selection swaps the pane IN
+ *     PLACE; the selected repo's pane: branch + tracking glyphs + worktree
+ *     marker, then the changed files grouped STAGED / UNSTAGED)
+ *     ↓ tap the pane
+ *   detail (branch/upstream/diverge table, the full porcelain rows,
+ *     TERMINAL / LINUX / REFRESH as compact TEXT buttons)
  *     ↓ back (the card's OWN back handler — only from the overview does
  *       back reach the rest of Home)
  *
@@ -71,14 +83,16 @@ import kotlinx.coroutines.withContext
  * are deliberately NO staging/commit/push/checkout controls: the app does
  * not own the repositories, a terminal is where git work happens, and the
  * only actions offered are the existing navigation seams (open the
- * terminal, enter the Linux guest).
+ * terminal, enter the Linux guest) plus refresh.
  *
  * Honest degradation everywhere: runtime not READY → "Linux not ready";
  * git absent in the guest → "Git unavailable" + how to get it; no repos
  * → "No repositories" + where they would appear; a failed exec → the real
  * reason, never "no repositories"; one unreadable repo degrades alone.
- * Refresh cost is idle-gated ([GitProbe.shouldFullScan]) — an open, idle
- * card execs at most once per AUTO_RESCAN_MS, plus a manual REFRESH.
+ * M8.4.2: the probe instance, the last scan's ui, the detail page and the
+ * selected repo live in the process-scoped holder ([GitState] via
+ * stateStore.forApp) — returning to the card renders the cached snapshot
+ * instantly, and the probe's idle gate stays the only periodic scan path.
  */
 object GitApp : HomeApplication() {
 
@@ -94,19 +108,18 @@ object GitApp : HomeApplication() {
     @Composable
     override fun Content(context: HomeAppContext) {
         val appContext = LocalContext.current.applicationContext
-        val probe = remember { GitProbe(guestExec(appContext)) }
-        var ui by remember { mutableStateOf<GitUi>(GitUi.Probing) }
-        // The application's own navigation state: the path of the repo whose
-        // detail page fills the card (null = overview). Saveable → rotation
-        // and Home↔Settings round-trips restore the page.
-        var detailPath by rememberSaveable { mutableStateOf<String?>(null) }
-        // Manual refresh: an immediate scan; the probe self-throttles.
-        var refreshTick by remember { mutableStateOf(0) }
+        // M8.4.2 — the ONE holder: the probe (its idle gate IS the cache),
+        // the last scan's ui, the open detail page and the selected repo.
+        // Leaving Home, swiping the page away, or rotating never resets
+        // them; the exec closure is built once, on first need.
+        val state = remember {
+            context.stateStore.forApp(GIT_ID) { GitState(GitProbe(guestExec(appContext))) }
+        }
         val lifecycleOwner = LocalLifecycleOwner.current
 
         LaunchedEffect(context.runtimeState) {
             if (context.runtimeState != RuntimeState.READY) {
-                ui = GitUi.Unavailable
+                state.ui = GitUi.Unavailable
                 return@LaunchedEffect
             }
             lifecycleOwner.lifecycle.currentStateFlow
@@ -114,28 +127,39 @@ object GitApp : HomeApplication() {
                 .distinctUntilChanged()
                 .collectLatest { active ->
                     if (!active) return@collectLatest
-                    // Returning to Home refreshes immediately.
-                    ui = scanToUi(withContext(Dispatchers.IO) { probe.snapshot() })
+                    // Re-entry execs NOTHING on top of a usable cache: the
+                    // SAME staleness policy as the tick loop decides. Only
+                    // a cache-less ui (Probing, a failed probe — hasCache
+                    // false) or a cache older than the idle gate re-scans;
+                    // swiping away and back re-renders, never re-probes.
+                    val hasCache = state.ui is GitUi.Ready
+                    if (!hasCache || state.probe.shouldFullScan(System.currentTimeMillis())) {
+                        state.ui = scanToUi(withContext(Dispatchers.IO) { state.probe.snapshot() })
+                    }
                     while (true) {
                         delay(GitProbe.TICK_MS)
                         // The idle gate: a tick that fires too soon after the
                         // last scan does NOTHING — no guest exec while idle.
-                        if (!probe.shouldFullScan(System.currentTimeMillis())) continue
-                        ui = scanToUi(withContext(Dispatchers.IO) { probe.snapshot() })
+                        if (!state.probe.shouldFullScan(System.currentTimeMillis())) continue
+                        state.ui = scanToUi(withContext(Dispatchers.IO) { state.probe.snapshot() })
                     }
                 }
         }
 
-        LaunchedEffect(refreshTick) {
-            if (refreshTick == 0 || context.runtimeState != RuntimeState.READY) return@LaunchedEffect
-            ui = scanToUi(withContext(Dispatchers.IO) { probe.snapshot() })
+        LaunchedEffect(state.refreshTick) {
+            if (state.refreshTick == 0 || context.runtimeState != RuntimeState.READY) return@LaunchedEffect
+            state.ui = scanToUi(withContext(Dispatchers.IO) { state.probe.snapshot() })
         }
 
-        val repos = (ui as? GitUi.Ready)?.snapshot?.repos.orEmpty()
-        // A selection whose repo vanished degrades to the overview — never
-        // a stale detail page for a deleted directory.
-        val selected = detailPath?.let { path -> repos.firstOrNull { it.path == path } }
-        BackHandler(enabled = selected != null) { detailPath = null }
+        val repos = (state.ui as? GitUi.Ready)?.snapshot?.repos.orEmpty()
+        // The pane's repository: the chip selection, defaulting to — and
+        // degrading to — the first repo; a vanished selection never leaves
+        // a stale pane.
+        val paneRepo = repos.firstOrNull { it.path == state.selectedPath } ?: repos.firstOrNull()
+        // A detail selection whose repo vanished degrades to the overview —
+        // never a stale detail page for a deleted directory.
+        val selected = state.detailPath?.let { path -> repos.firstOrNull { it.path == path } }
+        BackHandler(enabled = selected != null) { state.detailPath = null }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = GitLayout.from(maxWidth.value, maxHeight.value)
@@ -143,17 +167,20 @@ object GitApp : HomeApplication() {
                 GitDetail(
                     repo = selected,
                     roomy = layout == GitLayout.ROOMY,
-                    onBack = { detailPath = null },
+                    onBack = { state.detailPath = null },
+                    onRefresh = { state.refreshTick++ },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                 )
             } else {
                 GitOverview(
-                    ui = ui,
+                    ui = state.ui,
                     repos = repos,
+                    paneRepo = paneRepo,
                     layout = layout,
-                    onRefresh = { refreshTick++ },
-                    onOpenDetail = { detailPath = it.path },
+                    onRefresh = { state.refreshTick++ },
+                    onSelectRepo = { state.selectedPath = it.path },
+                    onOpenDetail = { state.detailPath = it.path },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                     onOpenDiagnostics = { context.nav.openDiagnostics() },
@@ -189,6 +216,21 @@ object GitApp : HomeApplication() {
             throw t
         }
     }
+}
+
+/**
+ * M8.4.2 — the GIT application's process-scoped state, owned by the
+ * HomeAppStateStore: the probe instance — its idle gate and last snapshot
+ * ARE the cache — the last scan's ui, the open detail page, the selected
+ * repository and the manual-refresh counter. Nothing here needs to
+ * survive process death (a fresh process re-probes honestly), so no
+ * DataStore is involved.
+ */
+internal class GitState(val probe: GitProbe) {
+    var ui by mutableStateOf<GitUi>(GitUi.Probing)
+    var detailPath by mutableStateOf<String?>(null)
+    var selectedPath by mutableStateOf<String?>(null)
+    var refreshTick by mutableStateOf(0)
 }
 
 /** The application's screen state (probe-driven, never invented). */
@@ -234,8 +276,10 @@ internal enum class GitLayout(
 private fun GitOverview(
     ui: GitUi,
     repos: List<RepoSnapshot>,
+    paneRepo: RepoSnapshot?,
     layout: GitLayout,
     onRefresh: () -> Unit,
+    onSelectRepo: (RepoSnapshot) -> Unit,
     onOpenDetail: (RepoSnapshot) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
@@ -243,8 +287,10 @@ private fun GitOverview(
 ) {
     val ready = ui as? GitUi.Ready
     Column(modifier = Modifier.fillMaxSize()) {
-        // Header — the application's title bar, both densities.
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        // Header — title + the ONE refresh control (icon-first, named),
+        // both densities. The repo count is a COMPACT-only fact: ROOMY's
+        // status line carries other facts, so no count is ever duplicated.
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Git",
                 style = MaterialTheme.typography.titleLarge,
@@ -259,16 +305,59 @@ private fun GitOverview(
                     fontSize = 11.sp,
                     color = HomeTokens.textDim,
                 )
+                Spacer(Modifier.width(8.dp))
+            }
+            RefreshButton(onRefresh = onRefresh)
+        }
+
+        // Repo selector — several repositories pick from ONE horizontally-
+        // scrollable chip row; selecting swaps the pane below IN PLACE
+        // (never a page navigation). A single repository needs no selector.
+        if (repos.size > 1) {
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                repos.forEach { repo ->
+                    val active = repo.path == paneRepo?.path
+                    Text(
+                        text = repo.name,
+                        fontFamily = TerminalTheme.mono,
+                        fontSize = 11.sp,
+                        color = if (active) HomeTokens.accent else HomeTokens.textDim,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .border(
+                                1.dp,
+                                if (active) HomeTokens.accent else HomeTokens.hairline,
+                                RoundedCornerShape(HomeTokens.chipRadius),
+                            )
+                            .clickable(
+                                role = Role.Tab,
+                                onClickLabel = "Show repository ${repo.name}",
+                            ) { onSelectRepo(repo) }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
             }
         }
 
-        // Status area — the at-a-glance answer, roomy cards only. No green
-        // dot: repositories are not running processes (that token is
-        // reserved), the dirty count is the real state.
+        // Status area — ROOMY cards only, and deliberately NOT the repo
+        // count (the header owns counts in COMPACT, and the chips already
+        // show the set): the git binary's real version + the dirty-repo
+        // count — facts shown nowhere else.
         if (layout.showsStatusHeader && repos.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
+            val version = ready?.snapshot?.gitVersion
+            val dirtyRepos = ready?.snapshot?.dirtyRepos ?: 0
             Text(
-                text = "${repos.size} REPOS · ${ready?.snapshot?.dirtyRepos ?: 0} DIRTY",
+                text = listOfNotNull(
+                    version?.let { "git $it" },
+                    "$dirtyRepos DIRTY",
+                ).joinToString(" · "),
                 fontFamily = TerminalTheme.mono,
                 fontSize = 11.sp,
                 color = HomeTokens.accent,
@@ -276,54 +365,104 @@ private fun GitOverview(
         }
         Spacer(Modifier.height(6.dp))
 
-        // Rows — discovered repositories only; always scrolling, never capped.
-        if (repos.isNotEmpty()) {
+        // The selected repository's pane — the one-glance answer: branch +
+        // tracking glyphs + worktree marker on the first line, the mapped
+        // path under it (roomy cards), then the changed files grouped the
+        // way git's index/worktree split sees them. Tapping the pane opens
+        // the repo's detail page.
+        if (paneRepo != null) {
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
-                repos.forEachIndexed { index, repo ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                role = Role.Button,
-                                onClickLabel = "Git details ${repo.name}",
-                            ) { onOpenDetail(repo) }
-                            .padding(vertical = 6.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = repoBadge(repo),
-                                fontFamily = TerminalTheme.mono,
-                                fontSize = 11.sp,
-                                color = if (repo.status?.dirty == true) HomeTokens.accent else HomeTokens.textDim,
-                            )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = "Git details ${paneRepo.name}",
+                        ) { onOpenDetail(paneRepo) },
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = branchText(paneRepo.status),
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 13.sp,
+                            color = HomeTokens.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        val glyphs = GitPresentation.trackingGlyphs(
+                            ahead = paneRepo.status?.ahead,
+                            behind = paneRepo.status?.behind,
+                        )
+                        if (glyphs.isNotEmpty()) {
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = repoLine(repo),
+                                text = glyphs,
                                 fontFamily = TerminalTheme.mono,
-                                fontSize = 12.sp,
-                                color = HomeTokens.textPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
+                                fontSize = 11.sp,
+                                // rendered only when nonzero — see
+                                // GitPresentation.trackingGlyphs
+                                color = HomeTokens.accent,
                             )
                         }
-                        if (layout.showsPath) {
-                            Text(
-                                text = repoSubline(repo),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = HomeTokens.textDim,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(start = 26.dp, top = 1.dp),
-                            )
-                        }
+                        Spacer(Modifier.width(8.dp))
+                        val dirty = paneRepo.status?.dirty == true
+                        Text(
+                            text = GitPresentation.worktreeGlyph(dirty).toString(),
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 12.sp,
+                            color = if (dirty) HomeTokens.accent else HomeTokens.textDim,
+                        )
                     }
-                    if (index != repos.lastIndex) {
-                        HorizontalDivider(color = HomeTokens.hairline.copy(alpha = 0.6f))
+                    if (layout.showsPath) {
+                        Text(
+                            text = displayGuestRepoPath(paneRepo.path),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = HomeTokens.textDim,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 1.dp),
+                        )
+                    }
+                    if (paneRepo.error != null) {
+                        // One unreadable repository degrades alone —
+                        // stated, never hidden.
+                        Text(
+                            text = "git could not read this repository (${paneRepo.error})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = HomeTokens.danger,
+                        )
+                    }
+                }
+
+                // The changed files, grouped. Empty groups render nothing;
+                // both empty → the one honest line. Rows stay parser-faithful:
+                // the single status letter + the path (renames arrowed).
+                val status = paneRepo.status
+                if (status != null) {
+                    val staged = GitPresentation.stagedRows(status.entries)
+                    val unstaged = GitPresentation.unstagedRows(status.entries)
+                    if (staged.isEmpty() && unstaged.isEmpty()) {
+                        Text(
+                            text = "Working tree clean",
+                            fontFamily = TerminalTheme.mono,
+                            fontSize = 11.sp,
+                            color = HomeTokens.textDim,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    } else {
+                        if (staged.isNotEmpty()) {
+                            GitSection("STAGED")
+                            staged.forEach { GitFileRow(it) }
+                        }
+                        if (unstaged.isNotEmpty()) {
+                            GitSection("UNSTAGED")
+                            unstaged.forEach { GitFileRow(it) }
+                        }
                     }
                 }
             }
@@ -331,9 +470,8 @@ private fun GitOverview(
             Spacer(Modifier.weight(1f))
         }
 
-        // Footer statistics — roomy cards only.
-                Spacer(Modifier.height(4.dp))
         // The honest state line, every density, every theme.
+        Spacer(Modifier.height(4.dp))
         val stateLine = when {
             ui is GitUi.Probing -> "Looking…"
             ui is GitUi.Unavailable -> "Linux not ready"
@@ -355,6 +493,8 @@ private fun GitOverview(
                 }
             }
             ui is GitUi.ProbeFailed -> {
+                // The reason, verbatim; manual refresh rides the header's
+                // refresh button — never a second refresh control.
                 Text(
                     text = ui.reason,
                     style = MaterialTheme.typography.bodySmall,
@@ -363,9 +503,6 @@ private fun GitOverview(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp),
                 )
-                TextButton(onClick = onRefresh, modifier = Modifier.padding(top = 2.dp)) {
-                    Text("REFRESH", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-                }
             }
             ready != null && !ready.snapshot.hasGit -> {
                 Text(
@@ -389,14 +526,62 @@ private fun GitOverview(
                     Text("Open Linux", color = HomeTokens.accent)
                 }
             }
-            ready != null -> {
-                // The refresh cadence is deliberately slow (idle-gated); a
-                // manual refresh makes "right now" honest and immediate.
-                TextButton(onClick = onRefresh, modifier = Modifier.padding(top = 2.dp)) {
-                    Text("REFRESH", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-                }
-            }
+            // Ready with repositories: the state line says it all; the
+            // refresh cadence is the probe's idle gate + the header button.
         }
+    }
+}
+
+/** A changed-files section label — git's index/worktree vocabulary. */
+@Composable
+private fun GitSection(label: String) {
+    Text(
+        text = label,
+        fontFamily = TerminalTheme.mono,
+        fontSize = 10.sp,
+        letterSpacing = 1.sp,
+        color = HomeTokens.textDim,
+        modifier = Modifier.padding(top = 6.dp),
+    )
+}
+
+/** One changed file: the single status letter + the path (renames arrowed). */
+@Composable
+private fun GitFileRow(row: GitPresentation.EntryRow) {
+    Row(modifier = Modifier.padding(vertical = 1.dp)) {
+        Text(
+            text = row.letter.toString(),
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.textDim,
+            modifier = Modifier.width(16.dp),
+        )
+        Text(
+            text = row.label,
+            fontFamily = TerminalTheme.mono,
+            fontSize = 11.sp,
+            color = HomeTokens.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** The one refresh control: compact icon-first, named for accessibility. */
+@Composable
+private fun RefreshButton(onRefresh: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clickable(role = Role.Button, onClickLabel = "Refresh repositories") { onRefresh() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Refresh,
+            contentDescription = "Refresh repositories",
+            tint = HomeTokens.accent,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -407,6 +592,7 @@ private fun GitDetail(
     repo: RepoSnapshot,
     roomy: Boolean,
     onBack: () -> Unit,
+    onRefresh: () -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenLinuxShell: () -> Unit,
 ) {
@@ -506,21 +692,22 @@ private fun GitDetail(
         }
 
         Spacer(Modifier.height(4.dp))
+        // The detail actions stay compact TEXT buttons — glyphs would be
+        // ambiguous here — tightened to the 32dp row the card budget allows.
         Row {
-            TextButton(
-                onClick = onOpenTerminal,
-                modifier = Modifier.height(34.dp),
-            ) {
-                Text("TERMINAL", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-            }
+            DetailAction("TERMINAL", onOpenTerminal)
             Spacer(Modifier.width(8.dp))
-            TextButton(
-                onClick = onOpenLinuxShell,
-                modifier = Modifier.height(34.dp),
-            ) {
-                Text("LINUX", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-            }
+            DetailAction("LINUX", onOpenLinuxShell)
+            Spacer(Modifier.width(8.dp))
+            DetailAction("REFRESH", onRefresh)
         }
+    }
+}
+
+@Composable
+private fun DetailAction(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.height(32.dp)) {
+        Text(label, fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
     }
 }
 
@@ -546,42 +733,6 @@ private fun GitRow(label: String, value: String) {
 }
 
 // -------------------------------------------------------------- helpers
-
-/**
- * The row's state badge. Glyphs stay Latin-1-safe; "±N" = N pending
- * changes, "·" = clean, "!" = unreadable. Nothing here implies a running
- * process — those semantics belong to ServersApp.
- */
-private fun repoBadge(repo: RepoSnapshot): String = when {
-    repo.error != null -> "!"
-    repo.status?.dirty == true -> "±${repo.status.totalChanges}"
-    else -> "·"
-}
-
-/** "name  branch ↑a↓b" — the one-line answer for the row. */
-private fun repoLine(repo: RepoSnapshot): String {
-    val status = repo.status
-    val branch = when {
-        repo.error != null -> "unreadable"
-        status == null -> ""
-        status.noCommits -> "${status.branch ?: "?"} (new)"
-        status.detached -> "detached"
-        else -> status.branch ?: "?"
-    }
-    val diverge = status?.let {
-        if (it.ahead != null || it.behind != null) " ↑${it.ahead ?: 0}↓${it.behind ?: 0}" else ""
-    } ?: ""
-    return "${repo.name}  $branch$diverge".trimEnd()
-}
-
-/** Roomy subline: the mapped path plus the honest dirty summary. */
-private fun repoSubline(repo: RepoSnapshot): String {
-    val summary = when {
-        repo.error != null -> repo.error!!
-        else -> repo.status?.summary() ?: ""
-    }
-    return "${displayGuestRepoPath(repo.path)} · $summary"
-}
 
 private fun branchText(status: GitStatusParser.RepoStatus?): String = when {
     status == null -> "unknown"

@@ -175,6 +175,12 @@ fun HomeScreen(
     // applications, rendered by the host as swipeable full-size canvases.
     // The nav seams are navigation-only.
     homeAppIds: List<String> = listOf(app.pocketshell.widget.HomeApplications.DEFAULT_ID),
+    // M8.4.2 — the last-used application (restores the carousel page) and
+    // the process-scoped store the applications keep their state in.
+    homeSelectedAppId: String? = null,
+    onHomeAppSelected: (String) -> Unit = {},
+    homeStateStore: app.pocketshell.widget.HomeAppStateStore =
+        androidx.compose.runtime.remember { app.pocketshell.widget.HomeAppStateStore() },
     onOpenGuestFiles: () -> Unit = {},
     onOpenWidgetSettings: () -> Unit = {},
     /** M8.1 — open a verified local server URL in the Companion browser. */
@@ -271,6 +277,9 @@ fun HomeScreen(
                     appIds = homeAppIds,
                     cardSize = cardSize,
                     runtimeState = runtimeState,
+                    stateStore = homeStateStore,
+                    selectedAppId = homeSelectedAppId,
+                    onSelectedAppChanged = onHomeAppSelected,
                     onOpenTerminal = onOpenTerminal,
                     onOpenLinuxShell = onOpenLinuxShell,
                     onOpenDiagnostics = onOpenDiagnostics,

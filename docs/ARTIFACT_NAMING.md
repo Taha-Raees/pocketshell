@@ -170,6 +170,15 @@ labels is deferred to the integration layer; agent builds never touch it.
 - tests:       full :app JVM suite 1199/1199 green (60 new M8 pins incl. source contract); :app:assembleDebug green
 - device gate: PERFORMED 2026-09-18 on SM-T870 (Android 13) — §64 RESULTS recorded in docs/TESTING.md (A/B/D/E/F/G pass; C honest-degrade verified with the platform boundary proven closed: procfs app+guest EACCES, netlink sock_diag EACCES; aurora idle-draw cost attributed to pre-existing Control Center II)
 
+### M8.4.2-L.apk
+- date:        2026-09-19
+- git:         agent-L/m8.4-home-apps (M8.4.2 iteration; see worklog Task 63)
+- agent:       L — Agent L (ZCode)
+- workstream:  M8.4.2 — deep UX/state iteration: process-scoped per-app state holders (HomeAppStateStore), carousel last-page persistence (home_app_selected), no refresh-on-navigation (gated resume edges, explicit refresh icons), Todo delete + single count, Notes icon controls, Git overview overhaul (repo chips, branch/tracking/worktree glyphs, STAGED/UNSTAGED grouping) on the lazygit/tig hierarchy, Sync stale-copy + premature-validation fixes
+- apk sha256:  eb6eaf63c27b8df604187349e56717e10b6990c6d0ea0e2d763fe512a7b5872d
+- tests:       full :app JVM suite 1532/1532 green; :app:assembleDebug green
+- device gate: PENDING — §70 checklist written (TESTING.md); no device on adb at delivery time.
+
 ### M8.4.1-L.apk
 - date:        2026-09-19
 - git:         agent-L/m8.4-home-apps (iteration on top of the M8.4 commit; see worklog Task 62)

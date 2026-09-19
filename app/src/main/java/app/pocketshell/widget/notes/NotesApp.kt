@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -19,7 +20,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,8 +74,9 @@ import kotlinx.coroutines.launch
  *     (worse) a difference between what was typed and what is stored.
  *   - Persistence is the application's OWN notes_store DataStore
  *     (NotesRepository): the list survives process death, rotation and
- *     carousel swipes; only selection/draft/search state is
- *     rememberSaveable. No cloud, no accounts.
+ *     carousel swipes; selection/draft/search state lives in the
+ *     application's process-scoped holder (M8.4.2) so returning to the
+ *     card never resets it. No cloud, no accounts.
  *   - No polling anywhere: writes happen exactly when the user commits.
  *   - A blank draft is never stored, and backing out never destroys an
  *     existing note — DELETE is the only destructive action.
@@ -97,22 +103,17 @@ object NotesApp : HomeApplication() {
         // list recomposition is keyed rows in a lazy column — cheap.
         val notes by store.notes.collectAsStateWithLifecycle(initialValue = emptyList())
 
-        // The application's own navigation + draft state, all saveable →
-        // rotation and Home↔Settings round-trips restore them (the same
-        // discipline as the ServersApp detail selection).
-        var editorOpen by rememberSaveable { mutableStateOf(false) }
-        var editorId by rememberSaveable { mutableStateOf("") } // "" = a new draft
-        var draftTitle by rememberSaveable { mutableStateOf("") }
-        var draftBody by rememberSaveable { mutableStateOf("") }
-        var draftPinned by rememberSaveable { mutableStateOf(false) }
-        var query by rememberSaveable { mutableStateOf("") }
+        // The application's own navigation + draft state live in the
+        // process-scoped holder: leaving Home, swiping pages away and
+        // back, or rotating never resets what the user was editing.
+        val state = remember { context.stateStore.forApp(NotesApp.ID) { NotesState() } }
 
-        val editorNote = editorId.takeIf { it.isNotEmpty() }
+        val editorNote = state.editorId.takeIf { it.isNotEmpty() }
             ?.let { id -> notes.firstOrNull { it.id == id } }
 
         fun commitDraft() {
-            val title = draftTitle.trim().take(NoteOps.MAX_TITLE)
-            val body = draftBody.take(NoteOps.MAX_BODY)
+            val title = state.draftTitle.trim().take(NoteOps.MAX_TITLE)
+            val body = state.draftBody.take(NoteOps.MAX_BODY)
             if (title.isBlank() && body.isBlank()) return // never an empty note
             scope.launch {
                 val now = System.currentTimeMillis()
@@ -124,7 +125,7 @@ object NotesApp : HomeApplication() {
                         base.copy(
                             title = title,
                             body = body,
-                            pinned = draftPinned,
+                            pinned = state.draftPinned,
                             updatedAtMs = now,
                         ),
                     ),
@@ -134,32 +135,32 @@ object NotesApp : HomeApplication() {
 
         val commitAndClose = {
             commitDraft()
-            editorOpen = false
+            state.editorOpen = false
         }
 
         // A selection whose note vanished degrades to the list — never a
         // stale editor; back goes list→Home only from the list.
-        BackHandler(enabled = editorOpen && (editorId.isEmpty() || editorNote != null)) {
+        BackHandler(enabled = state.editorOpen && (state.editorId.isEmpty() || editorNote != null)) {
             commitAndClose()
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = NotesLayout.from(maxWidth.value, maxHeight.value)
-            if (editorOpen && (editorId.isEmpty() || editorNote != null)) {
+            if (state.editorOpen && (state.editorId.isEmpty() || editorNote != null)) {
                 NotesEditor(
-                    title = draftTitle,
-                    body = draftBody,
-                    pinned = draftPinned,
+                    title = state.draftTitle,
+                    body = state.draftBody,
+                    pinned = state.draftPinned,
                     canDelete = editorNote != null,
-                    onTitle = { draftTitle = it },
-                    onBody = { draftBody = it },
+                    onTitle = { state.draftTitle = it },
+                    onBody = { state.draftBody = it },
                     onTogglePin = {
-                        draftPinned = !draftPinned
+                        state.draftPinned = !state.draftPinned
                         commitDraft()
                     },
                     onDelete = {
-                        val id = editorId
-                        editorOpen = false
+                        val id = state.editorId
+                        state.editorOpen = false
                         if (id.isNotEmpty()) {
                             scope.launch { store.save(NoteOps.remove(notes, id)) }
                         }
@@ -169,27 +170,43 @@ object NotesApp : HomeApplication() {
             } else {
                 NotesList(
                     notes = notes,
-                    query = query,
+                    query = state.query,
                     layout = layout,
-                    onQuery = { query = it },
+                    onQuery = { state.query = it },
                     onNew = {
-                        draftTitle = ""
-                        draftBody = ""
-                        draftPinned = false
-                        editorId = ""
-                        editorOpen = true
+                        state.draftTitle = ""
+                        state.draftBody = ""
+                        state.draftPinned = false
+                        state.editorId = ""
+                        state.editorOpen = true
                     },
                     onOpen = { note ->
-                        draftTitle = note.title
-                        draftBody = note.body
-                        draftPinned = note.pinned
-                        editorId = note.id
-                        editorOpen = true
+                        state.draftTitle = note.title
+                        state.draftBody = note.body
+                        state.draftPinned = note.pinned
+                        state.editorId = note.id
+                        state.editorOpen = true
                     },
                 )
             }
         }
     }
+}
+
+/**
+ * M8.4.2 — the NOTES application's process-scoped state: which note is
+ * open ("" = a new draft), the draft being edited, and the search query.
+ * Owned by the HomeAppStateStore, so the editor survives navigation and
+ * carousel swipes; the note CONTENT itself is only persisted on commit
+ * (back / pin), as before.
+ */
+internal class NotesState {
+    var editorOpen by mutableStateOf(false)
+    var editorId by mutableStateOf("")
+    var draftTitle by mutableStateOf("")
+    var draftBody by mutableStateOf("")
+    var draftPinned by mutableStateOf(false)
+    var query by mutableStateOf("")
 }
 
 /**
@@ -248,11 +265,9 @@ private fun NotesList(
                     color = HomeTokens.textDim,
                     modifier = Modifier.padding(top = 8.dp),
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
             }
-            TextButton(onClick = onNew, modifier = Modifier.height(34.dp)) {
-                Text("+ NEW", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-            }
+            NewButton(onNew = onNew)
         }
 
         // Search — filter-as-you-type, only when there is something to filter.
@@ -305,6 +320,24 @@ private fun NotesList(
     }
 }
 
+/** The one creation action: compact icon-first, named for accessibility. */
+@Composable
+private fun NewButton(onNew: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clickable(role = Role.Button, onClickLabel = "New note") { onNew() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Add,
+            contentDescription = null,
+            tint = HomeTokens.accent,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
 @Composable
 private fun NoteRow(note: StickyNote, showsPreview: Boolean, onOpen: () -> Unit) {
     Column(
@@ -348,6 +381,25 @@ private fun NoteRow(note: StickyNote, showsPreview: Boolean, onOpen: () -> Unit)
             }
         }
     }
+}
+
+/** Compact editor action: icon-first, named for accessibility. */
+@Composable
+private fun EditorAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+) {
+    Icon(
+        imageVector = icon,
+        contentDescription = label,
+        tint = tint,
+        modifier = Modifier
+            .size(28.dp)
+            .clickable(role = Role.Button, onClickLabel = label) { onClick() }
+            .padding(5.dp),
+    )
 }
 
 @Composable
@@ -462,22 +514,20 @@ private fun NotesEditor(
         )
 
         Row(modifier = Modifier.padding(top = 4.dp)) {
-            TextButton(onClick = onTogglePin, modifier = Modifier.height(30.dp)) {
-                Text(
-                    text = if (pinned) "UNPIN" else "PIN",
-                    fontFamily = TerminalTheme.mono,
-                    color = HomeTokens.accent,
-                )
-            }
+            EditorAction(
+                icon = Icons.Outlined.PushPin,
+                label = if (pinned) "Unpin note" else "Pin note",
+                tint = if (pinned) HomeTokens.accent else HomeTokens.textDim,
+                onClick = onTogglePin,
+            )
             Spacer(Modifier.weight(1f))
             if (canDelete) {
-                TextButton(onClick = onDelete, modifier = Modifier.height(30.dp)) {
-                    Text(
-                        text = "DELETE",
-                        fontFamily = TerminalTheme.mono,
-                        color = HomeTokens.danger,
-                    )
-                }
+                EditorAction(
+                    icon = Icons.Outlined.Delete,
+                    label = "Delete note",
+                    tint = HomeTokens.danger,
+                    onClick = onDelete,
+                )
             }
         }
         Text(

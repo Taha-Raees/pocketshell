@@ -30,6 +30,10 @@ import java.io.File
  *   4. IN-CARD NAVIGATION: the application owns its page state and its
  *      own back handler; actions ride the one WidgetNav seam.
  *   5. LAYER PURITY: the state/probe layers have no android dependencies.
+ *   6. M8.4.2 PROCESS-SCOPED STATE: the measurement, page, clear-flow and
+ *      probe state live in the HomeAppStateStore holder (re-entry renders
+ *      the cache — no refresh-on-navigation); refresh is the explicit,
+ *      named header action.
  */
 class StorageAppContractTest {
 
@@ -242,8 +246,8 @@ class StorageAppContractTest {
     fun `the application owns its page state and its own back`() {
         val code = stripCommentsAndStrings(storageSource("StorageApp.kt"))
         assertTrue(
-            "page selection must be saveable (rotation, round-trips)",
-            code.contains("rememberSaveable"),
+            "page selection must live in the process-scoped holder (survives navigation and carousel disposal)",
+            code.contains("var pageId by mutableStateOf"),
         )
         assertTrue(
             "back inside the card returns to the overview before leaving Home",
@@ -286,6 +290,39 @@ class StorageAppContractTest {
         assertTrue(
             "the share staging path is FileShareOps' ONE definition",
             app.contains("FileShareOps.STAGING_DIR_NAME"),
+        )
+    }
+
+    // ------------------------------ 7. M8.4.2 process-scoped state + refresh
+
+    @Test
+    fun `the measurement state lives in the process-scoped holder - re-entry renders the cache`() {
+        val code = stripCommentsAndStrings(storageSource("StorageApp.kt"))
+        assertTrue(
+            "state must be wired through the HomeAppStateStore (survives Home disposal)",
+            code.contains("stateStore.forApp"),
+        )
+        assertTrue(
+            "the holder owns the last snapshot (var ui by mutableStateOf)",
+            code.contains("var ui by mutableStateOf"),
+        )
+        assertFalse(
+            "no per-composition ui remember (that was refresh-on-navigation)",
+            Regex("""remember \{ mutableStateOf<StorageUi>""").containsMatchIn(code),
+        )
+    }
+
+    @Test
+    fun `refresh is the compact named header action`() {
+        val raw = storageSource("StorageApp.kt")
+        assertTrue(
+            "the header refresh must exist and be named for accessibility",
+            stringLiterals(raw).any { it == "Refresh storage" },
+        )
+        val code = stripCommentsAndStrings(raw)
+        assertTrue(
+            "the refresh icon is the outlined Refresh glyph",
+            code.contains("Icons.Outlined.Refresh"),
         )
     }
 }

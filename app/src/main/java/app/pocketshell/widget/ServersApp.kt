@@ -27,7 +27,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,19 +90,22 @@ object ServersApp : HomeApplication() {
 
     @Composable
     override fun Content(context: HomeAppContext) {
-        var ui by remember { mutableStateOf<ServersUi>(ServersUi.Probing) }
-        // The application's own navigation state: the port of the server
-        // whose detail page fills the card (null = overview). Saveable →
-        // rotation and Home↔Settings round-trips restore the page.
-        var detailPort by rememberSaveable { mutableStateOf<Int?>(null) }
+        // M8.4.2 — snapshot, detail selection AND the probe instance live
+        // in the process-scoped holder: the probe's pid-set gate memory
+        // survives navigation, so re-entering Home shows the cached
+        // snapshot instead of re-scanning, and the detail page the user
+        // had open reopens as it was.
+        val state = remember {
+            context.stateStore.forApp(HomeApplications.SERVERS_ID) { ServersState() }
+        }
         val lifecycleOwner = LocalLifecycleOwner.current
 
         LaunchedEffect(context.runtimeState) {
             if (context.runtimeState != RuntimeState.READY) {
-                ui = ServersUi.Unavailable
+                state.ui = ServersUi.Unavailable
                 return@LaunchedEffect
             }
-            val probe = ServerProbe()
+            val probe = state.probe
             lifecycleOwner.lifecycle.currentStateFlow
                 .map { it.isAtLeast(Lifecycle.State.RESUMED) }
                 .distinctUntilChanged()
@@ -112,7 +114,7 @@ object ServersApp : HomeApplication() {
                     while (true) {
                         if (probe.shouldFullScan(probe.peekPidSet())) {
                             val servers = withContext(Dispatchers.IO) { probe.snapshot() }
-                            ui = when {
+                            state.ui = when {
                                 !probe.lastScanSawProcesses && !probe.tablePathAvailable ->
                                     ServersUi.ProbeUnavailable
                                 else -> ServersUi.Ready(servers)
@@ -123,11 +125,11 @@ object ServersApp : HomeApplication() {
                 }
         }
 
-        val servers = (ui as? ServersUi.Ready)?.servers.orEmpty()
+        val servers = (state.ui as? ServersUi.Ready)?.servers.orEmpty()
         // A selection whose server vanished degrades to the overview —
         // never a stale detail page for a dead endpoint.
-        val selected = detailPort?.let { port -> servers.firstOrNull { it.port == port } }
-        BackHandler(enabled = selected != null) { detailPort = null }
+        val selected = state.detailPort?.let { port -> servers.firstOrNull { it.port == port } }
+        BackHandler(enabled = selected != null) { state.detailPort = null }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = ServersLayout.from(maxWidth.value, maxHeight.value)
@@ -135,16 +137,16 @@ object ServersApp : HomeApplication() {
                 ServersDetail(
                     server = selected,
                     roomy = layout == ServersLayout.ROOMY,
-                    onBack = { detailPort = null },
+                    onBack = { state.detailPort = null },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenCompanion = { context.nav.openCompanion(ServerProbe.companionUrl(selected.port)) },
                 )
             } else {
                 ServersOverview(
-                    ui = ui,
+                    ui = state.ui,
                     servers = servers,
                     layout = layout,
-                    onOpenDetail = { detailPort = it.port },
+                    onOpenDetail = { state.detailPort = it.port },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                     onOpenDiagnostics = { context.nav.openDiagnostics() },
@@ -160,6 +162,17 @@ internal sealed interface ServersUi {
     data object Unavailable : ServersUi
     data object ProbeUnavailable : ServersUi
     data class Ready(val servers: List<ServerInfo>) : ServersUi
+}
+
+/**
+ * M8.4.2 — the Servers application's process-scoped state: the last
+ * probe snapshot, the open endpoint's port (null = overview) and the
+ * probe instance itself. Owned by the HomeAppStateStore.
+ */
+internal class ServersState {
+    var ui by mutableStateOf<ServersUi>(ServersUi.Probing)
+    var detailPort by mutableStateOf<Int?>(null)
+    val probe = ServerProbe()
 }
 
 /**

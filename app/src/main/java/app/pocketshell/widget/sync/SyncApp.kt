@@ -3,6 +3,8 @@ package app.pocketshell.widget.sync
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,13 +13,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,7 +40,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.Role
@@ -72,32 +82,45 @@ import kotlinx.coroutines.withContext
  *             run stated as NEVER RUN until a real run record exists)
  *     ↓ tap a row
  *   detail (full specs, probed backend availability, path visibility,
- *             DRY-RUN preview via one bounded guest exec, TERMINAL/LINUX)
+ *             DRY-RUN preview, additive-only RUN NOW, TERMINAL/LINUX)
  *     ↓ back (the card's OWN back handler — only from the overview does
  *       back reach the rest of Home)
  *
  * TRUTHFULNESS CONTRACT (pinned by the sync test suite):
  *   - a profile is a RECORD OF INTENT, not a backup; the card never
- *     states that user data was backed up, that it is protected, or that
- *     a backup was verified;
- *   - v1 performs DRY RUNS ONLY — `rsync -n --itemize-changes` and
- *     `rclone sync --dry-run --combined -` never copy or delete anything;
- *     there is deliberately NO real-run control (a real run from a Home
- *     card without progress/confirm UX is risk without product; deferred,
- *     not faked);
- *   - the run record fields exist and stay null: runs the user starts in
- *     a terminal are invisible here, and the card says so;
+ *     states that user data is safe, protected, or that a backup was
+ *     verified;
+ *   - the PREVIEW is a DRY RUN (`rsync -n --itemize-changes`, `rclone
+ *     sync --dry-run --combined -`) — by the tools' own contracts it
+ *     writes nothing;
+ *   - RUN NOW (M8.4.1) is the one REAL action, and it is ADDITIVE-ONLY
+ *     by construction: `rsync -a` carries no removing flag, and rclone
+ *     runs "copy", never its deleting mode — it adds and updates at
+ *     the destination and removes nothing; exit 0 records the run FACT
+ *     (lastRunMs/lastRunSummary), a failure reports the real stderr;
+ *   - runs the user starts OUTSIDE this card are invisible here — the
+ *     card records only runs it performed itself;
  *   - backends are probed with `command -v` — an absent rsync/rclone is
- *     the honest "not installed" state with the real install hint, never
- *     a silent skip;
+ *     the honest "not installed" state with the real install hint (and
+ *     an in-card `apk add`), never a silent skip;
  *   - no credential is ever stored or asked for (ssh remotes reference
  *     the user's existing guest ~/.ssh; rclone remotes the user's own
  *     rclone.conf), and no size is ever fabricated (neither dry-run
  *     format reports sizes; the card reports COUNTS of parsed entries).
  *
+ * STATE (M8.4.2): everything the card shows and everything the user is
+ * mid-way through lives in ONE process-scoped holder ([SyncState] via
+ * the shared HomeAppStateStore) — screens switch by composition, so
+ * remember-held state died on every navigation. The holder keeps the
+ * cached snapshot, the probe's idle-gate memory and the half-filled
+ * form draft alive across page disposal; the probe's AUTO_RESCAN gate
+ * stays the only periodic re-probe path (refresh-on-purpose, never
+ * refresh-on-arrival).
+ *
  * Performance: the overview probe is ONE batched guest exec (GitProbe's
  * batching discipline), idle-gated at AUTO_RESCAN_MS, lifecycle-gated to
- * RESUMED, on Dispatchers.IO; the dry run is a manual-only bounded exec.
+ * RESUMED, on Dispatchers.IO; the dry run and the real run are
+ * manual-only bounded execs.
  */
 object SyncApp : HomeApplication() {
 
@@ -107,45 +130,33 @@ object SyncApp : HomeApplication() {
     override val spec = HomeAppSpec(
         id = SYNC_ID,
         name = "Sync",
-        summary = "Backup/sync profiles for the Linux guest — probed backends, dry-run previews",
+        summary = "Backup/sync profiles — probed backends, dry-run previews, additive-only runs",
     )
 
     @Composable
     override fun Content(context: HomeAppContext) {
         val appContext = LocalContext.current.applicationContext
         val repository = remember { SyncRepository(appContext) }
-        val probe = remember { SyncProbe(guestExec(appContext)) }
+        // M8.4.2 — ONE process-scoped holder: the screen state, the in-card
+        // navigation, the manual run/preview/install ticks, the probe
+        // ITSELF (its idle-gate memory is part of the cache) and the
+        // half-filled new-profile draft. Leaving Home disposes this
+        // composition; the holder survives it, so returning renders the
+        // cached snapshot instantly and costs no guest exec.
+        val state = remember {
+            context.stateStore.forApp(SYNC_ID) { SyncState(SyncProbe(guestExec(appContext))) }
+        }
         // null until DataStore's first emission — the honest loading state.
         val profilesState by repository.profiles.collectAsState(initial = null)
-        var ui by remember { mutableStateOf<SyncUi>(SyncUi.Loading) }
-        // The application's own navigation state: which profile's detail
-        // page fills the card, and whether the new-profile form is open.
-        // Saveable → rotation and Home↔Settings round-trips restore them.
-        var detailId by rememberSaveable { mutableStateOf<String?>(null) }
-        var formOpen by rememberSaveable { mutableStateOf(false) }
-        // Manual dry run: one tick = one bounded guest exec.
-        var previewTick by remember { mutableStateOf(0) }
-        var previewUi by remember { mutableStateOf<PreviewUi>(PreviewUi.Idle) }
-        // M8.4.1 — the REAL run (additive-only) and the backend install:
-        // one user tap = one bounded exec, result recorded as a fact.
-        var runTick by remember { mutableStateOf(0) }
-        var runUi by remember { mutableStateOf<RunUi>(RunUi.Idle) }
-        var installTick by remember { mutableStateOf(0) }
-        var installUi by remember { mutableStateOf<RunUi>(RunUi.Idle) }
         val scope = rememberCoroutineScope()
         val lifecycleOwner = LocalLifecycleOwner.current
 
-        // A live mirror the lifecycle loop reads at scan time (a captured
-        // parameter would go stale between ticks).
-        val profilesRef = remember { mutableStateOf<List<SyncProfile>>(emptyList()) }
-        val scannedIds = remember { mutableStateOf<List<String>>(emptyList()) }
-        var scannedOnce by remember { mutableStateOf(false) }
-
-        suspend fun runScan(profiles: List<SyncProfile>) {
-            scannedIds.value = profiles.map { it.id }
-            scannedOnce = true
-            val result = withContext(Dispatchers.IO) { probe.snapshot(profiles) }
-            ui = when (result) {
+        suspend fun runScan() {
+            val profiles = state.profilesRef.value
+            state.scannedIds.value = profiles.map { it.id }
+            state.scannedOnce = true
+            val result = withContext(Dispatchers.IO) { state.probe.snapshot(profiles) }
+            state.ui = when (result) {
                 is ProbeResult.Failed -> SyncUi.ProbeFailed(result.reason)
                 is ProbeResult.Done -> SyncUi.Ready(result.snapshot, profiles)
             }
@@ -153,7 +164,7 @@ object SyncApp : HomeApplication() {
 
         LaunchedEffect(context.runtimeState) {
             if (context.runtimeState != RuntimeState.READY) {
-                ui = SyncUi.Unavailable
+                state.ui = SyncUi.Unavailable
                 return@LaunchedEffect
             }
             lifecycleOwner.lifecycle.currentStateFlow
@@ -161,15 +172,18 @@ object SyncApp : HomeApplication() {
                 .distinctUntilChanged()
                 .collectLatest { active ->
                     if (!active) return@collectLatest
-                    // Returning to Home refreshes immediately.
-                    runScan(profilesRef.value)
+                    // The holder's cached snapshot is already on screen;
+                    // only the probe's idle gate decides whether RETURNING
+                    // to the card costs a probe. The gate passes on the
+                    // first ever visit and when the last scan is stale.
+                    if (state.probe.shouldFullScan(System.currentTimeMillis())) runScan()
                     while (true) {
                         delay(SyncProbe.TICK_MS)
                         // The idle gate: a tick that fires too soon after
                         // the last scan does NOTHING — no guest exec while
                         // the card sits open and idle.
-                        if (!probe.shouldFullScan(System.currentTimeMillis())) continue
-                        runScan(profilesRef.value)
+                        if (!state.probe.shouldFullScan(System.currentTimeMillis())) continue
+                        runScan()
                     }
                 }
         }
@@ -179,44 +193,50 @@ object SyncApp : HomeApplication() {
         // skipped when a scan already covered it — the open-race dedupe.
         LaunchedEffect(profilesState, context.runtimeState) {
             val list = profilesState ?: return@LaunchedEffect
-            profilesRef.value = list
+            state.profilesRef.value = list
             if (context.runtimeState != RuntimeState.READY) return@LaunchedEffect
             val ids = list.map { it.id }
-            if (ids == scannedIds.value) return@LaunchedEffect
-            if (scannedOnce) runScan(list)
+            if (ids == state.scannedIds.value) return@LaunchedEffect
+            if (state.scannedOnce) runScan()
         }
 
-        val ready = ui as? SyncUi.Ready
+        val ready = state.ui as? SyncUi.Ready
         val profiles = ready?.profiles.orEmpty()
 
         // A selection whose profile was deleted degrades to the overview —
         // never a stale detail page.
-        val selected = detailId?.let { id -> profiles.firstOrNull { it.id == id } }
-        BackHandler(enabled = formOpen || selected != null) {
-            if (formOpen) formOpen = false else detailId = null
+        val selected = state.detailId?.let { id -> profiles.firstOrNull { it.id == id } }
+        val closeForm = {
+            // Cancel is deliberate: it discards the draft. Navigation away
+            // does not — the holder keeps the half-filled form alive.
+            state.formOpen = false
+            state.resetDraft()
+        }
+        BackHandler(enabled = state.formOpen || selected != null) {
+            if (state.formOpen) closeForm() else state.detailId = null
         }
 
         // A fresh detail page starts with a clean preview slate.
-        LaunchedEffect(detailId) {
-            previewUi = PreviewUi.Idle
-            previewTick = 0
-            runUi = RunUi.Idle
+        LaunchedEffect(state.detailId) {
+            state.previewUi = PreviewUi.Idle
+            state.previewTick = 0
+            state.runUi = RunUi.Idle
         }
 
-        // M8.4.1 — the REAL run: additive-only (rsync -a without --delete;
-        // rclone copy, never "sync"), bounded, then the run FACT is
-        // recorded into the profile (lastRunMs/lastRunSummary) — a run
-        // that happened is a fact the card keeps.
-        LaunchedEffect(runTick) {
-            if (runTick == 0) return@LaunchedEffect
-            val profile = detailId?.let { id -> profilesRef.value.firstOrNull { it.id == id } }
+        // M8.4.1 — the REAL run: additive-only (rsync -a with no removing
+        // flag; rclone copy, never its deleting mode), bounded, then the
+        // run FACT is recorded into the profile (lastRunMs/lastRunSummary)
+        // — a run that happened is a fact the card keeps.
+        LaunchedEffect(state.runTick) {
+            if (state.runTick == 0) return@LaunchedEffect
+            val profile = state.detailId?.let { id -> state.profilesRef.value.firstOrNull { it.id == id } }
                 ?: return@LaunchedEffect
-            val snapshot = (ui as? SyncUi.Ready)?.snapshot ?: return@LaunchedEffect
-            runUi = RunUi.Running
+            val snapshot = (state.ui as? SyncUi.Ready)?.snapshot ?: return@LaunchedEffect
+            state.runUi = RunUi.Running
             val result = withContext(Dispatchers.IO) {
-                probe.runNow(profile, snapshot.rsync.path, snapshot.rclone.path)
+                state.probe.runNow(profile, snapshot.rsync.path, snapshot.rclone.path)
             }
-            runUi = RunUi.Done(result)
+            state.runUi = RunUi.Done(result)
             if (result.exitCode == 0) {
                 repository.add(
                     profile.copy(
@@ -229,38 +249,41 @@ object SyncApp : HomeApplication() {
 
         // M8.4.1 — install a missing backend with the guest's own apk
         // (one bounded `apk add`), then re-probe so availability flips.
-        LaunchedEffect(installTick) {
-            if (installTick == 0) return@LaunchedEffect
-            val profile = detailId?.let { id -> profilesRef.value.firstOrNull { it.id == id } }
+        LaunchedEffect(state.installTick) {
+            if (state.installTick == 0) return@LaunchedEffect
+            val profile = state.detailId?.let { id -> state.profilesRef.value.firstOrNull { it.id == id } }
                 ?: return@LaunchedEffect
-            installUi = RunUi.Running
+            state.installUi = RunUi.Running
             val result = withContext(Dispatchers.IO) {
-                probe.installBackend(profile.backend)
+                state.probe.installBackend(profile.backend)
             }
-            installUi = RunUi.Done(result)
-            runScan(profilesRef.value)
+            state.installUi = RunUi.Done(result)
+            runScan()
         }
 
         // The manual dry run — one tick, one bounded exec, result assigned
         // only if this effect is still the current one.
-        LaunchedEffect(previewTick) {
-            val profile = detailId?.let { id -> profilesRef.value.firstOrNull { it.id == id } }
+        LaunchedEffect(state.previewTick) {
+            if (state.previewTick == 0) return@LaunchedEffect
+            val profile = state.detailId?.let { id -> state.profilesRef.value.firstOrNull { it.id == id } }
                 ?: return@LaunchedEffect
-            val snapshot = (ui as? SyncUi.Ready)?.snapshot ?: return@LaunchedEffect
-            previewUi = PreviewUi.Running
+            val snapshot = (state.ui as? SyncUi.Ready)?.snapshot ?: return@LaunchedEffect
+            state.previewUi = PreviewUi.Running
             val result = withContext(Dispatchers.IO) {
-                probe.dryRun(profile, snapshot.rsync.path, snapshot.rclone.path)
+                state.probe.dryRun(profile, snapshot.rsync.path, snapshot.rclone.path)
             }
-            previewUi = PreviewUi.Done(result)
+            state.previewUi = PreviewUi.Done(result)
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = SyncLayout.from(maxWidth.value, maxHeight.value)
             when {
-                formOpen -> SyncForm(
-                    onCancel = { formOpen = false },
+                state.formOpen -> SyncForm(
+                    state = state,
+                    onCancel = closeForm,
                     onSave = { backend, source, destination ->
-                        formOpen = false
+                        state.formOpen = false
+                        state.resetDraft()
                         scope.launch {
                             repository.add(
                                 SyncProfile(
@@ -278,35 +301,35 @@ object SyncApp : HomeApplication() {
                     profile = selected,
                     status = ready?.snapshot?.pairs?.getOrNull(profiles.indexOf(selected)),
                     snapshot = ready?.snapshot,
-                    previewUi = previewUi,
-                    runUi = runUi,
-                    onRunNow = { runTick++ },
-                    installUi = installUi,
-                    onInstall = { installTick++ },
+                    previewUi = state.previewUi,
+                    runUi = state.runUi,
+                    onRunNow = { state.runTick++ },
+                    installUi = state.installUi,
+                    onInstall = { state.installTick++ },
                     roomy = layout == SyncLayout.ROOMY,
                     maxEntries = if (layout == SyncLayout.ROOMY) {
                         SyncLayout.DETAIL_MAX_ENTRIES_ROOMY
                     } else {
                         SyncLayout.DETAIL_MAX_ENTRIES_COMPACT
                     },
-                    onBack = { detailId = null },
-                    onPreview = { previewTick++ },
+                    onBack = { state.detailId = null },
+                    onPreview = { state.previewTick++ },
                     onDelete = {
                         scope.launch {
                             repository.remove(selected.id)
-                            detailId = null
+                            state.detailId = null
                         }
                     },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                 )
                 else -> SyncOverview(
-                    ui = ui,
+                    ui = state.ui,
                     profiles = profiles,
                     snapshot = ready?.snapshot,
                     layout = layout,
-                    onOpenDetail = { detailId = it.id },
-                    onOpenForm = { formOpen = true },
+                    onOpenDetail = { state.detailId = it.id },
+                    onOpenForm = { state.formOpen = true },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                     onOpenDiagnostics = { context.nav.openDiagnostics() },
                 )
@@ -341,6 +364,69 @@ object SyncApp : HomeApplication() {
                 throw t
             }
         }
+}
+
+/**
+ * M8.4.2 — the SYNC application's process-scoped state holder: everything
+ * the card used to keep in `remember` (and so lost on every navigation,
+ * because screens switch by composition):
+ *
+ *   - the screen's ui state and the in-card navigation (detail id, form
+ *     open), so returning renders the cached snapshot instantly;
+ *   - the manual preview/run/install ticks and their UI states;
+ *   - the [SyncProbe] ITSELF — its idle-gate memory (hasScanned /
+ *     lastScanAtMs) IS part of the cache; a fresh probe would re-exec on
+ *     the first tick after every return;
+ *   - the half-filled new-profile draft, with the `formSubmitted` flag
+ *     that keeps validation honest: the message renders only after the
+ *     first SAVE attempt, and any input change clears it again.
+ *
+ * Owned by the shared HomeAppStateStore; survives page disposal, leaving
+ * Home, and configuration changes. Process death still resets it — the
+ * profile RECORDS live in the DataStore, as before.
+ */
+internal class SyncState(val probe: SyncProbe) {
+
+    /** The screen state (probe-driven, never invented). */
+    var ui by mutableStateOf<SyncUi>(SyncUi.Loading)
+
+    /** Which profile's detail page fills the card; null = the overview. */
+    var detailId by mutableStateOf<String?>(null)
+
+    /** Whether the new-profile form fills the card. */
+    var formOpen by mutableStateOf(false)
+
+    /** The manual dry run: one tick = one bounded guest exec. */
+    var previewUi by mutableStateOf<PreviewUi>(PreviewUi.Idle)
+    var previewTick by mutableStateOf(0)
+
+    /** M8.4.1 — the REAL run (additive-only) and the backend install. */
+    var runUi by mutableStateOf<RunUi>(RunUi.Idle)
+    var runTick by mutableStateOf(0)
+    var installUi by mutableStateOf<RunUi>(RunUi.Idle)
+    var installTick by mutableStateOf(0)
+
+    /** A live mirror the lifecycle loop reads at scan time (a captured
+     *  parameter would go stale between ticks). */
+    val profilesRef = mutableStateOf<List<SyncProfile>>(emptyList())
+    val scannedIds = mutableStateOf<List<String>>(emptyList())
+    var scannedOnce by mutableStateOf(false)
+
+    /** The new-profile draft — survives navigation, not process death. */
+    var draftBackend by mutableStateOf(SyncBackend.RSYNC.name)
+    var draftSource by mutableStateOf("")
+    var draftDestination by mutableStateOf("")
+
+    /** No premature validation: errors render only after a SAVE attempt. */
+    var formSubmitted by mutableStateOf(false)
+
+    /** Cancel (or a completed save) discards the draft on purpose. */
+    fun resetDraft() {
+        draftBackend = SyncBackend.RSYNC.name
+        draftSource = ""
+        draftDestination = ""
+        formSubmitted = false
+    }
 }
 
 /** The application's screen state (probe-driven, never invented). */
@@ -405,8 +491,10 @@ private fun SyncOverview(
 ) {
     val ready = ui as? SyncUi.Ready
     Column(modifier = Modifier.fillMaxSize()) {
-        // Header — the application's title bar, both densities.
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        // Header — the application's title bar, both densities. The
+        // new-profile affordance is the compact "+" icon (M8.4.4): the
+        // word button spent a whole footer line the rows need.
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Sync",
                 style = MaterialTheme.typography.titleLarge,
@@ -421,6 +509,22 @@ private fun SyncOverview(
                     fontSize = 11.sp,
                     color = HomeTokens.textDim,
                 )
+            }
+            if (ui !is SyncUi.Unavailable) {
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable(role = Role.Button, onClickLabel = "New profile") { onOpenForm() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "New profile",
+                        tint = HomeTokens.accent,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
 
@@ -557,11 +661,6 @@ private fun SyncOverview(
                 }
             }
         }
-        if (ui !is SyncUi.Unavailable) {
-            TextButton(onClick = onOpenForm, modifier = Modifier.padding(top = 2.dp)) {
-                Text("+ NEW PROFILE", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-            }
-        }
     }
 }
 
@@ -679,19 +778,27 @@ private fun SyncDetail(
                     color = if (iu.result.exitCode == 0) HomeTokens.accent else HomeTokens.danger,
                     modifier = Modifier.padding(top = 2.dp),
                 )
-                else -> TextButton(onClick = onInstall, modifier = Modifier.height(34.dp)) {
-                    Text(
-                        "INSTALL ${profile.backend.name.lowercase().uppercase()}",
-                        fontFamily = TerminalTheme.mono,
-                        color = HomeTokens.accent,
-                    )
-                }
+                // Visually subordinate on purpose: one slim text line, not
+                // a button competing with the card's primary action.
+                else -> Text(
+                    text = "INSTALL ${profile.backend.name}",
+                    fontFamily = TerminalTheme.mono,
+                    fontSize = 11.sp,
+                    color = HomeTokens.accent,
+                    modifier = Modifier
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = "Install ${profile.backend.name.lowercase()} in the guest",
+                        ) { onInstall() }
+                        .padding(top = 2.dp),
+                )
             }
         }
 
-        // M8.4.1 — RUN NOW: the real, additive-only copy (rsync -a without
-        // --delete; rclone copy, never "sync"). The dry-run preview above
-        // is how the user verifies first; this records the run FACT.
+        // M8.4.1 — RUN NOW: the real, additive-only copy (rsync -a with no
+        // removing flag; rclone copy, never its deleting mode). The
+        // dry-run preview below is how the user verifies first; this
+        // records the run FACT. Compact icon+word control (M8.4.4).
         Spacer(Modifier.height(6.dp))
         when (val ru = runUi) {
             RunUi.Running -> Text(
@@ -711,9 +818,13 @@ private fun SyncDetail(
             else -> {}
         }
         if (backendStatus?.path != null && runUi !is RunUi.Running) {
-            TextButton(onClick = onRunNow, modifier = Modifier.height(34.dp)) {
-                Text("RUN NOW", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-            }
+            CompactAction(
+                label = "RUN NOW",
+                icon = Icons.Outlined.PlayArrow,
+                contentDescription = "Run profile now",
+                tint = HomeTokens.accent,
+                onClick = onRunNow,
+            )
         }
         if (backendStatus?.path != null) {
             Text(
@@ -728,9 +839,13 @@ private fun SyncDetail(
         Spacer(Modifier.height(4.dp))
         when (val p = previewUi) {
             PreviewUi.Idle -> if (backendStatus?.path != null) {
-                TextButton(onClick = onPreview, modifier = Modifier.height(34.dp)) {
-                    Text("PREVIEW (DRY RUN)", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-                }
+                CompactAction(
+                    label = "DRY RUN",
+                    icon = Icons.Outlined.Search,
+                    contentDescription = "Preview dry run",
+                    tint = HomeTokens.accent,
+                    onClick = onPreview,
+                )
             }
             PreviewUi.Running -> Text(
                 text = "Running dry run — nothing is copied…",
@@ -761,8 +876,9 @@ private fun SyncDetail(
             }
         }
 
-        // The same dry run, typed out for the user's own terminal — where
-        // real runs (the same command without the dry-run flag) belong.
+        // The same dry run, typed out for the user's own terminal — the
+        // shell is the other honest door (this card's real run is the
+        // RUN NOW above).
         Spacer(Modifier.height(4.dp))
         Text(
             text = when (profile.backend) {
@@ -880,14 +996,12 @@ private fun PreviewList(
 
 @Composable
 private fun SyncForm(
+    state: SyncState,
     onCancel: () -> Unit,
     onSave: (SyncBackend, String, String) -> Unit,
 ) {
-    var backendName by rememberSaveable { mutableStateOf(SyncBackend.RSYNC.name) }
-    var source by rememberSaveable { mutableStateOf("") }
-    var destination by rememberSaveable { mutableStateOf("") }
-    val backend = SyncBackend.entries.firstOrNull { it.name == backendName } ?: SyncBackend.RSYNC
-    val problem = SyncProfiles.validate(source, destination)
+    val backend = SyncBackend.entries.firstOrNull { it.name == state.draftBackend } ?: SyncBackend.RSYNC
+    val problem = SyncProfiles.validate(state.draftSource, state.draftDestination)
 
     Column(
         modifier = Modifier
@@ -920,7 +1034,10 @@ private fun SyncForm(
         Row {
             SyncBackend.entries.forEach { candidate ->
                 TextButton(
-                    onClick = { backendName = candidate.name },
+                    onClick = {
+                        state.draftBackend = candidate.name
+                        state.formSubmitted = false
+                    },
                     modifier = Modifier.height(34.dp),
                 ) {
                     Text(
@@ -933,20 +1050,29 @@ private fun SyncForm(
         }
         FormField(
             label = "SOURCE",
-            value = source,
-            onValue = { source = it },
+            value = state.draftSource,
+            onValue = {
+                state.draftSource = it
+                state.formSubmitted = false
+            },
             placeholder = "guest path, e.g. /root/project",
         )
         FormField(
             label = "DEST",
-            value = destination,
-            onValue = { destination = it },
+            value = state.draftDestination,
+            onValue = {
+                state.draftDestination = it
+                state.formSubmitted = false
+            },
             placeholder = when (backend) {
                 SyncBackend.RSYNC -> "/mnt/backup or user@host:/path"
                 SyncBackend.RCLONE -> "/mnt/backup or remote:path"
             },
         )
-        if (problem != null) {
+        // NO premature validation: the problem renders only after the
+        // first SAVE attempt, and any input change clears it again — a
+        // fresh, half-filled form never opens with an error in its face.
+        if (state.formSubmitted && problem != null) {
             Text(
                 text = problem,
                 style = MaterialTheme.typography.bodySmall,
@@ -956,18 +1082,27 @@ private fun SyncForm(
         }
         Text(
             text = "No credentials are stored here — ssh remotes use the guest's own ~/.ssh, " +
-                "rclone remotes the guest's own rclone.conf. The card previews; it never copies.",
+                "rclone remotes the guest's own rclone.conf. RUN NOW copies new and updated " +
+                "files — it never deletes.",
             style = MaterialTheme.typography.bodySmall,
             color = HomeTokens.textDim,
-            maxLines = 3,
+            maxLines = 4,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 4.dp),
         )
         Spacer(Modifier.height(4.dp))
         Row {
+            // Stays tappable while invalid — the tap IS what surfaces the
+            // validation message (the anti-"premature validation" shape).
             TextButton(
-                onClick = { onSave(backend, source.trim(), destination.trim()) },
-                enabled = problem == null,
+                onClick = {
+                    state.formSubmitted = true
+                    val source = state.draftSource.trim()
+                    val destination = state.draftDestination.trim()
+                    if (SyncProfiles.validate(source, destination) == null) {
+                        onSave(backend, source, destination)
+                    }
+                },
                 modifier = Modifier.height(34.dp),
             ) {
                 Text("SAVE", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
@@ -1033,6 +1168,43 @@ private fun FormField(
 }
 
 // -------------------------------------------------------------- helpers
+
+/**
+ * One compact icon+word action (M8.4.4): a 34dp control — icon first, so
+ * the card's primary actions cost one line, not a stack of buttons. The
+ * icon carries its contentDescription AND the row an onClickLabel, so
+ * the action announces itself either way a service reads the tree.
+ */
+@Composable
+private fun CompactAction(
+    label: String,
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .height(34.dp)
+            .clickable(role = Role.Button, onClickLabel = contentDescription) { onClick() }
+            .padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            text = label,
+            fontFamily = TerminalTheme.mono,
+            fontSize = 12.sp,
+            color = tint,
+        )
+    }
+}
 
 @Composable
 private fun SyncRow(label: String, value: String) {

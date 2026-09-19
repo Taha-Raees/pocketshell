@@ -17,10 +17,14 @@ private val Context.homeWidgetsDataStore by preferencesDataStore(name = "home_wi
  * of applications (M8.2's single application is the list of one, migrated).
  *
  * Same "home_widgets" DataStore file, keys:
- *   home_app_ids  — the ordered list (JSON array of registry ids)
- *   home_app_id   — the M8.2 single-application record, kept ONLY as the
- *                   migration source: when the list key is absent and the
- *                   legacy key exists, the list is seeded [legacy].
+ *   home_app_ids      — the ordered list (JSON array of registry ids)
+ *   home_app_selected — M8.4.2: the LAST USED application id, so returning
+ *                       to Home reopens the carousel on the same page
+ *                       (never silently back to the first application).
+ *   home_app_id       — the M8.2 single-application record, kept ONLY as
+ *                       the migration source: when the list key is absent
+ *                       and the legacy key exists, the list is seeded
+ *                       [legacy].
  *
  * Absent/corrupt/empty → the default application. Ids are shape-checked
  * here; an id that no longer resolves in the registry renders the honest
@@ -30,6 +34,7 @@ class HomeApplicationRepository(private val context: Context) {
 
     private val appIdsKey = stringPreferencesKey("home_app_ids")
     private val legacyAppIdKey = stringPreferencesKey("home_app_id")
+    private val selectedAppIdKey = stringPreferencesKey("home_app_selected")
 
     val homeAppIds: Flow<List<String>> = context.homeWidgetsDataStore.data.map { prefs ->
         HomeAppIdCodec.decodeList(
@@ -38,8 +43,17 @@ class HomeApplicationRepository(private val context: Context) {
         )
     }
 
+    /** The last application the user actually looked at (raw; validated at use). */
+    val selectedAppId: Flow<String?> = context.homeWidgetsDataStore.data.map { prefs ->
+        prefs[selectedAppIdKey]?.trim().takeUnless { it.isNullOrEmpty() }
+    }
+
     suspend fun setHomeAppIds(ids: List<String>) {
         context.homeWidgetsDataStore.edit { it[appIdsKey] = HomeAppIdCodec.encode(ids) }
+    }
+
+    suspend fun setSelectedAppId(id: String) {
+        context.homeWidgetsDataStore.edit { it[selectedAppIdKey] = id }
     }
 
     suspend fun restoreDefault() {

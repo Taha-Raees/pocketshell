@@ -20,12 +20,15 @@ import java.io.File
  *      kotlinx-serialization) — not in preferences, not in memory.
  *   3. LOCAL-FIRST: no execution surface and no network anywhere in the
  *      package — the card is app-local by construction.
- *   4. IN-CARD NAVIGATION: section state is saveable; sections are tabs,
- *      not depth (no BackHandler is expected in v1 — adding one without
- *      a real depth page would steal Home's back).
+ *   4. IN-CARD NAVIGATION: section + draft state live in the app's
+ *      process-scoped holder (HomeAppStateStore — M8.4.2), so they
+ *      survive navigation and carousel swipes; sections are tabs, not
+ *      depth (no BackHandler — adding one without a real depth page
+ *      would steal Home's back).
  *   5. HONESTY: the empty state tells the user where to add ("Add your
- *      first task above"), the card never deletes (ARCHIVE is the
- *      delete), and the pure layers stay pure.
+ *      first task above"), counts appear exactly ONCE (on the tabs),
+ *      delete is an explicit named action ("Delete task") beside the
+ *      soft archive path, and the pure layers stay pure.
  */
 class TodoAppContractTest {
 
@@ -144,11 +147,11 @@ class TodoAppContractTest {
     }
 
     @Test
-    fun `UI state is saveable but the task list is never compose state`() {
+    fun `UI state lives in the process-scoped holder - the list is never compose state`() {
         val code = stripCommentsAndStrings(source("TodoApp.kt"))
         assertTrue(
-            "section + draft survive rotation and carousel swipes",
-            code.contains("rememberSaveable"),
+            "section + draft must live in the HomeAppStateStore holder (survives Home disposal)",
+            code.contains("stateStore.forApp"),
         )
         assertFalse(
             "the task list must come from the DataStore flow, not a remember { mutableStateListOf }",
@@ -185,9 +188,9 @@ class TodoAppContractTest {
     // -------------------------------------------- 4. in-card navigation
 
     @Test
-    fun `sections are in-card tabs - saveable state, no back-depth in v1`() {
+    fun `sections are in-card tabs - holder state, no back-depth in v1`() {
         val code = stripCommentsAndStrings(source("TodoApp.kt"))
-        assertTrue("tab state must be saveable", code.contains("rememberSaveable"))
+        assertTrue("tab state must live in the holder", code.contains("var section by"))
         assertFalse(
             "tabs are not depth — a BackHandler here would steal Home's back; add one only with a real depth page",
             code.contains("BackHandler"),
@@ -206,12 +209,32 @@ class TodoAppContractTest {
     }
 
     @Test
-    fun `the card archives - it never deletes`() {
-        todoSources().forEach { (name, text) ->
-            val literals = stringLiterals(text)
-            val violations = literals.filter { it.lowercase().contains("delete") }
-            assertTrue("$name must not offer delete (ARCHIVE is the delete); found: $violations", violations.isEmpty())
-        }
+    fun `delete is explicit and named - archive remains the soft path`() {
+        // M8.4.2 (user decision): the trash action EXISTS — but always
+        // named for accessibility, and always beside (never instead of)
+        // the archive path.
+        val app = stripCommentsAndStrings(source("TodoApp.kt"))
+        assertTrue("the row offers delete via an icon action", app.contains("Icons.Outlined.Delete"))
+        assertTrue(
+            "delete must be named for accessibility (content description)",
+            stringLiterals(source("TodoApp.kt")).any { it == "Delete task" },
+        )
+        val ops = stripCommentsAndStrings(source("TodoTasks.kt"))
+        assertTrue("the pure layer has the delete op", ops.contains("fun delete"))
+        assertTrue("archive remains available", ops.contains("fun setArchived"))
+    }
+
+    @Test
+    fun `each count appears exactly once - the tabs are the only counter`() {
+        val raw = source("TodoApp.kt")
+        val violations = Regex(
+            "\\.size\\}\\s*(open|completed|archived)",
+            RegexOption.IGNORE_CASE,
+        ).findAll(raw).toList()
+        assertTrue(
+            "a task count must appear ONLY on its tab; found: $violations",
+            violations.isEmpty(),
+        )
     }
 
     // -------------------------------------------------------------- spec

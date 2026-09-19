@@ -45,6 +45,13 @@ object TodoTasks {
         tasks.map { if (it.id == id) it.copy(archived = archived) else it }
 
     /**
+     * M8.4.2 — HARD delete, the user's explicit removal (archive stays the
+     * soft path; delete removes the task from the store for good).
+     */
+    fun delete(tasks: List<TodoTask>, id: String): List<TodoTask> =
+        tasks.filterNot { it.id == id }
+
+    /**
      * The mentioned ids first, in the given order (unknown ids skipped,
      * duplicate ids collapsed); unmentioned tasks keep their existing
      * order after them.

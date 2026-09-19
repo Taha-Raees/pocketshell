@@ -7,14 +7,19 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,6 +95,13 @@ import kotlinx.coroutines.withContext
  * (floors, stated), nothing reclaimable, empty caches, probe failures with
  * their real reason. NO main-thread I/O ever — the M8.2 Diagnostics ANR
  * was exactly that shortcut.
+ *
+ * M8.4.2: every mutable piece lives in the process-scoped [StorageState]
+ * holder (HomeAppStateStore) — navigation and carousel page disposal
+ * destroy only the composition, never the state. A measured card
+ * re-renders its snapshot instantly; the only automatic scans are the
+ * first load and the runtime arriving READY without a usable snapshot.
+ * Refresh is the explicit header action.
  */
 object StorageApp : HomeApplication() {
 
@@ -106,16 +117,15 @@ object StorageApp : HomeApplication() {
     @Composable
     override fun Content(context: HomeAppContext) {
         val appContext = LocalContext.current.applicationContext
-        val probe = remember { GuestCacheProbe(guestExec(appContext)) }
-        var ui by remember { mutableStateOf<StorageUi>(StorageUi.Measuring) }
-        // The application's own navigation state: the category whose page
-        // fills the card (null = overview). Saveable → rotation and
-        // Home↔Settings round-trips restore the page.
-        var pageId by rememberSaveable { mutableStateOf<String?>(null) }
-        // Manual refresh: an immediate re-measure (the guest probe self-throttles).
-        var refreshTick by remember { mutableStateOf(0) }
-        // The explicit two-step clear flow (never auto-run, cancellable).
-        var clearState by remember { mutableStateOf<ClearState>(ClearState.Idle) }
+        // M8.4.2: the ONE process-scoped holder — the last snapshot, the
+        // guest probe (its idle gate IS part of the cache), the in-card
+        // page, the clear flow and the refresh tick. Leaving Home or the
+        // carousel swiping a page away disposes only this composition.
+        val state = remember {
+            context.stateStore.forApp(STORAGE_ID) {
+                StorageState(GuestCacheProbe(guestExec(appContext)))
+            }
+        }
         val scope = rememberCoroutineScope()
         val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -155,8 +165,8 @@ object StorageApp : HomeApplication() {
         // the caller invalidated the gate first).
         suspend fun probeGuest(): GuestCaches = withContext(Dispatchers.IO) {
             val result =
-                if (probe.shouldProbe(System.currentTimeMillis())) probe.snapshot()
-                else probe.cachedResult
+                if (state.probe.shouldProbe(System.currentTimeMillis())) state.probe.snapshot()
+                else state.probe.cachedResult
             when (result) {
                 null -> GuestCaches.NotProbed
                 is GuestCacheProbe.ProbeResult.Done -> GuestCaches.Sizes(result.entries)
@@ -164,11 +174,18 @@ object StorageApp : HomeApplication() {
             }
         }
 
+        // The automatic scan triggers — and only these (M8.4.2): a first
+        // load with no cached snapshot, or the runtime arriving READY
+        // without one. A holder that already holds a Ready snapshot taken
+        // with the runtime present re-renders it: no "Measuring…" flash,
+        // no rescan on re-entry, and no fire while the user merely reads
+        // (these run on composition ticks of a visible, resumed card only).
         LaunchedEffect(context.runtimeState) {
             if (context.runtimeState != RuntimeState.READY) {
+                if (state.ui is StorageUi.Ready) return@LaunchedEffect
                 // The host-side cache categories exist regardless — measure
                 // them honestly; the guest section states WHY it cannot ask.
-                ui = measure(GuestCaches.Unavailable)
+                state.ui = measure(GuestCaches.Unavailable)
                 return@LaunchedEffect
             }
             lifecycleOwner.lifecycle.currentStateFlow
@@ -176,24 +193,37 @@ object StorageApp : HomeApplication() {
                 .distinctUntilChanged()
                 .collectLatest { active ->
                     if (!active) return@collectLatest
-                    // One host walk + at most one guest exec per Home visit.
+                    // A snapshot that already saw the runtime present is the
+                    // cache; one taken before it appeared (or none) is the
+                    // one honest re-measure. The probe's gate still bounds
+                    // the guest exec cost.
+                    val cached =
+                        (state.ui as? StorageUi.Ready)?.snapshot?.runtime?.present == true
+                    if (cached) return@collectLatest
                     val guest = probeGuest()
-                    ui = measure(guest)
+                    state.ui = measure(guest)
                 }
         }
 
-        LaunchedEffect(refreshTick) {
-            if (refreshTick == 0) return@LaunchedEffect
+        // The explicit re-measure (header refresh; also the post-clear
+        // follow-up). The tick is consumed only after its scan finishes, so
+        // a re-entry never re-fires a completed refresh — and a refresh
+        // interrupted by navigation finishes on return, because the user
+        // asked for it.
+        LaunchedEffect(state.refreshTick) {
+            if (state.refreshTick == 0) return@LaunchedEffect
+            val tick = state.refreshTick
             val ready = context.runtimeState == RuntimeState.READY
             val guest = if (ready) probeGuest() else GuestCaches.Unavailable
-            ui = measure(guest)
+            state.ui = measure(guest)
+            if (state.refreshTick == tick) state.refreshTick = 0
         }
 
         // The clear flow: category row → this preview page → CLEAR. Only the
         // two APP-OWNED categories ever reach here (the page offers the
         // button only for clearable ones).
         fun clear(category: StorageCategory) {
-            if (clearState == ClearState.Running) return
+            if (state.clearState == ClearState.Running) return
             val storage = RuntimeStorage(appContext.noBackupFilesDir)
             val dir = when (category) {
                 StorageCategory.PACKAGE_CACHE -> PackageGateway.apkCacheDir(storage)
@@ -201,28 +231,28 @@ object StorageApp : HomeApplication() {
                     File(appContext.cacheDir, FileShareOps.STAGING_DIR_NAME)
                 else -> return
             }
-            clearState = ClearState.Running
+            state.clearState = ClearState.Running
             scope.launch {
                 val result = withContext(Dispatchers.IO) {
                     CategoryScan.clearRegularFiles(dir, isCancelled = { !isActive })
                 }
-                clearState = when {
+                state.clearState = when {
                     result.stoppedEarly -> ClearState.Stopped
                     !result.succeeded ->
                         ClearState.Failed("${result.failures} item(s) could not be removed")
                     else -> ClearState.Done(result.filesDeleted, result.bytesFreed)
                 }
                 // Sizes update from a fresh honest measurement, never a guess.
-                refreshTick++
+                state.refreshTick++
             }
         }
 
-        val page = pageId?.let { StorageCategory.byId(it) }
-        val snapshot = (ui as? StorageUi.Ready)?.snapshot
-        BackHandler(enabled = page != null) { pageId = null }
+        val page = state.pageId?.let { StorageCategory.byId(it) }
+        val snapshot = (state.ui as? StorageUi.Ready)?.snapshot
+        BackHandler(enabled = page != null) { state.pageId = null }
         // A fresh page starts its flow honestly (a Done from another page
         // must not bleed in).
-        LaunchedEffect(pageId) { clearState = ClearState.Idle }
+        LaunchedEffect(state.pageId) { state.clearState = ClearState.Idle }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = StorageLayout.from(maxWidth.value, maxHeight.value)
@@ -230,22 +260,24 @@ object StorageApp : HomeApplication() {
                 CategoryPage(
                     category = page,
                     snapshot = snapshot,
-                    clearState = clearState,
+                    clearState = state.clearState,
                     roomy = layout == StorageLayout.ROOMY,
-                    onBack = { pageId = null },
+                    onBack = { state.pageId = null },
                     onClear = { clear(page) },
                     onOpenDiagnostics = { context.nav.openDiagnostics() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                 )
             } else {
                 StorageOverview(
-                    ui = ui,
+                    ui = state.ui,
                     snapshot = snapshot,
                     layout = layout,
-                    onOpenCategory = { pageId = it.id },
+                    onOpenCategory = { state.pageId = it.id },
                     onRefresh = {
-                        probe.invalidate()
-                        refreshTick++
+                        // THE manual refresh: the probe's gate is bypassed
+                        // for exactly this request, then a real re-measure.
+                        state.probe.invalidate()
+                        state.refreshTick++
                     },
                     onOpenDiagnostics = { context.nav.openDiagnostics() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
@@ -283,6 +315,21 @@ object StorageApp : HomeApplication() {
         }
 }
 
+/**
+ * M8.4.2 — the STORAGE application's process-scoped state, owned by the
+ * HomeAppStateStore: the last measurement, the in-card page, the clear
+ * flow, the refresh tick and the guest probe itself (its shouldProbe idle
+ * gate is part of the cached measurement). Leaving Home or swiping the
+ * card away disposes only the composition — the next visit re-renders
+ * this state instead of re-measuring.
+ */
+internal class StorageState(val probe: GuestCacheProbe) {
+    var ui by mutableStateOf<StorageUi>(StorageUi.Measuring)
+    var pageId by mutableStateOf<String?>(null)
+    var refreshTick by mutableStateOf(0)
+    var clearState by mutableStateOf<ClearState>(ClearState.Idle)
+}
+
 // ------------------------------------------------------------- overview
 
 @Composable
@@ -297,7 +344,8 @@ private fun StorageOverview(
 ) {
     val reclaimable = snapshot?.let(::reclaimableBytes) ?: 0L
     Column(modifier = Modifier.fillMaxSize()) {
-        // Header — the application's title bar, both densities.
+        // Header — the application's title bar, both densities; the refresh
+        // action (M8.4.2) lives here, compact and always reachable.
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Text(
                 text = "Storage",
@@ -314,6 +362,8 @@ private fun StorageOverview(
                     color = HomeTokens.textDim,
                 )
             }
+            Spacer(Modifier.width(6.dp))
+            RefreshAction(onClick = onRefresh)
         }
 
         // Status area — the at-a-glance answer, roomy cards only.
@@ -407,13 +457,25 @@ private fun StorageOverview(
                     Text("Open Linux", color = HomeTokens.accent)
                 }
             }
-            else -> {
-                TextButton(onClick = onRefresh, modifier = Modifier.padding(top = 2.dp)) {
-                    Text("REFRESH", fontFamily = TerminalTheme.mono, color = HomeTokens.accent)
-                }
-            }
+            // Nothing reclaimable: the header refresh stays the ONE
+            // re-measure affordance — no duplicate action row here.
+            else -> Unit
         }
     }
+}
+
+/** The compact header refresh (TodoApp's IconAction shape, 28dp hit area). */
+@Composable
+private fun RefreshAction(onClick: () -> Unit) {
+    Icon(
+        imageVector = Icons.Outlined.Refresh,
+        contentDescription = "Refresh storage",
+        tint = HomeTokens.accent,
+        modifier = Modifier
+            .size(28.dp)
+            .clickable(role = Role.Button, onClickLabel = "Refresh storage") { onClick() }
+            .padding(3.dp),
+    )
 }
 
 // -------------------------------------------------------- category page
@@ -572,11 +634,13 @@ private fun ClearablePage(
         TextButton(
             onClick = onClear,
             enabled = clearState != ClearState.Running,
-            modifier = Modifier.padding(top = 2.dp),
+            modifier = Modifier.height(32.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
         ) {
             Text(
                 text = "CLEAR",
                 fontFamily = TerminalTheme.mono,
+                fontSize = 11.sp,
                 color = if (clearState == ClearState.Running) HomeTokens.textDim else HomeTokens.danger,
             )
         }

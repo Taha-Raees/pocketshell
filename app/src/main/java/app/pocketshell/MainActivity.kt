@@ -318,6 +318,7 @@ fun PocketShellRoot(
     // (an id that no longer resolves reads honestly as "Missing").
     val homeApplicationViewModel: app.pocketshell.widget.HomeApplicationViewModel = viewModel()
     val homeAppIds by homeApplicationViewModel.homeAppIds.collectAsStateWithLifecycle()
+    val homeSelectedAppId by homeApplicationViewModel.selectedAppId.collectAsStateWithLifecycle()
     // The Control Center row's live summary: the carousel's applications in
     // order (an id that no longer resolves reads honestly as "Missing").
     val homeWidgetsSubtitle = remember(homeAppIds) {
@@ -675,6 +676,9 @@ fun PocketShellRoot(
                 onOpenLauncherSettings = { screen = "launcherSettings" },
                 // M8 — widget slots + the two new widget nav seams.
                 homeAppIds = homeAppIds,
+                homeSelectedAppId = homeSelectedAppId,
+                onHomeAppSelected = homeApplicationViewModel::select,
+                homeStateStore = homeApplicationViewModel.stateStore,
                 onOpenGuestFiles = {
                     // The Storage widget's destination: the explorer at the
                     // GUEST ROOT, through the existing validated folder seam

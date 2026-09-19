@@ -4578,3 +4578,71 @@ contract). Device: SM-T870 only, `adb -s R52R30PEZDY`.
       after the layout changes; Notes create/pin/search unaffected.
 - [ ] Themes: Aurora + at least one edge theme (Nord) across the four
       M8.4 apps — no hardcoded colors introduced.
+
+## §70 — M8.4.2 gate: deep UX/state iteration (state ownership · carousel restore · icon controls · Git overhaul)
+
+Build under gate: `agent-L/m8.4-home-apps`, M8.4.2-L.apk (sha256 in
+ARTIFACT_NAMING §5). Trigger: the user's M8.4.1 video review (phone,
+portrait): Storage sat in "Measuring…" on EVERY visit; Git re-probed
+("Looking…") per visit; Todo repeated "3 open" twice and had NO delete;
+Sync's form still claimed "The card previews; it never copies." and
+showed "source is required" before any input; empty cards wasted their
+vertical middle. Laptop-side suite count recorded at delivery; device:
+SM-T870 only (`adb -s R52PEZDY` — pin corrected at gate time to
+`adb -s R52R30PEZDY`).
+
+### STATE ARCHITECTURE (framework)
+- [ ] Leave Home on ANY application (e.g. Git) → open Terminal → return:
+      Home reopens on GIT (not page 0); the app shows its cached snapshot
+      INSTANTLY (no "Measuring…"/"Looking…" flash); scan re-runs only via
+      the probe's own staleness gate or explicit refresh.
+- [ ] Swipe 2+ pages away and back: the app's state (detail page, draft,
+      section) is exactly as left. Rotation: same.
+- [ ] Scroll inside any card: no backend work, no state resets.
+- [ ] Explicit refresh works (Storage/Git header refresh icons; Git
+      detail REFRESH).
+
+### TODO
+- [ ] One count per fact: per-section tab counts ONLY (no header count,
+      no footer count).
+- [ ] Trash icon on every row hard-deletes (named "Delete task");
+      archive/restore still present in DONE/ARCHIVED.
+- [ ] Short lists leave no dead vertical gap; state line only shows the
+      loading dots or an honest empty hint.
+- [ ] Add/complete/star/archive/restore/delete + persistence; selected
+      tab + draft survive navigation and swipes.
+
+### NOTES
+- [ ] "+" icon (New note), pin/trash icons in the editor with labels;
+      body keeps the canvas majority; commit-on-back unchanged.
+- [ ] Open note + half-typed draft survive navigation, swipes, rotation.
+
+### STORAGE
+- [ ] Cached snapshot renders instantly on revisit; refresh icon forces
+      a real re-scan; "Measuring…" only on genuinely first load.
+- [ ] Two-step clear still reclaims with before/after numbers; guest
+      caches still never deleted from the card.
+
+### SYNC
+- [ ] No stale copy anywhere ("never copies" gone); "source is required"
+      appears only after a SAVE attempt.
+- [ ] "+" new-profile icon; RUN NOW compact (play icon + word); INSTALL
+      visually subordinate; selected profile survives swipes.
+- [ ] RUN NOW real-run check: files land at the destination; LAST RUN
+      records on exit 0; failure shows real stderr; no deletes.
+
+### GIT (overhaul)
+- [ ] Repo selector chips (multi-repo): selection persists; pane updates
+      in place; single-repo → no selector.
+- [ ] Branch line: branch + ↑N/↓N + ●/○ dirty marker; changed files
+      grouped STAGED / UNSTAGED; clean tree states "Working tree clean".
+- [ ] No duplicated counts; detail page still scrolls; read-only
+      discipline unchanged (no write commands from the card).
+
+### SSH + SERVERS (regression)
+- [ ] Cached snapshot survives navigation; detail reopens; honesty
+      states unchanged; no duplicated counts.
+
+### THEMES
+- [ ] Aurora + one edge theme across all seven apps — no hardcoded
+      colors introduced (source-pinned).

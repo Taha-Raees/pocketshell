@@ -15,7 +15,7 @@ import java.io.File
  * Pinned here:
  *   1. THEME: only the shared HomeTokens/TerminalTheme — no hardcoded
  *      colors, no theme-name literals, no canvas-tone text pair.
- *   2. IN-CARD NAVIGATION: rememberSaveable detail + the card's own
+ *   2. IN-CARD NAVIGATION: process-scoped-holder detail + the card's own
  *      BackHandler; actions ONLY through the WidgetNav seam.
  *   3. NO EXECUTION SURFACE: the application never spawns anything —
  *      "never auto-connect" is structural, not a comment.
@@ -128,11 +128,11 @@ class SshAppContractTest {
     // ------------------------------------------------- 2. in-card navigation
 
     @Test
-    fun `detail state is saveable and the card owns its back`() {
+    fun `detail state lives in the process-scoped holder and the card owns its back`() {
         val code = stripCommentsAndStrings(source("SshApp.kt"))
         assertTrue(
-            "detail selection must be saveable (rotation, round-trips)",
-            code.contains("rememberSaveable"),
+            "snapshot + detail selection must live in the HomeAppStateStore holder (survives Home disposal)",
+            code.contains("stateStore.forApp"),
         )
         assertTrue(
             "back inside the card returns to the overview before leaving Home",

@@ -33,9 +33,11 @@ abstract class HomeApplication {
     /**
      * The application's single-page content, rendered inside the standard
      * Home application card chrome. Internal navigation (overview /
-     * detail / back) is the application's own state, scoped to its own
-     * composition — `rememberSaveable` keeps it across rotation and
-     * Home↔Settings round-trips.
+     * detail / back) is the application's own state — held in its
+     * process-scoped HomeAppStateStore slot (M8.4.2:
+     * `context.stateStore.forApp(spec.id) { ... }`), so it survives
+     * rotation, Home↔Settings round-trips and being swiped off the
+     * carousel.
      */
     @Composable
     abstract fun Content(context: HomeAppContext)
@@ -48,8 +50,10 @@ data class HomeAppSpec(
     val summary: String,
 )
 
-/** What a Home application may read and act on. Navigation + honest state. */
+/** What a Home application may read and act on: navigation, honest runtime state, and its process-scoped state slot. */
 data class HomeAppContext(
     val nav: WidgetNav,
     val runtimeState: RuntimeState,
+    /** M8.4.2 — the application's own durable state slot: `stateStore.forApp(spec.id) { MyHolder() }`. */
+    val stateStore: HomeAppStateStore,
 )

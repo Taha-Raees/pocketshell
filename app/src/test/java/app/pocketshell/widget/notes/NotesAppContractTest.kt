@@ -15,7 +15,7 @@ import java.io.File
  * Pinned here:
  *   1. THEME: only the shared HomeTokens/TerminalTheme — no hardcoded
  *      colors, no theme-name literals, no canvas-tone text pair.
- *   2. IN-CARD NAVIGATION: rememberSaveable editor/draft/search state and
+ *   2. IN-CARD NAVIGATION: process-scoped holder editor/draft/search state and
  *      the card's OWN BackHandler (back commits and returns to the list
  *      before it ever reaches the rest of Home).
  *   3. PERSISTENCE: the application's OWN notes_store DataStore file,
@@ -137,16 +137,16 @@ class NotesAppContractTest {
     // ------------------------------------------------- 2. in-card navigation
 
     @Test
-    fun `editor and draft state are saveable and the card owns its back`() {
+    fun `editor and draft state live in the process-scoped holder and the card owns its back`() {
         val code = stripCommentsAndStrings(source("NotesApp.kt"))
         assertTrue(
-            "editor/draft/search state must be saveable (rotation, round-trips)",
-            code.contains("rememberSaveable"),
+            "editor/draft/search state must live in the HomeAppStateStore holder (survives Home disposal)",
+            code.contains("stateStore.forApp"),
         )
         assertTrue(
             "back inside the card commits and returns to the list before leaving Home",
             code.contains(
-                "BackHandler(enabled = editorOpen && (editorId.isEmpty() || editorNote != null))",
+                "BackHandler(enabled = state.editorOpen && (state.editorId.isEmpty() || editorNote != null))",
             ),
         )
     }

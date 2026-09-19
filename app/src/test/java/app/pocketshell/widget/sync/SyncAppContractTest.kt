@@ -16,8 +16,11 @@ import java.io.File
  * Pinned here:
  *   1. THEME: only the shared HomeTokens/TerminalTheme — no hardcoded
  *      colors, no theme-name literals.
- *   2. IN-CARD NAVIGATION: rememberSaveable state + the card's own
- *      BackHandler; actions through the WidgetNav seam only.
+ *   2. IN-CARD NAVIGATION + STATE (M8.4.2): the card's state — screen
+ *      ui, navigation, ticks, probe (its idle-gate memory IS the cache)
+ *      and the form draft — lives in the process-scoped holder reached
+ *      through stateStore.forApp; the card owns its BackHandler; actions
+ *      through the WidgetNav seam only.
  *   3. EXEC DISCIPLINE: the sanctioned guest-exec path only; user specs
  *      ride as argv/positional parameters — never spliced into a shell
  *      string; dry-run flags present; no PTY session spawn.
@@ -25,7 +28,11 @@ import java.io.File
  *      the persisted model has no credential field.
  *   5. HONESTY: the UI vocabulary never claims user data is backed up,
  *      protected or verified — a profile is a record, not a backup; the
- *      card has no real-run control in v1.
+ *      real run is RUN NOW and it is additive-only ("never deletes");
+ *      the stale "the card previews; it never copies" claim is gone.
+ *   6. UX DISCIPLINE: compact icon actions announce themselves; form
+ *      validation waits for the first SAVE attempt (no premature
+ *      validation on a fresh form).
  */
 class SyncAppContractTest {
 
@@ -121,10 +128,18 @@ class SyncAppContractTest {
     // ------------------------------------------------- 2. in-card navigation
 
     @Test
-    fun `detail and form state are saveable and the card owns its back`() {
+    fun `card state lives in the process-scoped holder and the card owns its back`() {
         val code = stripCommentsAndStrings(source("SyncApp.kt"))
         assertTrue(
-            "navigation state must be saveable (rotation, round-trips)",
+            "state comes from the M8.4.2 store, not per-composition remember",
+            code.contains("stateStore.forApp"),
+        )
+        assertTrue(
+            "the holder owns the probe — its idle-gate memory IS the cache",
+            code.contains("class SyncState("),
+        )
+        assertTrue(
+            "transient arming state stays saveable (rotation, round-trips)",
             code.contains("rememberSaveable"),
         )
         assertTrue(
@@ -133,6 +148,54 @@ class SyncAppContractTest {
         )
         assertTrue("the terminal is where real runs happen", code.contains("nav.openTerminal()"))
         assertTrue("the guest is where sync tools live", code.contains("nav.openLinuxShell()"))
+    }
+
+    @Test
+    fun `the form validates only after the first save attempt`() {
+        val code = stripCommentsAndStrings(source("SyncApp.kt"))
+        assertTrue(
+            "the form tracks a submitted flag in the holder",
+            code.contains("formSubmitted"),
+        )
+        assertTrue(
+            "the validation message renders only when the submitted flag is set",
+            code.contains("formSubmitted && problem != null"),
+        )
+        assertFalse(
+            "SAVE stays tappable while invalid — the tap surfaces the error",
+            code.contains("enabled = problem == null"),
+        )
+    }
+
+    @Test
+    fun `no source still claims the card never copies`() {
+        syncSources().forEach { (name, text) ->
+            assertFalse(
+                "$name carries the stale pre-RUN-NOW claim — RUN NOW copies (additively)",
+                text.lowercase().contains("never copies"),
+            )
+        }
+    }
+
+    @Test
+    fun `primary actions are compact icon controls that announce themselves`() {
+        val app = source("SyncApp.kt")
+        assertTrue(
+            "the overview's new-profile affordance is the + icon",
+            app.contains("contentDescription = \"New profile\""),
+        )
+        assertTrue(
+            "RUN NOW's play icon announces itself",
+            app.contains("contentDescription = \"Run profile now\""),
+        )
+        assertTrue(
+            "the dry-run preview control names itself for the reader",
+            app.contains("\"Preview dry run\""),
+        )
+        assertFalse(
+            "the old word button is gone",
+            app.contains("+ NEW PROFILE"),
+        )
     }
 
     // ---------------------------------------------------- 3. exec discipline

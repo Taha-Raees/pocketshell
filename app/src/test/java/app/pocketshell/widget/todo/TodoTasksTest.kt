@@ -91,6 +91,24 @@ class TodoTasksTest {
         assertEquals(tasks, TodoTasks.setArchived(tasks, "zz", archived = true))
     }
 
+    // ----------------------------------------------------- delete (M8.4.2)
+
+    @Test
+    fun `delete removes exactly the named task - archive keeps it`() {
+        val tasks = listOf(task("a"), task("b", done = true), task("c", archived = true))
+        val deleted = TodoTasks.delete(tasks, "b")
+        assertEquals(listOf("a", "c"), deleted.map { it.id })
+        // The soft path still exists beside it and keeps history.
+        val archived = TodoTasks.setArchived(tasks, "b", archived = true)
+        assertEquals(3, archived.size)
+    }
+
+    @Test
+    fun `delete on an unknown id changes nothing`() {
+        val tasks = listOf(task("a"))
+        assertEquals(tasks, TodoTasks.delete(tasks, "zz"))
+    }
+
     // -------------------------------------------------------------- reorder
 
     @Test

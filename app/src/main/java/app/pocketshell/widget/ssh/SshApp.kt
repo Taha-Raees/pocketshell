@@ -26,7 +26,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,17 +90,16 @@ object SshApp : HomeApplication() {
 
     @Composable
     override fun Content(context: HomeAppContext) {
-        var ui by remember { mutableStateOf<SshUi>(SshUi.Probing) }
-        // The application's own navigation state: the display key of the
-        // host whose detail page fills the card (null = overview).
-        // Saveable → rotation and Home↔Settings round-trips restore it.
-        var detailKey by rememberSaveable { mutableStateOf<String?>(null) }
+        // M8.4.2 — snapshot + detail selection live in the process-scoped
+        // holder: leaving Home or swiping pages away no longer resets the
+        // card to "Looking…" and reopens on the same host.
+        val state = remember { context.stateStore.forApp(SshApp.ID) { SshState() } }
         val lifecycleOwner = LocalLifecycleOwner.current
         val appContext = LocalContext.current.applicationContext
 
         LaunchedEffect(context.runtimeState) {
             if (context.runtimeState != RuntimeState.READY) {
-                ui = SshUi.Unavailable
+                state.ui = SshUi.Unavailable
                 return@LaunchedEffect
             }
             lifecycleOwner.lifecycle.currentStateFlow
@@ -110,7 +108,7 @@ object SshApp : HomeApplication() {
                 .collectLatest { active ->
                     if (!active) return@collectLatest
                     while (true) {
-                        ui = SshUi.Ready(
+                        state.ui = SshUi.Ready(
                             withContext(Dispatchers.IO) { SshFiles.snapshot(appContext) },
                         )
                         delay(REFRESH_MS)
@@ -118,13 +116,13 @@ object SshApp : HomeApplication() {
                 }
         }
 
-        val snapshot = (ui as? SshUi.Ready)?.snapshot
+        val snapshot = (state.ui as? SshUi.Ready)?.snapshot
         val hosts = snapshot?.hosts.orEmpty()
         val processes = snapshot?.processes.orEmpty()
         // A selection whose entry vanished degrades to the overview —
         // never a stale detail page for a removed config block.
-        val selected = detailKey?.let { key -> hosts.firstOrNull { it.displayName == key } }
-        BackHandler(enabled = selected != null) { detailKey = null }
+        val selected = state.detailKey?.let { key -> hosts.firstOrNull { it.displayName == key } }
+        BackHandler(enabled = selected != null) { state.detailKey = null }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = SshLayout.from(maxWidth.value, maxHeight.value)
@@ -133,15 +131,15 @@ object SshApp : HomeApplication() {
                     entry = selected,
                     matched = processes.filter { sshEntryMatchesTarget(selected, it.target) },
                     roomy = layout == SshLayout.ROOMY,
-                    onBack = { detailKey = null },
+                    onBack = { state.detailKey = null },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                 )
             } else {
                 SshOverview(
-                    ui = ui,
+                    ui = state.ui,
                     layout = layout,
-                    onOpenDetail = { entry -> detailKey = entry.displayName },
+                    onOpenDetail = { entry -> state.detailKey = entry.displayName },
                     onOpenTerminal = { context.nav.openTerminal() },
                     onOpenLinuxShell = { context.nav.openLinuxShell() },
                     onOpenDiagnostics = { context.nav.openDiagnostics() },
@@ -156,6 +154,16 @@ internal sealed interface SshUi {
     data object Probing : SshUi
     data object Unavailable : SshUi
     data class Ready(val snapshot: SshSnapshot) : SshUi
+}
+
+/**
+ * M8.4.2 — the SSH application's process-scoped state: the last probe
+ * snapshot and the open host's display key (null = overview). Owned by
+ * the HomeAppStateStore so the card reopens where the user left it.
+ */
+internal class SshState {
+    var ui by mutableStateOf<SshUi>(SshUi.Probing)
+    var detailKey by mutableStateOf<String?>(null)
 }
 
 /**

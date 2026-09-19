@@ -24,7 +24,9 @@ import java.io.File
  *      no state-changing git verb can ever reach the guest from this card.
  *   4. IN-CARD NAVIGATION: the application owns its detail state and its
  *      own back handler; actions ride the one WidgetNav seam.
- *   5. The probe/parser layer stays pure (no android dependencies).
+ *   5. The probe/parser/presentation layer stays pure (no android deps).
+ *   6. M8.4.2 STATE OWNERSHIP: the probe + screen state live in the
+ *      process-scoped store, and the refresh control is a named icon.
  */
 class GitAppContractTest {
 
@@ -193,8 +195,8 @@ class GitAppContractTest {
     fun `the application owns its detail state and its own back`() {
         val code = stripCommentsAndStrings(gitSource("GitApp.kt"))
         assertTrue(
-            "detail selection must be saveable (rotation, round-trips)",
-            code.contains("rememberSaveable"),
+            "detail + selection state must live in the process-scoped store (M8.4.2)",
+            code.contains("stateStore.forApp"),
         )
         assertTrue(
             "back inside the card returns to the overview before leaving Home",
@@ -213,7 +215,7 @@ class GitAppContractTest {
 
     @Test
     fun `the probe and parser layers have no android dependencies`() {
-        listOf("GitProbe.kt", "GitStatusParser.kt").forEach { name ->
+        listOf("GitProbe.kt", "GitStatusParser.kt", "GitPresentation.kt").forEach { name ->
             val code = stripCommentsAndStrings(gitSource(name))
             val banned = listOf("android.", "androidx", "Context", "Composable")
             val found = banned.filter { code.contains(it) }
@@ -223,6 +225,39 @@ class GitAppContractTest {
             "the registry id must match the application's spec id",
             GitApp.GIT_ID,
             GitApp.spec.id,
+        )
+    }
+
+    // ------------------- 6. M8.4.2 state ownership + the named refresh
+
+    @Test
+    fun `state comes from the process-scoped store and refresh is a named icon`() {
+        val code = stripCommentsAndStrings(gitSource("GitApp.kt"))
+        assertTrue(
+            "the probe and screen state must live in the shared store",
+            code.contains("stateStore.forApp"),
+        )
+        val literals = stringLiterals(gitSource("GitApp.kt"))
+        assertTrue(
+            "the refresh icon needs its accessibility name for BOTH " +
+                "contentDescription and onClickLabel",
+            literals.count { it == "Refresh repositories" } >= 2,
+        )
+    }
+
+    @Test
+    fun `returning to the card renders the cache and gates any rescan`() {
+        val code = stripCommentsAndStrings(gitSource("GitApp.kt"))
+        assertTrue(
+            "the resume edge must check for a cached Ready snapshot before scanning",
+            code.contains("val hasCache = state.ui is GitUi.Ready"),
+        )
+        assertTrue(
+            "the resume edge scan must be gated by the SAME staleness gate " +
+                "as the tick loop (no guest exec on every re-entry)",
+            Regex(
+                """if \(!hasCache \|\| state\.probe\.shouldFullScan\(System\.currentTimeMillis\(\)\)\)""",
+            ).containsMatchIn(code),
         )
     }
 }

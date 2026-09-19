@@ -67,4 +67,23 @@ class HomeApplicationViewModel(application: Application) : AndroidViewModel(appl
     fun restoreDefault() {
         viewModelScope.launch { repository.restoreDefault() }
     }
+
+    // ------------------------------------------------------ M8.4.2 state
+
+    /**
+     * The process-scoped store the applications keep their holders in —
+     * cached snapshots, probe instances (with their idle-gate memory) and
+     * transient UI state survive navigation and page disposal because THIS
+     * ViewModel outlives Home's composition.
+     */
+    val stateStore = HomeAppStateStore()
+
+    /** The last application the user looked at (restores the carousel page). */
+    val selectedAppId: StateFlow<String?> = repository.selectedAppId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun select(id: String) {
+        if (HomeApplications.byId(id) == null) return
+        viewModelScope.launch { repository.setSelectedAppId(id) }
+    }
 }

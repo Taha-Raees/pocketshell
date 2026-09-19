@@ -206,8 +206,8 @@ class HomeWidgetContractTest {
     fun `the application owns its detail state and its own back`() {
         val code = stripCommentsAndStrings(widgetSource("ServersApp.kt"))
         assertTrue(
-            "detail selection must be saveable (rotation, round-trips)",
-            code.contains("rememberSaveable"),
+            "detail selection must live in the process-scoped holder (survives Home disposal — M8.4.2)",
+            code.contains("stateStore.forApp"),
         )
         assertTrue(
             "back inside the card returns to the overview before leaving Home",
@@ -219,6 +219,24 @@ class HomeWidgetContractTest {
     }
 
     // ------------------------------------- 5. slot/app persistence
+
+    @Test
+    fun `the last-used application persists for carousel restore`() {
+        val repo = widgetSource("HomeApplicationRepository.kt")
+        assertTrue(
+            "the selected application has its own persisted key",
+            repo.contains("stringPreferencesKey(\"home_app_selected\")"),
+        )
+        assertTrue(
+            "selection writes go through the repository",
+            repo.contains("setSelectedAppId"),
+        )
+        val vm = widgetSource("HomeApplicationViewModel.kt")
+        assertTrue(
+            "the app state store is process-scoped on the ViewModel",
+            vm.contains("val stateStore = HomeAppStateStore()"),
+        )
+    }
 
     @Test
     fun `application persistence is an ordered list with M8_2 migration`() {

@@ -13,16 +13,18 @@ import app.pocketshell.packages.ExecResult
  * are NEVER spliced into a shell string. The overview script receives them
  * as POSITIONAL PARAMETERS via the exec argv list (execve bytes, never
  * reparsed — command substitution cannot live in data that no shell ever
- * re-quotes), and the dry run passes them as direct argv elements of the
- * backend binary itself — no shell in the dry-run path at all. Leading "-"
- * specs are refused at creation ([SyncProfiles.validate]), so a path can
- * never masquerade as an option.
+ * re-quotes), and the direct backend invocations (dry run, real run) pass
+ * them as direct argv elements of the backend binary itself — no shell in
+ * either path at all. Leading "-" specs are refused at creation
+ * ([SyncProfiles.validate]), so a path can never masquerade as an option.
  *
- * Read-only by contract: `command -v`, `rsync --version`, `rclone version`,
- * `[ -e path ]` existence tests, and `-n`/`--dry-run` invocations that the
- * tools themselves document as writing nothing. v1 NEVER performs a real
- * copy — the preview is the product, and a terminal is where real runs
- * happen.
+ * What each exec may DO is pinned: `command -v`, `rsync --version`,
+ * `rclone version`, `[ -e path ]` existence tests, and `-n`/`--dry-run`
+ * invocations that the tools themselves document as writing nothing.
+ * The ONE real-data action is [runNow] (M8.4.1) — ADDITIVE-ONLY by
+ * contract: `rsync -a` carries no removing flag, and rclone runs "copy",
+ * never its deleting mode, so it adds and updates at the destination and
+ * removes nothing. The destructive modes are unreachable from this card.
  */
 
 /** One backend's honest availability. */

@@ -20,7 +20,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,7 +60,9 @@ import kotlinx.coroutines.launch
  *
  *   type into the inline field + enter → the task exists (the shared
  *   PocketShell keyboard deck is the input; no dialog, no screen).
- *   tap the box → done.  ☆ → starred (sorts first).  ARCHIVE → history.
+ *   tap the box → done.  ☆ → starred (sorts first).  archive → history.
+ *   trash → gone for good (M8.4.2: the explicit delete the archive was
+ *   never allowed to replace).
  *
  * Design decisions (pinned by the todo test suite):
  *   - LOCAL-FIRST: the store is the app's own "todo_store" DataStore on
@@ -65,17 +71,19 @@ import kotlinx.coroutines.launch
  *     navigation and polls nothing: reads are a DataStore flow (emits on
  *     change only), writes are DataStore `edit` transactions on its IO
  *     executor.
- *   - ARCHIVE, not delete: completed tasks can be archived (v1 has no
- *     hard delete — history survives until the list cap), and ARCHIVED
- *     is reachable in-card with RESTORE back to its prior state.
+ *   - ARCHIVE first, DELETE explicit: completed tasks archive into
+ *     history (ARCHIVED tab, restore in place); hard delete is its own
+ *     icon on every row — nothing is removed without the user asking.
  *   - The store is a plain JSON array of [TodoTask] under one string key
  *     — a future CLI/agent integration reads and writes the same shape.
  *   - Sections are IN-CARD TABS (Today / Done / Archived), not depth —
  *     there is no detail page, so the card adds no BackHandler (system
  *     back keeps belonging to Home).
- *   - Persistence split: the task LIST lives in the DataStore (survives
- *     process death, rotation and carousel swipes); the active section
- *     and in-progress input text are `rememberSaveable`.
+ *   - State split (M8.4.2): the task LIST lives in the DataStore
+ *     (survives process death); the active section and in-progress input
+ *     live in the application's process-scoped [TodoState] holder — they
+ *     survive navigation, carousel swipes and rotation without ever
+ *     touching the persisted list.
  *   - The card works regardless of runtime state — no Unavailable state
  *     exists, and none is invented.
  */
@@ -95,25 +103,25 @@ object TodoApp : HomeApplication() {
         val repository = remember { TodoRepository(appContext) }
         // null until DataStore's first emission — the honest loading state.
         val tasksState by repository.tasks.collectAsState(initial = null)
-        // Section + draft text are UI state: saveable across rotation,
-        // Home↔Settings round-trips and carousel swipes.
-        var sectionName by rememberSaveable { mutableStateOf(TodoSection.TODAY.name) }
-        var input by rememberSaveable { mutableStateOf("") }
+        // Section + draft text live in the process-scoped holder: they
+        // outlive Home's composition, so returning to this card never
+        // resets what the user was doing.
+        val state = remember { context.stateStore.forApp(TodoApp.ID) { TodoState() } }
         val scope = rememberCoroutineScope()
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val layout = TodoLayout.from(maxWidth.value, maxHeight.value)
             TodoContent(
                 tasks = tasksState,
-                section = TodoSection.from(sectionName),
-                input = input,
+                section = state.section,
+                input = state.input,
                 layout = layout,
-                onSection = { sectionName = it.name },
-                onInput = { input = it },
+                onSection = { state.section = it },
+                onInput = { state.input = it },
                 onSubmit = {
-                    val text = input.trim()
+                    val text = state.input.trim()
                     if (text.isNotEmpty()) {
-                        input = ""
+                        state.input = ""
                         scope.launch { repository.add(text) }
                     }
                 },
@@ -121,9 +129,21 @@ object TodoApp : HomeApplication() {
                 onToggleStar = { id -> scope.launch { repository.toggleStar(id) } },
                 onArchive = { id -> scope.launch { repository.setArchived(id, archived = true) } },
                 onRestore = { id -> scope.launch { repository.setArchived(id, archived = false) } },
+                onDelete = { id -> scope.launch { repository.delete(id) } },
             )
         }
     }
+}
+
+/**
+ * M8.4.2 — the TODO application's process-scoped state: the active tab
+ * and the draft input. Owned by the HomeAppStateStore (via the shared
+ * ViewModel), so leaving Home and coming back — or swiping pages away
+ * and back — lands the user exactly where they were.
+ */
+internal class TodoState {
+    var section by mutableStateOf(TodoSection.TODAY)
+    var input by mutableStateOf("")
 }
 
 /** The card's sections — in-card tabs, never navigation depth. */
@@ -170,6 +190,7 @@ private fun TodoContent(
     onToggleStar: (String) -> Unit,
     onArchive: (String) -> Unit,
     onRestore: (String) -> Unit,
+    onDelete: (String) -> Unit,
 ) {
     val today = tasks?.let(TodoTasks::today).orEmpty()
     val done = tasks?.let(TodoTasks::done).orEmpty()
@@ -190,14 +211,6 @@ private fun TodoContent(
                 color = HomeTokens.textPrimary,
             )
             Spacer(Modifier.weight(1f))
-            if (today.isNotEmpty()) {
-                Text(
-                    text = "${today.size} open",
-                    fontFamily = TerminalTheme.mono,
-                    fontSize = 11.sp,
-                    color = HomeTokens.textDim,
-                )
-            }
         }
 
         // The inline add field — one tap + type + enter. Always on top,
@@ -234,10 +247,12 @@ private fun TodoContent(
         }
 
         // Rows — always scrolling, never capped: every task is reachable.
+        // fill = false: a short list leaves NO dead middle — the content
+        // sits under the tabs and the hint follows it immediately.
         if (list.isNotEmpty()) {
             Column(
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
             ) {
                 list.forEach { task ->
@@ -248,30 +263,36 @@ private fun TodoContent(
                         onToggleStar = { onToggleStar(task.id) },
                         onArchive = { onArchive(task.id) },
                         onRestore = { onRestore(task.id) },
+                        onDelete = { onDelete(task.id) },
                     )
                 }
             }
-        } else {
-            Spacer(Modifier.weight(1f))
         }
 
-        // Footer statistics — roomy cards only.
-                Spacer(Modifier.height(2.dp))
-        // The honest state line, every density, every theme.
-        Text(
-            text = when {
-                tasks == null -> "…"
-                section == TodoSection.TODAY && today.isEmpty() -> "Add your first task above"
-                section == TodoSection.TODAY -> "${today.size} open"
-                section == TodoSection.DONE && done.isEmpty() -> "Nothing completed yet"
-                section == TodoSection.DONE -> "${done.size} completed"
-                archived.isEmpty() -> "Nothing archived"
-                else -> "${archived.size} archived"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = if (list.isNotEmpty()) HomeTokens.accent else HomeTokens.textDim,
-            maxLines = 1,
-        )
+        // The one state line — ONLY what the tabs don't already say
+        // (the loading dots and the honest empty states). Counts appear
+        // exactly once in this card: on the tabs.
+        if (tasks == null) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "…",
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+            )
+        } else if (list.isEmpty()) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = when (section) {
+                    TodoSection.TODAY -> "Add your first task above"
+                    TodoSection.DONE -> "Nothing completed yet"
+                    TodoSection.ARCHIVED -> "Nothing archived"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = HomeTokens.textDim,
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -330,6 +351,7 @@ private fun TodoRow(
     onToggleStar: () -> Unit,
     onArchive: () -> Unit,
     onRestore: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -352,10 +374,43 @@ private fun TodoRow(
         )
         when (section) {
             TodoSection.TODAY -> Star(starred = task.starred, onToggle = onToggleStar)
-            TodoSection.DONE -> RowAction("ARCHIVE", onClick = onArchive)
-            TodoSection.ARCHIVED -> RowAction("RESTORE", onClick = onRestore)
+            TodoSection.DONE -> IconAction(
+                icon = Icons.Outlined.Archive,
+                label = "Archive task",
+                onClick = onArchive,
+            )
+            TodoSection.ARCHIVED -> IconAction(
+                icon = Icons.Outlined.Unarchive,
+                label = "Restore task",
+                onClick = onRestore,
+            )
         }
+        IconAction(
+            icon = Icons.Outlined.Delete,
+            label = "Delete task",
+            tint = HomeTokens.textDim,
+            onClick = onDelete,
+        )
     }
+}
+
+/** A compact row action: icon-first, named for accessibility. */
+@Composable
+private fun IconAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    tint: androidx.compose.ui.graphics.Color = HomeTokens.textDim,
+) {
+    Icon(
+        imageVector = icon,
+        contentDescription = label,
+        tint = tint,
+        modifier = Modifier
+            .size(22.dp)
+            .clickable(role = Role.Button, onClickLabel = label) { onClick() }
+            .padding(3.dp),
+    )
 }
 
 /** The completion box: square, terminal-drawn, no Material checkbox. */
@@ -400,16 +455,3 @@ private fun Star(starred: Boolean, onToggle: () -> Unit) {
     )
 }
 
-@Composable
-private fun RowAction(label: String, onClick: () -> Unit) {
-    Text(
-        text = label,
-        fontFamily = TerminalTheme.mono,
-        fontSize = 10.sp,
-        letterSpacing = 1.sp,
-        color = HomeTokens.textDim,
-        modifier = Modifier
-            .clickable(role = Role.Button, onClickLabel = label) { onClick() }
-            .padding(horizontal = 4.dp, vertical = 6.dp),
-    )
-}

@@ -41,6 +41,9 @@ class TodoRepository(private val context: Context) {
     suspend fun setArchived(id: String, archived: Boolean) =
         mutate { TodoTasks.setArchived(it, id, archived) }
 
+    /** M8.4.2 — the explicit delete (archive remains the soft path). */
+    suspend fun delete(id: String) = mutate { TodoTasks.delete(it, id) }
+
     suspend fun reorder(ids: List<String>) = mutate { TodoTasks.reorder(it, ids) }
 
     /** Atomic read-modify-write through DataStore's `edit` (IO executor). */
