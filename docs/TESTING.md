@@ -4587,9 +4587,15 @@ portrait): Storage sat in "Measuring…" on EVERY visit; Git re-probed
 ("Looking…") per visit; Todo repeated "3 open" twice and had NO delete;
 Sync's form still claimed "The card previews; it never copies." and
 showed "source is required" before any input; empty cards wasted their
-vertical middle. Laptop-side suite count recorded at delivery; device:
-SM-T870 only (`adb -s R52PEZDY` — pin corrected at gate time to
-`adb -s R52R30PEZDY`).
+vertical middle. Laptop-side suite 1532/1532 at delivery; device:
+SM-T870 only (`adb -s R52R30PEZDY`).
+
+DEVICE STATE AT DELIVERY: the S7 reconnected to adb while already PIN/
+biometric LOCKED — M8.4.2-L.apk installed successfully under lock
+("Success"), but screen capture returns empty on the secure keyguard and
+the lock cannot be dismissed remotely, so the walkthrough below is
+BLOCKED until the tablet is unlocked by hand. No gate item may be marked
+pass until then (no fake success).
 
 ### STATE ARCHITECTURE (framework)
 - [ ] Leave Home on ANY application (e.g. Git) → open Terminal → return:
